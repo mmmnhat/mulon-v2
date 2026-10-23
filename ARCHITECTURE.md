@@ -68,6 +68,10 @@ Phase 6 trình — không tự gửi.
 | `mulon/skills.py` | Skills SKILL.md: mục lục progressive disclosure, eligibility theo requires, vet tĩnh ghi trajectory; tool skill_list/skill_read |
 | `mulon/telegram_bot.py` | aiogram 3: batching, streaming edit, chunk HTML, session theo topic, /new kích hoạt consolidation, tin thoại -> STT, /voiceon//voiceoff |
 | `mulon/main.py` | Boot + `--dry-run` smoke test; vòng consolidation + scheduler + proactivity nền khi được bật đích danh |
+| `mulon/evals.py` | Eval vàng: nạp golden.jsonl + cases.jsonl (từ correction), chạy Agent trong DB/workspace tạm từng case với StubGateway tất định (offline) hoặc gateway thật (EVAL_LIVE=1), chấm bằng máy, cổng pass rate -> exit code; CLI `python -m mulon.evals` |
+| `mulon/tracing.py` | Langfuse tracing tuỳ chọn bọc gateway: chỉ metadata (model/token/latency/độ dài), không nội dung; thiếu env/gói -> no-op |
+| `mulon/backup.py` | Backup .zip (DB qua SQLite backup API + dossier + config không secret + manifest SHA-256); restore kiểm checksum trước khi ghi đè; CLI create/list/restore |
+| `mulon/report.py` | Báo cáo sức khỏe chỉ đọc: p50/p95 recall/model/task, đường cong học theo tuần ISO, correction rate 4 tuần, trạng thái ký ức; CLI `python -m mulon.report [--json]` |
 
 ## Nguyên tắc bất biến (rút từ mục 0 của thiết kế)
 
