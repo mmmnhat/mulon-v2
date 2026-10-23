@@ -20,6 +20,11 @@ venv/
 .pytest_cache/
 *.egg-info/
 
+# Runtime Phase 5 (backup + báo cáo/case do bot sinh khi chạy)
+backups/
+evals/report.json
+evals/cases.jsonl
+
 # Hệ điều hành / editor
 .DS_Store
 .idea/
