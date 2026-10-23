@@ -24,6 +24,7 @@ def cfg(tmp_path: Path) -> Config:
         workspace_dir=workspace,
         artifact_dir=tmp_path / "artifacts",
         policy_path=tmp_path / "policy.json",
+        vault_path=tmp_path / "vault.json",
     )
 
 
