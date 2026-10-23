@@ -173,6 +173,19 @@ class Config:
     # Thư mục chứa các gói backup .zip (mulon/backup.py).
     backup_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "backups")
 
+    # --- Phase 6: bề mặt group (mục 16) ---
+    # Secure Vault: form web một lần do agent tự host, bind
+    # 127.0.0.1. VAULT_PORT=0 = không mở server (lệnh /vault báo rõ).
+    vault_port: int = 8765
+    vault_path: Path = field(
+        default_factory=lambda: PROJECT_ROOT / "data" / "vault.json")
+    # Token link form: dùng 1 lần, hết hạn sau ngần này giây (~10 phút).
+    vault_token_ttl_s: int = 600
+    # Thẻ ý tưởng tự hết hạn sau ngần này ngày (thiết kế: ~2 tuần).
+    idea_ttl_days: int = 14
+    # File trong thùng rác Library khôi phục được trong ngần này ngày.
+    library_trash_days: int = 30
+
     @classmethod
     def load(cls, env_file: str | Path | None = None) -> "Config":
         """Nạp .env (nếu có) rồi đọc env. Không ghi secret ra bất cứ đâu."""
@@ -258,6 +271,11 @@ class Config:
             langfuse_secret_key=_env("LANGFUSE_SECRET_KEY", ""),
             langfuse_host=_env("LANGFUSE_HOST", ""),
             backup_dir=_resolve(_env("BACKUP_DIR", "backups")),
+            vault_port=_env_int("VAULT_PORT", 8765),
+            vault_path=_resolve(_env("VAULT_PATH", "data/vault.json")),
+            vault_token_ttl_s=_env_int("VAULT_TOKEN_TTL_S", 600),
+            idea_ttl_days=_env_int("IDEA_TTL_DAYS", 14),
+            library_trash_days=_env_int("LIBRARY_TRASH_DAYS", 30),
         )
 
     def masked_summary(self) -> dict:
@@ -301,4 +319,8 @@ class Config:
             ),
             "langfuse_host": self.langfuse_host or "(unset)",
             "backup_dir": str(self.backup_dir),
+            "vault_port": self.vault_port,
+            "vault_path": str(self.vault_path),
+            "idea_ttl_days": self.idea_ttl_days,
+            "library_trash_days": self.library_trash_days,
         }
