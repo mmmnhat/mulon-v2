@@ -161,6 +161,18 @@ class Config:
     # thư mục con, mỗi thư mục 1 SKILL.md.
     skills_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "skills")
 
+    # --- Phase 5: cứng hóa (mục 10, 11) ---
+    # Cổng eval vàng: pass rate tổng dưới ngưỡng này -> runner thoát 1.
+    eval_pass_threshold: float = 0.85
+    # Langfuse tracing TUỲ CHỌN: chỉ bật khi đủ cả 3 env. Thiếu một
+    # trong ba (hoặc thiếu gói langfuse) -> tracing no-op hoàn toàn,
+    # hành vi bot không đổi. Secret chỉ sống trong env, không log.
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_host: str = ""
+    # Thư mục chứa các gói backup .zip (mulon/backup.py).
+    backup_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "backups")
+
     @classmethod
     def load(cls, env_file: str | Path | None = None) -> "Config":
         """Nạp .env (nếu có) rồi đọc env. Không ghi secret ra bất cứ đâu."""
@@ -241,6 +253,11 @@ class Config:
             media_ffprobe=_env("MEDIA_FFPROBE", "ffprobe"),
             media_timeout_s=_env_float("MEDIA_TIMEOUT_S", 300.0),
             skills_dir=_resolve(_env("SKILLS_DIR", "skills")),
+            eval_pass_threshold=_env_float("EVAL_PASS_THRESHOLD", 0.85),
+            langfuse_public_key=_env("LANGFUSE_PUBLIC_KEY", ""),
+            langfuse_secret_key=_env("LANGFUSE_SECRET_KEY", ""),
+            langfuse_host=_env("LANGFUSE_HOST", ""),
+            backup_dir=_resolve(_env("BACKUP_DIR", "backups")),
         )
 
     def masked_summary(self) -> dict:
@@ -277,4 +294,11 @@ class Config:
             "voice_tts_model": self.voice_tts_model,
             "voice_tts_voice": self.voice_tts_voice,
             "skills_dir": str(self.skills_dir),
+            "eval_pass_threshold": self.eval_pass_threshold,
+            "langfuse_enabled": bool(
+                self.langfuse_public_key and self.langfuse_secret_key
+                and self.langfuse_host
+            ),
+            "langfuse_host": self.langfuse_host or "(unset)",
+            "backup_dir": str(self.backup_dir),
         }
