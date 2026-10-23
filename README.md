@@ -139,6 +139,39 @@ registry, dossier), bỏ toàn bộ code lõi cũ.
   không pattern lệnh nguy hiểm) và kết quả vet ghi trajectory.
   Kèm 1 skill mẫu `skills/tom-tat-luot-chat/`.
 
+## Đã có thêm ở Phase 5 — cứng hóa
+
+- **Eval vàng chạy thật** (`mulon/evals.py` + `evals/`): bộ
+  `evals/golden.jsonl` gồm 30 case theo 5 họ việc thật (trí nhớ,
+  correction, dùng tool, trung thực khi thiếu dữ kiện, giọng) —
+  chấm hoàn toàn bằng máy (contains_all / contains_any /
+  not_contains / tool_called / fact_recalled), không LLM-judge.
+  Case do correction nghiêm trọng sinh ra ở Phase 2
+  (`evals/cases.jsonl`) được nạp và chạy cùng. Hai chế độ:
+  **stub** (mặc định, offline — gateway tham chiếu tất định chỉ
+  trả lời được từ ngữ cảnh + tool thật, đo đúng đường ống) và
+  **live** (`EVAL_LIVE=1`, gateway thật qua proxy). Cổng chất
+  lượng: pass rate < `EVAL_PASS_THRESHOLD` (mặc định 85%) →
+  thoát mã 1. Chạy: `python -m mulon.evals [--live] [--json]`,
+  báo cáo ghi ra `evals/report.json`.
+- **CI GitHub Actions** (`.github/workflows/ci.yml`): push/PR →
+  Python 3.12, pytest toàn bộ + dry-run; job riêng chạy eval
+  stub làm cổng chất lượng.
+- **Langfuse tracing tuỳ chọn** (`mulon/tracing.py`): bọc
+  gateway, chỉ ghi metadata (model, token, latency, độ dài
+  vào/ra) — **không ghi nội dung tin nhắn/prompt/secret**. Thiếu
+  env `LANGFUSE_*` hoặc thiếu gói → no-op hoàn toàn.
+- **Backup / restore** (`mulon/backup.py`): gói `.zip` gồm DB
+  (chụp bằng SQLite backup API, nhất quán), `dossier/`, config
+  không secret (`.env` không bao giờ vào gói) + manifest
+  SHA-256. Restore kiểm checksum toàn gói trước khi ghi đè,
+  gói lỗi thì từ chối. `python -m mulon.backup create|list|restore`.
+- **Báo cáo sức khỏe** (`mulon/report.py`): `python -m mulon.report
+  [--json]` — số lượt chat, p50/p95 độ trễ recall + lời gọi model
+  + tác vụ, tổng lời gọi LLM và tỉ lệ lỗi sau retry theo tuần
+  ISO (đường cong học), correction rate 4 tuần gần nhất, fact
+  đang sống/đã thay thế/bài học đang áp dụng, dung lượng DB.
+
 ## Thành phần Phase 1 (nền)
 
 - **Tool registry** (`mulon/tools.py`): read/write/edit file, list_dir,
@@ -158,13 +191,12 @@ registry, dossier), bỏ toàn bộ code lõi cũ.
 
 ## Chưa có (khung chờ các phase sau)
 
-- **Phase 5**: chạy bộ eval vàng tự động (hiện mới sinh case) +
-  Langfuse (trace/cost/latency) — nghiệm thu đổi model bằng
-  config đo bằng eval.
 - **Phase 6**: bề mặt group đầy đủ (topic = tab: Feed, Ideas,
   Goals, Library, Lịch sử & Hệ thống), trình các đề xuất
   `proactive_notes` đang xếp hàng, Secure Vault (form web bảo
   mật dùng một lần), quản lý quyền bằng lời thường.
+- Dashboard Langfuse self-host chạy kèm (docker compose) —
+  hiện mới có phía client ghi trace khi được cấu hình.
 - **Đang chờ** (ngoài roadmap gốc): alignment synthesis worker
   (tổng hợp `alignment.md` hằng ngày), consolidation tách fact
   thành `people/*.md`/`groups/*.md` (hiện mới ghi vào DB), thủ
