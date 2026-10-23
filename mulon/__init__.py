@@ -1,4 +1,4 @@
-"""Mulon — Muse clone (Phase 1 + 2 + 3 + 4).
+"""Mulon — Muse clone (Phase 1 + 2 + 3 + 4 + 5).
 
 Lõi agent mỏng tự viết theo tài liệu thiết kế
 ``thiet-ke-ky-thuat-muse-clone.md``: gateway model qua LiteLLM trỏ vào
@@ -14,6 +14,10 @@ Phase 4 thêm chủ động + tiếng nói + media: proactivity engine
 chiều (faster-whisper + hiểu ngữ / TTS qua proxy), media pipeline
 tools (ffmpeg), MCP streamable HTTP, browser profile bền, skills
 system SKILL.md (progressive disclosure + vet tĩnh).
+Phase 5 thêm cứng hóa: bộ eval vàng chạy thật (golden + case từ
+correction, cổng pass rate), CI GitHub Actions, Langfuse tracing
+tuỳ chọn (chỉ metadata, không nội dung), backup/restore có
+checksum, báo cáo sức khỏe + đường cong học theo tuần.
 """
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
