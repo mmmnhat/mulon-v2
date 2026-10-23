@@ -7,23 +7,29 @@ Ba lớp tách bạch theo thiết kế mục 4.1:
   (valid_from / valid_to / superseded_by / source_msg_id, mượn schema
   Graphiti — Phụ lục 15.2): fact cũ bị thay thế chứ không bị xóa.
 
-Recall: giao diện hybrid sạch. Bản Phase 1 chạy FTS/BM25 làm chính;
-vector qua sqlite-vec là optional import — nếu extension không có,
-recall tự degrade xuống BM25-only (fallback chain kiểu OpenClaw, mục
-4.2) thay vì sập.
+Recall (Phase 2, mục 4.2): hybrid thật — FTS/BM25 + vector sqlite-vec
+hợp nhất theo trọng số (mặc định 70% vector / 30% BM25, điểm từng
+nhánh chuẩn hoá về [0,1] trước khi trộn). Đánh chỉ mục LÚC GHI:
+message/fact vừa ghi được embed ngay (best-effort, có timeout, lỗi
+thì bỏ qua và consolidation backfill sau). Embedder vắng hoặc lỗi
+-> recall degrade xuống BM25-only + ghi trajectory, không sập.
 """
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import re
+import time
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 import aiosqlite
+
+from .embeddings import normalize
 
 # sqlite-vec là optional: có thì bật đường vector, không có thì BM25-only.
 try:  # pragma: no cover - phụ thuộc môi trường
@@ -182,6 +188,44 @@ CREATE TABLE IF NOT EXISTS ledger (
     detail     TEXT DEFAULT '',
     created_at TEXT NOT NULL
 );
+
+-- ===== Phase 2: ký ức sống (mục 4.3, 4.4) =====
+
+CREATE TABLE IF NOT EXISTS kv_state (
+    key        TEXT PRIMARY KEY,
+    value      TEXT NOT NULL DEFAULT ''
+);
+
+-- Sự kiện user sửa agent (mục 4.4 tầng 2): ghi NGAY trong lượt.
+-- category theo taxonomy cố định: du_kien / quy_trinh / giong_format /
+-- tool / tri_nho. severity='critical' khi đụng tiền bạc / an toàn.
+CREATE TABLE IF NOT EXISTS corrections (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_key      TEXT NOT NULL DEFAULT '',
+    user_msg_id      INTEGER,
+    original_request TEXT NOT NULL DEFAULT '',
+    wrong_output     TEXT NOT NULL DEFAULT '',
+    corrected        TEXT NOT NULL DEFAULT '',
+    category         TEXT NOT NULL DEFAULT '',
+    severity         TEXT NOT NULL DEFAULT 'normal',
+    explicit         INTEGER NOT NULL DEFAULT 0,
+    status           TEXT NOT NULL DEFAULT 'recorded',
+    lesson_fact_id   INTEGER,
+    created_at       TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_corrections_cat ON corrections(category, status);
+
+-- Digest của background review fork sau mỗi lượt (mục 4.3, pattern Hermes).
+CREATE TABLE IF NOT EXISTS turn_digests (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_key      TEXT NOT NULL DEFAULT '',
+    user_msg_id      INTEGER,
+    assistant_msg_id INTEGER,
+    digest           TEXT NOT NULL DEFAULT '',
+    facts_saved      INTEGER NOT NULL DEFAULT 0,
+    correction_id    INTEGER,
+    created_at       TEXT NOT NULL
+);
 """
 
 
@@ -191,6 +235,15 @@ class Memory:
     def __init__(self, db: aiosqlite.Connection):
         self.db = db
         self.vector_enabled = False
+        # Phase 2: embedder + đường vector. vector_enabled (Phase 1) chỉ
+        # nói extension sqlite-vec nạp được; vec_ready mới là "hybrid
+        # chạy thật" (extension + embedder + bảng vec đúng số chiều).
+        self.embedder = None
+        self.vec_ready = False
+        self._vec_ext_loaded = False
+        self.embed_timeout_s = 5.0
+        self.recall_vector_weight = 0.7
+        self.recall_bm25_weight = 0.3
 
     # ---------- mở / đóng ----------
     @classmethod
@@ -206,16 +259,153 @@ class Memory:
         return mem
 
     async def _try_enable_vector(self) -> bool:
-        """Bật sqlite-vec nếu import được; không được thì BM25-only."""
+        """Nạp extension sqlite-vec nếu gói có mặt; không thì BM25-only.
+
+        Lưu ý kỹ thuật: phải dùng `db.load_extension(loadable_path())`
+        của aiosqlite — helper `sqlite_vec.load(conn)` chỉ hợp với
+        sqlite3 đồng bộ, gọi trên aiosqlite sẽ không nạp được gì.
+        """
         if not HAS_SQLITE_VEC:
             return False
-        try:  # pragma: no cover - phụ thuộc extension của môi trường
+        if self._vec_ext_loaded:
+            return True
+        try:
             await self.db.enable_load_extension(True)
-            await sqlite_vec.load(self.db)  # type: ignore[union-attr]
+            await self.db.load_extension(sqlite_vec.loadable_path())  # type: ignore[union-attr]
             await self.db.enable_load_extension(False)
+            self._vec_ext_loaded = True
             return True
         except Exception:
             return False
+
+    # ---------- embedder & bảng vector (Phase 2) ----------
+    async def set_embedder(self, embedder) -> bool:
+        """Gắn embedder và dựng bảng vec0 đúng số chiều.
+
+        Trả True khi đường hybrid sẵn sàng. Mọi lỗi (thiếu extension,
+        lệch số chiều với DB cũ) đều degrade sạch: giữ BM25-only.
+        """
+        self.embedder = embedder
+        self.vec_ready = False
+        if embedder is None:
+            return False
+        if not await self._try_enable_vector():
+            return False
+        try:
+            stored_dim = await self.kv_get("vec_dim")
+            if stored_dim and int(stored_dim) != int(embedder.dim):
+                await self.log_trajectory(
+                    "", "vector_dim_mismatch",
+                    {"stored": stored_dim, "embedder": int(embedder.dim)},
+                )
+                return False
+            dim = int(embedder.dim)
+            await self.db.execute(
+                f"CREATE VIRTUAL TABLE IF NOT EXISTS messages_vec "
+                f"USING vec0(embedding float[{dim}])"
+            )
+            await self.db.execute(
+                f"CREATE VIRTUAL TABLE IF NOT EXISTS facts_vec "
+                f"USING vec0(embedding float[{dim}])"
+            )
+            await self.db.commit()
+            await self.kv_set("vec_dim", str(dim))
+            self.vector_enabled = True
+            self.vec_ready = True
+            return True
+        except Exception as exc:
+            await self.log_trajectory("", "vector_setup_failed",
+                                      {"error": str(exc)})
+            return False
+
+    async def _embed_texts(self, texts: list[str]) -> Optional[list[list[float]]]:
+        """Embed 1 lô text (đã chuẩn hoá đơn vị). Lỗi/timeout -> None."""
+        if not self.vec_ready or self.embedder is None or not texts:
+            return None
+        try:
+            raw = await asyncio.wait_for(
+                asyncio.to_thread(self.embedder.embed, texts),
+                timeout=self.embed_timeout_s,
+            )
+            vecs = [normalize(v) for v in raw]
+            if any(len(v) != int(self.embedder.dim) for v in vecs):
+                raise ValueError("embedder trả vector sai số chiều")
+            return vecs
+        except Exception as exc:
+            await self.log_trajectory("", "embed_error", {"error": str(exc)})
+            return None
+
+    async def _vec_upsert(self, table: str, rowid: int, vec: list[float]) -> None:
+        blob = sqlite_vec.serialize_float32(vec)  # type: ignore[union-attr]
+        await self.db.execute(f"DELETE FROM {table} WHERE rowid=?", (rowid,))
+        await self.db.execute(
+            f"INSERT INTO {table}(rowid, embedding) VALUES (?,?)",
+            (rowid, blob),
+        )
+        await self.db.commit()
+
+    async def _index_message_embedding(self, msg_id: int, content: str) -> None:
+        """Đánh chỉ mục vector cho message NGAY lúc ghi (mục 4.2)."""
+        vecs = await self._embed_texts([content])
+        if vecs:
+            try:
+                await self._vec_upsert("messages_vec", msg_id, vecs[0])
+            except Exception as exc:
+                await self.log_trajectory("", "embed_error",
+                                          {"error": str(exc)})
+
+    async def _index_fact_embedding(self, fact_id: int, subject: str,
+                                    fact: str) -> None:
+        text = f"{subject}: {fact}" if subject else fact
+        vecs = await self._embed_texts([text])
+        if vecs:
+            try:
+                await self._vec_upsert("facts_vec", fact_id, vecs[0])
+            except Exception as exc:
+                await self.log_trajectory("", "embed_error",
+                                          {"error": str(exc)})
+
+    async def backfill_embeddings(self, limit: int = 200) -> int:
+        """Nhúng bù các message/fact còn thiếu vector (consolidation gọi)."""
+        if not self.vec_ready:
+            return 0
+        done = 0
+        try:
+            cur = await self.db.execute(
+                "SELECT m.id, m.content FROM messages m"
+                " LEFT JOIN messages_vec v ON v.rowid = m.id"
+                " WHERE v.rowid IS NULL ORDER BY m.id LIMIT ?",
+                (limit,),
+            )
+            rows = [dict(r) for r in await cur.fetchall()]
+            if rows:
+                vecs = await self._embed_texts([r["content"] for r in rows])
+                if vecs:
+                    for r, v in zip(rows, vecs):
+                        await self._vec_upsert("messages_vec", int(r["id"]), v)
+                        done += 1
+            cur = await self.db.execute(
+                "SELECT f.id, f.subject, f.fact FROM memory_facts f"
+                " LEFT JOIN facts_vec v ON v.rowid = f.id"
+                " WHERE v.rowid IS NULL AND f.valid_to IS NULL"
+                " ORDER BY f.id LIMIT ?",
+                (limit,),
+            )
+            rows = [dict(r) for r in await cur.fetchall()]
+            if rows:
+                texts = [
+                    f"{r['subject']}: {r['fact']}" if r["subject"] else r["fact"]
+                    for r in rows
+                ]
+                vecs = await self._embed_texts(texts)
+                if vecs:
+                    for r, v in zip(rows, vecs):
+                        await self._vec_upsert("facts_vec", int(r["id"]), v)
+                        done += 1
+        except Exception as exc:
+            await self.log_trajectory("", "embed_error",
+                                      {"error": f"backfill: {exc}"})
+        return done
 
     async def close(self) -> None:
         await self.db.close()
@@ -280,7 +470,11 @@ class Memory:
             ),
         )
         await self.db.commit()
-        return int(cur.lastrowid)
+        msg_id = int(cur.lastrowid)
+        # Đánh chỉ mục lúc ghi (mục 4.2): embed ngay, best-effort —
+        # lỗi/timeout thì consolidation backfill sau, không chặn ghi.
+        await self._index_message_embedding(msg_id, content)
+        return msg_id
 
     async def recent_messages(
         self, session_key: str, limit: int = 60, after_id: int = 0
@@ -333,6 +527,7 @@ class Memory:
                 (ts, new_id, old_id),
             )
         await self.db.commit()
+        await self._index_fact_embedding(new_id, subject, fact)
         return new_id
 
     async def active_facts(self, limit: int = 200) -> list[dict]:
@@ -350,45 +545,79 @@ class Memory:
         row = await cur.fetchone()
         return dict(row) if row else None
 
-    # ---------- recall (hybrid: FTS/BM25 chính, vector optional) ----------
+    # ---------- recall hybrid (Phase 2, mục 4.2) ----------
+    async def _knn(self, table: str, query_vec: list[float],
+                   k: int) -> list[tuple[int, float]]:
+        """KNN trên bảng vec0 -> [(rowid, cosine)] với vector đã chuẩn hoá.
+
+        sqlite-vec trả khoảng cách L2; với vector đơn vị:
+        cos = 1 - d^2/2. Lỗi ở đây được recall() bắt và degrade.
+        """
+        blob = sqlite_vec.serialize_float32(query_vec)  # type: ignore[union-attr]
+        cur = await self.db.execute(
+            f"SELECT rowid, distance FROM {table}"
+            f" WHERE embedding MATCH ? AND k = {int(k)} ORDER BY distance",
+            (blob,),
+        )
+        out: list[tuple[int, float]] = []
+        for rowid, dist in await cur.fetchall():
+            d = float(dist)
+            cos = max(0.0, min(1.0, 1.0 - d * d / 2.0))
+            out.append((int(rowid), cos))
+        return out
+
     async def recall(
         self,
         query: str,
         limit: int = 8,
         exclude_session: Optional[str] = None,
     ) -> list[dict]:
-        """Tìm ký ức liên quan: facts đang hiệu lực + đoạn hội thoại cũ.
+        """Hybrid recall: facts đang hiệu lực + đoạn hội thoại cũ.
 
-        Trả về bản ghi nguyên văn (session search kiểu Hermes — không
-        tóm tắt bằng LLM). Vector là đường nâng cấp sau cùng interface
-        này khi có embedder; bản Phase 1 là BM25/FTS.
+        Hai nhánh FTS/BM25 và vector chạy rồi hợp nhất theo trọng số
+        (mặc định 70% vector / 30% BM25); điểm BM25 được chuẩn hoá
+        1/(1+|rank|) về (0,1], vector dùng cosine [0,1]. Embedder lỗi
+        -> degrade BM25-only + trajectory. Không LLM rerank ở đây.
+        Trả bản ghi nguyên văn (không tóm tắt bằng LLM).
         """
         if not query.strip():
             return []
+        started = time.perf_counter()
+        mode = "bm25"
         fts = _fts_query(query)
-        hits: dict[str, dict] = {}
+        cand: dict[str, dict] = {}
 
+        def slot(key: str, base: dict) -> dict:
+            if key not in cand:
+                base.update({"score_vec": 0.0, "score_bm25": 0.0,
+                             "salience": 0.0})
+                cand[key] = base
+            return cand[key]
+
+        # --- nhánh BM25/FTS ---
+        pool = max(limit * 2, 8)
         cur = await self.db.execute(
             "SELECT f.id AS fid, f.subject, f.fact, f.salience,"
-            " bm25(facts_fts) AS rank"
+            " f.created_at, bm25(facts_fts) AS rank"
             " FROM facts_fts JOIN memory_facts f ON f.id = facts_fts.rowid"
             " WHERE facts_fts MATCH ? AND f.valid_to IS NULL"
             " ORDER BY rank LIMIT ?",
-            (fts, limit),
+            (fts, pool),
         )
         for r in await cur.fetchall():
             d = dict(r)
-            key = f"fact:{d['fid']}"
-            hits[key] = {
-                "source": "fact",
-                "id": d["fid"],
-                "text": (f"[{d['subject']}] " if d["subject"] else "") + d["fact"],
-                "score": float(d["salience"]) + 1.0 / (1.0 + abs(float(d["rank"]))),
-            }
+            h = slot(f"fact:{d['fid']}", {
+                "source": "fact", "id": d["fid"],
+                "text": (f"[{d['subject']}] " if d["subject"] else "")
+                        + d["fact"],
+                "created_at": d["created_at"],
+            })
+            h["score_bm25"] = 1.0 / (1.0 + abs(float(d["rank"])))
+            h["salience"] = float(d["salience"])
 
         sql = (
             "SELECT m.id AS mid, m.session_key, m.role, m.content,"
-            " bm25(messages_fts) AS rank"
+            " m.created_at, bm25(messages_fts) AS rank"
             " FROM messages_fts JOIN messages m ON m.id = messages_fts.rowid"
             " WHERE messages_fts MATCH ?"
         )
@@ -397,20 +626,113 @@ class Memory:
             sql += " AND m.session_key <> ?"
             params.append(exclude_session)
         sql += " ORDER BY rank LIMIT ?"
-        params.append(limit)
+        params.append(pool)
         cur = await self.db.execute(sql, params)
         for r in await cur.fetchall():
             d = dict(r)
-            key = f"message:{d['mid']}"
-            hits[key] = {
-                "source": "message",
-                "id": d["mid"],
+            h = slot(f"message:{d['mid']}", {
+                "source": "message", "id": d["mid"],
                 "text": d["content"],
-                "score": 1.0 / (1.0 + abs(float(d["rank"]))),
-            }
+                "session_key": d["session_key"],
+                "created_at": d["created_at"],
+            })
+            h["score_bm25"] = 1.0 / (1.0 + abs(float(d["rank"])))
 
-        merged = sorted(hits.values(), key=lambda h: h["score"], reverse=True)
-        return merged[:limit]
+        # --- nhánh vector (chỉ embed đúng 1 câu truy vấn — mục 4.2) ---
+        if self.vec_ready and self.embedder is not None:
+            try:
+                qvecs = await asyncio.wait_for(
+                    asyncio.to_thread(self.embedder.embed, [query]),
+                    timeout=self.embed_timeout_s,
+                )
+                qvec = normalize(qvecs[0])
+                if len(qvec) != int(self.embedder.dim):
+                    raise ValueError("query vector sai số chiều")
+                mode = "hybrid"
+                for rid, cos in await self._knn("facts_vec", qvec, pool * 2):
+                    fact = await self.get_fact(rid)
+                    if fact is None or fact.get("valid_to") is not None:
+                        continue
+                    h = slot(f"fact:{rid}", {
+                        "source": "fact", "id": rid,
+                        "text": (f"[{fact['subject']}] " if fact["subject"]
+                                 else "") + fact["fact"],
+                        "created_at": fact["created_at"],
+                    })
+                    h["score_vec"] = max(h["score_vec"], cos)
+                    h["salience"] = float(fact["salience"])
+                for rid, cos in await self._knn("messages_vec", qvec,
+                                                pool * 2):
+                    msg = await self.get_message(rid)
+                    if msg is None:
+                        continue
+                    if exclude_session and \
+                            msg["session_key"] == exclude_session:
+                        continue
+                    h = slot(f"message:{rid}", {
+                        "source": "message", "id": rid,
+                        "text": msg["content"],
+                        "session_key": msg["session_key"],
+                        "created_at": msg["created_at"],
+                    })
+                    h["score_vec"] = max(h["score_vec"], cos)
+            except Exception as exc:
+                mode = "bm25_degraded"
+                await self.log_trajectory(
+                    "", "recall_degraded", {"error": str(exc)}
+                )
+
+        # --- hợp nhất theo trọng số ---
+        wv, wb = self.recall_vector_weight, self.recall_bm25_weight
+        for h in cand.values():
+            score = wv * h["score_vec"] + wb * h["score_bm25"]
+            if h["source"] == "fact":
+                score += 0.05 * h["salience"]  # tie-break độ quan trọng
+            h["score"] = score
+        merged = sorted(cand.values(), key=lambda h: h["score"],
+                        reverse=True)[:limit]
+        ms = (time.perf_counter() - started) * 1000.0
+        await self.log_trajectory(
+            "", "recall",
+            {"ms": round(ms, 2), "mode": mode, "hits": len(merged),
+             "candidates": len(cand)},
+        )
+        return merged
+
+    async def session_search(
+        self,
+        query: str,
+        limit: int = 8,
+        exclude_session: Optional[str] = None,
+    ) -> list[dict]:
+        """Tìm trong episodic: trả tin gốc NGUYÊN VĂN + session + thời
+        gian (session search kiểu Hermes — không tóm tắt, không LLM)."""
+        if not query.strip():
+            return []
+        fts = _fts_query(query)
+        sql = (
+            "SELECT m.id AS mid, m.session_key, m.role, m.content,"
+            " m.created_at, bm25(messages_fts) AS rank"
+            " FROM messages_fts JOIN messages m ON m.id = messages_fts.rowid"
+            " WHERE messages_fts MATCH ?"
+        )
+        params: list[Any] = [fts]
+        if exclude_session:
+            sql += " AND m.session_key <> ?"
+            params.append(exclude_session)
+        sql += " ORDER BY rank LIMIT ?"
+        params.append(int(limit))
+        cur = await self.db.execute(sql, params)
+        return [
+            {
+                "message_id": int(r["mid"]),
+                "session_key": r["session_key"],
+                "role": r["role"],
+                "content": r["content"],
+                "created_at": r["created_at"],
+            }
+            for r in await cur.fetchall()
+        ]
 
     # ---------- tasks (working memory) ----------
     async def create_task(
@@ -495,3 +817,110 @@ class Memory:
         )
         await self.db.commit()
         return int(cur.lastrowid)
+
+    # ---------- kv_state (watermark, cấu hình bền) ----------
+    async def kv_get(self, key: str) -> Optional[str]:
+        cur = await self.db.execute(
+            "SELECT value FROM kv_state WHERE key=?", (key,)
+        )
+        row = await cur.fetchone()
+        return row["value"] if row else None
+
+    async def kv_set(self, key: str, value: str) -> None:
+        await self.db.execute(
+            "INSERT INTO kv_state(key, value) VALUES (?,?)"
+            " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (key, value),
+        )
+        await self.db.commit()
+
+    # ---------- corrections (mục 4.4 tầng 2) ----------
+    async def add_correction(
+        self,
+        session_key: str,
+        corrected: str,
+        original_request: str = "",
+        wrong_output: str = "",
+        user_msg_id: Optional[int] = None,
+        category: str = "",
+        severity: str = "normal",
+        explicit: bool = False,
+    ) -> int:
+        cur = await self.db.execute(
+            "INSERT INTO corrections(session_key, user_msg_id,"
+            " original_request, wrong_output, corrected, category,"
+            " severity, explicit, status, created_at)"
+            " VALUES (?,?,?,?,?,?,?,?, 'recorded', ?)",
+            (session_key, user_msg_id, original_request, wrong_output,
+             corrected, category, severity, 1 if explicit else 0, now_iso()),
+        )
+        await self.db.commit()
+        return int(cur.lastrowid)
+
+    async def get_correction(self, correction_id: int) -> Optional[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM corrections WHERE id=?", (correction_id,)
+        )
+        row = await cur.fetchone()
+        return dict(row) if row else None
+
+    async def count_corrections(self, category: Optional[str] = None) -> int:
+        """Đếm correction (trừ bản đã bị đánh dấu không hiệu lực)."""
+        sql = "SELECT COUNT(*) AS n FROM corrections WHERE status <> 'ineffective'"
+        params: list[Any] = []
+        if category:
+            sql += " AND category=?"
+            params.append(category)
+        cur = await self.db.execute(sql, params)
+        row = await cur.fetchone()
+        return int(row["n"]) if row else 0
+
+    async def set_correction_lesson(self, correction_id: int,
+                                    lesson_fact_id: int) -> None:
+        await self.db.execute(
+            "UPDATE corrections SET status='lesson_created', lesson_fact_id=?"
+            " WHERE id=?",
+            (lesson_fact_id, correction_id),
+        )
+        await self.db.commit()
+
+    async def list_corrections(self, limit: int = 50) -> list[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM corrections ORDER BY id DESC LIMIT ?", (limit,)
+        )
+        return [dict(r) for r in await cur.fetchall()]
+
+    # ---------- turn digests (review fork, mục 4.3) ----------
+    async def add_digest(
+        self,
+        session_key: str,
+        user_msg_id: Optional[int],
+        assistant_msg_id: Optional[int],
+        digest: str,
+        facts_saved: int = 0,
+        correction_id: Optional[int] = None,
+    ) -> int:
+        cur = await self.db.execute(
+            "INSERT INTO turn_digests(session_key, user_msg_id,"
+            " assistant_msg_id, digest, facts_saved, correction_id,"
+            " created_at) VALUES (?,?,?,?,?,?,?)",
+            (session_key, user_msg_id, assistant_msg_id, digest,
+             int(facts_saved), correction_id, now_iso()),
+        )
+        await self.db.commit()
+        return int(cur.lastrowid)
+
+    async def list_digests(self, session_key: Optional[str] = None,
+                           limit: int = 50) -> list[dict]:
+        if session_key:
+            cur = await self.db.execute(
+                "SELECT * FROM turn_digests WHERE session_key=?"
+                " ORDER BY id DESC LIMIT ?",
+                (session_key, limit),
+            )
+        else:
+            cur = await self.db.execute(
+                "SELECT * FROM turn_digests ORDER BY id DESC LIMIT ?",
+                (limit,),
+            )
+        return [dict(r) for r in await cur.fetchall()]

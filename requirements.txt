@@ -6,3 +6,9 @@ aiosqlite>=0.22,<0.23
 pydantic>=2.13,<2.14
 httpx>=0.28,<0.29
 python-dotenv>=1.2,<1.3
+# Phase 2: extension vector cho hybrid recall (gói nhỏ, thuần extension).
+# Vắng thì recall tự degrade xuống BM25-only.
+sqlite-vec>=0.1.9,<0.2
+# Tuỳ chọn (Phase 2): embedding local bge-m3 cho hybrid recall.
+# Không cài vẫn chạy (BM25-only). Cài bằng:
+#   pip install "fastembed>=0.7,<0.8"

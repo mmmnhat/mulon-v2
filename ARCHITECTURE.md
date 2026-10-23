@@ -9,13 +9,18 @@ open-source). File này chỉ tóm tắt để đọc nhanh trong repo.
 ```
 Telegram (DM / group forum topic)
   -> allowlist + gom tin (debounce) + reaction ack
-  -> ContextEngine: dossier snapshot + recall (FTS/BM25, trần token)
+  -> phát hiện correction (heuristic + model rẻ) -> ghi sự kiện học
+  -> ContextEngine: dossier snapshot + BÀI HỌC (facts lesson:*)
+     + recall hybrid (vector 70% + BM25 30%, trần token, đo ms)
      + history (tóm tắt + lượt gần), đếm token theo ngân sách 200K
   -> Agent:
        chat thường -> 1 lời gọi streaming (fast path)
        việc có tool/dài -> plan (lưu DB) -> act (tool song song,
          kết quả qua trim/offload) -> verify độc lập -> report thật
   -> history lưu CHỈ câu trả lời sạch; trace vào trajectory
+  -> nền (không chặn lượt): review fork ghi digest/fact;
+     consolidation (khi được bật) trích fact, supersede, backfill
+     embedding; message/fact được embed ngay lúc ghi
 ```
 
 ## Module
@@ -24,13 +29,16 @@ Telegram (DM / group forum topic)
 |---|---|
 | `mulon/config.py` | Cấu hình qua env, không hardcode giá trị cá nhân |
 | `mulon/gateway.py` | LiteLLM -> proxy; retry, circuit breaker, đo latency/token |
-| `mulon/context.py` | Dossier snapshot, ngân sách token, trim, compaction + memory flush |
-| `mulon/memory.py` | SQLite WAL: messages/FTS5, facts bi-temporal, tasks, trajectory, ledger |
-| `mulon/tools.py` | Registry + tool lõi; contract tên/schema bị khóa bởi test |
+| `mulon/context.py` | Dossier snapshot, mục bài học, ngân sách token, trim, compaction + memory flush |
+| `mulon/memory.py` | SQLite WAL: messages/FTS5, facts bi-temporal, bảng vec0 + chỉ mục lúc ghi, corrections, turn_digests, tasks, trajectory, ledger |
+| `mulon/embeddings.py` | Interface Embedder: FastEmbed bge-m3 (lazy, tuỳ chọn) + stub tất định cho test |
+| `mulon/learning.py` | Phát hiện correction, phân loại taxonomy, rút bài học chống overfit, sinh eval case |
+| `mulon/consolidation.py` | Worker tổng hợp ký ức: trích fact, khử trùng, supersede, backfill embedding; CLI `--once` |
+| `mulon/tools.py` | Registry + tool lõi (gồm session_search); contract tên/schema bị khóa bởi test |
 | `mulon/policy.py` | Policy 2 lớp (host thắng session), mặc định full-auto |
-| `mulon/agent.py` | Vòng plan-act-verify, ngân sách tác vụ, báo cáo trung thực |
-| `mulon/telegram_bot.py` | aiogram 3: batching, streaming edit, chunk HTML, session theo topic |
-| `mulon/main.py` | Boot + `--dry-run` smoke test |
+| `mulon/agent.py` | Vòng plan-act-verify, ngân sách tác vụ, hook correction + review fork nền |
+| `mulon/telegram_bot.py` | aiogram 3: batching, streaming edit, chunk HTML, session theo topic, /new kích hoạt consolidation |
+| `mulon/main.py` | Boot + `--dry-run` smoke test; vòng consolidation nền khi được bật |
 
 ## Nguyên tắc bất biến (rút từ mục 0 của thiết kế)
 

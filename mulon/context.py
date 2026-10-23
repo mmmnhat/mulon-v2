@@ -275,6 +275,35 @@ class ContextEngine:
         messages: list[dict] = [{"role": "system", "content": system_text}]
         tokens = estimate_tokens(system_text)
 
+        # Bài học từ correction (mục 4.4): mục riêng ngay sau dossier,
+        # có trần token riêng — học rồi thì phải có mặt trong ngữ cảnh.
+        try:
+            all_facts = await self.memory.active_facts(limit=200)
+            lesson_facts = [
+                f for f in all_facts
+                if str(f.get("subject") or "").startswith("lesson:")
+            ]
+        except Exception:
+            lesson_facts = []
+        if lesson_facts:
+            lines: list[str] = []
+            used = 0
+            for f in lesson_facts:
+                line = f"- {str(f['fact'])[:600]}"
+                cost = estimate_tokens(line)
+                if used + cost > cfg.lessons_token_budget:
+                    break
+                lines.append(line)
+                used += cost
+            if lines:
+                messages.append({
+                    "role": "system",
+                    "content": "## BÀI HỌC ĐÃ RÚT TỪ LẦN BỊ SỬA "
+                               "(áp dụng ngay, đừng lặp lại)\n"
+                               + "\n".join(lines),
+                })
+                tokens += used
+
         # Recall: chạy trước, có trần ngân sách token (mục 3.2/4.2).
         hits = await self.memory.recall(
             user_text, limit=8, exclude_session=session_key

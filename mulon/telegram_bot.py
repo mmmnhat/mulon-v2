@@ -124,11 +124,12 @@ def session_key_for(message: Message) -> str:
 # ------------------------------- bot -------------------------------
 
 class TelegramSurface:
-    def __init__(self, cfg, agent, memory, dossier):
+    def __init__(self, cfg, agent, memory, dossier, consolidator=None):
         self.cfg = cfg
         self.agent = agent
         self.memory = memory
         self.dossier = dossier
+        self.consolidator = consolidator
         self.bot: Optional[Bot] = None
         self.dp = Dispatcher()
         self._locks: dict[str, asyncio.Lock] = {}
@@ -236,9 +237,12 @@ class TelegramSurface:
             for k, v in summary.items():
                 lines.append(f"- {k}: `{v}`")
             lines.append(f"- fact đang hiệu lực: {len(facts)}")
-            lines.append(
-                f"- sqlite-vec: {'có' if self.memory.vector_enabled else 'không (BM25-only)'}"
-            )
+            embedder = getattr(self.memory, "embedder", None)
+            if getattr(self.memory, "vec_ready", False):
+                recall_mode = f"hybrid (vector 70% + BM25 30%, {embedder.name})"
+            else:
+                recall_mode = "BM25-only (chưa có embedder)"
+            lines.append(f"- recall: {recall_mode}")
             await message.answer("\n".join(lines), parse_mode="Markdown")
 
         @dp.message(F.text.startswith("/new"))
@@ -248,6 +252,10 @@ class TelegramSurface:
             key = session_key_for(message)
             await self.batcher.flush_now(key)
             await self.memory.close_session(key)
+            # Chốt phiên -> kích hoạt consolidation cho đúng phiên vừa
+            # đóng (chạy nền, không bắt user chờ).
+            if self.consolidator is not None:
+                asyncio.create_task(self._consolidate_closed(key))
             await message.answer("Đã chốt phiên. Lượt sau bắt đầu ngữ cảnh mới.")
 
         @dp.message(F.text.startswith("/memory"))
@@ -276,6 +284,12 @@ class TelegramSurface:
             key = session_key_for(message)
             self._sessions_meta[key] = message
             await self.batcher.add(key, message.text or "")
+
+    async def _consolidate_closed(self, key: str) -> None:
+        try:
+            await self.consolidator.run_once(session_key=key)
+        except Exception as exc:
+            logger.warning("consolidation sau /new lỗi (bỏ qua): %s", exc)
 
     async def run(self) -> None:
         if not self.cfg.telegram_bot_token:

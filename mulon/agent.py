@@ -25,7 +25,8 @@ from enum import Enum
 from typing import Any, Awaitable, Callable, Optional
 
 from .context import frame_external, trim_tool_result
-from .gateway import GatewayError
+from .gateway import GatewayError, estimate_tokens
+from .learning import detect_and_record
 from .tools import result_to_text
 
 logger = logging.getLogger("mulon.agent")
@@ -122,6 +123,17 @@ class Agent:
         user_msg_id = await self.memory.append_message(
             session_key, "user", user_text
         )
+        # Học từ sửa sai (mục 4.4 tầng 2): nếu tin này là user đang sửa
+        # câu trả lời trước, ghi sự kiện correction NGAY trong lượt.
+        # Lỗi ở bước này không bao giờ được làm hỏng lượt chính.
+        correction_id: Optional[int] = None
+        try:
+            correction_id = await detect_and_record(
+                self.memory, self.gateway, self.cfg, session_key,
+                user_msg_id, user_text,
+            )
+        except Exception as exc:
+            logger.warning("phát hiện correction lỗi (bỏ qua): %s", exc)
         built = await self.ctx.build(session_key, user_text)
         intent = classify_intent(user_text)
 
@@ -133,7 +145,7 @@ class Agent:
             )
 
         # History chỉ lưu câu trả lời SẠCH cho user (mục 3.2).
-        await self.memory.append_message(
+        assistant_msg_id = await self.memory.append_message(
             session_key, "assistant", result.text, meta={"intent": intent.value}
         )
         await self.memory.log_trajectory(
@@ -143,7 +155,80 @@ class Agent:
         )
         # Gom nén nền nếu history đã dài — không chặn lượt trả lời.
         asyncio.create_task(self._maybe_compact(session_key))
+        # Review fork nền (mục 4.3, pattern Hermes): rà soát lượt vừa
+        # rồi, ghi digest + fact. Chạy sau khi đã trả lời, lỗi của fork
+        # không ảnh hưởng lượt chính.
+        if getattr(self.cfg, "review_fork_enabled", True):
+            asyncio.create_task(
+                self._review_fork(
+                    session_key, user_msg_id, assistant_msg_id,
+                    user_text, result.text, correction_id,
+                )
+            )
         return result
+
+    async def _review_fork(self, session_key: str, user_msg_id: int,
+                           assistant_msg_id: int, user_text: str,
+                           assistant_text: str,
+                           correction_id: Optional[int]) -> None:
+        """Fork nhẹ sau lượt: trích digest + fact bằng model rẻ.
+
+        Ngữ cảnh rút gọn (chỉ cặp tin vừa rồi), trần token đầu vào cấu
+        hình được (review_fork_token_budget). Mọi lỗi đều bị nuốt —
+        fork hỏng thì lượt chính vẫn nguyên vẹn, digest vẫn được ghi
+        (rỗng) để truy vết là fork đã chạy.
+        """
+        digest_text = ""
+        facts_saved = 0
+        try:
+            budget_chars = max(
+                500, int(self.cfg.review_fork_token_budget) * 3
+            )
+            u = user_text[: budget_chars // 2]
+            a = assistant_text[: budget_chars // 2]
+            prompt = [
+                {
+                    "role": "system",
+                    "content": (
+                        "Tóm tắt lượt hội thoại vừa diễn ra thành digest "
+                        "1-2 câu và trích các sự kiện bền đáng nhớ lâu "
+                        "dài (nếu có). Chỉ trả JSON: {\"digest\": \"...\", "
+                        "\"facts\": [\"...\", ...]}. Không có fact thì "
+                        "\"facts\": []."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"USER:\n{u}\n\nASSISTANT:\n{a}",
+                },
+            ]
+            if estimate_tokens(u) + estimate_tokens(a) > \
+                    int(self.cfg.review_fork_token_budget):
+                prompt[1]["content"] = prompt[1]["content"][:budget_chars]
+            comp = await self.gateway.complete(
+                prompt, model=self.cfg.model_cheap, purpose="review_fork",
+                temperature=0.2,
+            )
+            match = re.search(r"\{.*\}", comp.text or "", flags=re.DOTALL)
+            data = json.loads(match.group(0)) if match else {}
+            digest_text = str(data.get("digest") or "")[:1000]
+            for fact in data.get("facts") or []:
+                if isinstance(fact, str) and fact.strip():
+                    await self.memory.add_fact(
+                        fact.strip(), source="review_fork",
+                        source_msg_id=assistant_msg_id,
+                    )
+                    facts_saved += 1
+        except Exception as exc:
+            logger.warning("review fork lỗi (nuốt, lượt chính an toàn): %s",
+                           exc)
+        try:
+            await self.memory.add_digest(
+                session_key, user_msg_id, assistant_msg_id, digest_text,
+                facts_saved=facts_saved, correction_id=correction_id,
+            )
+        except Exception:
+            pass  # DB đóng (test/shutdown) — fork không được làm ồn
 
     async def _maybe_compact(self, session_key: str) -> None:
         try:

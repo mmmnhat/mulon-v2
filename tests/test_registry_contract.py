@@ -9,6 +9,7 @@ from tests.conftest import open_memory
 EXPECTED_TOOLS = {
     "read_file", "write_file", "edit_file", "list_dir", "run_command",
     "web_fetch", "memory_search", "memory_get", "add_memory_fact", "now",
+    "session_search",  # Phase 2: tìm nguyên văn trong các phiên trước
 }
 
 

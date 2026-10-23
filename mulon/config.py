@@ -36,6 +36,16 @@ def _env_bool(name: str, default: bool) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
 def _resolve(path_str: str) -> Path:
     p = Path(path_str).expanduser()
     return p if p.is_absolute() else (PROJECT_ROOT / p)
@@ -79,6 +89,26 @@ class Config:
     # --- An toàn tool ---
     allow_outside_workspace: bool = False
 
+    # --- Phase 2: ký ức sống (mục 4.2, 4.3, 4.4) ---
+    # Embedder: fastembed (bge-m3 local, lazy-load) | stub (test) | off.
+    # Vắng/không nạp được -> recall degrade BM25-only, không sập.
+    embedder_backend: str = "fastembed"
+    embedder_model: str = "BAAI/bge-m3"
+    embedder_stub_dim: int = 128
+    embed_timeout_s: float = 5.0
+    recall_vector_weight: float = 0.7
+    recall_bm25_weight: float = 0.3
+    lessons_token_budget: int = 2_000
+    # Review fork sau mỗi lượt (pattern Hermes): bật mặc định, nuốt lỗi.
+    review_fork_enabled: bool = True
+    review_fork_token_budget: int = 4_000
+    # Consolidation nền: MẶC ĐỊNH TẮT (bài học vụ tự bật job) — chỉ
+    # chạy khi user bật đích danh bằng CONSOLIDATION_ENABLED=1.
+    consolidation_enabled: bool = False
+    consolidation_interval_s: int = 900
+    consolidation_batch: int = 50
+    evals_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "evals")
+
     @classmethod
     def load(cls, env_file: str | Path | None = None) -> "Config":
         """Nạp .env (nếu có) rồi đọc env. Không ghi secret ra bất cứ đâu."""
@@ -113,6 +143,19 @@ class Config:
             verify_max_retries=_env_int("VERIFY_MAX_RETRIES", 2),
             llm_timeout_s=_env_int("LLM_TIMEOUT_S", 60),
             allow_outside_workspace=_env_bool("ALLOW_OUTSIDE_WORKSPACE", False),
+            embedder_backend=_env("EMBEDDER_BACKEND", "fastembed"),
+            embedder_model=_env("EMBEDDER_MODEL", "BAAI/bge-m3"),
+            embedder_stub_dim=_env_int("EMBEDDER_STUB_DIM", 128),
+            embed_timeout_s=_env_float("EMBED_TIMEOUT_S", 5.0),
+            recall_vector_weight=_env_float("RECALL_VECTOR_WEIGHT", 0.7),
+            recall_bm25_weight=_env_float("RECALL_BM25_WEIGHT", 0.3),
+            lessons_token_budget=_env_int("LESSONS_TOKEN_BUDGET", 2_000),
+            review_fork_enabled=_env_bool("REVIEW_FORK_ENABLED", True),
+            review_fork_token_budget=_env_int("REVIEW_FORK_TOKEN_BUDGET", 4_000),
+            consolidation_enabled=_env_bool("CONSOLIDATION_ENABLED", False),
+            consolidation_interval_s=_env_int("CONSOLIDATION_INTERVAL_S", 900),
+            consolidation_batch=_env_int("CONSOLIDATION_BATCH", 50),
+            evals_dir=_resolve(_env("MULON_EVALS_DIR", "evals")),
         )
 
     def masked_summary(self) -> dict:
@@ -132,4 +175,8 @@ class Config:
             "workspace_dir": str(self.workspace_dir),
             "context_window_tokens": self.context_window_tokens,
             "tool_result_max_chars": self.tool_result_max_chars,
+            "embedder_backend": self.embedder_backend,
+            "embedder_model": self.embedder_model,
+            "consolidation_enabled": self.consolidation_enabled,
+            "review_fork_enabled": self.review_fork_enabled,
         }

@@ -16,11 +16,15 @@ import sys
 
 from .agent import Agent
 from .config import Config
+from .consolidation import ConsolidationWorker
 from .context import ContextEngine, Dossier
+from .embeddings import build_embedder
 from .gateway import ModelGateway
 from .memory import Memory
 from .policy import PolicyEngine
 from .tools import build_default_registry
+
+logger = logging.getLogger("mulon.main")
 
 
 async def build_system(cfg: Config):
@@ -29,17 +33,26 @@ async def build_system(cfg: Config):
     cfg.workspace_dir.mkdir(parents=True, exist_ok=True)
     cfg.artifact_dir.mkdir(parents=True, exist_ok=True)
     memory = await Memory.open(cfg.db_path)
+    # Phase 2: gắn embedder cho hybrid recall. Không dựng được thì
+    # set_embedder degrade sạch — hệ thống vẫn chạy BM25-only.
+    embedder = build_embedder(cfg)
+    if embedder is not None:
+        memory.embed_timeout_s = cfg.embed_timeout_s
+        memory.recall_vector_weight = cfg.recall_vector_weight
+        memory.recall_bm25_weight = cfg.recall_bm25_weight
+        await memory.set_embedder(embedder)
     dossier = Dossier.load(cfg.dossier_dir)
     gateway = ModelGateway(cfg, memory=memory)
     ctx = ContextEngine(cfg, dossier, memory, gateway)
     registry = build_default_registry(cfg, memory)
     policy = PolicyEngine(cfg.policy_path, memory=memory)
     agent = Agent(cfg, gateway, memory, ctx, registry, policy)
-    return agent, memory, dossier, registry
+    worker = ConsolidationWorker(cfg, memory, gateway)
+    return agent, memory, dossier, registry, worker
 
 
 async def _dry_run(cfg: Config) -> int:
-    agent, memory, dossier, registry = await build_system(cfg)
+    agent, memory, dossier, registry, worker = await build_system(cfg)
     report = {
         "config": cfg.masked_summary(),
         "dossier_files": {
@@ -48,6 +61,9 @@ async def _dry_run(cfg: Config) -> int:
         "bootstrap_pending": dossier.bootstrap_pending(),
         "tools": registry.names(),
         "sqlite_vec": memory.vector_enabled,
+        "embedder": getattr(memory.embedder, "name", None),
+        "hybrid_recall": bool(memory.vec_ready),
+        "consolidation_enabled": cfg.consolidation_enabled,
         "db": str(cfg.db_path),
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -55,11 +71,32 @@ async def _dry_run(cfg: Config) -> int:
     return 0
 
 
+async def _consolidation_loop(worker: ConsolidationWorker,
+                              interval_s: int) -> None:
+    """Vòng lặp nền tuỳ chọn — CHỈ chạy khi CONSOLIDATION_ENABLED=1."""
+    while True:
+        await asyncio.sleep(interval_s)
+        try:
+            stats = await worker.run_once()
+            if stats.get("messages"):
+                logger.info("consolidation nền: %s", stats)
+        except Exception as exc:
+            logger.warning("consolidation nền lỗi (bỏ qua vòng này): %s",
+                           exc)
+
+
 async def _run(cfg: Config) -> int:
     from .telegram_bot import TelegramSurface
 
-    agent, memory, dossier, registry = await build_system(cfg)
-    surface = TelegramSurface(cfg, agent, memory, dossier)
+    agent, memory, dossier, registry, worker = await build_system(cfg)
+    surface = TelegramSurface(cfg, agent, memory, dossier,
+                              consolidator=worker)
+    if cfg.consolidation_enabled:
+        asyncio.create_task(
+            _consolidation_loop(worker, cfg.consolidation_interval_s)
+        )
+        logger.info("consolidation nền BẬT (mỗi %ss)",
+                    cfg.consolidation_interval_s)
     await surface.run()
     return 0
 

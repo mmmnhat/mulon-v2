@@ -307,6 +307,25 @@ def build_default_registry(cfg, memory) -> ToolRegistry:
         return {"ok": True, "hits": hits}
 
     @spec(
+        "session_search",
+        "Tìm trong các phiên TRƯỚC: trả NGUYÊN VĂN tin nhắn gốc kèm "
+        "session id + thời gian (không tóm tắt). Dùng khi cần nhớ lại "
+        "đúng lời đã nói ở phiên cũ.",
+        {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "limit": {"type": "integer", "default": 8},
+            },
+            "required": ["query"],
+        },
+        "memory", 10,
+    )
+    async def session_search(query: str, limit: int = 8):
+        results = await memory.session_search(query, limit=int(limit))
+        return {"ok": True, "results": results}
+
+    @spec(
         "memory_get",
         "Đọc 1 bản ghi ký ức theo loại ('fact' hoặc 'message') và id.",
         {
