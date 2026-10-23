@@ -21,6 +21,15 @@ Telegram (DM / group forum topic)
   -> nền (không chặn lượt): review fork ghi digest/fact;
      consolidation (khi được bật) trích fact, supersede, backfill
      embedding; message/fact được embed ngay lúc ghi
+
+Việc hẹn giờ (chỉ khi SCHEDULER_ENABLED=1): scheduler quét
+schedules tới hạn -> tính + ghi lần kế tiếp trước -> Agent.handle
+trong session hệ thống -> trajectory 'schedule_fired'.
+Việc con: agent gọi spawn_subagent -> SubagentRunner (semaphore 4)
+-> Agent con với registry đã lọc theo profile + gateway đếm token
+-> trả digest nén cho agent chính.
+Tool MCP: registry chứa mcp_<server>_<tool> -> MCPManager.call_tool
+-> ClientSession của SDK (stdio) -> tự reconnect khi session chết.
 ```
 
 ## Module
@@ -30,15 +39,21 @@ Telegram (DM / group forum topic)
 | `mulon/config.py` | Cấu hình qua env, không hardcode giá trị cá nhân |
 | `mulon/gateway.py` | LiteLLM -> proxy; retry, circuit breaker, đo latency/token |
 | `mulon/context.py` | Dossier snapshot, mục bài học, ngân sách token, trim, compaction + memory flush |
-| `mulon/memory.py` | SQLite WAL: messages/FTS5, facts bi-temporal, bảng vec0 + chỉ mục lúc ghi, corrections, turn_digests, tasks, trajectory, ledger |
+| `mulon/memory.py` | SQLite WAL: messages/FTS5, facts bi-temporal, bảng vec0 + chỉ mục lúc ghi, corrections, turn_digests, tasks, trajectory, ledger, schedules, goals/goal_activity/tracked_items |
 | `mulon/embeddings.py` | Interface Embedder: FastEmbed bge-m3 (lazy, tuỳ chọn) + stub tất định cho test |
 | `mulon/learning.py` | Phát hiện correction, phân loại taxonomy, rút bài học chống overfit, sinh eval case |
 | `mulon/consolidation.py` | Worker tổng hợp ký ức: trích fact, khử trùng, supersede, backfill embedding; CLI `--once` |
 | `mulon/tools.py` | Registry + tool lõi (gồm session_search); contract tên/schema bị khóa bởi test |
 | `mulon/policy.py` | Policy 2 lớp (host thắng session), mặc định full-auto |
 | `mulon/agent.py` | Vòng plan-act-verify, ngân sách tác vụ, hook correction + review fork nền |
+| `mulon/cron.py` | Cron 5 trường thuần: parse + tính lần chạy kế tiếp theo zoneinfo |
+| `mulon/planning.py` | SchedulerService (quét hạn, chống trùng, giao việc cho agent) + tools lịch hẹn/goals |
+| `mulon/mcp_client.py` | MCP client bằng SDK chính thức (stdio): nối server theo config, đăng ký tool vào registry, tự reconnect |
+| `mulon/subagents.py` | Subagent = Agent đầy đủ với registry lọc theo profile, trần token/vòng riêng, semaphore 4, digest nén |
+| `mulon/browser_worker.py` | Playwright headless: web_read (trích text chính) + web_screenshot; vắng Playwright thì báo unavailable |
+| `mulon/connectors.py` | Khung connector trung tính (health_check + call, đăng ký lazy) + adapter ví dụ `system` |
 | `mulon/telegram_bot.py` | aiogram 3: batching, streaming edit, chunk HTML, session theo topic, /new kích hoạt consolidation |
-| `mulon/main.py` | Boot + `--dry-run` smoke test; vòng consolidation nền khi được bật |
+| `mulon/main.py` | Boot + `--dry-run` smoke test; vòng consolidation + scheduler nền khi được bật đích danh |
 
 ## Nguyên tắc bất biến (rút từ mục 0 của thiết kế)
 

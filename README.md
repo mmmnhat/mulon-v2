@@ -1,4 +1,4 @@
-# Mulon — Muse clone (Phase 1 + 2)
+# Mulon — Muse clone (Phase 1 + 2 + 3)
 
 Personal AI agent chạy **chỉ trên Telegram**, model **chỉ qua proxy
 local tương thích OpenAI** (không dùng API chính thức), xây theo tài
@@ -57,6 +57,43 @@ registry, dossier), bỏ toàn bộ code lõi cũ.
 - **Session search**: tool `session_search` tìm trong các phiên
   trước, trả **nguyên văn** tin gốc kèm session id + thời gian.
 
+## Đã có thêm ở Phase 3 — tay chân
+
+- **MCP client thật** (`mulon/mcp_client.py`): SDK MCP chính thức,
+  kết nối server qua **stdio** theo `config/mcp_servers.json` (kèm
+  server ví dụ ở trạng thái tắt), liệt kê tool của server và đăng
+  ký vào registry chung với tên `mcp_<server>_<tool>`, schema MCP
+  ánh xạ thẳng sang schema nội bộ, gọi tool qua session có timeout
+  và **tự reconnect** khi session chết. Server lỗi hoặc chưa cấu
+  hình thì degrade sạch — bot vẫn chạy.
+- **Subagents thật** (`mulon/subagents.py`): subagent là **agent
+  loop đầy đủ** (cùng core plan-act-verify), không phải 1 lời gọi
+  LLM trần. Toolset thu hẹp theo profile: `researcher` (chỉ đọc +
+  web), `coder` (file + lệnh trong workspace), `default` (tối
+  thiểu, chỉ đọc); trần vòng lặp + trần token riêng; tối đa **4
+  chạy đồng thời**; kết quả trả **digest nén** (trạng thái + tóm
+  tắt + số liệu), không trả transcript. Tool: `spawn_subagent`.
+- **Scheduler + goals/tracking** (`mulon/planning.py` +
+  `mulon/cron.py`): bảng `schedules` (cron 5 trường tự viết, múi
+  giờ tường minh mặc định Asia/Ho_Chi_Minh), `goals` (2 trạng
+  thái, activity log, không bao giờ tự đóng), `tracked_items`.
+  Tools: `schedule_task`, `list_schedules`, `cancel_schedule`,
+  `create_goal`, `list_goals`, `log_goal_activity`, `close_goal`.
+  Vòng lặp scheduler **mặc định TẮT** (`SCHEDULER_ENABLED=1` mới
+  chạy) — tới hạn thì tính lần kế tiếp và ghi trước (chống bắn
+  trùng) rồi giao việc cho agent trong session hệ thống.
+- **Browser worker tối thiểu** (`mulon/browser_worker.py`):
+  Playwright/Chromium headless — `web_read` (mở URL, trích text
+  chính) và `web_screenshot` (PNG lưu vào `workspace/screenshots`).
+  Playwright là optional: vắng thì tool báo `unavailable` sạch.
+- **Khung connector trung tính** (`mulon/connectors.py`): interface
+  `health_check()` + `call(action, args)`, đăng ký lazy (chưa cấu
+  hình thì vắng mặt sạch), kiểm tra trạng thái qua
+  `connector_health` / `connector_call`. Kèm adapter ví dụ `system`
+  (giờ + trạng thái máy) để chứng minh khung; adapter dịch vụ thật
+  cắm vào cùng interface ở phase sau. Luật của khung: credential
+  không bao giờ xuất hiện trong kết quả/log/trajectory.
+
 ## Thành phần Phase 1 (nền)
 
 - **Tool registry** (`mulon/tools.py`): read/write/edit file, list_dir,
@@ -76,14 +113,17 @@ registry, dossier), bỏ toàn bộ code lõi cũ.
 
 ## Chưa có (khung chờ các phase sau)
 
-MCP client, scheduler/goals, proactivity/heartbeat runner, subagents,
-voice (Whisper + LLM / OpenAI Voice), browser worker, media pipeline,
-alignment synthesis worker (tổng hợp `alignment.md` hằng ngày),
-consolidation tách fact thành `people/*.md`/`groups/*.md` (hiện mới
-ghi vào DB), thủ tục hóa từ trajectory (mục 4.5), chạy bộ eval vàng
-tự động (mới sinh case) + Langfuse, Mini App — **không** làm (đã
-chốt: group forum là bề mặt chính). Xem roadmap mục 13 của tài
-liệu thiết kế.
+Proactivity engine + heartbeat runner (scheduler đã có hạ tầng
+nhưng pipeline chấm điểm/chủ động nhắn thì chưa), voice (Whisper +
+LLM / OpenAI Voice), media pipeline, adapter connector cho dịch vụ
+thật (hiện mới có khung + adapter ví dụ `system`), MCP qua HTTP
+streamable + OAuth (hiện mới stdio), học skill mới dạng SKILL.md
+đăng ký nóng, alignment synthesis worker (tổng hợp `alignment.md`
+hằng ngày), consolidation tách fact thành
+`people/*.md`/`groups/*.md` (hiện mới ghi vào DB), thủ tục hóa từ
+trajectory (mục 4.5), chạy bộ eval vàng tự động (mới sinh case) +
+Langfuse, Mini App — **không** làm (đã chốt: group forum là bề
+mặt chính). Xem roadmap mục 13 của tài liệu thiết kế.
 
 ## Chạy
 

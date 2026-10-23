@@ -215,6 +215,57 @@ CREATE TABLE IF NOT EXISTS corrections (
 );
 CREATE INDEX IF NOT EXISTS idx_corrections_cat ON corrections(category, status);
 
+-- ===== Phase 3: scheduler + goals/tracking (mục 7) =====
+
+-- Việc hẹn giờ: cron 5 trường + múi giờ tường minh. Scheduler MẶC
+-- ĐỊNH TẮT ở tầng main (chỉ chạy khi SCHEDULER_ENABLED=1) — bảng này
+-- chỉ là dữ liệu, không tự nó sinh việc.
+CREATE TABLE IF NOT EXISTS schedules (
+    id          TEXT PRIMARY KEY,
+    cron        TEXT NOT NULL,
+    timezone    TEXT NOT NULL DEFAULT 'Asia/Ho_Chi_Minh',
+    payload     TEXT NOT NULL DEFAULT '',
+    session_key TEXT NOT NULL DEFAULT '',
+    enabled     INTEGER NOT NULL DEFAULT 1,
+    last_run_at TEXT DEFAULT '',
+    next_run_at TEXT DEFAULT '',
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+
+-- Mục tiêu dài hạn: chỉ 2 trạng thái theo thiết kế mục 16.6.
+-- Goal KHÔNG bao giờ tự đóng chỉ vì 1 bước xong.
+CREATE TABLE IF NOT EXISTS goals (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    title       TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    status      TEXT NOT NULL DEFAULT 'active',
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    closed_at   TEXT DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS goal_activity (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    goal_id    INTEGER NOT NULL REFERENCES goals(id),
+    note       TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_goal_activity ON goal_activity(goal_id, id);
+
+-- Cam kết cụ thể (đặt chỗ, đơn hàng, hạn chót...), gắn goal hoặc độc lập.
+CREATE TABLE IF NOT EXISTS tracked_items (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    goal_id    INTEGER REFERENCES goals(id),
+    title      TEXT NOT NULL,
+    detail     TEXT NOT NULL DEFAULT '',
+    status     TEXT NOT NULL DEFAULT 'open',
+    due_at     TEXT DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tracked_goal ON tracked_items(goal_id, status);
+
 -- Digest của background review fork sau mỗi lượt (mục 4.3, pattern Hermes).
 CREATE TABLE IF NOT EXISTS turn_digests (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -924,3 +975,172 @@ class Memory:
                 (limit,),
             )
         return [dict(r) for r in await cur.fetchall()]
+
+    # ---------- schedules (Phase 3, mục 7) ----------
+    async def create_schedule(self, schedule_id: str, cron: str,
+                              timezone_name: str, payload: str,
+                              session_key: str, next_run_at: str,
+                              enabled: bool = True) -> dict:
+        ts = now_iso()
+        await self.db.execute(
+            "INSERT INTO schedules(id, cron, timezone, payload,"
+            " session_key, enabled, next_run_at, created_at, updated_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
+            (schedule_id, cron, timezone_name, payload, session_key,
+             1 if enabled else 0, next_run_at, ts, ts),
+        )
+        await self.db.commit()
+        return await self.get_schedule(schedule_id)  # type: ignore[return-value]
+
+    async def get_schedule(self, schedule_id: str) -> Optional[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM schedules WHERE id=?", (schedule_id,)
+        )
+        row = await cur.fetchone()
+        return dict(row) if row else None
+
+    async def list_schedules(self, enabled_only: bool = False) -> list[dict]:
+        if enabled_only:
+            cur = await self.db.execute(
+                "SELECT * FROM schedules WHERE enabled=1 ORDER BY created_at"
+            )
+        else:
+            cur = await self.db.execute(
+                "SELECT * FROM schedules ORDER BY created_at"
+            )
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def due_schedules(self, now_utc_iso: str) -> list[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM schedules WHERE enabled=1 AND next_run_at!=''"
+            " AND next_run_at<=? ORDER BY next_run_at",
+            (now_utc_iso,),
+        )
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def mark_schedule_run(self, schedule_id: str, ran_at: str,
+                                next_run_at: str) -> None:
+        """Ghi lần chạy + lần kế tiếp (đặt TRƯỚC khi chạy để chống trùng)."""
+        await self.db.execute(
+            "UPDATE schedules SET last_run_at=?, next_run_at=?,"
+            " updated_at=? WHERE id=?",
+            (ran_at, next_run_at, now_iso(), schedule_id),
+        )
+        await self.db.commit()
+
+    async def cancel_schedule(self, schedule_id: str) -> bool:
+        cur = await self.db.execute(
+            "UPDATE schedules SET enabled=0, updated_at=? WHERE id=?",
+            (now_iso(), schedule_id),
+        )
+        await self.db.commit()
+        return (cur.rowcount or 0) > 0
+
+    # ---------- goals & tracked items (Phase 3, mục 7 + 16.6) ----------
+    async def create_goal(self, title: str, description: str = "") -> dict:
+        ts = now_iso()
+        cur = await self.db.execute(
+            "INSERT INTO goals(title, description, status, created_at,"
+            " updated_at) VALUES (?,?, 'active', ?, ?)",
+            (title, description, ts, ts),
+        )
+        await self.db.commit()
+        return await self.get_goal(int(cur.lastrowid))  # type: ignore[return-value]
+
+    async def get_goal(self, goal_id: int) -> Optional[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM goals WHERE id=?", (goal_id,)
+        )
+        row = await cur.fetchone()
+        return dict(row) if row else None
+
+    async def list_goals(self, status: Optional[str] = None) -> list[dict]:
+        if status:
+            cur = await self.db.execute(
+                "SELECT * FROM goals WHERE status=? ORDER BY id", (status,)
+            )
+        else:
+            cur = await self.db.execute("SELECT * FROM goals ORDER BY id")
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def log_goal_activity(self, goal_id: int, note: str) -> dict:
+        ts = now_iso()
+        cur = await self.db.execute(
+            "INSERT INTO goal_activity(goal_id, note, created_at)"
+            " VALUES (?,?,?)",
+            (goal_id, note, ts),
+        )
+        await self.db.execute(
+            "UPDATE goals SET updated_at=? WHERE id=?", (ts, goal_id)
+        )
+        await self.db.commit()
+        return {"id": int(cur.lastrowid), "goal_id": goal_id, "note": note,
+                "created_at": ts}
+
+    async def list_goal_activity(self, goal_id: int,
+                                 limit: int = 20) -> list[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM goal_activity WHERE goal_id=?"
+            " ORDER BY id DESC LIMIT ?",
+            (goal_id, limit),
+        )
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def close_goal(self, goal_id: int) -> Optional[dict]:
+        ts = now_iso()
+        cur = await self.db.execute(
+            "UPDATE goals SET status='completed', closed_at=?,"
+            " updated_at=? WHERE id=? AND status='active'",
+            (ts, ts, goal_id),
+        )
+        await self.db.commit()
+        if (cur.rowcount or 0) == 0:
+            return None
+        return await self.get_goal(goal_id)
+
+    async def create_tracked_item(self, title: str, detail: str = "",
+                                  goal_id: Optional[int] = None,
+                                  due_at: str = "") -> dict:
+        ts = now_iso()
+        cur = await self.db.execute(
+            "INSERT INTO tracked_items(goal_id, title, detail, status,"
+            " due_at, created_at, updated_at) VALUES (?,?,?, 'open', ?, ?, ?)",
+            (goal_id, title, detail, due_at, ts, ts),
+        )
+        await self.db.commit()
+        item_id = int(cur.lastrowid)
+        cur = await self.db.execute(
+            "SELECT * FROM tracked_items WHERE id=?", (item_id,)
+        )
+        return dict(await cur.fetchone())  # type: ignore[arg-type]
+
+    async def list_tracked_items(self, goal_id: Optional[int] = None,
+                                 status: Optional[str] = None) -> list[dict]:
+        sql = "SELECT * FROM tracked_items"
+        conds, params = [], []
+        if goal_id is not None:
+            conds.append("goal_id=?")
+            params.append(goal_id)
+        if status:
+            conds.append("status=?")
+            params.append(status)
+        if conds:
+            sql += " WHERE " + " AND ".join(conds)
+        sql += " ORDER BY id"
+        cur = await self.db.execute(sql, params)
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def update_tracked_item(self, item_id: int,
+                                  status: str) -> Optional[dict]:
+        cur = await self.db.execute(
+            "UPDATE tracked_items SET status=?, updated_at=? WHERE id=?",
+            (status, now_iso(), item_id),
+        )
+        await self.db.commit()
+        if (cur.rowcount or 0) == 0:
+            return None
+        cur = await self.db.execute(
+            "SELECT * FROM tracked_items WHERE id=?", (item_id,)
+        )
+        row = await cur.fetchone()
+        return dict(row) if row else None

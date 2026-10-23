@@ -1,0 +1,1 @@
+{"servers":[{"args":["-m","example_mcp_server"],"call_timeout_s":60,"command":"python3","enabled":false,"env":{},"name":"example","timeout_s":20}]}

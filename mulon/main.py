@@ -15,20 +15,30 @@ import logging
 import sys
 
 from .agent import Agent
+from .browser_worker import register_browser_tools
 from .config import Config
+from .connectors import build_default_connectors, register_connector_tools
 from .consolidation import ConsolidationWorker
 from .context import ContextEngine, Dossier
 from .embeddings import build_embedder
 from .gateway import ModelGateway
+from .mcp_client import MCPManager
 from .memory import Memory
+from .planning import SchedulerService, register_planning_tools
 from .policy import PolicyEngine
+from .subagents import PROFILES, SubagentRunner, register_subagent_tool
 from .tools import build_default_registry
 
 logger = logging.getLogger("mulon.main")
 
 
 async def build_system(cfg: Config):
-    """Dựng toàn bộ hệ thống trừ bề mặt Telegram."""
+    """Dựng toàn bộ hệ thống trừ bề mặt Telegram.
+
+    Trả (agent, memory, dossier, registry, worker, services) —
+    services chứa các thành phần Phase 3: mcp, connectors,
+    scheduler, subagent runner.
+    """
     cfg.db_path.parent.mkdir(parents=True, exist_ok=True)
     cfg.workspace_dir.mkdir(parents=True, exist_ok=True)
     cfg.artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -46,13 +56,50 @@ async def build_system(cfg: Config):
     ctx = ContextEngine(cfg, dossier, memory, gateway)
     registry = build_default_registry(cfg, memory)
     policy = PolicyEngine(cfg.policy_path, memory=memory)
+
+    # --- Phase 3: tay chân ---
+    # Scheduler + goals tools (chỉ dữ liệu/tool; vòng lặp chạy riêng
+    # và mặc định TẮT).
+    register_planning_tools(registry, cfg, memory)
+    # Browser worker (Playwright optional — vắng thì tool báo
+    # unavailable, không sập).
+    register_browser_tools(registry, cfg)
+    # Connector framework: adapter ví dụ trung tính 'system'.
+    connectors = build_default_connectors(cfg)
+    register_connector_tools(registry, connectors)
+    # MCP client: nối server đã bật trong config, đăng ký tool của
+    # chúng vào registry chung. Server lỗi/vắng -> degrade sạch.
+    mcp_manager = MCPManager(cfg, cfg.mcp_config_path)
+    await mcp_manager.start()
+    mcp_tools = mcp_manager.register_into(registry)
+    if mcp_tools:
+        logger.info("MCP đã đăng ký %d tool: %s",
+                    len(mcp_tools), mcp_tools)
     agent = Agent(cfg, gateway, memory, ctx, registry, policy)
+    # Subagents: agent loop đầy đủ, toolset thu hẹp theo profile.
+    runner = SubagentRunner(
+        cfg, gateway, memory, ctx, policy,
+        registry_factory=lambda: registry,
+    )
+    register_subagent_tool(registry, runner)
+
+    async def _agent_provider():
+        return agent
+
+    scheduler = SchedulerService(cfg, memory, _agent_provider)
     worker = ConsolidationWorker(cfg, memory, gateway)
-    return agent, memory, dossier, registry, worker
+    services = {
+        "mcp": mcp_manager,
+        "connectors": connectors,
+        "scheduler": scheduler,
+        "subagent_runner": runner,
+    }
+    return agent, memory, dossier, registry, worker, services
 
 
 async def _dry_run(cfg: Config) -> int:
-    agent, memory, dossier, registry, worker = await build_system(cfg)
+    (agent, memory, dossier, registry, worker,
+     services) = await build_system(cfg)
     report = {
         "config": cfg.masked_summary(),
         "dossier_files": {
@@ -64,9 +111,16 @@ async def _dry_run(cfg: Config) -> int:
         "embedder": getattr(memory.embedder, "name", None),
         "hybrid_recall": bool(memory.vec_ready),
         "consolidation_enabled": cfg.consolidation_enabled,
+        "phase3": {
+            "mcp": services["mcp"].status(),
+            "connectors": services["connectors"].names(),
+            "scheduler_enabled": cfg.scheduler_enabled,
+            "subagent_profiles": sorted(PROFILES),
+        },
         "db": str(cfg.db_path),
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
+    await services["mcp"].close()
     await memory.close()
     return 0
 
@@ -88,7 +142,8 @@ async def _consolidation_loop(worker: ConsolidationWorker,
 async def _run(cfg: Config) -> int:
     from .telegram_bot import TelegramSurface
 
-    agent, memory, dossier, registry, worker = await build_system(cfg)
+    (agent, memory, dossier, registry, worker,
+     services) = await build_system(cfg)
     surface = TelegramSurface(cfg, agent, memory, dossier,
                               consolidator=worker)
     if cfg.consolidation_enabled:
@@ -97,6 +152,10 @@ async def _run(cfg: Config) -> int:
         )
         logger.info("consolidation nền BẬT (mỗi %ss)",
                     cfg.consolidation_interval_s)
+    if cfg.scheduler_enabled:
+        asyncio.create_task(services["scheduler"].run_forever())
+    else:
+        logger.info("scheduler nền TẮT (bật bằng SCHEDULER_ENABLED=1)")
     await surface.run()
     return 0
 

@@ -109,6 +109,29 @@ class Config:
     consolidation_batch: int = 50
     evals_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "evals")
 
+    # --- Phase 3: tay chân (mục 6, 7) ---
+    default_timezone: str = "Asia/Ho_Chi_Minh"
+    # MCP client: file cấu hình server stdio (config/mcp_servers.json).
+    mcp_config_path: Path = field(
+        default_factory=lambda: PROJECT_ROOT / "config" / "mcp_servers.json"
+    )
+    mcp_connect_timeout_s: float = 20.0
+    mcp_call_timeout_s: float = 60.0
+    # Scheduler: MẶC ĐỊNH TẮT — chỉ chạy khi SCHEDULER_ENABLED=1
+    # (bài học vụ user xóa toàn bộ job tự động 2026-10-22).
+    scheduler_enabled: bool = False
+    scheduler_tick_s: int = 30
+    # Subagents: trần riêng + tối đa chạy đồng thời.
+    subagent_max_concurrent: int = 4
+    subagent_max_llm_calls: int = 15
+    subagent_token_budget: int = 60_000
+    subagent_max_seconds: int = 300
+    subagent_digest_max_chars: int = 2_000
+    # Browser worker (Playwright, optional — vắng thì tool báo
+    # unavailable sạch).
+    browser_timeout_s: float = 30.0
+    browser_max_chars: int = 12_000
+
     @classmethod
     def load(cls, env_file: str | Path | None = None) -> "Config":
         """Nạp .env (nếu có) rồi đọc env. Không ghi secret ra bất cứ đâu."""
@@ -156,6 +179,22 @@ class Config:
             consolidation_interval_s=_env_int("CONSOLIDATION_INTERVAL_S", 900),
             consolidation_batch=_env_int("CONSOLIDATION_BATCH", 50),
             evals_dir=_resolve(_env("MULON_EVALS_DIR", "evals")),
+            default_timezone=_env("DEFAULT_TIMEZONE", "Asia/Ho_Chi_Minh"),
+            mcp_config_path=_resolve(
+                _env("MCP_CONFIG_PATH", "config/mcp_servers.json")
+            ),
+            mcp_connect_timeout_s=_env_float("MCP_CONNECT_TIMEOUT_S", 20.0),
+            mcp_call_timeout_s=_env_float("MCP_CALL_TIMEOUT_S", 60.0),
+            scheduler_enabled=_env_bool("SCHEDULER_ENABLED", False),
+            scheduler_tick_s=_env_int("SCHEDULER_TICK_S", 30),
+            subagent_max_concurrent=_env_int("SUBAGENT_MAX_CONCURRENT", 4),
+            subagent_max_llm_calls=_env_int("SUBAGENT_MAX_LLM_CALLS", 15),
+            subagent_token_budget=_env_int("SUBAGENT_TOKEN_BUDGET", 60_000),
+            subagent_max_seconds=_env_int("SUBAGENT_MAX_SECONDS", 300),
+            subagent_digest_max_chars=_env_int(
+                "SUBAGENT_DIGEST_MAX_CHARS", 2_000),
+            browser_timeout_s=_env_float("BROWSER_TIMEOUT_S", 30.0),
+            browser_max_chars=_env_int("BROWSER_MAX_CHARS", 12_000),
         )
 
     def masked_summary(self) -> dict:
@@ -179,4 +218,8 @@ class Config:
             "embedder_model": self.embedder_model,
             "consolidation_enabled": self.consolidation_enabled,
             "review_fork_enabled": self.review_fork_enabled,
+            "default_timezone": self.default_timezone,
+            "mcp_config_path": str(self.mcp_config_path),
+            "scheduler_enabled": self.scheduler_enabled,
+            "subagent_max_concurrent": self.subagent_max_concurrent,
         }
