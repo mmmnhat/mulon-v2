@@ -24,3 +24,7 @@ mcp>=1.30,<2
 #   pip install "faster-whisper>=1.1,<2"
 # Phase 4 media tools dùng ffmpeg/ffprobe CÓ SẴN trên máy (không
 # phải gói Python) — thiếu thì tool media báo unavailable.
+# Tuỳ chọn (Phase 5): Langfuse tracing (chỉ metadata đo lường,
+# không nội dung). Không cài hoặc thiếu env LANGFUSE_* thì tracing
+# no-op hoàn toàn. Cài bằng:
+#   pip install "langfuse>=2.60,<4"
