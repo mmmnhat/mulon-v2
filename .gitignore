@@ -1,0 +1,26 @@
+# Bí mật — không bao giờ commit
+.env
+.env.*
+!.env.example
+
+# Dữ liệu & database ở MỌI thư mục
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+data/
+media/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Hệ điều hành / editor
+.DS_Store
+.idea/
+.vscode/

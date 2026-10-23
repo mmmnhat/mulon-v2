@@ -1,0 +1,8 @@
+# Runtime — ghim theo dải version đã kiểm chứng cài được cùng nhau.
+# Lưu ý: aiogram 3.31 yêu cầu pydantic <2.14, nên pydantic ghim ở 2.13.x.
+litellm>=1.106,<1.107
+aiogram>=3.31,<3.32
+aiosqlite>=0.22,<0.23
+pydantic>=2.13,<2.14
+httpx>=0.28,<0.29
+python-dotenv>=1.2,<1.3
