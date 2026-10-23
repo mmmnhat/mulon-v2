@@ -32,6 +32,7 @@ from .proactivity import ProactivityEngine
 from .skills import SkillCatalog, register_skill_tools
 from .subagents import PROFILES, SubagentRunner, register_subagent_tool
 from .tools import build_default_registry
+from .tracing import build_tracer, traced_gateway
 from .voice import VoiceService
 
 logger = logging.getLogger("mulon.main")
@@ -57,7 +58,9 @@ async def build_system(cfg: Config):
         memory.recall_bm25_weight = cfg.recall_bm25_weight
         await memory.set_embedder(embedder)
     dossier = Dossier.load(cfg.dossier_dir)
-    gateway = ModelGateway(cfg, memory=memory)
+    # Phase 5: Langfuse tracing tuỳ chọn — thiếu env/gói thì
+    # traced_gateway trả lại gateway nguyên bản, hành vi không đổi.
+    gateway = traced_gateway(ModelGateway(cfg, memory=memory), cfg)
     ctx = ContextEngine(cfg, dossier, memory, gateway)
     registry = build_default_registry(cfg, memory)
     policy = PolicyEngine(cfg.policy_path, memory=memory)
@@ -162,6 +165,11 @@ async def _dry_run(cfg: Config) -> int:
             "skills": services["skills"].catalog(),
             "browser_persistent_profile":
                 services["browser_worker"].uses_persistent_profile(),
+        },
+        "phase5": {
+            "eval_pass_threshold": cfg.eval_pass_threshold,
+            "langfuse_enabled": build_tracer(cfg).enabled,
+            "backup_dir": str(cfg.backup_dir),
         },
         "db": str(cfg.db_path),
     }
