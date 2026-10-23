@@ -21,7 +21,10 @@ from .connectors import build_default_connectors, register_connector_tools
 from .consolidation import ConsolidationWorker
 from .context import ContextEngine, Dossier
 from .embeddings import build_embedder
+from .feed import FeedEngine
 from .gateway import ModelGateway
+from .ideas import IdeaEngine
+from .library import LibraryService
 from .mcp_client import MCPManager
 from .media_tools import ffmpeg_available, ffprobe_available, \
     register_media_tools
@@ -31,8 +34,10 @@ from .policy import PolicyEngine
 from .proactivity import ProactivityEngine
 from .skills import SkillCatalog, register_skill_tools
 from .subagents import PROFILES, SubagentRunner, register_subagent_tool
+from .surfaces import SURFACE_KEYS, TopicManager
 from .tools import build_default_registry
 from .tracing import build_tracer, traced_gateway
+from .vault import VaultFormServer, VaultStore
 from .voice import VoiceService
 
 logger = logging.getLogger("mulon.main")
@@ -115,6 +120,20 @@ async def build_system(cfg: Config):
     # Proactivity engine: chỉ DỮ LIỆU + engine ở đây; vòng lặp nền
     # ở _run và mặc định TẮT như scheduler/consolidation.
     proactivity = ProactivityEngine(cfg, memory, gateway)
+
+    # --- Phase 6: bề mặt group (mục 16) ---
+    # Toàn bộ là dịch vụ theo yêu cầu (lệnh chat gọi mới chạy) —
+    # không vòng lặp nền mới nào được bật ở đây. Vault form server
+    # chỉ start() trong _run, không start ở dry-run.
+    vault_store = VaultStore(cfg.vault_path)
+    phase6 = {
+        "topics": TopicManager(),
+        "feed": FeedEngine(cfg, memory, gateway),
+        "ideas": IdeaEngine(cfg, memory, gateway),
+        "library": LibraryService(cfg, memory),
+        "vault_server": VaultFormServer(cfg, vault_store),
+        "vault_store": vault_store,
+    }
     services = {
         "mcp": mcp_manager,
         "connectors": connectors,
@@ -124,6 +143,8 @@ async def build_system(cfg: Config):
         "voice": voice,
         "proactivity": proactivity,
         "skills": catalog,
+        "policy": policy,
+        "phase6": phase6,
     }
     return agent, memory, dossier, registry, worker, services
 
@@ -171,6 +192,18 @@ async def _dry_run(cfg: Config) -> int:
             "langfuse_enabled": build_tracer(cfg).enabled,
             "backup_dir": str(cfg.backup_dir),
         },
+        "phase6": {
+            "surfaces": SURFACE_KEYS,
+            "vault": {
+                "port": cfg.vault_port,
+                "path": str(cfg.vault_path),
+                "entries": len(services["phase6"]["vault_store"]
+                               .labels()),
+            },
+            "library_items": len(
+                await memory.list_library_items(status=None)),
+            "idea_ttl_days": cfg.idea_ttl_days,
+        },
         "db": str(cfg.db_path),
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -214,7 +247,12 @@ async def _run(cfg: Config) -> int:
      services) = await build_system(cfg)
     surface = TelegramSurface(cfg, agent, memory, dossier,
                               consolidator=worker,
-                              voice=services["voice"])
+                              voice=services["voice"],
+                              policy=services["policy"],
+                              surfaces=services["phase6"])
+    # Vault form server: bind 127.0.0.1, link một lần qua /vault.
+    if services["phase6"]["vault_server"].start():
+        logger.info("vault form server BẬT (chỉ localhost)")
     if cfg.consolidation_enabled:
         asyncio.create_task(
             _consolidation_loop(worker, cfg.consolidation_interval_s)
