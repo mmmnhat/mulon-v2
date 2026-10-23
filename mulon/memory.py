@@ -294,6 +294,67 @@ CREATE TABLE IF NOT EXISTS proactive_notes (
 );
 CREATE INDEX IF NOT EXISTS idx_proactive_status
     ON proactive_notes(status, id);
+
+-- ===== Phase 6: bề mặt group (mục 16) =====
+
+-- Bài Feed đã đăng: map (chat, message) -> nội dung để reaction
+-- trên đúng bài mới thành tín hiệu taste.
+CREATE TABLE IF NOT EXISTS feed_posts (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id    INTEGER NOT NULL,
+    message_id INTEGER NOT NULL,
+    content    TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_feed_posts_msg
+    ON feed_posts(chat_id, message_id);
+
+-- Tín hiệu taste: reaction của user trên bài Feed (mục 16.4).
+CREATE TABLE IF NOT EXISTS feed_signals (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id         INTEGER NOT NULL DEFAULT 0,
+    post_message_id INTEGER NOT NULL,
+    reaction        TEXT NOT NULL DEFAULT '',
+    created_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_feed_signals_post
+    ON feed_signals(post_message_id);
+
+-- Thẻ ý tưởng (mục 16.5): tự hết hạn (mặc định 14 ngày), làm luôn
+-- -> goal + task; trạng thái open/done/dismissed/expired.
+CREATE TABLE IF NOT EXISTS idea_cards (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    title       TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    source      TEXT NOT NULL DEFAULT '',
+    status      TEXT NOT NULL DEFAULT 'open',
+    goal_id     INTEGER,
+    created_at  TEXT NOT NULL,
+    expires_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ideas_status
+    ON idea_cards(status, expires_at);
+
+-- Catalog Library (mục 16.7): file agent tạo/lưu cho user.
+-- path = đường dẫn gốc; trash_path = nơi đang nằm khi ở thùng rác.
+CREATE TABLE IF NOT EXISTS library_items (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    name             TEXT NOT NULL,
+    kind             TEXT NOT NULL DEFAULT 'other',
+    path             TEXT NOT NULL DEFAULT '',
+    trash_path       TEXT NOT NULL DEFAULT '',
+    source           TEXT NOT NULL DEFAULT '',
+    status           TEXT NOT NULL DEFAULT 'active',
+    share_status     TEXT NOT NULL DEFAULT '',
+    share_expires_at TEXT DEFAULT '',
+    trashed_at       TEXT DEFAULT '',
+    created_at       TEXT NOT NULL,
+    updated_at       TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_library_path ON library_items(path);
+CREATE INDEX IF NOT EXISTS idx_library_status
+    ON library_items(status, id);
 """
 
 
@@ -1205,3 +1266,220 @@ class Memory:
         )
         row = await cur.fetchone()
         return dict(row) if row else None
+
+    # ---------- Phase 6: feed / ideas / library / bề mặt ký ức ----------
+
+    async def recent_trajectory(self, kind: Optional[str] = None,
+                                limit: int = 20) -> list[dict]:
+        """Đọc ngược trajectory (mới nhất trước) — nền của /approvals
+        và lịch sử hệ thống (mục 16.8). payload được parse sẵn."""
+        if kind:
+            cur = await self.db.execute(
+                "SELECT * FROM trajectory WHERE kind=? ORDER BY id DESC"
+                " LIMIT ?", (kind, limit),
+            )
+        else:
+            cur = await self.db.execute(
+                "SELECT * FROM trajectory ORDER BY id DESC LIMIT ?",
+                (limit,),
+            )
+        out = []
+        for r in await cur.fetchall():
+            d = dict(r)
+            try:
+                d["payload"] = json.loads(d.get("payload") or "{}")
+            except Exception:
+                d["payload"] = {}
+            out.append(d)
+        return out
+
+    # --- feed ---
+    async def add_feed_post(self, chat_id: int, message_id: int,
+                            content: str) -> int:
+        cur = await self.db.execute(
+            "INSERT INTO feed_posts(chat_id, message_id, content,"
+            " created_at) VALUES (?,?,?,?)",
+            (chat_id, message_id, content, now_iso()),
+        )
+        await self.db.commit()
+        return int(cur.lastrowid)
+
+    async def get_feed_post(self, chat_id: int,
+                            message_id: int) -> Optional[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM feed_posts WHERE chat_id=? AND message_id=?",
+            (chat_id, message_id),
+        )
+        row = await cur.fetchone()
+        return dict(row) if row else None
+
+    async def add_feed_signal(self, chat_id: int, post_message_id: int,
+                              reaction: str) -> int:
+        cur = await self.db.execute(
+            "INSERT INTO feed_signals(chat_id, post_message_id, reaction,"
+            " created_at) VALUES (?,?,?,?)",
+            (chat_id, post_message_id, reaction, now_iso()),
+        )
+        await self.db.commit()
+        return int(cur.lastrowid)
+
+    async def feed_signal_counts(self) -> list[dict]:
+        cur = await self.db.execute(
+            "SELECT reaction, COUNT(*) AS n FROM feed_signals"
+            " GROUP BY reaction ORDER BY n DESC, reaction"
+        )
+        return [dict(r) for r in await cur.fetchall()]
+
+    # --- ideas ---
+    async def add_idea_card(self, title: str, description: str = "",
+                            source: str = "",
+                            expires_at: str = "") -> dict:
+        ts = now_iso()
+        cur = await self.db.execute(
+            "INSERT INTO idea_cards(title, description, source, status,"
+            " created_at, expires_at, updated_at)"
+            " VALUES (?,?,?,'open',?,?,?)",
+            (title, description, source, ts, expires_at or ts, ts),
+        )
+        await self.db.commit()
+        return await self.get_idea_card(int(cur.lastrowid))  # type: ignore[return-value]
+
+    async def get_idea_card(self, card_id: int) -> Optional[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM idea_cards WHERE id=?", (card_id,)
+        )
+        row = await cur.fetchone()
+        return dict(row) if row else None
+
+    async def list_idea_cards(self, status: Optional[str] = "open",
+                              limit: int = 50) -> list[dict]:
+        if status:
+            cur = await self.db.execute(
+                "SELECT * FROM idea_cards WHERE status=? ORDER BY id"
+                " LIMIT ?", (status, limit),
+            )
+        else:
+            cur = await self.db.execute(
+                "SELECT * FROM idea_cards ORDER BY id LIMIT ?", (limit,)
+            )
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def set_idea_card_status(self, card_id: int, status: str,
+                                   goal_id: Optional[int] = None) -> bool:
+        if status not in {"open", "done", "dismissed", "expired"}:
+            return False
+        cur = await self.db.execute(
+            "UPDATE idea_cards SET status=?, goal_id=COALESCE(?, goal_id),"
+            " updated_at=? WHERE id=?",
+            (status, goal_id, now_iso(), card_id),
+        )
+        await self.db.commit()
+        return cur.rowcount > 0
+
+    async def expire_idea_cards(self, now: Optional[str] = None) -> list[dict]:
+        """Thẻ open đã quá hạn -> expired. Trả các thẻ vừa hết hạn để
+        bề mặt trả lời được "sao thẻ biến mất" (mục 16.5)."""
+        now = now or now_iso()
+        cur = await self.db.execute(
+            "SELECT * FROM idea_cards WHERE status='open'"
+            " AND expires_at<=?", (now,),
+        )
+        expired = [dict(r) for r in await cur.fetchall()]
+        for card in expired:
+            await self.set_idea_card_status(int(card["id"]), "expired")
+        return expired
+
+    # --- library ---
+    async def add_library_item(self, name: str, kind: str, path: str,
+                               source: str = "") -> dict:
+        ts = now_iso()
+        cur = await self.db.execute(
+            "INSERT INTO library_items(name, kind, path, source, status,"
+            " created_at, updated_at) VALUES (?,?,?,?,'active',?,?)",
+            (name, kind, path, source, ts, ts),
+        )
+        await self.db.commit()
+        return await self.get_library_item(int(cur.lastrowid))  # type: ignore[return-value]
+
+    async def get_library_item(self, item_id: int) -> Optional[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM library_items WHERE id=?", (item_id,)
+        )
+        row = await cur.fetchone()
+        return dict(row) if row else None
+
+    async def get_library_item_by_path(self, path: str) -> Optional[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM library_items WHERE path=? ORDER BY id DESC",
+            (path,),
+        )
+        row = await cur.fetchone()
+        return dict(row) if row else None
+
+    async def list_library_items(self, status: Optional[str] = "active",
+                                 limit: int = 100) -> list[dict]:
+        if status:
+            cur = await self.db.execute(
+                "SELECT * FROM library_items WHERE status=? ORDER BY id"
+                " LIMIT ?", (status, limit),
+            )
+        else:
+            cur = await self.db.execute(
+                "SELECT * FROM library_items ORDER BY id LIMIT ?",
+                (limit,),
+            )
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def update_library_item(self, item_id: int, **fields) -> bool:
+        allowed = {"name", "kind", "path", "trash_path", "source",
+                   "status", "share_status", "share_expires_at",
+                   "trashed_at"}
+        clean = {k: v for k, v in fields.items() if k in allowed}
+        if not clean:
+            return False
+        clean["updated_at"] = now_iso()
+        cols = ", ".join(f"{k}=?" for k in clean)
+        cur = await self.db.execute(
+            f"UPDATE library_items SET {cols} WHERE id=?",
+            (*clean.values(), item_id),
+        )
+        await self.db.commit()
+        return cur.rowcount > 0
+
+    # --- forget (mục 16.11): tìm + vô hiệu, KHÔNG xóa cứng ---
+    async def search_facts(self, topic: str, limit: int = 50,
+                           active_only: bool = True) -> list[dict]:
+        """Fact liên quan tới 1 chủ đề: khớp không dấu trên subject +
+        nội dung. Quy mô cá nhân nên lọc trong bộ nhớ sau khi lấy các
+        fact đang hiệu lực — chính xác quan trọng hơn tốc độ ở đây."""
+        needle = fold_vi(topic or "")
+        if not needle.strip():
+            return []
+        facts = await self.active_facts(limit=1000)
+        if not active_only:
+            cur = await self.db.execute(
+                "SELECT * FROM memory_facts ORDER BY id DESC LIMIT 1000")
+            facts = [dict(r) for r in await cur.fetchall()]
+        out = []
+        for f in facts:
+            hay = fold_vi(f"{f.get('subject', '')} {f.get('fact', '')}")
+            if needle in hay:
+                out.append(f)
+                if len(out) >= limit:
+                    break
+        return out
+
+    async def forget_facts(self, fact_ids: list[int]) -> int:
+        """Đóng vòng đời các fact (valid_to = now) — bản ghi vẫn còn
+        để kiểm toán; đây là "quên" chứ không phải xóa dấu vết."""
+        ts = now_iso()
+        n = 0
+        for fid in fact_ids:
+            cur = await self.db.execute(
+                "UPDATE memory_facts SET valid_to=? WHERE id=?"
+                " AND valid_to IS NULL",
+                (ts, int(fid)),
+            )
+            n += cur.rowcount or 0
+        await self.db.commit()
+        return n
