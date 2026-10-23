@@ -1,9 +1,11 @@
-"""MCP client thật (thiết kế mục 6, MCP-first) — Phase 3.
+"""MCP client thật (thiết kế mục 6, MCP-first) — Phase 3 + 4.
 
-Dùng MCP Python SDK chính thức: kết nối server qua stdio theo cấu
-hình `config/mcp_servers.json`, liệt kê tool của server và đăng ký
-vào registry chung với tên `mcp_<server>_<tool>`. Session chết thì
-tự reconnect 1 lần khi có lời gọi kế tiếp.
+Dùng MCP Python SDK chính thức: kết nối server theo cấu hình
+`config/mcp_servers.json` — qua stdio (Phase 3) hoặc streamable
+HTTP (Phase 4, entry có `url`; header auth lấy từ biến env theo
+tên `auth_env`, giá trị không vào log) — liệt kê tool của server
+và đăng ký vào registry chung với tên `mcp_<server>_<tool>`.
+Session chết thì tự reconnect 1 lần khi có lời gọi kế tiếp.
 
 Degrade là nguyên tắc cứng: thiếu gói `mcp`, thiếu file cấu hình,
 hay từng server lỗi — hệ thống vẫn chạy bình thường, chỉ mất phần
@@ -15,8 +17,10 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, suppress
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, Optional
 
@@ -31,6 +35,14 @@ try:  # gói mcp là dependency Phase 3, nhưng vắng thì degrade, không sậ
     HAS_MCP = True
 except Exception:  # pragma: no cover - phụ thuộc môi trường
     HAS_MCP = False
+
+try:  # streamable HTTP (Phase 4) — cùng SDK, import riêng để SDK cũ
+    # thiếu module này thì stdio vẫn chạy.
+    from mcp.client.streamable_http import streamablehttp_client
+
+    HAS_MCP_HTTP = True
+except Exception:  # pragma: no cover - phụ thuộc môi trường
+    HAS_MCP_HTTP = False
 
 
 def _safe_name(text: str) -> str:
@@ -84,10 +96,52 @@ def _result_to_dict(result) -> dict:
     return {"ok": not is_error, "result": text}
 
 
+def _transport_of(entry: dict) -> str:
+    """'http' khi entry có url hoặc transport khai rõ; còn lại stdio."""
+    declared = str(entry.get("transport") or "").lower()
+    if declared in ("http", "streamable-http", "streamable_http"):
+        return "http"
+    if declared == "stdio":
+        return "stdio"
+    return "http" if entry.get("url") else "stdio"
+
+
+def _http_headers(entry: dict) -> dict[str, str]:
+    """Header cho server HTTP. Giá trị bí mật CHỈ đi qua tên biến
+    env (`auth_env`) — không bao giờ ghi giá trị vào log/status."""
+    headers: dict[str, str] = {}
+    raw = entry.get("headers") or {}
+    if isinstance(raw, dict):
+        headers.update({str(k): str(v) for k, v in raw.items()})
+    auth_env = entry.get("auth_env")
+    if auth_env:
+        secret = os.environ.get(str(auth_env), "")
+        if secret:
+            header_name = str(entry.get("auth_header") or "Authorization")
+            prefix = str(entry.get("auth_prefix", "Bearer "))
+            headers[header_name] = f"{prefix}{secret}"
+    return headers
+
+
+def _local_client_factory(headers=None, timeout=None, auth=None, **_kw):
+    """httpx client factory cho streamablehttp_client.
+
+    trust_env=False: server MCP (thường là local/mạng nhà) phải
+    được nối thẳng — biến HTTP_PROXY/NO_PROXY của môi trường
+    không được can thiệp vào tuyến này.
+    """
+    import httpx
+
+    return httpx.AsyncClient(
+        headers=headers, timeout=timeout, auth=auth,
+        trust_env=False, follow_redirects=True)
+
+
 class _Connection:
     def __init__(self, entry: dict):
         self.entry = entry
         self.name = str(entry["name"])
+        self.transport = _transport_of(entry)
         self.stack: Optional[AsyncExitStack] = None
         self.session = None
         self.tools: list = []
@@ -126,6 +180,27 @@ class MCPManager:
             await asyncio.wait_for(self._open(conn), timeout=timeout)
             logger.info("MCP server '%s' đã nối: %d tool",
                         conn.name, len(conn.tools))
+        except asyncio.CancelledError as exc:
+            # Cancel scope của anyio (trong SDK) đôi khi "rò" một
+            # CancelledError ra ngoài khi kết nối chết giữa chừng,
+            # dù không ai hủy task này thật. Chỉ nuốt khi tầng
+            # asyncio không ghi nhận yêu cầu hủy (cancelling()==0);
+            # hủy thật từ bên ngoài thì để lan ra như thường.
+            task = asyncio.current_task()
+            if task is not None and task.cancelling() > 0:
+                raise
+            conn.error = ("connect_failed: CancelledError: kết nối bị "
+                          "hủy giữa chừng (server không phản hồi?)")
+            conn.session = None
+            logger.warning("MCP server '%s' nối lỗi (degrade): %s",
+                           conn.name, conn.error)
+        except BaseExceptionGroup as exc:
+            # SDK/anyio bọc lỗi kết nối trong ExceptionGroup.
+            first = exc.exceptions[0] if exc.exceptions else exc
+            conn.error = f"{type(first).__name__}: {first}"
+            conn.session = None
+            logger.warning("MCP server '%s' nối lỗi (degrade): %s",
+                           conn.name, conn.error)
         except Exception as exc:
             conn.error = f"{type(exc).__name__}: {exc}"
             conn.session = None
@@ -134,6 +209,49 @@ class MCPManager:
         return conn
 
     async def _open(self, conn: _Connection) -> None:
+        if conn.transport == "http":
+            await self._open_http(conn)
+            return
+        await self._open_stdio(conn)
+
+    async def _open_http(self, conn: _Connection) -> None:
+        if not HAS_MCP_HTTP:
+            raise RuntimeError("SDK thiếu client streamable HTTP")
+        entry = conn.entry
+        url = str(entry.get("url") or "")
+        if not url:
+            raise ValueError("server HTTP thiếu 'url' trong cấu hình")
+        connect_timeout = float(entry.get("timeout_s") or
+                                self.cfg.mcp_connect_timeout_s)
+        call_timeout = float(entry.get("call_timeout_s") or
+                             self.cfg.mcp_call_timeout_s)
+        stack = AsyncExitStack()
+        try:
+            read, write, _sid = await stack.enter_async_context(
+                streamablehttp_client(
+                    url,
+                    headers=_http_headers(entry) or None,
+                    timeout=timedelta(seconds=connect_timeout),
+                    sse_read_timeout=timedelta(seconds=call_timeout),
+                    httpx_client_factory=_local_client_factory,
+                )
+            )
+            session = await stack.enter_async_context(
+                ClientSession(read, write))
+            await session.initialize()
+            listed = await session.list_tools()
+        except BaseException:
+            # Dọn stack khi mở nửa vời; lỗi dọn dẹp là phụ, lỗi gốc
+            # mới là thứ cần ghi nhận — đừng để nó che lỗi gốc.
+            with suppress(Exception):
+                await stack.aclose()
+            raise
+        conn.stack = stack
+        conn.session = session
+        conn.tools = list(listed.tools or [])
+        conn.error = ""
+
+    async def _open_stdio(self, conn: _Connection) -> None:
         entry = conn.entry
         env = dict(get_default_environment())
         extra_env = entry.get("env") or {}
@@ -258,6 +376,7 @@ class MCPManager:
         return {
             name: {
                 "connected": conn.connected,
+                "transport": conn.transport,
                 "tools": [t.name for t in conn.tools],
                 "error": conn.error,
             }

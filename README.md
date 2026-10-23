@@ -1,4 +1,4 @@
-# Mulon — Muse clone (Phase 1 + 2 + 3)
+# Mulon — Muse clone (Phase 1 + 2 + 3 + 4)
 
 Personal AI agent chạy **chỉ trên Telegram**, model **chỉ qua proxy
 local tương thích OpenAI** (không dùng API chính thức), xây theo tài
@@ -94,6 +94,51 @@ registry, dossier), bỏ toàn bộ code lõi cũ.
   cắm vào cùng interface ở phase sau. Luật của khung: credential
   không bao giờ xuất hiện trong kết quả/log/trajectory.
 
+## Đã có thêm ở Phase 4 — chủ động + tiếng nói + media
+
+- **Proactivity engine** (`mulon/proactivity.py`): heartbeat gom
+  việc theo pattern đã chốt — đọc checklist `dossier/HEARTBEAT.md`,
+  gom nhiều mục vào **1 lượt model rẻ** với ngữ cảnh nhẹ
+  (lightContext: fact gần + cam kết mở + lịch bật, không nạp cả
+  dossier), tôn trọng khung giờ `PROACTIVITY_ACTIVE_HOURS`
+  (mặc định 07:00–23:00). Không có gì đáng nói → ghi `HEARTBEAT_OK`
+  vào trajectory và **im lặng**. Có việc → xếp hàng "đề xuất" vào
+  bảng `proactive_notes` (trạng thái `pending`) — Phase 4 **chưa
+  tự gửi** cho user, bề mặt Phase 6 mới trình. File
+  `dossier/PROACTIVE_PREFERENCES.md` dạy hệ thống chặn chủ đề
+  không muốn nghe. Vòng lặp nền **mặc định TẮT**
+  (`PROACTIVITY_ENABLED=1` mới chạy), chạy tay:
+  `python -m mulon.proactivity --once`.
+- **Voice hai chiều** (`mulon/voice.py`) — lớp tương tác với user:
+  nghe bằng **faster-whisper** (tuỳ chọn, lazy, chạy ngoài event
+  loop) → transcript thô qua 1 lượt model rẻ **hiểu ngữ** (sửa
+  lỗi nhận diện, trích ý định) → `{text_tho, text_da_hieu,
+  y_dinh}`; nói bằng **TTS qua proxy** (chuẩn OpenAI speech,
+  model/voice qua env). Telegram: gửi tin thoại thì bot nghe và xử
+  lý như tin chữ; `/voiceon` `/voiceoff` bật/tắt trả lời bằng
+  giọng theo từng phiên. Vắng whisper hoặc proxy không hỗ trợ
+  speech → degrade sạch, text vẫn chạy.
+- **Media pipeline tools** (`mulon/media_tools.py`): bọc
+  ffmpeg/ffprobe — `media_probe`, `media_extract_audio`,
+  `media_trim`, `media_burn_subs` (libass), `media_frames`
+  (trích frame để xem), `media_transcribe` (whisper kèm
+  timecode). Đây là **công cụ dựng video** (mục 8.2), tách bạch
+  với giọng tương tác ở trên. Thiếu ffmpeg → unavailable sạch.
+- **MCP streamable HTTP** (`mulon/mcp_client.py`): server MCP
+  dạng HTTP (entry có `url` trong `config/mcp_servers.json`) bên
+  cạnh stdio; header auth lấy từ biến env theo tên (`auth_env`)
+  — giá trị bí mật không vào log/status.
+- **Browser profile bền**: đặt `BROWSER_PROFILE_DIR` thì
+  Chromium dùng persistent context ở thư mục đó để giữ đăng
+  nhập giữa các lần chạy; mặc định vẫn profile tạm.
+- **Skills system** (`mulon/skills.py`): nạp `SKILL.md` từ
+  `skills/` theo **progressive disclosure** — lúc boot chỉ nạp
+  mục lục (tên + mô tả), toàn văn chỉ nạp khi agent gọi
+  `skill_read`; `requires` (env/tool) không đạt thì skill bị ẩn
+  (eligibility); mọi skill qua **vet tĩnh** (frontmatter hợp lệ,
+  không pattern lệnh nguy hiểm) và kết quả vet ghi trajectory.
+  Kèm 1 skill mẫu `skills/tom-tat-luot-chat/`.
+
 ## Thành phần Phase 1 (nền)
 
 - **Tool registry** (`mulon/tools.py`): read/write/edit file, list_dir,
@@ -113,17 +158,22 @@ registry, dossier), bỏ toàn bộ code lõi cũ.
 
 ## Chưa có (khung chờ các phase sau)
 
-Proactivity engine + heartbeat runner (scheduler đã có hạ tầng
-nhưng pipeline chấm điểm/chủ động nhắn thì chưa), voice (Whisper +
-LLM / OpenAI Voice), media pipeline, adapter connector cho dịch vụ
-thật (hiện mới có khung + adapter ví dụ `system`), MCP qua HTTP
-streamable + OAuth (hiện mới stdio), học skill mới dạng SKILL.md
-đăng ký nóng, alignment synthesis worker (tổng hợp `alignment.md`
-hằng ngày), consolidation tách fact thành
-`people/*.md`/`groups/*.md` (hiện mới ghi vào DB), thủ tục hóa từ
-trajectory (mục 4.5), chạy bộ eval vàng tự động (mới sinh case) +
-Langfuse, Mini App — **không** làm (đã chốt: group forum là bề
-mặt chính). Xem roadmap mục 13 của tài liệu thiết kế.
+- **Phase 5**: chạy bộ eval vàng tự động (hiện mới sinh case) +
+  Langfuse (trace/cost/latency) — nghiệm thu đổi model bằng
+  config đo bằng eval.
+- **Phase 6**: bề mặt group đầy đủ (topic = tab: Feed, Ideas,
+  Goals, Library, Lịch sử & Hệ thống), trình các đề xuất
+  `proactive_notes` đang xếp hàng, Secure Vault (form web bảo
+  mật dùng một lần), quản lý quyền bằng lời thường.
+- **Đang chờ** (ngoài roadmap gốc): alignment synthesis worker
+  (tổng hợp `alignment.md` hằng ngày), consolidation tách fact
+  thành `people/*.md`/`groups/*.md` (hiện mới ghi vào DB), thủ
+  tục hóa từ trajectory (mục 4.5), adapter connector cho dịch vụ
+  thật (hiện mới có khung + adapter ví dụ `system`), MCP OAuth
+  đầy đủ (hiện HTTP mới ở mức header từ env), đăng ký nóng skill
+  mới khi bot đang chạy (hiện nạp lúc boot).
+- Mini App — **không** làm (đã chốt: group forum là bề mặt
+  chính). Xem roadmap mục 13 của tài liệu thiết kế.
 
 ## Chạy
 

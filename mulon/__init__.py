@@ -1,4 +1,4 @@
-"""Mulon — Muse clone (Phase 1 + 2 + 3).
+"""Mulon — Muse clone (Phase 1 + 2 + 3 + 4).
 
 Lõi agent mỏng tự viết theo tài liệu thiết kế
 ``thiet-ke-ky-thuat-muse-clone.md``: gateway model qua LiteLLM trỏ vào
@@ -9,6 +9,11 @@ worker, học từ correction, background review fork.
 Phase 3 thêm tay chân: MCP client thật (SDK chính thức), subagents
 (agent loop đầy đủ, toolset thu hẹp), scheduler + goals/tracking,
 browser worker (Playwright), khung connector trung tính.
+Phase 4 thêm chủ động + tiếng nói + media: proactivity engine
+(heartbeat gom việc, mặc định tắt, chỉ xếp hàng đề xuất), voice hai
+chiều (faster-whisper + hiểu ngữ / TTS qua proxy), media pipeline
+tools (ffmpeg), MCP streamable HTTP, browser profile bền, skills
+system SKILL.md (progressive disclosure + vet tĩnh).
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

@@ -277,6 +277,23 @@ CREATE TABLE IF NOT EXISTS turn_digests (
     correction_id    INTEGER,
     created_at       TEXT NOT NULL
 );
+
+-- ===== Phase 4: proactivity (mục 7) =====
+
+-- Đề xuất chủ động do heartbeat sinh ra. Phase 4 CHỈ xếp hàng ở
+-- trạng thái 'pending' — bề mặt Phase 6 mới trình cho user; không
+-- dòng nào ở đây tự biến thành tin nhắn gửi đi.
+CREATE TABLE IF NOT EXISTS proactive_notes (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    content    TEXT NOT NULL,
+    reason     TEXT NOT NULL DEFAULT '',
+    topic      TEXT NOT NULL DEFAULT '',
+    status     TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_proactive_status
+    ON proactive_notes(status, id);
 """
 
 
@@ -975,6 +992,50 @@ class Memory:
                 (limit,),
             )
         return [dict(r) for r in await cur.fetchall()]
+
+    # ---------- proactive notes (Phase 4, mục 7) ----------
+    async def add_proactive_note(self, content: str, reason: str = "",
+                                 topic: str = "") -> int:
+        """Xếp 1 đề xuất chủ động vào hàng chờ (status='pending').
+
+        Chỉ lưu DB — việc trình/gửi cho user thuộc bề mặt Phase 6.
+        """
+        ts = now_iso()
+        cur = await self.db.execute(
+            "INSERT INTO proactive_notes(content, reason, topic, status,"
+            " created_at, updated_at) VALUES (?,?,?,'pending',?,?)",
+            (content, reason, topic, ts, ts),
+        )
+        await self.db.commit()
+        return int(cur.lastrowid)
+
+    async def list_proactive_notes(self, status: Optional[str] = "pending",
+                                   limit: int = 50) -> list[dict]:
+        if status:
+            cur = await self.db.execute(
+                "SELECT * FROM proactive_notes WHERE status=?"
+                " ORDER BY id DESC LIMIT ?",
+                (status, limit),
+            )
+        else:
+            cur = await self.db.execute(
+                "SELECT * FROM proactive_notes ORDER BY id DESC LIMIT ?",
+                (limit,),
+            )
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def set_proactive_note_status(self, note_id: int,
+                                        status: str) -> bool:
+        """status thuộc {pending, sent, dismissed}; khác -> không đổi."""
+        if status not in {"pending", "sent", "dismissed"}:
+            return False
+        cur = await self.db.execute(
+            "UPDATE proactive_notes SET status=?, updated_at=?"
+            " WHERE id=?",
+            (status, now_iso(), note_id),
+        )
+        await self.db.commit()
+        return cur.rowcount > 0
 
     # ---------- schedules (Phase 3, mục 7) ----------
     async def create_schedule(self, schedule_id: str, cron: str,

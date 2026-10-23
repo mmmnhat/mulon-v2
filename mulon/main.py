@@ -23,11 +23,16 @@ from .context import ContextEngine, Dossier
 from .embeddings import build_embedder
 from .gateway import ModelGateway
 from .mcp_client import MCPManager
+from .media_tools import ffmpeg_available, ffprobe_available, \
+    register_media_tools
 from .memory import Memory
 from .planning import SchedulerService, register_planning_tools
 from .policy import PolicyEngine
+from .proactivity import ProactivityEngine
+from .skills import SkillCatalog, register_skill_tools
 from .subagents import PROFILES, SubagentRunner, register_subagent_tool
 from .tools import build_default_registry
+from .voice import VoiceService
 
 logger = logging.getLogger("mulon.main")
 
@@ -63,7 +68,7 @@ async def build_system(cfg: Config):
     register_planning_tools(registry, cfg, memory)
     # Browser worker (Playwright optional — vắng thì tool báo
     # unavailable, không sập).
-    register_browser_tools(registry, cfg)
+    browser_worker = register_browser_tools(registry, cfg)
     # Connector framework: adapter ví dụ trung tính 'system'.
     connectors = build_default_connectors(cfg)
     register_connector_tools(registry, connectors)
@@ -88,11 +93,34 @@ async def build_system(cfg: Config):
 
     scheduler = SchedulerService(cfg, memory, _agent_provider)
     worker = ConsolidationWorker(cfg, memory, gateway)
+
+    # --- Phase 4: chủ động + tiếng nói + media + skills ---
+    # Media pipeline tools (ffmpeg trên máy — vắng thì unavailable).
+    register_media_tools(registry, cfg, gateway)
+    # Skills SKILL.md: nạp sau khi registry đã đủ tool để xét
+    # eligibility theo requires; mục lục vào tool skill_list /
+    # skill_read, kết quả vet ghi trajectory.
+    catalog = SkillCatalog.load(cfg.skills_dir,
+                                tool_names=set(registry.names()))
+    register_skill_tools(registry, catalog)
+    await catalog.log_vet_results(memory)
+    if catalog.entries:
+        logger.info("skills: mục lục %s (tổng %d file)",
+                    catalog.visible_names(), len(catalog.entries))
+    # Voice tương tác (STT whisper optional + TTS qua proxy).
+    voice = VoiceService(cfg, gateway)
+    # Proactivity engine: chỉ DỮ LIỆU + engine ở đây; vòng lặp nền
+    # ở _run và mặc định TẮT như scheduler/consolidation.
+    proactivity = ProactivityEngine(cfg, memory, gateway)
     services = {
         "mcp": mcp_manager,
         "connectors": connectors,
         "scheduler": scheduler,
         "subagent_runner": runner,
+        "browser_worker": browser_worker,
+        "voice": voice,
+        "proactivity": proactivity,
+        "skills": catalog,
     }
     return agent, memory, dossier, registry, worker, services
 
@@ -117,6 +145,24 @@ async def _dry_run(cfg: Config) -> int:
             "scheduler_enabled": cfg.scheduler_enabled,
             "subagent_profiles": sorted(PROFILES),
         },
+        "phase4": {
+            "proactivity_enabled": cfg.proactivity_enabled,
+            "proactivity_active_hours": cfg.proactivity_active_hours,
+            "voice": {
+                "stt_available": services["voice"].stt_available(),
+                "whisper_model": cfg.voice_whisper_model,
+                "tts_model": cfg.voice_tts_model,
+                "tts_voice": cfg.voice_tts_voice,
+                "tts_format": cfg.voice_tts_format,
+            },
+            "media": {
+                "ffmpeg": ffmpeg_available(cfg),
+                "ffprobe": ffprobe_available(cfg),
+            },
+            "skills": services["skills"].catalog(),
+            "browser_persistent_profile":
+                services["browser_worker"].uses_persistent_profile(),
+        },
         "db": str(cfg.db_path),
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -139,13 +185,28 @@ async def _consolidation_loop(worker: ConsolidationWorker,
                            exc)
 
 
+async def _proactivity_loop(engine: ProactivityEngine,
+                            interval_s: int) -> None:
+    """Vòng lặp heartbeat — CHỈ chạy khi PROACTIVITY_ENABLED=1."""
+    while True:
+        await asyncio.sleep(interval_s)
+        try:
+            stats = await engine.run_once()
+            if stats.get("notes"):
+                logger.info("heartbeat xếp hàng %d đề xuất: %s",
+                            stats["notes"], stats)
+        except Exception as exc:
+            logger.warning("heartbeat nền lỗi (bỏ qua vòng này): %s", exc)
+
+
 async def _run(cfg: Config) -> int:
     from .telegram_bot import TelegramSurface
 
     (agent, memory, dossier, registry, worker,
      services) = await build_system(cfg)
     surface = TelegramSurface(cfg, agent, memory, dossier,
-                              consolidator=worker)
+                              consolidator=worker,
+                              voice=services["voice"])
     if cfg.consolidation_enabled:
         asyncio.create_task(
             _consolidation_loop(worker, cfg.consolidation_interval_s)
@@ -156,6 +217,17 @@ async def _run(cfg: Config) -> int:
         asyncio.create_task(services["scheduler"].run_forever())
     else:
         logger.info("scheduler nền TẮT (bật bằng SCHEDULER_ENABLED=1)")
+    if cfg.proactivity_enabled:
+        asyncio.create_task(
+            _proactivity_loop(services["proactivity"],
+                              cfg.proactivity_interval_s)
+        )
+        logger.info("proactivity nền BẬT (mỗi %ss, giờ %s)",
+                    cfg.proactivity_interval_s,
+                    cfg.proactivity_active_hours)
+    else:
+        logger.info(
+            "proactivity nền TẮT (bật bằng PROACTIVITY_ENABLED=1)")
     await surface.run()
     return 0
 

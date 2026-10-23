@@ -1,0 +1,315 @@
+"""Media pipeline tools (thiết kế mục 8.2) — Phase 4.
+
+ĐÂY LÀ CÔNG CỤ LÀM VIỆC cho pipeline video (tải nguồn -> chép lời
+-> dựng), KHÔNG phải lớp tương tác giọng nói với user (lớp đó ở
+`mulon/voice.py`). Theo chốt của user: SenseVoice (ASR timecode)
+và Piper (TTS offline) thuộc nhóm công cụ này; bản này dùng chung
+lớp faster-whisper của voice cho `media_transcribe` và giữ đúng
+ranh giới vai trò — tool media không bao giờ là giọng giao tiếp.
+
+Bọc ffmpeg/ffprobe thành tool của registry:
+- media_probe: thời lượng, độ phân giải, codec.
+- media_extract_audio: tách track audio ra .mp3.
+- media_trim: cắt [start, start+duration].
+- media_burn_subs: đốt phụ đề .ass/.srt (libass) vào video.
+- media_frames: trích N frame đều nhau ra ảnh PNG để agent "xem".
+- media_transcribe: chép lời file media (whisper, có timecode).
+
+Thiếu ffmpeg/ffprobe -> tool trả unavailable SẠCH, không sập.
+Mọi đường dẫn neo trong workspace như các file tool khác.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import shutil
+from pathlib import Path
+from typing import Optional
+
+from . import voice as voice_mod
+from .tools import ToolSpec, _resolve_in_workspace
+
+logger = logging.getLogger("mulon.media")
+
+
+def ffmpeg_available(cfg) -> bool:
+    return shutil.which(cfg.media_ffmpeg) is not None
+
+
+def ffprobe_available(cfg) -> bool:
+    return shutil.which(cfg.media_ffprobe) is not None
+
+
+def _unavailable(what: str) -> dict:
+    return {"ok": False, "unavailable": True,
+            "error": f"media_unavailable: thiếu {what} trên máy"}
+
+
+async def _run(args: list[str], timeout: float) -> tuple[int, str, str]:
+    proc = await asyncio.create_subprocess_exec(
+        *args,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        out, err = await asyncio.wait_for(proc.communicate(),
+                                          timeout=timeout)
+    except asyncio.TimeoutError:
+        proc.kill()
+        raise
+    return (proc.returncode or 0,
+            out.decode("utf-8", "replace"),
+            err.decode("utf-8", "replace"))
+
+
+def _default_out(cfg, src: Path, suffix: str, ext: str) -> Path:
+    out_dir = Path(cfg.workspace_dir) / "media"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return out_dir / f"{src.stem}-{suffix}.{ext}"
+
+
+async def probe(cfg, path) -> dict:
+    if not ffprobe_available(cfg):
+        return _unavailable("ffprobe")
+    src = _resolve_in_workspace(cfg, str(path))
+    if not src.is_file():
+        return {"ok": False, "error": f"không thấy file: {path}"}
+    try:
+        rc, out, err = await _run(
+            [cfg.media_ffprobe, "-v", "error", "-show_format",
+             "-show_streams", "-of", "json", str(src)],
+            timeout=60,
+        )
+    except asyncio.TimeoutError:
+        return {"ok": False, "error": "ffprobe timeout"}
+    if rc != 0:
+        return {"ok": False, "error": f"ffprobe lỗi: {err[-300:]}"}
+    try:
+        data = json.loads(out)
+    except Exception:
+        return {"ok": False, "error": "ffprobe trả JSON không đọc được"}
+    streams = data.get("streams") or []
+    v = next((s for s in streams if s.get("codec_type") == "video"), {})
+    a = next((s for s in streams if s.get("codec_type") == "audio"), {})
+    fmt = data.get("format") or {}
+    duration = fmt.get("duration") or v.get("duration") or 0
+    return {
+        "ok": True,
+        "path": str(src),
+        "duration_s": round(float(duration), 3),
+        "width": v.get("width"),
+        "height": v.get("height"),
+        "video_codec": v.get("codec_name"),
+        "audio_codec": a.get("codec_name"),
+        "format": fmt.get("format_name"),
+        "size_bytes": int(fmt.get("size") or 0),
+    }
+
+
+async def extract_audio(cfg, path, out=None) -> dict:
+    if not ffmpeg_available(cfg):
+        return _unavailable("ffmpeg")
+    src = _resolve_in_workspace(cfg, str(path))
+    if not src.is_file():
+        return {"ok": False, "error": f"không thấy file: {path}"}
+    dst = (_resolve_in_workspace(cfg, str(out)) if out
+           else _default_out(cfg, src, "audio", "mp3"))
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        rc, _o, err = await _run(
+            [cfg.media_ffmpeg, "-y", "-i", str(src), "-vn",
+             "-codec:a", "libmp3lame", "-q:a", "4", str(dst)],
+            timeout=cfg.media_timeout_s,
+        )
+    except asyncio.TimeoutError:
+        return {"ok": False, "error": "ffmpeg timeout (extract_audio)"}
+    if rc != 0 or not dst.is_file():
+        return {"ok": False, "error": f"ffmpeg lỗi: {err[-300:]}"}
+    return {"ok": True, "path": str(dst), "source": str(src)}
+
+
+async def trim(cfg, path, start_s: float = 0.0,
+               duration_s: Optional[float] = None, out=None) -> dict:
+    if not ffmpeg_available(cfg):
+        return _unavailable("ffmpeg")
+    src = _resolve_in_workspace(cfg, str(path))
+    if not src.is_file():
+        return {"ok": False, "error": f"không thấy file: {path}"}
+    dst = (_resolve_in_workspace(cfg, str(out)) if out
+           else _default_out(cfg, src, "trim", src.suffix.lstrip(".") or "mp4"))
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    args = [cfg.media_ffmpeg, "-y", "-ss", str(float(start_s)),
+            "-i", str(src)]
+    if duration_s:
+        args += ["-t", str(float(duration_s))]
+    args += ["-c", "copy", str(dst)]
+    try:
+        rc, _o, err = await _run(args, timeout=cfg.media_timeout_s)
+    except asyncio.TimeoutError:
+        return {"ok": False, "error": "ffmpeg timeout (trim)"}
+    if rc != 0 or not dst.is_file():
+        return {"ok": False, "error": f"ffmpeg lỗi: {err[-300:]}"}
+    return {"ok": True, "path": str(dst), "source": str(src),
+            "start_s": float(start_s), "duration_s": duration_s}
+
+
+def _escape_filter_path(path: Path) -> str:
+    """Escape đường dẫn cho filter subtitles của ffmpeg."""
+    text = str(path).replace("\\", "/")
+    return text.replace(":", "\\:").replace("'", "\\'")
+
+
+async def burn_subs(cfg, path, subs_path, out=None) -> dict:
+    if not ffmpeg_available(cfg):
+        return _unavailable("ffmpeg")
+    src = _resolve_in_workspace(cfg, str(path))
+    subs = _resolve_in_workspace(cfg, str(subs_path))
+    if not src.is_file():
+        return {"ok": False, "error": f"không thấy file: {path}"}
+    if not subs.is_file():
+        return {"ok": False, "error": f"không thấy phụ đề: {subs_path}"}
+    dst = (_resolve_in_workspace(cfg, str(out)) if out
+           else _default_out(cfg, src, "subbed", "mp4"))
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    vf = f"subtitles={_escape_filter_path(subs)}"
+    try:
+        rc, _o, err = await _run(
+            [cfg.media_ffmpeg, "-y", "-i", str(src), "-vf", vf,
+             "-codec:a", "copy", str(dst)],
+            timeout=cfg.media_timeout_s,
+        )
+    except asyncio.TimeoutError:
+        return {"ok": False, "error": "ffmpeg timeout (burn_subs)"}
+    if rc != 0 or not dst.is_file():
+        return {"ok": False, "error": f"ffmpeg lỗi: {err[-300:]}"}
+    return {"ok": True, "path": str(dst), "source": str(src),
+            "subs": str(subs)}
+
+
+async def frames(cfg, path, count: int = 3, out_dir=None) -> dict:
+    """Trích `count` frame chia đều theo thời lượng -> PNG."""
+    if not ffmpeg_available(cfg):
+        return _unavailable("ffmpeg")
+    src = _resolve_in_workspace(cfg, str(path))
+    if not src.is_file():
+        return {"ok": False, "error": f"không thấy file: {path}"}
+    info = await probe(cfg, path)
+    if not info.get("ok"):
+        return info
+    duration = float(info.get("duration_s") or 0)
+    if duration <= 0:
+        return {"ok": False, "error": "không đọc được thời lượng media"}
+    count = max(1, min(int(count), 12))
+    dst_dir = (_resolve_in_workspace(cfg, str(out_dir)) if out_dir
+               else Path(cfg.workspace_dir) / "media" /
+               f"{src.stem}-frames")
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    paths: list[str] = []
+    for i in range(count):
+        at = duration * (i + 0.5) / count
+        dst = dst_dir / f"frame-{i + 1:02d}.png"
+        try:
+            rc, _o, err = await _run(
+                [cfg.media_ffmpeg, "-y", "-ss", f"{at:.2f}",
+                 "-i", str(src), "-frames:v", "1", str(dst)],
+                timeout=60,
+            )
+        except asyncio.TimeoutError:
+            return {"ok": False, "error": "ffmpeg timeout (frames)"}
+        if rc != 0 or not dst.is_file():
+            return {"ok": False, "error": f"ffmpeg lỗi: {err[-300:]}"}
+        paths.append(str(dst))
+    return {"ok": True, "frames": paths, "count": len(paths),
+            "source": str(src)}
+
+
+async def transcribe(cfg, path, gateway=None) -> dict:
+    """Chép lời file media cho pipeline (kèm timecode từng đoạn).
+
+    Dùng chung lớp faster-whisper với voice tương tác nhưng vai
+    trò khác hẳn: đây là CÔNG CỤ dựng video (mục 8.2), kết quả đi
+    vào pipeline dịch/lồng tiếng — không phải kênh nói chuyện với
+    user. Không qua bước "hiểu ngữ" (pipeline cần bản thô +
+    timecode nguyên vẹn).
+    """
+    src = _resolve_in_workspace(cfg, str(path))
+    if not src.is_file():
+        return {"ok": False, "error": f"không thấy file: {path}"}
+    return await voice_mod.transcribe_audio(
+        cfg, src, gateway=None, understand=False)
+
+
+def register_media_tools(registry, cfg, gateway=None):
+    """Đăng ký 6 tool media vào registry chung."""
+
+    async def media_probe(path: str):
+        return await probe(cfg, path)
+
+    async def media_extract_audio(path: str, out: str = ""):
+        return await extract_audio(cfg, path, out or None)
+
+    async def media_trim(path: str, start_s: float = 0.0,
+                         duration_s: float = 0.0, out: str = ""):
+        return await trim(cfg, path, start_s,
+                          duration_s or None, out or None)
+
+    async def media_burn_subs(path: str, subs_path: str, out: str = ""):
+        return await burn_subs(cfg, path, subs_path, out or None)
+
+    async def media_frames(path: str, count: int = 3):
+        return await frames(cfg, path, count)
+
+    async def media_transcribe(path: str):
+        return await transcribe(cfg, path, gateway)
+
+    specs = [
+        ("media_probe",
+         "Đọc thông tin media bằng ffprobe: thời lượng, độ phân "
+         "giải, codec video/audio, dung lượng.",
+         {"type": "object",
+          "properties": {"path": {"type": "string"}},
+          "required": ["path"]}, 60, media_probe),
+        ("media_extract_audio",
+         "Tách track audio của file media ra .mp3 (cho pipeline "
+         "chép lời/dịch).",
+         {"type": "object",
+          "properties": {"path": {"type": "string"},
+                         "out": {"type": "string", "default": ""}},
+          "required": ["path"]}, 320, media_extract_audio),
+        ("media_trim",
+         "Cắt media từ start_s, dài duration_s giây (0 = tới hết).",
+         {"type": "object",
+          "properties": {"path": {"type": "string"},
+                         "start_s": {"type": "number", "default": 0},
+                         "duration_s": {"type": "number", "default": 0},
+                         "out": {"type": "string", "default": ""}},
+          "required": ["path"]}, 320, media_trim),
+        ("media_burn_subs",
+         "Đốt phụ đề .ass/.srt vào video (hardsub bằng libass).",
+         {"type": "object",
+          "properties": {"path": {"type": "string"},
+                         "subs_path": {"type": "string"},
+                         "out": {"type": "string", "default": ""}},
+          "required": ["path", "subs_path"]}, 600, media_burn_subs),
+        ("media_frames",
+         "Trích N frame chia đều theo thời lượng ra ảnh PNG để "
+         "xem nội dung video.",
+         {"type": "object",
+          "properties": {"path": {"type": "string"},
+                         "count": {"type": "integer", "default": 3}},
+          "required": ["path"]}, 120, media_frames),
+        ("media_transcribe",
+         "Chép lời file media bằng whisper, kèm timecode từng "
+         "đoạn — công cụ pipeline video (dịch/lồng tiếng), không "
+         "phải giọng tương tác với user.",
+         {"type": "object",
+          "properties": {"path": {"type": "string"}},
+          "required": ["path"]}, 320, media_transcribe),
+    ]
+    for name, desc, params, timeout, handler in specs:
+        registry.register(ToolSpec(
+            name=name, description=desc, parameters=params,
+            group="media", timeout_s=timeout, handler=handler))
+    return [s[0] for s in specs]

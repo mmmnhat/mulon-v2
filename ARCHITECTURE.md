@@ -29,7 +29,17 @@ Việc con: agent gọi spawn_subagent -> SubagentRunner (semaphore 4)
 -> Agent con với registry đã lọc theo profile + gateway đếm token
 -> trả digest nén cho agent chính.
 Tool MCP: registry chứa mcp_<server>_<tool> -> MCPManager.call_tool
--> ClientSession của SDK (stdio) -> tự reconnect khi session chết.
+-> ClientSession của SDK (stdio hoặc streamable HTTP) -> tự
+reconnect khi session chết.
+Tin thoại: Telegram voice -> tải file -> faster-whisper chép lời
+-> model rẻ hiểu ngữ -> bản đã hiểu vào batcher như tin chữ;
+session bật /voiceon thì câu trả lời được đọc thêm bằng TTS qua
+proxy (POST /audio/speech).
+Heartbeat (chỉ khi PROACTIVITY_ENABLED=1): đọc checklist
+HEARTBEAT.md + PROACTIVE_PREFERENCES.md -> ngữ cảnh nhẹ + 1 lượt
+model rẻ -> không có gì: trajectory 'heartbeat' HEARTBEAT_OK, im
+lặng; có việc: xếp hàng proactive_notes (pending) chờ bề mặt
+Phase 6 trình — không tự gửi.
 ```
 
 ## Module
@@ -39,7 +49,7 @@ Tool MCP: registry chứa mcp_<server>_<tool> -> MCPManager.call_tool
 | `mulon/config.py` | Cấu hình qua env, không hardcode giá trị cá nhân |
 | `mulon/gateway.py` | LiteLLM -> proxy; retry, circuit breaker, đo latency/token |
 | `mulon/context.py` | Dossier snapshot, mục bài học, ngân sách token, trim, compaction + memory flush |
-| `mulon/memory.py` | SQLite WAL: messages/FTS5, facts bi-temporal, bảng vec0 + chỉ mục lúc ghi, corrections, turn_digests, tasks, trajectory, ledger, schedules, goals/goal_activity/tracked_items |
+| `mulon/memory.py` | SQLite WAL: messages/FTS5, facts bi-temporal, bảng vec0 + chỉ mục lúc ghi, corrections, turn_digests, tasks, trajectory, ledger, schedules, goals/goal_activity/tracked_items, proactive_notes |
 | `mulon/embeddings.py` | Interface Embedder: FastEmbed bge-m3 (lazy, tuỳ chọn) + stub tất định cho test |
 | `mulon/learning.py` | Phát hiện correction, phân loại taxonomy, rút bài học chống overfit, sinh eval case |
 | `mulon/consolidation.py` | Worker tổng hợp ký ức: trích fact, khử trùng, supersede, backfill embedding; CLI `--once` |
@@ -48,12 +58,16 @@ Tool MCP: registry chứa mcp_<server>_<tool> -> MCPManager.call_tool
 | `mulon/agent.py` | Vòng plan-act-verify, ngân sách tác vụ, hook correction + review fork nền |
 | `mulon/cron.py` | Cron 5 trường thuần: parse + tính lần chạy kế tiếp theo zoneinfo |
 | `mulon/planning.py` | SchedulerService (quét hạn, chống trùng, giao việc cho agent) + tools lịch hẹn/goals |
-| `mulon/mcp_client.py` | MCP client bằng SDK chính thức (stdio): nối server theo config, đăng ký tool vào registry, tự reconnect |
+| `mulon/mcp_client.py` | MCP client bằng SDK chính thức (stdio + streamable HTTP, auth header từ env): nối server theo config, đăng ký tool vào registry, tự reconnect |
 | `mulon/subagents.py` | Subagent = Agent đầy đủ với registry lọc theo profile, trần token/vòng riêng, semaphore 4, digest nén |
-| `mulon/browser_worker.py` | Playwright headless: web_read (trích text chính) + web_screenshot; vắng Playwright thì báo unavailable |
+| `mulon/browser_worker.py` | Playwright headless: web_read (trích text chính) + web_screenshot; profile bền tuỳ chọn (BROWSER_PROFILE_DIR); vắng Playwright thì báo unavailable |
 | `mulon/connectors.py` | Khung connector trung tính (health_check + call, đăng ký lazy) + adapter ví dụ `system` |
-| `mulon/telegram_bot.py` | aiogram 3: batching, streaming edit, chunk HTML, session theo topic, /new kích hoạt consolidation |
-| `mulon/main.py` | Boot + `--dry-run` smoke test; vòng consolidation + scheduler nền khi được bật đích danh |
+| `mulon/proactivity.py` | Heartbeat gom việc: checklist HEARTBEAT.md + preferences, ngữ cảnh nhẹ, model rẻ; HEARTBEAT_OK im lặng hoặc xếp hàng proactive_notes; CLI `--once`; mặc định TẮT |
+| `mulon/voice.py` | Voice tương tác (mục 8.1): faster-whisper + hiểu ngữ bằng model rẻ; TTS qua proxy chuẩn OpenAI speech; VoiceService cho bề mặt Telegram |
+| `mulon/media_tools.py` | Media pipeline (mục 8.2): probe/extract_audio/trim/burn_subs/frames/transcribe bằng ffmpeg — công cụ dựng video, không phải giọng tương tác |
+| `mulon/skills.py` | Skills SKILL.md: mục lục progressive disclosure, eligibility theo requires, vet tĩnh ghi trajectory; tool skill_list/skill_read |
+| `mulon/telegram_bot.py` | aiogram 3: batching, streaming edit, chunk HTML, session theo topic, /new kích hoạt consolidation, tin thoại -> STT, /voiceon//voiceoff |
+| `mulon/main.py` | Boot + `--dry-run` smoke test; vòng consolidation + scheduler + proactivity nền khi được bật đích danh |
 
 ## Nguyên tắc bất biến (rút từ mục 0 của thiết kế)
 

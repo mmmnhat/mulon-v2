@@ -131,6 +131,35 @@ class Config:
     # unavailable sạch).
     browser_timeout_s: float = 30.0
     browser_max_chars: int = 12_000
+    # Thư mục profile cố định để giữ đăng nhập giữa các lần chạy.
+    # None (mặc định) = profile tạm như cũ. BROWSER_PROFILE_DIR rỗng
+    # cũng hiểu là None.
+    browser_profile_dir: Path | None = None
+
+    # --- Phase 4: chủ động + tiếng nói + media (mục 7, 8) ---
+    # Proactivity: MẶC ĐỊNH TẮT — chỉ chạy khi PROACTIVITY_ENABLED=1
+    # (bài học vụ user xóa toàn bộ job tự động 2026-10-22).
+    proactivity_enabled: bool = False
+    proactivity_interval_s: int = 1800
+    # Khung giờ được phép quét chủ động (giờ địa phương theo
+    # default_timezone). Ngoài khung -> bỏ qua, không làm phiền.
+    proactivity_active_hours: str = "07:00-23:00"
+    # Voice tương tác (mục 8.1): nghe = faster-whisper (optional,
+    # lazy) + model rẻ hiểu ngữ; nói = TTS qua proxy (chuẩn OpenAI
+    # speech POST /audio/speech vào PROXY_BASE_URL).
+    voice_whisper_model: str = "large-v3"
+    voice_tts_model: str = "gpt-4o-mini-tts"
+    voice_tts_voice: str = "nova"
+    # opus -> .ogg (voice note Telegram); mp3 -> .mp3.
+    voice_tts_format: str = "opus"
+    voice_understand: bool = True
+    # Media pipeline (mục 8.2): ffmpeg/ffprobe trên máy.
+    media_ffmpeg: str = "ffmpeg"
+    media_ffprobe: str = "ffprobe"
+    media_timeout_s: float = 300.0
+    # Skills (SKILL.md, progressive disclosure): thư mục chứa các
+    # thư mục con, mỗi thư mục 1 SKILL.md.
+    skills_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "skills")
 
     @classmethod
     def load(cls, env_file: str | Path | None = None) -> "Config":
@@ -195,6 +224,23 @@ class Config:
                 "SUBAGENT_DIGEST_MAX_CHARS", 2_000),
             browser_timeout_s=_env_float("BROWSER_TIMEOUT_S", 30.0),
             browser_max_chars=_env_int("BROWSER_MAX_CHARS", 12_000),
+            browser_profile_dir=(
+                _resolve(_env("BROWSER_PROFILE_DIR", ""))
+                if _env("BROWSER_PROFILE_DIR", "") else None
+            ),
+            proactivity_enabled=_env_bool("PROACTIVITY_ENABLED", False),
+            proactivity_interval_s=_env_int("PROACTIVITY_INTERVAL_S", 1800),
+            proactivity_active_hours=_env(
+                "PROACTIVITY_ACTIVE_HOURS", "07:00-23:00"),
+            voice_whisper_model=_env("VOICE_WHISPER_MODEL", "large-v3"),
+            voice_tts_model=_env("VOICE_TTS_MODEL", "gpt-4o-mini-tts"),
+            voice_tts_voice=_env("VOICE_TTS_VOICE", "nova"),
+            voice_tts_format=_env("VOICE_TTS_FORMAT", "opus"),
+            voice_understand=_env_bool("VOICE_UNDERSTAND", True),
+            media_ffmpeg=_env("MEDIA_FFMPEG", "ffmpeg"),
+            media_ffprobe=_env("MEDIA_FFPROBE", "ffprobe"),
+            media_timeout_s=_env_float("MEDIA_TIMEOUT_S", 300.0),
+            skills_dir=_resolve(_env("SKILLS_DIR", "skills")),
         )
 
     def masked_summary(self) -> dict:
@@ -222,4 +268,13 @@ class Config:
             "mcp_config_path": str(self.mcp_config_path),
             "scheduler_enabled": self.scheduler_enabled,
             "subagent_max_concurrent": self.subagent_max_concurrent,
+            "browser_profile_dir": (
+                str(self.browser_profile_dir)
+                if self.browser_profile_dir else None
+            ),
+            "proactivity_enabled": self.proactivity_enabled,
+            "proactivity_active_hours": self.proactivity_active_hours,
+            "voice_tts_model": self.voice_tts_model,
+            "voice_tts_voice": self.voice_tts_voice,
+            "skills_dir": str(self.skills_dir),
         }

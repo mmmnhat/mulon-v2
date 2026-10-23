@@ -18,3 +18,9 @@ mcp>=1.30,<2
 # Tuỳ chọn (Phase 3): browser worker render trang cần JS.
 # Không cài thì tool web_read/web_screenshot báo unavailable. Cài bằng:
 #   pip install "playwright>=1.50,<2" && playwright install chromium
+# Tuỳ chọn (Phase 4): nhận diện giọng nói cho voice tương tác và
+# media_transcribe. Không cài thì STT báo unavailable sạch (TTS
+# qua proxy không cần gói này). Cài bằng:
+#   pip install "faster-whisper>=1.1,<2"
+# Phase 4 media tools dùng ffmpeg/ffprobe CÓ SẴN trên máy (không
+# phải gói Python) — thiếu thì tool media báo unavailable.

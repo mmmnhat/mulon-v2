@@ -1,8 +1,13 @@
-"""Browser worker tối thiểu (thiết kế mục 6) — Phase 3.
+"""Browser worker tối thiểu (thiết kế mục 6) — Phase 3 + 4.
 
 Playwright (Chromium headless) cho việc cần render thật:
 - web_read: mở URL, trích text chính (bỏ nav/footer/script...).
 - web_screenshot: chụp PNG lưu vào workspace, trả đường dẫn.
+
+Phase 4 thêm profile bền tuỳ chọn: đặt BROWSER_PROFILE_DIR thì
+Chromium dùng persistent context ở thư mục đó — cookie/đăng nhập
+sống qua các lần chạy. Mặc định (không đặt) vẫn profile tạm, mỗi
+lần mở là sạch như cũ.
 
 Phân biệt với web_fetch (đọc nhanh bằng HTTP thuần): web_read dành
 cho trang cần JS. Playwright/Chromium vắng hoặc khởi động lỗi ->
@@ -14,6 +19,7 @@ from __future__ import annotations
 import html as html_lib
 import logging
 import re
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -72,40 +78,60 @@ class BrowserWorker:
     def __init__(self, cfg):
         self.cfg = cfg
 
+    # ---------- profile (Phase 4) ----------
+    def profile_dir(self) -> Optional[Path]:
+        """Thư mục profile cố định, None = profile tạm (mặc định)."""
+        raw = getattr(self.cfg, "browser_profile_dir", None)
+        return Path(raw) if raw else None
+
+    def uses_persistent_profile(self) -> bool:
+        return self.profile_dir() is not None
+
+    @asynccontextmanager
+    async def _open_page(self):
+        """Mở 1 page Chromium: persistent context khi có profile
+        dir (giữ đăng nhập), browser tạm như cũ khi không."""
+        from playwright.async_api import async_playwright
+
+        async with async_playwright() as pw:
+            profile = self.profile_dir()
+            if profile is not None:
+                profile.mkdir(parents=True, exist_ok=True)
+                context = await pw.chromium.launch_persistent_context(
+                    str(profile), headless=True)
+                try:
+                    page = (context.pages[0] if context.pages
+                            else await context.new_page())
+                    yield page
+                finally:
+                    await context.close()
+            else:
+                browser = await pw.chromium.launch(headless=True)
+                try:
+                    yield await browser.new_page()
+                finally:
+                    await browser.close()
+
     async def _fetch_rendered(self, url: str) -> tuple[str, str]:
         """Mở trang bằng Chromium, trả (title, html)."""
-        from playwright.async_api import async_playwright
-
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=True)
-            try:
-                page = await browser.new_page()
-                await page.goto(
-                    url,
-                    timeout=int(self.cfg.browser_timeout_s * 1000),
-                    wait_until="domcontentloaded",
-                )
-                title = await page.title()
-                content = await page.content()
-                return title, content
-            finally:
-                await browser.close()
+        async with self._open_page() as page:
+            await page.goto(
+                url,
+                timeout=int(self.cfg.browser_timeout_s * 1000),
+                wait_until="domcontentloaded",
+            )
+            title = await page.title()
+            content = await page.content()
+            return title, content
 
     async def _capture_png(self, url: str, out_path: Path) -> None:
-        from playwright.async_api import async_playwright
-
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=True)
-            try:
-                page = await browser.new_page()
-                await page.goto(
-                    url,
-                    timeout=int(self.cfg.browser_timeout_s * 1000),
-                    wait_until="domcontentloaded",
-                )
-                await page.screenshot(path=str(out_path), full_page=True)
-            finally:
-                await browser.close()
+        async with self._open_page() as page:
+            await page.goto(
+                url,
+                timeout=int(self.cfg.browser_timeout_s * 1000),
+                wait_until="domcontentloaded",
+            )
+            await page.screenshot(path=str(out_path), full_page=True)
 
     def _unavailable(self, reason: str) -> dict:
         return {

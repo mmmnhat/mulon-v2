@@ -7,6 +7,9 @@
 - Group có người khác: chỉ đáp khi được mention/reply (GROUP_MENTION_ONLY).
 - Lệnh tối thiểu: /start /status /new /memory. Mọi tính năng khác đi
   bằng ngôn ngữ tự nhiên.
+- Voice (Phase 4, mục 8.1): tin nhắn thoại -> STT (voice.py) ->
+  bản đã hiểu ngữ đi tiếp vào agent như tin chữ. /voiceon /
+  /voiceoff bật/tắt trả lời bằng giọng theo từng session.
 """
 
 from __future__ import annotations
@@ -14,11 +17,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from pathlib import Path
 from typing import Awaitable, Callable, Optional
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ChatType
-from aiogram.types import Message, ReactionTypeEmoji
+from aiogram.types import FSInputFile, Message, ReactionTypeEmoji
 
 logger = logging.getLogger("mulon.telegram")
 
@@ -124,18 +128,33 @@ def session_key_for(message: Message) -> str:
 # ------------------------------- bot -------------------------------
 
 class TelegramSurface:
-    def __init__(self, cfg, agent, memory, dossier, consolidator=None):
+    def __init__(self, cfg, agent, memory, dossier, consolidator=None,
+                 voice=None):
         self.cfg = cfg
         self.agent = agent
         self.memory = memory
         self.dossier = dossier
         self.consolidator = consolidator
+        # VoiceService (mulon.voice) — None thì tính năng voice tắt
+        # sạch: tin thoại được báo chưa sẵn sàng, /voiceon vô hiệu.
+        self.voice = voice
+        self._voice_reply: set[str] = set()
         self.bot: Optional[Bot] = None
         self.dp = Dispatcher()
         self._locks: dict[str, asyncio.Lock] = {}
         self._sessions_meta: dict[str, Message] = {}
         self.batcher = MessageBatcher(cfg.debounce_seconds, self._on_batch)
         self._register_handlers()
+
+    # ---- chế độ trả lời bằng giọng (theo session) ----
+    def voice_reply_enabled(self, key: str) -> bool:
+        return key in self._voice_reply
+
+    def set_voice_reply(self, key: str, on: bool) -> None:
+        if on:
+            self._voice_reply.add(key)
+        else:
+            self._voice_reply.discard(key)
 
     # ---- điều kiện đáp trong group ----
     def _should_respond(self, message: Message) -> bool:
@@ -205,6 +224,83 @@ class TelegramSurface:
                 for chunk in chunk_html(final):
                     plain = re.sub(r"<[^>]+>", "", chunk)
                     await anchor.answer(plain)
+            await self._maybe_send_voice(key, anchor, final)
+
+    # ---- voice (Phase 4, mục 8.1) ----
+    async def _maybe_send_voice(self, key: str, anchor: Message,
+                                final_text: str) -> None:
+        """Trả lời thêm bằng giọng khi session đang bật /voiceon.
+
+        Lỗi TTS/gửi voice KHÔNG bao giờ làm hỏng lượt — text đã gửi
+        xong trước đó rồi.
+        """
+        if self.voice is None or not self.voice_reply_enabled(key):
+            return
+        plain = re.sub(r"<[^>]+>", "", final_text).strip()
+        if not plain:
+            return
+        try:
+            out = await self.voice.speak_to_file(plain)
+            if out.get("ok"):
+                await anchor.answer_voice(FSInputFile(out["path"]))
+            else:
+                logger.warning("TTS lỗi (đã trả text, bỏ qua voice): %s",
+                               out.get("error"))
+        except Exception as exc:
+            logger.warning("gửi voice trả lời lỗi (bỏ qua): %s", exc)
+
+    def _should_respond_voice(self, message: Message) -> bool:
+        """Tin thoại không có text để soi mention: DM thì đáp; group
+        thì đáp khi reply đúng bot hoặc GROUP_MENTION_ONLY tắt."""
+        if message.chat.type == ChatType.PRIVATE:
+            return True
+        if not self.cfg.group_mention_only:
+            return True
+        return bool(
+            message.reply_to_message
+            and message.reply_to_message.from_user
+            and self.bot is not None
+            and message.reply_to_message.from_user.id == self.bot.id
+        )
+
+    async def _process_voice_message(self, message: Message) -> None:
+        """Tải voice -> STT -> bản đã hiểu ngữ vào batcher như tin chữ."""
+        key = session_key_for(message)
+        if self.voice is None or self.bot is None:
+            await message.answer(
+                "Tính năng nghe voice chưa sẵn sàng trên bản chạy này.")
+            return
+        try:
+            tg_file = await self.bot.get_file(message.voice.file_id)
+            in_dir = Path(self.cfg.workspace_dir) / "voice_in"
+            in_dir.mkdir(parents=True, exist_ok=True)
+            local = in_dir / f"{message.voice.file_unique_id}.ogg"
+            await self.bot.download_file(
+                tg_file.file_path, destination=str(local))
+        except Exception as exc:
+            logger.warning("tải voice lỗi: %s", exc)
+            await message.answer("Mình không tải được tin nhắn thoại này.")
+            return
+        result = await self.voice.transcribe_file(local)
+        if not result.get("ok"):
+            if result.get("unavailable"):
+                await message.answer(
+                    "Máy này chưa cài nhận diện giọng nói "
+                    "(faster-whisper) nên mình chưa nghe được voice.")
+            else:
+                await message.answer(
+                    "Mình chưa nghe rõ tin nhắn thoại này, "
+                    "bạn nhắn chữ giúp mình nhé.")
+            return
+        text = (result.get("text_da_hieu")
+                or result.get("text_tho") or "").strip()
+        if not text:
+            await message.answer(
+                "Tin nhắn thoại này mình nghe ra trống — "
+                "bạn thử lại giúp mình.")
+            return
+        self._sessions_meta[key] = message
+        await self.batcher.add(key, text)
 
     # ---- handlers ----
     def _register_handlers(self) -> None:
@@ -274,6 +370,34 @@ class TelegramSurface:
                 lines.append("\n**MEMORY.md:**\n" + mem_md[:2500])
             for chunk in chunk_html("\n".join(lines)):
                 await message.answer(chunk, parse_mode="HTML")
+
+        @dp.message(F.text.startswith("/voiceon"))
+        async def cmd_voiceon(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            if self.voice is None:
+                await message.answer(
+                    "Voice chưa được nối ở bản chạy này.")
+                return
+            self.set_voice_reply(session_key_for(message), True)
+            await message.answer(
+                "Đã bật trả lời bằng giọng cho phiên này. "
+                "Tắt bằng /voiceoff.")
+
+        @dp.message(F.text.startswith("/voiceoff"))
+        async def cmd_voiceoff(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            self.set_voice_reply(session_key_for(message), False)
+            await message.answer("Đã tắt trả lời bằng giọng.")
+
+        @dp.message(F.voice)
+        async def on_voice(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            if not self._should_respond_voice(message):
+                return
+            await self._process_voice_message(message)
 
         @dp.message(F.text)
         async def on_text(message: Message) -> None:
