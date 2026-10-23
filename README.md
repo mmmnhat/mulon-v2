@@ -1,4 +1,4 @@
-# Mulon — Muse clone (Phase 1 + 2 + 3 + 4)
+# Mulon — Muse clone 1.0.0 (Phase 1 → 6)
 
 Personal AI agent chạy **chỉ trên Telegram**, model **chỉ qua proxy
 local tương thích OpenAI** (không dùng API chính thức), xây theo tài
@@ -172,6 +172,59 @@ registry, dossier), bỏ toàn bộ code lõi cũ.
   ISO (đường cong học), correction rate 4 tuần gần nhất, fact
   đang sống/đã thay thế/bài học đang áp dụng, dung lượng DB.
 
+## Đã có thêm ở Phase 6 — bề mặt group (bản 1.0.0)
+
+Sân khấu là **supergroup Telegram riêng tư bật forum**: mỗi topic
+là một "tab". Chỉ user trong allowlist mới ra lệnh được; session
+theo (group × topic); dossier cá nhân chỉ nạp ở session riêng tư.
+Toàn bộ tính năng dưới đây chạy theo lệnh gọi — không vòng lặp
+nền mới nào được bật thêm.
+
+- **Topic = tab** (`mulon/surfaces.py`): `/setup_topics` trong
+  group forum tạo các topic còn thiếu (Chat chính dùng General,
+  Feed, Ideas, Goals, Library, Lịch sử & Hệ thống), lưu map vào
+  `kv_state`, ghim tin mục lục (mô tả + lệnh chính) ở từng topic.
+  Chưa bật forum hoặc bot thiếu quyền admin → báo rõ lý do,
+  không tạo nửa vời. `/topics` xem map hiện tại.
+- **Feed** (`mulon/feed.py` + `dossier/FEED.md`): brief do user
+  sửa bằng `/feedbrief <nội dung>`; `/feed_now` sinh bài từ tư
+  liệu **nội bộ** (goals đang chạy, hoạt động mới nhất, tracked
+  item sắp tới, lesson, fact đáng nhớ) bằng model rẻ và đăng vào
+  topic Feed — tuyệt đối không aggregator ngoài. Reaction trên
+  bài Feed được ghi vào `feed_signals` và tóm tắt taste tự cập
+  nhật vào mục đánh dấu trong FEED.md.
+- **Ideas** (`mulon/ideas.py`): `/ideas` dọn thẻ hết hạn rồi sinh
+  3–5 thẻ từ goals + khoảng trống ký ức; thẻ tự hết hạn sau 14
+  ngày. Trả lời thẻ bằng "làm luôn" hoặc `/idea_do <id>` →
+  thành goal + task thật; `/idea_bo <id>` bỏ qua.
+- **Trình proactive notes**: `/notes` liệt kê các note đang chờ
+  (từ Phase 4); trả lời "duyệt"/"bỏ" hoặc `/note_ok <id>` /
+  `/note_bo <id>` → cập nhật trạng thái + ghi trajectory.
+- **Library** (`mulon/library.py`): lập chỉ mục file trong
+  workspace (`/library` quét + liệt kê), `/trash_item <id>`
+  chuyển vào `workspace/trash/` và khôi phục được trong 30 ngày
+  (`/restore_item <id>`), `/share_item <id>` đặt hạn chia sẻ
+  ≤48h ở trạng thái "chờ host" — chưa có host công khai nên
+  không bịa link.
+- **Secure Vault** (`mulon/vault.py`): `/vault <nhãn>` tạo link
+  form web một lần (token ngẫu nhiên, dùng 1 lần, hết hạn ~10
+  phút, bind 127.0.0.1, link gửi qua DM khi gọi trong group).
+  Giá trị nộp ghi thẳng vào file vault (quyền 0600) dưới
+  `ref = vault:<uuid>`; agent chỉ thấy ref + nhãn — giá trị
+  không đi qua chat, không vào log/trajectory. Cửa đọc duy nhất
+  là `VaultStore.resolve(ref)`.
+- **Bộ nhớ có bề mặt**: `/memory` hiện fact kèm nguồn + thời
+  gian và truy được tin gốc; `/forget <chủ đề>` lập kế hoạch
+  quên (fact/lesson/dòng dossier liên quan) → xác nhận bằng
+  "quên thật" mới thực thi (đóng hiệu lực fact, gỡ dòng
+  dossier, ghi ledger — không xóa cứng dấu vết kiểm toán);
+  `/export_memory` gửi file .md gồm dossier + facts;
+  `/import_memory` (gửi kèm file .md/.json) nạp fact mới.
+- **Quyền bằng lời thường**: `/quyen` tóm tắt policy hiện tại
+  bằng tiếng Việt dễ hiểu (nhóm nào full-auto, nhóm nào phải
+  hỏi); `/approvals` xem các quyết định policy gần nhất từ
+  trajectory. Đổi policy vẫn sửa `policy.json` như Phase 1.
+
 ## Thành phần Phase 1 (nền)
 
 - **Tool registry** (`mulon/tools.py`): read/write/edit file, list_dir,
@@ -185,25 +238,35 @@ registry, dossier), bỏ toàn bộ code lõi cũ.
 - **Telegram** (`mulon/telegram_bot.py`): aiogram 3, allowlist cứng,
   gom tin liên tiếp (debounce 2.5s), ack bằng reaction, streaming bằng
   edit tại chỗ, chunk HTML an toàn thẻ, session theo (chat, topic).
-  Lệnh: `/start` `/status` `/new` (chốt phiên) `/memory`.
+  Lệnh lõi: `/start` `/status` `/new` (chốt phiên) `/memory`; lệnh
+  bề mặt Phase 6 xem ở mục Phase 6 phía trên.
 - **Dossier mẫu** trong `dossier/`: SOUL / IDENTITY / USER / MEMORY /
   AGENTS / TOOLS / HEARTBEAT / BOOTSTRAP / alignment.
 
-## Chưa có (khung chờ các phase sau)
+## Backlog sau 1.0
 
-- **Phase 6**: bề mặt group đầy đủ (topic = tab: Feed, Ideas,
-  Goals, Library, Lịch sử & Hệ thống), trình các đề xuất
-  `proactive_notes` đang xếp hàng, Secure Vault (form web bảo
-  mật dùng một lần), quản lý quyền bằng lời thường.
-- Dashboard Langfuse self-host chạy kèm (docker compose) —
-  hiện mới có phía client ghi trace khi được cấu hình.
-- **Đang chờ** (ngoài roadmap gốc): alignment synthesis worker
-  (tổng hợp `alignment.md` hằng ngày), consolidation tách fact
-  thành `people/*.md`/`groups/*.md` (hiện mới ghi vào DB), thủ
-  tục hóa từ trajectory (mục 4.5), adapter connector cho dịch vụ
-  thật (hiện mới có khung + adapter ví dụ `system`), MCP OAuth
-  đầy đủ (hiện HTTP mới ở mức header từ env), đăng ký nóng skill
-  mới khi bot đang chạy (hiện nạp lúc boot).
+Những việc còn lại sau bản 1.0.0 — ghi trung thực, chưa làm:
+
+- **Alignment synthesis worker**: tổng hợp `alignment.md` hằng
+  ngày từ trajectory/correction (hiện dossier alignment là mẫu
+  tĩnh, chưa có worker tự tổng hợp).
+- **Tách fact → people/groups.md**: consolidation hiện ghi fact
+  vào DB; chưa tách thành các trang `people/*.md` / `groups/*.md`
+  trong dossier.
+- **Thủ tục hóa (mục 4.5)**: việc quen lặp ≥3 lần thành công
+  chưa được chưng cất thành plan template/skill đóng gói.
+- **Adapter connector cho dịch vụ thật**: Phase 3 mới có khung
+  connector trung tính + adapter `system`; chưa có adapter cho
+  dịch vụ ngoài thật.
+- **MCP OAuth đầy đủ**: MCP HTTP hiện ở mức header từ env, chưa
+  có luồng OAuth hoàn chỉnh.
+- **Dashboard Langfuse self-host**: mới có phía client ghi trace
+  khi được cấu hình; chưa đóng gói dashboard chạy kèm.
+- **Nạp nóng skill**: skill được nạp lúc boot; thêm skill mới
+  khi bot đang chạy chưa có (phải khởi động lại).
+- **File nhị phân/avatar qua đường GitHub text**: đường đẩy repo
+  hiện tại chỉ nhận file text — file nhị phân (avatar, ảnh) chưa
+  lên repo bằng đường này.
 - Mini App — **không** làm (đã chốt: group forum là bề mặt
   chính). Xem roadmap mục 13 của tài liệu thiết kế.
 
