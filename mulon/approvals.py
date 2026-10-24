@@ -153,11 +153,15 @@ class ApprovalBroker:
                 logger.warning("listener duyệt lỗi (bỏ qua): %s", exc)
 
     # ---------- vòng đời 1 yêu cầu ----------
-    def open(self, approval_id: str, payload: dict) -> None:
+    def open(self, approval_id: str, payload: dict,
+             ttl_s: Optional[float] = None) -> None:
         """Đăng ký yêu cầu đang chờ. Agent gọi TRƯỚC khi phát event
         để bề mặt kịp gắn thông tin thẻ (attach) khi event tới.
         ``reason`` (lý do agent tự giải thích, tùy chọn) được
-        chuẩn hoá tại đây để mọi bề mặt thấy cùng một bản."""
+        chuẩn hoá tại đây để mọi bề mặt thấy cùng một bản.
+        ``ttl_s``: hạn chờ riêng cho yêu cầu này (1.3.0: operation
+        của marketplace dùng TTL dài hơn thẻ gọi tool); None =
+        dùng timeout mặc định của broker như trước."""
         if approval_id in self._pending:
             return
         loop = asyncio.get_event_loop()
@@ -169,6 +173,7 @@ class ApprovalBroker:
             "future": loop.create_future(),
             "remember": False,
             "created_at": time.time(),
+            "timeout_s": (float(ttl_s) if ttl_s else None),
             "card": None,
         }
 
@@ -203,7 +208,8 @@ class ApprovalBroker:
                     "remember": False}
         try:
             approved = await asyncio.wait_for(
-                asyncio.shield(entry["future"]), timeout=self.timeout_s)
+                asyncio.shield(entry["future"]),
+                timeout=entry.get("timeout_s") or self.timeout_s)
             outcome = "approved" if approved else "denied"
         except asyncio.TimeoutError:
             approved = False
