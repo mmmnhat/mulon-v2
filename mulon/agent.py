@@ -46,6 +46,17 @@ _TOOL_HINTS = (
     "tìm trên web", "tra cứu", "mở link", "xem link", "kiểm tra trong",
     "liệt kê", "list file", "read file", "run ", "search ", "fetch ",
     "nhớ giúp", "lưu lại là", "ghi nhớ",
+    # Vault / secrets
+    "vault", "két", "secret", "bí mật",
+    # Folder / file / directory / project
+    "folder", "thư mục", "tập tin", "tệp tin", "dự án", "codebase",
+    # Test / check / inspect
+    "check", "kiểm tra", "soát", "test", "thử nghiệm",
+    # Connectors & tools
+    "gmail", "email", "gửi mail", "đọc mail", "hộp thư", "lịch", "calendar",
+    "sự kiện", "cuộc hẹn", "mcp", "connector", "công cụ", "tool",
+    # Library & share
+    "share link", "chia sẻ link", "ghim vào kho", "pin library",
 )
 _LONG_HINTS = (
     "báo cáo", "tổng hợp", "phân tích", "nghiên cứu", "so sánh", "lập kế hoạch",
@@ -354,7 +365,7 @@ class Agent:
                 messages, model=self.cfg.model_brain, purpose="chat",
                 on_delta=on_delta,
             )
-            text = comp.text.strip()
+            text = (comp.text or "").strip()
         except GatewayError as exc:
             # LOI-1: mặt user chỉ thấy lời thường; chi tiết kỹ
             # thuật (URL proxy, JSON lỗi nhà cung cấp) đi vào
@@ -368,8 +379,21 @@ class Agent:
                 pass
             text = ("Mô hình đang không trả lời được — anh thử "
                     "lại sau ít phút.")
+
+        # Nếu không có lỗi nhưng model trả chuỗi rỗng sau stream, thử fallback complete với model_cheap
         if not text:
-            text = "(Model không trả nội dung — thử lại giúp mình.)"
+            try:
+                logger.info("fast_path không có text sau stream, fallback gọi complete() với model_cheap")
+                comp_fb = await self.gateway.complete(
+                    messages, model=self.cfg.model_cheap, purpose="chat_fastpath_fallback"
+                )
+                text = (comp_fb.text or "").strip()
+            except Exception as fb_exc:
+                logger.warning("fast_path fallback complete thất bại: %s", fb_exc)
+
+        if not text:
+            text = ("Mô hình đang không trả lời được — anh thử "
+                    "lại sau ít phút.")
         return TurnResult(text=text, intent=Intent.CHAT, verified=None)
 
     # ---------- task path: plan-act-verify ----------

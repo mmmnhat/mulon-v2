@@ -183,7 +183,12 @@ class ModelGateway:
                 msg = choice.message
                 usage = getattr(resp, "usage", None)
                 comp = Completion(
-                    text=getattr(msg, "content", None) or "",
+                    text=(
+                        getattr(msg, "content", None)
+                        or getattr(msg, "reasoning_content", None)
+                        or getattr(msg, "thought", None)
+                        or ""
+                    ),
                     tool_calls=self._normalize_tool_calls(
                         getattr(msg, "tool_calls", None)
                     ),
@@ -246,6 +251,8 @@ class ModelGateway:
                     piece = (
                         getattr(delta, "content", None)
                         or getattr(delta, "text", None)
+                        or getattr(delta, "reasoning_content", None)
+                        or getattr(delta, "thought", None)
                         or ""
                     )
                 except Exception:
@@ -256,10 +263,33 @@ class ModelGateway:
                         maybe = on_delta(piece)
                         if asyncio.iscoroutine(maybe):
                             await maybe
+            final_text = "".join(text_parts)
+            if not final_text.strip():
+                logger.warning(
+                    "stream() trả về rỗng cho purpose='%s' (model=%s), fallback gọi complete() non-streaming",
+                    purpose, model_name,
+                )
+                try:
+                    fb_comp = await self.complete(
+                        messages=messages,
+                        model=model,
+                        temperature=temperature,
+                        timeout=timeout,
+                        purpose=f"{purpose}_stream_fallback" if purpose else "stream_fallback",
+                    )
+                    if (fb_comp.text or "").strip():
+                        if on_delta is not None:
+                            maybe = on_delta(fb_comp.text)
+                            if asyncio.iscoroutine(maybe):
+                                await maybe
+                        return fb_comp
+                except Exception as fb_exc:
+                    logger.warning("fallback sang complete() sau stream rỗng thất bại: %s", fb_exc)
+
             comp = Completion(
-                text="".join(text_parts),
+                text=final_text,
                 prompt_tokens=count_messages_tokens(messages),
-                completion_tokens=estimate_tokens("".join(text_parts)),
+                completion_tokens=estimate_tokens(final_text),
                 latency_s=time.monotonic() - started,
                 model=model_name,
             )
@@ -269,6 +299,23 @@ class ModelGateway:
         except CircuitOpenError:
             raise
         except Exception as exc:  # noqa: BLE001
+            logger.warning("stream() gặp lỗi: %s, fallback sang complete()", exc)
+            try:
+                fb_comp = await self.complete(
+                    messages=messages,
+                    model=model,
+                    temperature=temperature,
+                    timeout=timeout,
+                    purpose=f"{purpose}_stream_fallback" if purpose else "stream_fallback",
+                )
+                if (fb_comp.text or "").strip():
+                    if on_delta is not None:
+                        maybe = on_delta(fb_comp.text)
+                        if asyncio.iscoroutine(maybe):
+                            await maybe
+                    return fb_comp
+            except Exception:
+                pass
             self._record_failure()
             comp = Completion(latency_s=time.monotonic() - started, model=model_name)
             await self._log_call(purpose, model_name, comp, ok=False, error=str(exc))
