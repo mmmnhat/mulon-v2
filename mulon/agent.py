@@ -48,8 +48,10 @@ _TOOL_HINTS = (
     "nhớ giúp", "lưu lại là", "ghi nhớ",
     # Vault / secrets
     "vault", "két", "secret", "bí mật",
-    # Folder / file / directory / project
-    "folder", "thư mục", "tập tin", "tệp tin", "dự án", "codebase",
+    # Folder / file / directory / project / dossier
+    "folder", "thư mục", "tập tin", "tệp tin", "dự án", "codebase", "dossier",
+    "cập nhật", "cap nhat", "vô file", "vao file", "vào file", "hồ sơ", "ho so",
+    "xưng hô", "xung ho", "kêu tui", "kêu tôi", "gọi tui", "gọi tôi", "đổi tên",
     # Test / check / inspect
     "check", "kiểm tra", "soát", "test", "thử nghiệm",
     # Connectors & tools
@@ -175,7 +177,14 @@ def build_self_knowledge(cfg, registry) -> str:
         "3. Không bao giờ hỏi chủ nhân \"bot của anh chạy bằng "
         "gì / framework nào / code gì\" — chính bạn là bot đó. "
         "Cần biết chi tiết về chính mình thì dùng tool mà kiểm "
-        "tra trong vùng với tới được, đừng hỏi ngược."
+        "tra trong vùng với tới được, đừng hỏi ngược.\n"
+        "4. Khi chủ nhân yêu cầu thay đổi cách xưng hô, thông tin cá "
+        "nhân, sở thích, hoặc nhắc 'cập nhật file / dossier': PHẢI chủ "
+        "động cập nhật ngay vào file tương ứng (dossier/USER.md, "
+        "dossier/IDENTITY.md...) bằng tool file, TUYỆT ĐỐI không hứa "
+        "suông rồi bỏ đó, và TUYỆT ĐỐI không đem cấu trúc kỹ thuật "
+        "nội bộ ra hỏi vặn lại chủ nhân (ví dụ: cấm hỏi 'cập nhật "
+        "vào file dossier hay memory hả')."
     )
 
 

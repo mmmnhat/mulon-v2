@@ -32,6 +32,8 @@ def test_detect_correction_heuristic():
     assert detect_correction("sai rồi, không phải vậy") is True
     assert detect_correction("Ý tao là đặt 7 giờ") is True
     assert detect_correction("lần sau nhớ ngắn gọn thôi") is True
+    assert detect_correction("Kêu tôi là ní, không cần kêu tên") is True
+    assert detect_correction("Ủa không cập nhật vô file hả") is True
     assert detect_correction("cảm ơn bạn nhiều nhé") is False
     assert detect_correction("ok rồi, tiếp tục đi") is False
 

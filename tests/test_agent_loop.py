@@ -78,5 +78,26 @@ async def test_chat_fast_path_streams(cfg):
     await memory.close()
 
 
+async def test_classify_intent_user_addressing_and_file_updates():
+    from mulon.agent import Intent, classify_intent
+
+    assert classify_intent("Kêu tôi là ní, không cần kêu tên") is Intent.TOOL
+    assert classify_intent("Ủa không cập nhật vô file hả") is Intent.TOOL
+    assert classify_intent("cập nhật dossier giúp tui") is Intent.TOOL
+
+
+async def test_tools_reload_dossier_on_write(cfg):
+    from pathlib import Path
+    memory = await open_memory(cfg)
+    dossier = Dossier.load(cfg.dossier_dir)
+    registry = build_default_registry(cfg, memory, dossier=dossier)
+    user_md = Path(cfg.dossier_dir) / "USER.md"
+    content = "# USER\n- **Gọi là:** ní\n"
+    res = await registry.execute("write_file", {"path": str(user_md), "content": content})
+    assert res["ok"] is True
+    assert dossier.files.get("USER.md") == content.strip()
+    await memory.close()
+
+
 async def _noop():
     return None

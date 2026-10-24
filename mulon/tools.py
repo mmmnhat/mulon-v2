@@ -131,7 +131,7 @@ def _resolve_for_file_tool(cfg, raw: str) -> Path:
     )
 
 
-def build_default_registry(cfg, memory) -> ToolRegistry:
+def build_default_registry(cfg, memory, dossier=None) -> ToolRegistry:
     reg = ToolRegistry()
 
     def spec(name, desc, params, group, timeout):
@@ -140,6 +140,15 @@ def build_default_registry(cfg, memory) -> ToolRegistry:
             return fn
 
         return deco
+
+    def _maybe_reload_dossier(p: Path) -> None:
+        if dossier is not None:
+            try:
+                dossier_base = Path(cfg.dossier_dir).resolve()
+                if p.resolve().is_relative_to(dossier_base):
+                    dossier.reload()
+            except Exception as exc:
+                logger.warning("reload dossier sau khi đổi file lỗi: %s", exc)
 
     # --- file ---
     @spec(
@@ -192,6 +201,7 @@ def build_default_registry(cfg, memory) -> ToolRegistry:
         p.write_text(content, encoding="utf-8")
         if memory is not None:
             await memory.append_ledger(str(p), "write_file", content)
+        _maybe_reload_dossier(p)
         return {"ok": True, "path": str(p), "bytes_written": len(content.encode())}
 
     @spec(
@@ -220,6 +230,7 @@ def build_default_registry(cfg, memory) -> ToolRegistry:
         p.write_text(updated, encoding="utf-8")
         if memory is not None:
             await memory.append_ledger(str(p), "edit_file", updated)
+        _maybe_reload_dossier(p)
         return {"ok": True, "path": str(p)}
 
     @spec(

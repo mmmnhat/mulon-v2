@@ -73,7 +73,7 @@ async def build_system(cfg: Config):
     # traced_gateway trả lại gateway nguyên bản, hành vi không đổi.
     gateway = traced_gateway(ModelGateway(cfg, memory=memory), cfg)
     ctx = ContextEngine(cfg, dossier, memory, gateway)
-    registry = build_default_registry(cfg, memory)
+    registry = build_default_registry(cfg, memory, dossier=dossier)
     policy = PolicyEngine(cfg.policy_path, memory=memory)
 
     # --- Phase 3: tay chân ---

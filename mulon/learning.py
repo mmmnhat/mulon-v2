@@ -40,6 +40,9 @@ STRONG_MARKERS = (
     "sửa lại", "sua lai", "nhầm rồi", "nham roi",
     "không đúng", "khong dung", "đâu phải", "dau phai",
     "trật rồi", "trat roi", "sai hẳn", "sai be bét",
+    "sao không", "sao khong", "sao chưa", "sao chua", "sao ko",
+    "sao hổng", "sao hong", "không cập nhật", "chưa cập nhật",
+    "chưa lưu", "không lưu",
 )
 # Dấu hiệu sửa NHẸ — vẫn là tín hiệu correction, chờ phân loại.
 WEAK_MARKERS = (
@@ -47,6 +50,9 @@ WEAK_MARKERS = (
     "phải là", "phai la", "nên là", "nen la",
     "thay vì", "thay vi", "đừng có", "dung co",
     "làm lại", "lam lai", "nói lại", "noi lai",
+    "không cần", "khong can", "đừng gọi", "dung goi",
+    "kêu tôi là", "keu toi la", "kêu tui là", "keu tui la",
+    "gọi tôi là", "goi toi la", "gọi tui là", "goi tui la",
 )
 # Từ khoá đụng tiền bạc / an toàn -> severity critical (1 lần là đủ học).
 CRITICAL_HINTS = (
@@ -58,7 +64,8 @@ CRITICAL_HINTS = (
 # Fallback đoán loại lỗi bằng từ khoá khi model rẻ không dùng được.
 _CATEGORY_HINTS = {
     "tri_nho": ("nhớ", "nho", "quên", "quen", "đã nói", "da noi",
-                "nhắc rồi", "nhac roi"),
+                "nhắc rồi", "nhac roi", "cập nhật", "cap nhat",
+                "hồ sơ", "ho so", "dossier", "xưng hô", "xung ho"),
     "giong_format": ("giọng", "giong", "dài quá", "dai qua", "ngắn gọn",
                      "emoji", "format", "định dạng", "dinh dang",
                      "văn phong", "van phong"),
