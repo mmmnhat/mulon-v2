@@ -172,6 +172,44 @@ class PolicyEngine:
         self.host = data
         return normalized
 
+    def get_host_verdict(self, scope: str, name: str) -> Optional[str]:
+        """Verdict host hiện tại của 1 rule (None = chưa có rule)."""
+        if scope == "group":
+            table = self.host.get("groups") or {}
+        elif scope == "default":
+            return parse_verdict(self.host.get("default"))
+        else:
+            table = self.host.get("tools") or {}
+        return parse_verdict(table.get(name))
+
+    def remove_host_rule(self, scope: str, name: str) -> bool:
+        """Xoá 1 rule khỏi lớp host (ghi file nguyên tử như
+        set_host_rule). Trả True nếu thật sự có rule bị xoá.
+        Chỉ dùng cho rule do chính hệ thống tạo (vd installer của
+        marketplace) — không xoá rule owner tự đặt."""
+        data = dict(self.host)
+        if scope == "group":
+            table = dict(data.get("groups") or {})
+        elif scope == "default":
+            if "default" not in data:
+                return False
+            del data["default"]
+            table = None
+        else:
+            table = dict(data.get("tools") or {})
+        if table is not None:
+            if name not in table:
+                return False
+            del table[name]
+            data["groups" if scope == "group" else "tools"] = table
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2),
+                       encoding="utf-8")
+        tmp.replace(self.path)
+        self.host = data
+        return True
+
     def describe(self) -> dict:
         """Ảnh chụp policy cho bề mặt hiển thị (Mini App / /quyen)."""
         return {
