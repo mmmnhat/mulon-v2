@@ -1,4 +1,4 @@
-"""Mulon — Muse clone 1.2.0 (Phase 1 + 2 + 3 + 4 + 5 + 6 + Mini App).
+"""Mulon — Muse clone 1.3.0 (Phase 1 + 2 + 3 + 4 + 5 + 6 + Mini App + Chợ MCP).
 
 Lõi agent mỏng tự viết theo tài liệu thiết kế
 ``thiet-ke-ky-thuat-muse-clone.md``: gateway model qua LiteLLM trỏ vào
@@ -33,6 +33,14 @@ App qua Direct Link) phong cách "tờ hồ sơ agent" — 5 tab Việc /
 Phê duyệt / Lịch / Hồ sơ / Cài đặt; cấu hình connector, Vault
 (chỉ nhãn) và quyền đều nằm trong app, API khóa bằng chữ ký
 initData + đúng ALLOWED_USER_ID.
+Bản 1.3.0 thêm Chợ MCP (Marketplace) trong Mini App: cài MCP
+server local stdio MIỄN PHÍ từ danh mục tuyển chọn đóng gói
+hoặc dán cấu hình thủ công — chuẩn hoá + phân tích rủi ro,
+chạy thử (probe) tách rời, 2 lần duyệt (probe rồi commit),
+bí mật chỉ qua Vault ref, tool vào group policy ở nấc ask,
+bot TỰ khởi động lại để áp dụng kèm đối chiếu lúc boot và tự
+khôi phục cấu hình trước đó khi áp dụng thất bại; catalog tự
+cập nhật dữ kiện từ repo (kiểm checksum, không bao giờ tự cài).
 """
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
