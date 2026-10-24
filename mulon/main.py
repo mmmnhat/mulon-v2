@@ -59,6 +59,7 @@ async def build_system(cfg: Config):
     cfg.workspace_dir.mkdir(parents=True, exist_ok=True)
     cfg.artifact_dir.mkdir(parents=True, exist_ok=True)
     memory = await Memory.open(cfg.db_path)
+    await memory.reconcile_orphan_tasks()
     # Phase 2: gắn embedder cho hybrid recall. Không dựng được thì
     # set_embedder degrade sạch — hệ thống vẫn chạy BM25-only.
     embedder = build_embedder(cfg)

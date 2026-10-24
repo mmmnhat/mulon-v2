@@ -442,49 +442,55 @@ class Agent:
         started = time.monotonic()
         attempt = 0
 
-        while attempt <= self.cfg.verify_max_retries:
-            # ----- ACT -----
-            for step_idx in range(len(steps)):
-                await self.memory.update_step(task_id, step_idx, "doing")
-            final_text = await self._act_loop(
-                session_key, task_id, convo, schemas, evidence, on_event
-            )
-            for step_idx in range(len(steps)):
-                await self.memory.update_step(task_id, step_idx, "done")
+        try:
+            while attempt <= self.cfg.verify_max_retries:
+                # ----- ACT -----
+                for step_idx in range(len(steps)):
+                    await self.memory.update_step(task_id, step_idx, "doing")
+                final_text = await self._act_loop(
+                    session_key, task_id, convo, schemas, evidence, on_event
+                )
+                for step_idx in range(len(steps)):
+                    await self.memory.update_step(task_id, step_idx, "done")
 
-            if self._llm_calls >= self.cfg.max_llm_calls_per_task:
-                diagnosis = "chạm trần ngân sách lời gọi model của tác vụ"
-                verified = False
-                break
+                if self._llm_calls >= self.cfg.max_llm_calls_per_task:
+                    diagnosis = "chạm trần ngân sách lời gọi model của tác vụ"
+                    verified = False
+                    break
 
-            # ----- VERIFY -----
-            await self._emit(on_event, "verify", task_id=task_id)
-            verdict = await self._verify(user_text, final_text, evidence)
-            if verdict is None:
-                # Không gọi được verifier: không khẳng định đã kiểm chứng.
-                verified = None
-                break
-            verified, diagnosis = verdict
-            if verified:
-                break
-            attempt += 1
-            if attempt > self.cfg.verify_max_retries:
-                break
-            if time.monotonic() - started > self.cfg.max_task_seconds:
-                diagnosis += " (hết thời gian tác vụ)"
-                break
-            # Quay lại ACT kèm chẩn đoán cụ thể (Reflexion — Phụ lục 15.1).
-            convo.append(
-                {
-                    "role": "user",
-                    "content": (
-                        "KIỂM CHỨNG CHƯA ĐẠT. Chẩn đoán của người kiểm chứng: "
-                        f"{diagnosis}\nHãy sửa đúng chỗ đó rồi trình lại kết quả."
-                    ),
-                }
-            )
-            await self._emit(on_event, "retry", task_id=task_id,
-                             diagnosis=diagnosis)
+                # ----- VERIFY -----
+                await self._emit(on_event, "verify", task_id=task_id)
+                verdict = await self._verify(user_text, final_text, evidence)
+                if verdict is None:
+                    # Không gọi được verifier: không khẳng định đã kiểm chứng.
+                    verified = None
+                    break
+                verified, diagnosis = verdict
+                if verified:
+                    break
+                attempt += 1
+                if attempt > self.cfg.verify_max_retries:
+                    break
+                if time.monotonic() - started > self.cfg.max_task_seconds:
+                    diagnosis += " (hết thời gian tác vụ)"
+                    break
+                # Quay lại ACT kèm chẩn đoán cụ thể (Reflexion — Phụ lục 15.1).
+                convo.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "KIỂM CHỨNG CHƯA ĐẠT. Chẩn đoán của người kiểm chứng: "
+                            f"{diagnosis}\nHãy sửa đúng chỗ đó rồi trình lại kết quả."
+                        ),
+                    }
+                )
+                await self._emit(on_event, "retry", task_id=task_id,
+                                 diagnosis=diagnosis)
+        except Exception as exc:
+            logger.warning("tác vụ %s thất bại do ngoại lệ: %s", task_id, exc)
+            await self.memory.finish_task(task_id, "failed", error=str(exc)[:200])
+            await self._emit(on_event, "task_done", task_id=task_id, status="failed")
+            raise
 
         status = "done" if verified else ("unverified" if verified is None else "failed")
         await self.memory.finish_task(task_id, status, result=final_text,

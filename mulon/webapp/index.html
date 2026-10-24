@@ -1549,10 +1549,8 @@ function renderSchedule(){
       'lịch — nguồn dữ liệu chưa sẵn sàng.</div>';
   else if (!sch.scheduler_enabled)
     banner.innerHTML = '<div class="note plain">Vòng lặp hẹn giờ ' +
-      'đang TẮT (SCHEDULER_ENABLED=0 trong .env). Bật/tắt dưới đây ' +
-      'chỉ đổi trạng thái từng job; job chỉ chạy khi vòng lặp bật.' +
-      (sch.feed_auto ? ' Riêng job Feed chủ động vẫn tự chạy theo ' +
-      'lịch của nó — xem Cài đặt → Feed chủ động.' : '') + '</div>';
+      'đang TẮT (SCHEDULER_ENABLED=0 trong .env) — các lịch cá nhân đặt qua chat sẽ không tự chạy. ' +
+      'Riêng Heartbeat và Feed chủ động vẫn chạy độc lập theo công tắc riêng.</div>';
   else banner.innerHTML = "";
   const box = $("schedule-list");
   if (!sch.items.length){

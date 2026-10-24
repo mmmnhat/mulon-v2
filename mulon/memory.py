@@ -975,6 +975,15 @@ class Memory:
         )
         await self.db.commit()
 
+    async def reconcile_orphan_tasks(self) -> int:
+        """Thu dọn các task bị kẹt 'running' từ phiên trước (do bot crash/restart)."""
+        cur = await self.db.execute(
+            "UPDATE tasks SET status='failed', error='Tiến trình bị ngắt khi bot khởi động lại', updated_at=? WHERE status='running'",
+            (now_iso(),),
+        )
+        await self.db.commit()
+        return cur.rowcount
+
     async def get_task(self, task_id: str) -> Optional[dict]:
         cur = await self.db.execute("SELECT * FROM tasks WHERE id=?", (task_id,))
         row = await cur.fetchone()
