@@ -10,8 +10,10 @@
 - Lệnh lõi: /start /status /new /memory. Phase 6 thêm bề mặt group
   (mục 16): /setup_topics /topics, chat phụ bằng topic tự do
   (/chatphu /chatphu_list /dongchat /chatphu_dong /chatphu_mo),
-  Feed (/feedbrief /feed_now +
-  reaction -> taste), Ideas (/ideas /idea_do /idea_bo + reply
+  Feed (tự chạy theo lịch từ 1.4 —
+  /feedbrief, /feedsources, reaction -> taste; /feed_now còn
+  handler ẩn tương thích, không đăng ký menu), Ideas (/ideas
+  /idea_do /idea_bo + reply
   'làm luôn'), duyệt note (/notes /note_ok /note_bo + reply
   'duyệt'/'bỏ'), Library (/library /trash_item /restore_item
   /share_item), /vault (form một lần qua DM), bộ nhớ có bề mặt
@@ -62,8 +64,8 @@ BOT_COMMANDS: list[tuple[str, str]] = [
     ("dongchat", "Đóng chat phụ hiện tại"),
     ("chatphu_dong", "Đóng chat phụ theo id"),
     ("chatphu_mo", "Mở lại chat phụ theo id"),
-    ("feed_now", "Sinh bài Feed mới"),
     ("feedbrief", "Xem/sửa brief của Feed"),
+    ("feedsources", "Nguồn bổ sung của Feed"),
     ("ideas", "Sinh thẻ ý tưởng"),
     ("idea_do", "Làm luôn thẻ ý tưởng"),
     ("idea_bo", "Bỏ qua thẻ ý tưởng"),
@@ -1331,6 +1333,13 @@ class TelegramSurface:
             is_forum = bool(getattr(message.chat, "is_forum", False))
             result = await topics.setup(
                 self.bot, self.memory, message.chat.id, is_forum)
+            if result.get("ok") and self.memory is not None:
+                # Feed chủ động (1.4) lấy group này làm đích đăng.
+                try:
+                    await self.memory.kv_set(
+                        "feed:group_chat_id", str(message.chat.id))
+                except Exception as exc:
+                    logger.warning("lưu group Feed lỗi: %s", exc)
             await _answer_chunks(
                 message, surf.format_topics_result(result))
 
@@ -1399,9 +1408,81 @@ class TelegramSurface:
                 return
             feed.set_brief(brief)
             await message.answer(
-                "Đã cập nhật brief Feed. Bài sau (/feed_now) sẽ "
-                "viết theo brief mới.")
+                "Đã cập nhật brief Feed. Bài Feed tự chạy theo "
+                "lịch sẽ viết theo brief mới.")
 
+        @dp.message(F.text.startswith("/feedsources"))
+        async def cmd_feedsources(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            feed = self._svc("feed")
+            if feed is None:
+                await message.answer("Feed chưa được nối ở bản này.")
+                return
+            arg = _arg_text(message)
+            sources = feed.read_sources()
+            if not arg:
+                if not sources:
+                    text = ("Chưa ghim nguồn bổ sung nào. Feed vẫn "
+                            "tự tìm kiếm nguồn tin cậy theo chủ đề "
+                            "mỗi lượt — danh sách ghim chỉ là phụ.\n"
+                            "Thêm: /feedsources add <url> | <nhãn> "
+                            "| <high|normal|low>")
+                else:
+                    rows = []
+                    for s in sources:
+                        state = "" if s.get("enabled", True) \
+                            else " (đang tắt)"
+                        rows.append(
+                            f"- {s['url']} | {s.get('label') or ''} "
+                            f"| tin cậy {s.get('trust') or 'normal'}"
+                            f"{state}")
+                    text = ("Nguồn bổ sung đã ghim (Feed vẫn tự "
+                            "tìm kiếm là chính):\n" + "\n".join(rows)
+                            + "\n\nXoá: /feedsources remove <url>")
+                await message.answer(text)
+                return
+            low_arg = arg.lower()
+            if low_arg.startswith("add "):
+                parts = [p.strip() for p in
+                         arg[4:].split("|")]
+                url = parts[0] if parts else ""
+                if not url.startswith(("http://", "https://")):
+                    await message.answer(
+                        "URL nguồn phải bắt đầu http:// hoặc "
+                        "https://.")
+                    return
+                if any(s["url"] == url for s in sources):
+                    await message.answer("Nguồn này đã ghim rồi.")
+                    return
+                trust = "normal"
+                if len(parts) > 2 and parts[2].lower() in (
+                        "high", "normal", "low"):
+                    trust = parts[2].lower()
+                sources.append({
+                    "url": url,
+                    "label": parts[1] if len(parts) > 1 else "",
+                    "trust": trust, "enabled": True})
+                feed.set_sources(sources)
+                await message.answer(f"Đã ghim nguồn: {url}")
+                return
+            if low_arg.startswith("remove "):
+                url = arg[7:].strip()
+                kept = [s for s in sources if s["url"] != url]
+                if len(kept) == len(sources):
+                    await message.answer("Không thấy nguồn đó.")
+                    return
+                feed.set_sources(kept)
+                await message.answer(f"Đã bỏ ghim nguồn: {url}")
+                return
+            await message.answer(
+                "Dùng: /feedsources (xem) · /feedsources add "
+                "<url> | <nhãn> | <trust> · /feedsources remove "
+                "<url>")
+
+        # /feed_now: handler ẨN tương thích (1.4 rút khỏi menu
+        # lệnh — Feed tự chạy theo lịch; giữ để thói quen cũ
+        # không vỡ, bài qua đường này ghi origin 'manual').
         @dp.message(F.text.startswith("/feed_now"))
         async def cmd_feed_now(message: Message) -> None:
             if not self._is_allowed(message):
@@ -1856,6 +1937,20 @@ class TelegramSurface:
             self.marketplace.bind_notifier(_notify)
             import asyncio as _asyncio
             _asyncio.create_task(self.marketplace.settle_boot())
+        # Feed chủ động 1.4.0: gắn sender cho runner — runner
+        # đăng bài + báo tạm dừng qua bot thật (trả message_id).
+        feed_auto = self._svc("feed_auto")
+        if feed_auto is not None and self.bot is not None:
+            async def _feed_send(chat_id: int, text: str,
+                                 thread_id=None) -> int:
+                kwargs = {}
+                if thread_id:
+                    kwargs["message_thread_id"] = thread_id
+                msg = await self.bot.send_message(
+                    chat_id, text, **kwargs)
+                return int(getattr(msg, "message_id", 0) or 0)
+
+            feed_auto.bind_sender(_feed_send)
         # Menu lệnh "/" cho user thấy ngay (Khối 1, 1.2.0). Lỗi
         # đăng ký chỉ log warning — không được làm sập bot.
         try:
