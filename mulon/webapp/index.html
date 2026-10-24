@@ -948,6 +948,11 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <div class="backrow" id="mktcat-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Kết nối</div>
   <h2 class="screen-title" id="mktcat-title">Danh mục</h2>
   <div class="card"><div id="mkt-list"></div></div>
+  <div class="card" id="mkt-pagination" style="display:flex; justify-content:space-between; align-items:center; padding:var(--s2) var(--s3); margin-top:var(--s2);">
+    <button class="btn btn-soft btn-sm btn-auto" id="mkt-prev" disabled>Trang trước</button>
+    <span id="mkt-page-info" style="font-size:var(--fs-caption); font-weight:var(--fw-s); color:var(--ink2);">Trang 1</span>
+    <button class="btn btn-soft btn-sm btn-auto" id="mkt-next">Trang sau</button>
+  </div>
 </section>
 
 <!-- Chợ MCP: Chi tiết listing -->
@@ -2476,6 +2481,20 @@ $("listing-back").addEventListener("click",
   () => showSub(listingReturn));
 $("mktcat-back").addEventListener("click",
   () => showSub("screen-connectors"));
+$("mkt-prev").addEventListener("click", () => {
+  if ((MKT.page || 1) > 1){
+    loadMktCatalog((MKT.page || 1) - 1);
+    const scr = $("screen-mktcat");
+    if (scr) scr.scrollIntoView({behavior: "smooth", block: "start"});
+  }
+});
+$("mkt-next").addEventListener("click", () => {
+  if (MKT.hasMore){
+    loadMktCatalog((MKT.page || 1) + 1);
+    const scr = $("screen-mktcat");
+    if (scr) scr.scrollIntoView({behavior: "smooth", block: "start"});
+  }
+});
 $("install-back").addEventListener("click",
   () => showSub("screen-connectors"));
 $("import-back").addEventListener("click",
@@ -2546,6 +2565,7 @@ function renderMktCats(){
   box.querySelectorAll("[data-cat]").forEach(el =>
     el.addEventListener("click", () => {
       MKT.cat = el.dataset.cat;
+      MKT.page = 1;
       renderMktCats();
       /* Mở màn con riêng cho danh mục (vá sau 1.4) — danh
          sách server không còn chồng dưới danh mục nữa. */
@@ -2553,24 +2573,58 @@ function renderMktCats(){
         MKT.cat ? el.querySelector(".r-title").textContent
                 : "Tất cả";
       showSub("screen-mktcat");
-      loadMktCatalog();
+      loadMktCatalog(1);
     }));
 }
-async function loadMktCatalog(){
+async function loadMktCatalog(page){
+  if (page != null) MKT.page = page;
+  else if (!MKT.page) MKT.page = 1;
   const box = $("mkt-list");
   box.innerHTML = '<div class="skel"><div class="bar w70"></div>' +
     '<div class="bar w40"></div></div>';
+  updateMktPagination(true);
   try {
     const qs = new URLSearchParams();
     if (MKT.cat) qs.set("category", MKT.cat);
-    qs.set("limit", "25");
+    qs.set("page", String(MKT.page));
+    qs.set("limit", "20");
     const d = await api("/api/marketplace/catalog?" + qs.toString());
     MKT.items = d.items || [];
+    MKT.hasMore = !!d.has_more;
+    MKT.total = d.total || 0;
     if (d.snapshot) updateFreshness(d.snapshot);
     renderMktList();
+    updateMktPagination(false);
   } catch (e) {
     box.innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+    updateMktPagination(false);
   }
+}
+function updateMktPagination(loading){
+  const pag = $("mkt-pagination");
+  if (!pag) return;
+  const prev = $("mkt-prev");
+  const next = $("mkt-next");
+  const info = $("mkt-page-info");
+  if (!prev || !next || !info) return;
+
+  if (loading){
+    prev.disabled = true;
+    next.disabled = true;
+    return;
+  }
+
+  const curPage = MKT.page || 1;
+  prev.disabled = curPage <= 1;
+  next.disabled = !MKT.hasMore;
+
+  let txt = "Trang " + curPage;
+  if (MKT.total > 0){
+    const maxPage = Math.ceil(MKT.total / 20);
+    if (maxPage > 1) txt += " / " + maxPage.toLocaleString("vi-VN");
+  }
+  info.textContent = txt;
+  pag.style.display = (!MKT.items.length && curPage <= 1) ? "none" : "flex";
 }
 function renderMktList(){
   const box = $("mkt-list");

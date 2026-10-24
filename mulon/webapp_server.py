@@ -1513,11 +1513,13 @@ class WebAppServer:
         if guard is not None:
             return guard
         q = request.query
+        page = int(q.get("page", "1") or 1)
         result = await self.marketplace.search_catalog_async(
             query=q.get("query", ""), category=q.get("category", ""),
             pricing=q.get("pricing", ""),
             installed=q.get("installed", ""),
             cursor=q.get("cursor", ""),
+            page=page,
             limit=int(q.get("limit", "20") or 20))
         return web.json_response({"ok": True, **result})
 

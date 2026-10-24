@@ -137,3 +137,44 @@ async def test_get_listing_detail_mcp_marketplace(service_env):
     assert detail["manifest"]["command"] == "uvx"
     assert detail["manifest"]["args"] == ["excel-mcp-server"]
     assert detail["security"]["score"] == 10
+
+
+@pytest.mark.asyncio
+async def test_search_catalog_async_pagination(service_env):
+    cfg, policy, vault, broker = service_env
+    mock_mcp = AsyncMock()
+    mock_mcp.call_tool.return_value = {
+        "ok": True,
+        "result": {
+            "total_matches": 100,
+            "has_more": True,
+            "page": 2,
+            "results": [
+                {
+                    "name": "Server Page 2",
+                    "slug": "server-p2",
+                    "tagline": "Server ở trang 2",
+                    "category": "developer-tools",
+                    "pricing": "Free",
+                    "security_score": 9,
+                    "risk_level": "low",
+                }
+            ],
+        },
+    }
+    svc = MarketplaceService(
+        cfg, policy=policy, broker=broker, vault_store=vault, mcp_manager=mock_mcp
+    )
+    res = await svc.search_catalog_async(
+        category="developer-tools", page=2, limit=10
+    )
+    assert res["page"] == 2
+    assert res["has_more"] is True
+    assert res["next_cursor"] == "3"
+    assert len(res["items"]) == 1
+    assert res["items"][0]["slug"] == "server-p2"
+    mock_mcp.call_tool.assert_called_with(
+        "mcp-marketplace",
+        "search_servers",
+        {"category": "developer-tools", "page": 2, "limit": 10},
+    )
