@@ -540,9 +540,11 @@ async def test_daily_cap_hard_with_seeded_posts(cfg):
     runner, engine, sender = await build_runner(
         cfg, memory, FakeGateway([LONG_POST]), external=False)
     await runner.apply_settings({"max_posts_per_day": 1})
-    first = await runner.run_once(now=DAY)
+    today_vn = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=7))).date()
+    now = datetime(today_vn.year, today_vn.month, today_vn.day, 3, 0, tzinfo=timezone.utc)
+    first = await runner.run_once(now=now)
     assert first["status"] == "posted"
-    second = await runner.run_once(now=DAY)
+    second = await runner.run_once(now=now)
     assert second["status"] == "skipped_daily_cap"
     assert len(sender.sent) == 1
     await memory.close()

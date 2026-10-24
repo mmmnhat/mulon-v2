@@ -108,6 +108,53 @@ def webapp_direct_link(cfg, bot_username: Optional[str],
 FlushFn = Callable[[str, str, list[str]], Awaitable[None]]
 
 
+OPENERS = {
+    "ê", "ê nè", "ê ní", "alo", "alo nè", "ơi", "ní ơi", "ad ơi", "bot ơi",
+    "nè", "này", "chờ xíu", "từ từ", "đợi", "đợi xíu", "đợi tí", "hé lo",
+    "hello", "hi", "tui có", "tui có cái", "có này", "cái này",
+}
+
+
+def _is_short_opener(text: str) -> bool:
+    """True nếu tin nhắn là từ mở đầu/chào hỏi ngắn hoặc câu cụt (< 3 từ),
+    cần cửa sổ gom dài hơn một chút để người dùng kịp gõ tiếp câu sau."""
+    stripped = (text or "").strip().lower()
+    if not stripped:
+        return True
+    if stripped in OPENERS:
+        return True
+    words = stripped.split()
+    if len(words) <= 2 and len(stripped) <= 20 and not any(c in stripped for c in "?!.:;"):
+        return True
+    return False
+
+
+def format_reply_context(message: Any, text: str) -> str:
+    """Nếu message là reply tới một tin nhắn khác, đính kèm ngữ cảnh
+    tin được trích dẫn (mục 16.1) để agent nắm được chủ đề/URL/dữ liệu."""
+    replied = getattr(message, "reply_to_message", None)
+    if replied is None:
+        return text
+    rep_content = (
+        getattr(replied, "text", None)
+        or getattr(replied, "caption", None)
+        or ""
+    ).strip()
+    if not rep_content:
+        doc = getattr(replied, "document", None)
+        if doc and getattr(doc, "file_name", None):
+            rep_content = f"[Tệp: {doc.file_name}]"
+    if not rep_content:
+        return text
+    from_user = getattr(replied, "from_user", None)
+    sender = getattr(from_user, "first_name", None) if from_user else None
+    sender = sender or "người dùng"
+    prefix = f"[Đang trả lời tin của {sender}: \"{rep_content[:1000]}\"]"
+    if text:
+        return f"{prefix}\n{text}"
+    return prefix
+
+
 class MessageBatcher:
     """Gom các tin liên tiếp của cùng 1 session thành 1 lượt xử lý.
 
@@ -164,11 +211,12 @@ class MessageBatcher:
         return self._buffers.pop(key, [])
 
     # ---- gom tin ----
-    def _schedule(self, key: str) -> None:
+    def _schedule(self, key: str, delay: Optional[float] = None) -> None:
         old = self._timers.get(key)
         if old is not None:
             old.cancel()
-        self._timers[key] = asyncio.create_task(self._delayed_flush(key))
+        wait_s = delay if delay is not None else self.debounce_s
+        self._timers[key] = asyncio.create_task(self._delayed_flush(key, wait_s))
 
     async def add(self, key: str, text: str) -> None:
         self._buffers.setdefault(key, []).append(text)
@@ -177,11 +225,13 @@ class MessageBatcher:
             # Lượt chờ lock sẽ drain, hoặc release() của lượt
             # đang chạy sẽ kick nhịp debounce khi nó xong.
             return
-        self._schedule(key)
+        delay = (self.debounce_s * 1.6) if _is_short_opener(text) else self.debounce_s
+        self._schedule(key, delay)
 
-    async def _delayed_flush(self, key: str) -> None:
+    async def _delayed_flush(self, key: str, wait_s: Optional[float] = None) -> None:
+        delay = wait_s if wait_s is not None else self.debounce_s
         try:
-            await asyncio.sleep(self.debounce_s)
+            await asyncio.sleep(delay)
         except asyncio.CancelledError:
             return
         parts = self._buffers.pop(key, [])
@@ -414,8 +464,9 @@ class TelegramSurface:
             return True
         if not self.cfg.group_mention_only:
             return True
-        if message.reply_to_message and message.reply_to_message.from_user \
-                and self.bot is not None and message.reply_to_message.from_user.id == self.bot.id:
+        rep = getattr(message, "reply_to_message", None)
+        rep_user = getattr(rep, "from_user", None) if rep else None
+        if rep_user and self.bot is not None and getattr(rep_user, "id", None) == self.bot.id:
             return True
         username = getattr(self.bot, "_me_username", None) if self.bot else None
         if username and f"@{username}" in (message.text or ""):
@@ -597,11 +648,12 @@ class TelegramSurface:
             return True
         if not self.cfg.group_mention_only:
             return True
+        rep = getattr(message, "reply_to_message", None)
+        rep_user = getattr(rep, "from_user", None) if rep else None
         return bool(
-            message.reply_to_message
-            and message.reply_to_message.from_user
+            rep_user
             and self.bot is not None
-            and message.reply_to_message.from_user.id == self.bot.id
+            and getattr(rep_user, "id", None) == self.bot.id
         )
 
     async def _process_voice_message(self, message: Message) -> None:
@@ -641,6 +693,7 @@ class TelegramSurface:
                 "bạn thử lại giúp mình.")
             return
         self._sessions_meta[key] = message
+        text = format_reply_context(message, text)
         await self.batcher.add(key, text)
 
     # ---- Phase 6: helpers cho bề mặt group ----
@@ -1164,7 +1217,7 @@ class TelegramSurface:
     async def _try_reply_actions(self, message: Message) -> bool:
         """Reply dạng lệnh ngắn vào tin của bot: 'duyệt'/'bỏ' cho
         proactive note, 'làm luôn' cho thẻ ý tưởng."""
-        replied = message.reply_to_message
+        replied = getattr(message, "reply_to_message", None)
         if replied is None:
             return False
         replied_text = getattr(replied, "text", None) or getattr(
@@ -1966,14 +2019,16 @@ class TelegramSurface:
             # 'duyệt'/'bỏ' vào note, 'làm luôn' vào thẻ ý tưởng.
             if await self._try_forget_confirm(message):
                 return
-            if message.reply_to_message is not None and \
+            if getattr(message, "reply_to_message", None) is not None and \
                     await self._try_reply_actions(message):
                 return
             if not self._should_respond(message):
                 return
             key = session_key_for(message)
             self._sessions_meta[key] = message
-            await self.batcher.add(key, message.text or "")
+
+            text = format_reply_context(message, message.text or "")
+            await self.batcher.add(key, text)
 
     async def _consolidate_closed(self, key: str) -> None:
         try:

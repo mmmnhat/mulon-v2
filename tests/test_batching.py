@@ -239,3 +239,47 @@ async def test_agent_error_does_not_wedge_session_busy(cfg):
     await surface.batcher.add(key, "tin sau")
     await _wait_calls(agent, 2)
     assert agent.calls == ["tin đầu", "tin sau"]
+
+
+def test_is_short_opener():
+    from mulon.telegram_bot import _is_short_opener
+    assert _is_short_opener("Ê") is True
+    assert _is_short_opener("Tui có") is True
+    assert _is_short_opener("Cái này") is True
+    assert _is_short_opener("Alo") is True
+    assert _is_short_opener("Đọc docs này trước") is False
+    assert _is_short_opener("Tìm thông tin affiliate") is False
+
+
+def test_format_reply_context():
+    from types import SimpleNamespace
+    from mulon.telegram_bot import format_reply_context
+
+    # 1. Reply to text with sender
+    replied = SimpleNamespace(
+        text="https://www.agnes-ai.com/en/docs/overview",
+        caption=None,
+        from_user=SimpleNamespace(first_name="Nhat"),
+    )
+    msg = SimpleNamespace(reply_to_message=replied, text="Đọc docs này trước")
+    out = format_reply_context(msg, msg.text)
+    assert '[Đang trả lời tin của Nhat: "https://www.agnes-ai.com/en/docs/overview"]\nĐọc docs này trước' == out
+
+    # 2. Reply to document
+    replied_doc = SimpleNamespace(
+        text=None,
+        caption=None,
+        document=SimpleNamespace(file_name="api_spec.pdf"),
+        from_user=None,
+    )
+    msg_doc = SimpleNamespace(reply_to_message=replied_doc, text="Xem file này")
+    out_doc = format_reply_context(msg_doc, msg_doc.text)
+    assert '[Đang trả lời tin của người dùng: "[Tệp: api_spec.pdf]"]\nXem file này' == out_doc
+
+    # 3. Message without reply_to_message attribute (SimpleNamespace)
+    msg_plain = SimpleNamespace()
+    assert format_reply_context(msg_plain, "tin nhắn thường") == "tin nhắn thường"
+
+    # 4. Message with empty reply
+    msg_empty_rep = SimpleNamespace(reply_to_message=SimpleNamespace(text="", caption=""))
+    assert format_reply_context(msg_empty_rep, "tin nhắn") == "tin nhắn"

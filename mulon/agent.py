@@ -43,11 +43,15 @@ class Intent(str, Enum):
 
 _TOOL_HINTS = (
     "đọc file", "ghi file", "sửa file", "tạo file", "chạy lệnh", "chạy thử",
+    # Web, URLs & Docs
     "tìm trên web", "tra cứu", "mở link", "xem link", "kiểm tra trong",
+    "http://", "https://", "docs", "doc ", "tài liệu", "tai lieu",
+    "đọc web", "xem web", "đọc link", "link",
     "liệt kê", "list file", "read file", "run ", "search ", "fetch ",
     "nhớ giúp", "lưu lại là", "ghi nhớ",
     # Vault / secrets
-    "vault", "két", "secret", "bí mật",
+    "vault", "két", "secret", "bí mật", "sk-", "api key", "apikey", "token",
+    "lưu key", "cất key", "lưu vào vault", "cất vào vault",
     # Folder / file / directory / project / dossier
     "folder", "thư mục", "tập tin", "tệp tin", "dự án", "codebase", "dossier",
     "cập nhật", "cap nhat", "vô file", "vao file", "vào file", "hồ sơ", "ho so",
@@ -158,10 +162,14 @@ def build_self_knowledge(cfg, registry) -> str:
         "đó gửi một thẻ duyệt THỬ thật, vô hại. Mini App (bảng "
         "điều khiển) cũng là bề mặt thật của bạn, mở bằng nút "
         "trong chat.\n"
-        "- Bí mật (Vault): giá trị bí mật KHÔNG đi qua chat. Chủ "
-        "nhân nhập qua form một lần hoặc ngay trong Mini App; "
-        "bạn chỉ cầm mã tham chiếu dạng vault:<uuid> và không "
-        "bao giờ thấy giá trị thật.\n"
+        "- Bí mật (Vault): giá trị bí mật KHÔNG đi qua chat. Khi chủ "
+        "nhân gửi bí mật hoặc cần cất API key/token vào Kho an toàn, "
+        "hãy GỌI TOOL request_vault_secret(label='...') để hệ thống "
+        "tự gửi thẻ/link mở Mini App an toàn cho chủ nhân dán vào. "
+        "TUYỆT ĐỐI không bảo chủ nhân gõ /the_duyet để lưu Vault "
+        "(/the_duyet chỉ là thẻ duyệt phân quyền thử nghiệm). Bạn "
+        "chỉ cầm mã tham chiếu dạng vault:<uuid> và không bao giờ "
+        "thấy giá trị thật.\n"
         "QUY TẮC CỨNG VỀ KHẢ NĂNG CỦA CHÍNH MÌNH:\n"
         "1. Không bao giờ tuyên bố \"không có tool / chưa có "
         "công cụ / không làm được\" khi chưa đối chiếu danh sách "

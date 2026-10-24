@@ -84,6 +84,9 @@ async def test_classify_intent_user_addressing_and_file_updates():
     assert classify_intent("Kêu tôi là ní, không cần kêu tên") is Intent.TOOL
     assert classify_intent("Ủa không cập nhật vô file hả") is Intent.TOOL
     assert classify_intent("cập nhật dossier giúp tui") is Intent.TOOL
+    assert classify_intent("Đọc docs này trước") is Intent.TOOL
+    assert classify_intent("https://www.agnes-ai.com/en/docs/overview") is Intent.TOOL
+    assert classify_intent("sk-R248ZIPdKKMatMYeiCAc6bfajseaktrbMiHV11") is Intent.TOOL
 
 
 async def test_tools_reload_dossier_on_write(cfg):

@@ -28,6 +28,7 @@ logger = logging.getLogger("mulon.embeddings")
 # Số chiều đã biết của các model được hỗ trợ sẵn.
 KNOWN_DIMS = {
     "BAAI/bge-m3": 1024,
+    "intfloat/multilingual-e5-large": 1024,
 }
 
 
