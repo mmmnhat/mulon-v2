@@ -1,4 +1,4 @@
-"""Mulon — Muse clone 1.1.1 (Phase 1 + 2 + 3 + 4 + 5 + 6).
+"""Mulon — Muse clone 1.2.0 (Phase 1 + 2 + 3 + 4 + 5 + 6 + Mini App).
 
 Lõi agent mỏng tự viết theo tài liệu thiết kế
 ``thiet-ke-ky-thuat-muse-clone.md``: gateway model qua LiteLLM trỏ vào
@@ -26,6 +26,13 @@ Library có thùng rác 30 ngày + chia sẻ <=48h chờ host, Secure
 Vault bằng form một lần (giá trị không qua chat/log), bộ nhớ có
 bề mặt (truy nguồn, quên có kế hoạch + xác nhận, export/import),
 quyền bằng lời thường + lịch sử duyệt.
+Bản 1.2.0 thêm mặt quản trị kiểu Muse: menu lệnh Telegram
+(set_my_commands), policy 3 nấc allow/ask/deny với thẻ duyệt TỰ
+GỠ sau quyết định (ApprovalBroker), và Mini App (Telegram Web
+App qua Direct Link) phong cách "tờ hồ sơ agent" — 5 tab Việc /
+Phê duyệt / Lịch / Hồ sơ / Cài đặt; cấu hình connector, Vault
+(chỉ nhãn) và quyền đều nằm trong app, API khóa bằng chữ ký
+initData + đúng ALLOWED_USER_ID.
 """
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
