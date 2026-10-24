@@ -72,6 +72,21 @@ SURFACES: list[dict] = [
 SURFACE_KEYS = [s["key"] for s in SURFACES]
 
 
+# Tiêu đề của bề mặt main trong SURFACES. Từ 1.3.0 (gói D):
+# main LUÔN là topic General (thread 1) — không đường code nào
+# được tạo topic mang tên này nữa (xem reconcile_main_topic và
+# chốt chặn trong SideChatRegistry.create).
+MAIN_TOPIC_TITLE = "Chat chính"
+
+LEGACY_MAIN_REDIRECT_TEXT = (
+    "📌 Chat chính đã chuyển về topic General (phòng mặc định "
+    "của group) — từ giờ ra lệnh và trao đổi chính với Mulon ở "
+    "đó. Topic 'Chat chính' tự tạo này là sót từ bản cũ, nay "
+    "được đóng lại để tránh nhầm lẫn; nội dung cũ vẫn còn "
+    "nguyên và mở lại được khi cần."
+)
+
+
 def index_text(surface: dict, all_surfaces: list[dict]) -> str:
     others = "\n".join(
         f"· {s['title']}" for s in all_surfaces
@@ -110,6 +125,133 @@ class TopicManager:
         tid = mapping.get(surface)
         return tid if tid else None
 
+    # ---------- đối soát "hai Chat chính" (1.3.0, gói D) ----------
+    @staticmethod
+    def _legacy_kv_key(chat_id: int) -> str:
+        return f"topics_legacy:{chat_id}"
+
+    async def _legacy_records(self, memory,
+                              chat_id: int) -> list[dict]:
+        raw = await memory.kv_get(self._legacy_kv_key(chat_id))
+        if not raw:
+            return []
+        try:
+            data = json.loads(raw)
+        except Exception:
+            return []
+        if not isinstance(data, list):
+            return []
+        return [r for r in data if isinstance(r, dict)]
+
+    async def _save_legacy_records(self, memory, chat_id: int,
+                                   records: list[dict]) -> None:
+        await memory.kv_set(
+            self._legacy_kv_key(chat_id),
+            json.dumps(records, ensure_ascii=False))
+
+    async def reconcile_main_topic(self, bot, memory,
+                                   chat_id: int) -> dict:
+        """Hợp nhất "hai Chat chính" về General (thread 1).
+
+        Bối cảnh: bản 1.0/1.1 từng TỰ TẠO một topic tên "Chat
+        chính" cho vai main và ghi vào map. Bản hiện tại không
+        bao giờ làm vậy (main luôn là General = thread 1) —
+        nhưng map cũ còn sót khiến group có tới hai nơi trông
+        như chat chính. Đối soát này chạy ở đầu setup():
+
+        - Map ghi main -> tid != 1: đó là bằng chứng xuất xứ
+          (chỉ code Mulon bản cũ mới ghi như vậy, với đúng tiêu
+          đề cố định "Chat chính" trong SURFACES). Đối chiếu
+          thêm registry chat phụ: nếu registry nói thread đó là
+          một chat phụ mang tên KHÁC -> bằng chứng mâu thuẫn,
+          KHÔNG chắc chắn -> chỉ ghi nhận + báo, không đóng,
+          không đổi map.
+        - Chắc chắn: map main -> 1, ghi record legacy/superseded
+          vào kv ``topics_legacy:<chat_id>``, gửi ĐÚNG 1 tin chỉ
+          đường vào topic cũ (cờ notified chống gửi lại), rồi
+          ĐÓNG topic cũ bằng close_forum_topic. Đóng chứ không
+          xoá: nội dung giữ nguyên, mở lại được.
+        - Map không có main legacy nhưng registry chat phụ có
+          topic tên đúng "Chat chính": không đủ bằng chứng nó
+          từng là main -> chỉ ghi nhận + báo (uncertain).
+        """
+        result: dict = {"chat_id": chat_id, "action": "none",
+                        "legacy_thread_id": None,
+                        "notified": False, "closed": False,
+                        "notes": []}
+        mapping = await self.get_map(memory, chat_id)
+        sidechats = await SideChatRegistry().list_all(
+            memory, chat_id)
+        main_tid = mapping.get("main")
+        if main_tid is None or int(main_tid) == 1:
+            suspects = [r for r in sidechats
+                        if r["title"] == MAIN_TOPIC_TITLE
+                        and r["thread_id"] != 1]
+            if suspects:
+                result["action"] = "uncertain"
+                for r in suspects:
+                    result["notes"].append(
+                        f"Thấy topic '{MAIN_TOPIC_TITLE}' "
+                        f"(thread {r['thread_id']}) trong registry "
+                        "chat phụ nhưng map không ghi nó là main "
+                        "— chưa đủ bằng chứng để đóng, cần chủ "
+                        "nhân xác nhận.")
+            return result
+        legacy_tid = int(main_tid)
+        result["legacy_thread_id"] = legacy_tid
+        conflict = next(
+            (r for r in sidechats
+             if r["thread_id"] == legacy_tid
+             and r["title"] != MAIN_TOPIC_TITLE), None)
+        if conflict is not None:
+            result["action"] = "uncertain"
+            result["notes"].append(
+                f"Map cũ ghi thread {legacy_tid} là "
+                f"'{MAIN_TOPIC_TITLE}' nhưng registry chat phụ "
+                f"ghi nó là '{conflict['title']}' — bằng chứng "
+                "mâu thuẫn, KHÔNG tự đóng và không đổi map; cần "
+                "chủ nhân xác nhận.")
+            return result
+        records = await self._legacy_records(memory, chat_id)
+        record = next(
+            (r for r in records
+             if int(r.get("thread_id") or 0) == legacy_tid), None)
+        if record is None:
+            record = {"thread_id": legacy_tid,
+                      "title": MAIN_TOPIC_TITLE,
+                      "superseded_by": 1,
+                      "superseded_at": now_iso(),
+                      "notified": False, "closed": False}
+            records.append(record)
+        mapping["main"] = 1
+        await self._save_map(memory, chat_id, mapping)
+        result["action"] = "merged"
+        if not record.get("notified") and bot is not None \
+                and hasattr(bot, "send_message"):
+            try:
+                await bot.send_message(
+                    chat_id, LEGACY_MAIN_REDIRECT_TEXT,
+                    message_thread_id=legacy_tid)
+                record["notified"] = True
+                result["notified"] = True
+            except Exception as exc:
+                result["notes"].append(
+                    f"Chưa gửi được tin chỉ đường vào topic cũ "
+                    f"(thread {legacy_tid}): {exc}")
+        if not record.get("closed") and bot is not None \
+                and hasattr(bot, "close_forum_topic"):
+            try:
+                await bot.close_forum_topic(
+                    chat_id, message_thread_id=legacy_tid)
+                record["closed"] = True
+                result["closed"] = True
+            except Exception as exc:
+                result["notes"].append(
+                    f"Chưa đóng được topic cũ "
+                    f"(thread {legacy_tid}): {exc}")
+        await self._save_legacy_records(memory, chat_id, records)
+        return result
+
     async def setup(self, bot, memory, chat_id: int,
                     is_forum: bool) -> dict:
         """Tạo các topic còn thiếu + ghim mục lục. bot là duck-type
@@ -135,6 +277,14 @@ class TopicManager:
             except Exception as exc:
                 logger.warning("check admin lỗi (đi tiếp): %s", exc)
         mapping = await self.get_map(memory, chat_id)
+        # Đối soát "hai Chat chính" (gói D) TRƯỚC vòng tạo
+        # topic: map cũ còn main -> topic tự tạo thì hợp nhất
+        # về General ngay, để main trong map luôn là thread 1.
+        recon = await self.reconcile_main_topic(bot, memory,
+                                                chat_id)
+        result["reconcile"] = recon
+        if recon.get("action") != "none":
+            mapping = await self.get_map(memory, chat_id)
         for surface in SURFACES:
             key = surface["key"]
             if key in mapping:
@@ -187,6 +337,16 @@ def format_topics_result(result: dict) -> str:
         title = by_key.get(key, {}).get("title", key)
         mark = " (vừa tạo)" if key in result.get("created", {}) else ""
         lines.append(f"- {title}: thread {tid}{mark}")
+    recon = result.get("reconcile") or {}
+    if recon.get("action") == "merged":
+        lines.append(
+            f"- Đã hợp nhất 'hai Chat chính': topic "
+            f"'{MAIN_TOPIC_TITLE}' tự tạo ở bản cũ "
+            f"(thread {recon.get('legacy_thread_id')}) đã được "
+            "đóng lại; chat chính duy nhất là General "
+            "(thread 1).")
+    for note in recon.get("notes", []):
+        lines.append(f"⚠️ {note}")
     for err in result.get("errors", []):
         lines.append(f"⚠️ {err}")
     return "\n".join(lines)
@@ -361,6 +521,15 @@ class SideChatRegistry:
 
         title = sanitize_sidechat_title(raw_title) \
             or default_sidechat_title(timezone_name)
+        if title == MAIN_TOPIC_TITLE:
+            # Gói D: không đường code nào được tạo topic tên
+            # "Chat chính" nữa — main là General (thread 1),
+            # tránh tái sinh cảnh "hai Chat chính".
+            result["error"] = (
+                f"'{MAIN_TOPIC_TITLE}' là tên dành cho phòng "
+                "General (chat chính duy nhất của group) — "
+                "chọn tên khác cho chat phụ.")
+            return result
         try:
             topic = await bot.create_forum_topic(chat_id, name=title)
             thread_id = int(topic.message_thread_id)
