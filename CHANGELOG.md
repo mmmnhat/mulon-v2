@@ -1,5 +1,144 @@
 # CHANGELOG
 
+## 1.3.0 — Chợ MCP (Marketplace): cài MCP server local miễn phí qua 2 lần duyệt
+
+- **Phạm vi đã khoá theo quyết định owner:** chỉ server **miễn
+  phí**, chỉ **local stdio** — không remote (kể cả import thủ
+  công dán URL), không paid/license/pay-per-call. Nguồn dữ
+  kiện: **bundle tuyển chọn đóng gói** (`config/
+  marketplace_curated.json`, 6 server tham chiếu chính thức —
+  filesystem, memory, sequential-thinking, git, time, fetch —
+  đều ghim version cố định và đã chạy probe thật khi rà soát,
+  kèm tool fingerprint tại thời điểm rà soát) + **nhập thủ
+  công** (dán JSON `mcpServers`/1 server object). Không phụ
+  thuộc API của mcp-marketplace.io (chưa có API client công
+  khai đã kiểm chứng — provider dự phòng báo
+  `unavailable_unverified`).
+- **Module mới:** `mulon/marketplace.py` (MarketplaceService:
+  chuẩn hoá cấu hình, phân tích rủi ro, state machine
+  operation, commit/rollback, boot reconciliation, catalog
+  updater), `mulon/marketplace_store.py` (sổ JSON nguyên tử:
+  installed registry, operation journal, tombstone, restart
+  intent, hàng đợi thông báo), `mulon/marketplace_providers.py`
+  (bundle + checksum nội dung). API `/api/marketplace/*` trên
+  WebAppServer (auth initData owner-only như mọi `/api/*`,
+  POST đổi trạng thái nhận `Idempotency-Key`); `/api/connector`
+  gặp server managed thì route sang service — không ghi file
+  trực tiếp, không ghi 2 lần; `/api/state` thêm
+  `marketplace_summary` + cờ managed/lifecycle/health trên
+  từng MCP item.
+- **Luồng cài 2 lần duyệt:** chuẩn bị (kiểm trùng tên, cổng
+  bảo mật: critical = chặn cứng, điểm < 7.0 không cài nhanh)
+  -> gắn bí mật bằng **Vault ref** (giá trị literal trong bản
+  dán bị từ chối `secret_literal_rejected`; không plaintext
+  trong config/catalog/log/API/store) -> xin duyệt **chạy
+  thử** (probe tách rời: chỉ initialize + list_tools, không
+  đăng ký tool, không gọi tool nào) -> xem tool list/schema +
+  fingerprint -> xin duyệt **commit**. Thẻ duyệt marketplace
+  dùng TTL riêng 900s (broker hỗ trợ TTL theo từng yêu cầu)
+  và **không có "Duyệt và nhớ"**. Tool của server cài qua chợ
+  vào group `mcp:<server>` với verdict mặc định **ask**.
+- **Commit an toàn:** journal write-ahead -> ghi policy ->
+  read-modify-write nguyên tử trên `mcp_servers.json` (giữ
+  nguyên entry thủ công + trường lạ, đối chiếu hash trước/sau)
+  -> đọc lại kiểm fingerprint. Lỗi giữa chừng tự rollback
+  (policy cũ, entry cũ, record `quarantined`).
+- **Bot TỰ khởi động lại** (re-exec) sau cài/gỡ/cập nhật/
+  bật-tắt; **boot gate**: server managed chỉ được đăng ký
+  tool khi config fingerprint + tool fingerprint khớp bản
+  đã duyệt (lệch -> giữ tool, báo `blocked_tool_drift`/
+  `config_drift`); restart pending được quyết toán lúc boot
+  — áp dụng thất bại thì **tự rollback về cấu hình trước đó**
+  (tối đa 1 lần, tránh vòng lặp) + nhắn báo owner qua Telegram.
+  Gỡ: chặn tool ngay bằng policy deny, xoá Vault ref độc
+  quyền chỉ khi owner chọn (ref dùng chung không bao giờ bị
+  xoá value).
+- **Catalog tự cập nhật** (việc nền hẹp duy nhất, owner đã
+  duyệt riêng): kiểm tra lúc khởi động + hàng tuần, tải file
+  tuyển chọn từ repo GitHub của dự án, **kiểm checksum**
+  trước khi thay snapshot, CHỈ cập nhật dữ kiện niêm yết —
+  không bao giờ tự cài/cập nhật server.
+- **MCP client mở rộng:** `probe_entry()` tách rời,
+  `tool_snapshot()` cho boot gate, `register_into(exclude=…)`,
+  resolve Vault ref vào bản sao trong bộ nhớ khi connect
+  (`env_vault_refs`/`auth_vault_ref`/`header_vault_refs` —
+  entry trên đĩa chỉ giữ ref). Policy engine thêm
+  get/remove host rule cho installer.
+- **Mini App:** màn Kết nối có segmented chỉ chữ **Đã cài |
+  Chợ** (đúng hệ thiết kế vòng 3: không pill trạng thái,
+  trạng thái bằng chữ + phân cấp trung tính, tối đa 1 màu
+  nhấn), màn chi tiết listing, wizard cài theo operation
+  (không có ô nhập giá trị bí mật), màn nhập thủ công; thẻ
+  duyệt `marketplace_operation` ở mục Phê duyệt chỉ có
+  Duyệt/Chặn.
+- **Đo thật khi rà soát:** các server Node tham chiếu
+  initialize ~70s qua MCP Python SDK trên máy yếu (uvx/Python
+  ~1s khi cache ấm) — entry cài qua chợ được ghi
+  `timeout_s: 120` để lần nối đầu không chết oan.
+- **Kiểm thử:** +40 test `test_v13_*` (chuẩn hoá, cổng bảo
+  mật, luồng 2 duyệt, rollback giữa commit, boot gate/drift,
+  tự rollback khi áp dụng lỗi, catalog checksum đúng/sai +
+  không tự cài, API + auth + không lộ sentinel Vault, và
+  đầu-cuối THẬT bằng echo server: import -> probe -> duyệt
+  -> commit -> boot mô phỏng -> đăng ký đúng tên
+  `mcp_<server>_<tool>` -> gọi được tool; case phá cấu hình
+  sau commit -> rollback tự kích hoạt). Eval vàng +3 ca
+  `cho_mcp` (agent không có tool cài/gỡ — chỉ hướng owner
+  vào Mini App).
+- **Gói A — Sprite states v0 trong Mini App:** avatar header
+  phát atlas THẬT (bộ states owner đã chốt: idle/working/
+  waiting vòng lặp, done/error chiếu 1 lần khi TASK thật kết
+  thúc) thay cơ chế CSS keyframes trên ảnh tĩnh. Asset đóng
+  gói ở `mulon/webapp/assets/` + route tĩnh
+  `/app/assets/{name}` (whitelist, cache 1 ngày). Trạng thái
+  chỉ suy từ `/api/state` thật (thẻ chờ duyệt → waiting,
+  busy → working); thiếu asset thì fallback chữ cái đầu trên
+  nền tint tím theo theme. Vị trí frame tính theo hình học
+  lưới của atlas (bài học render kiểm: chia theo số frame
+  từng đẩy frame cuối sang ô trống).
+- **Gói B — Vá tự nhận thức cho agent:** khối SELF-KNOWLEDGE
+  chèn vào prompt hệ thống ngay sau dossier (cả lượt chat
+  lẫn lượt việc): Mulon là ai (bot Telegram Python/aiogram 3
+  đang chạy thật, codebase này chính là nó), roster tool đầy
+  đủ bằng nhãn lời thường, các bề mặt thật (thẻ duyệt có NÚT
+  THẬT qua ApprovalBroker, Mini App, Vault chỉ cầm ref) và
+  3 quy tắc cứng — không tuyên bố thiếu tool khi chưa đối
+  chiếu roster; không bịa thẻ/UI bằng văn bản trình như đồ
+  thật; không bao giờ hỏi owner "bot chạy bằng gì". Lệnh
+  `/the_duyet` gửi THẺ DUYỆT THỬ THẬT qua đúng
+  ApprovalBroker + renderer sẵn có (payload vô hại, quyết
+  xong chỉ ghi nhận). Handler `/vault` đổi đường chính sang
+  mở Kho trong Mini App (deep link), link localhost hạ
+  thành đường phụ cho máy tính. Eval vàng +3 ca `trung_thuc`
+  khoá các lỗi owner bắt được (tự đọc source của mình bằng
+  read_file, không xuất thẻ giả, nhận có tool đọc file).
+- **Gói C — Vá Mini App theo phản ánh thật:** (1) Vault nhập
+  ngay trong app: form nhãn + giá trị (ô mật khẩu) POST
+  `/api/vault/capture` → `VaultStore.put`, chỉ trả ref,
+  giá trị không echo/không log. (2) Kỹ năng đọc được:
+  `GET /api/skills` + `/api/skills/{name}`, màn chi tiết mở
+  đọc SKILL.md ngay trong app. (3) Switch nối thật: mục
+  không bật/tắt được (connector dựng sẵn, heartbeat) hiện
+  trạng thái bằng chữ thay công tắc chết; theme hết nuốt lỗi
+  — lỗi lưu hiện toast rõ ràng như mọi đường API khác.
+  (4) Tab Việc hiện MỌI lượt: `/api/state` gộp bản ghi task
+  với lượt chat/lượt lỗi từ trajectory (`turn_done`/
+  `turn_error` fast-path) — trước đây lượt chỉ chat không
+  có bản ghi nào nên danh sách trống dù vừa chat xong.
+- **Gói D — Đối soát "hai Chat chính":** bản 1.0/1.1 từng tự
+  tạo topic tên "Chat chính" cho vai main; 1.3.0 hợp nhất về
+  General (thread 1) là chat chính DUY NHẤT. Lúc bootstrap
+  topic (`TopicManager.setup` → `reconcile_main_topic`):
+  map cũ ghi main → thread tự tạo (bằng chứng xuất xứ chắc
+  chắn, đối chiếu registry chat phụ không mâu thuẫn) thì
+  cập nhật map main→1, ghi record legacy/superseded, gửi
+  ĐÚNG 1 tin chỉ đường vào topic cũ rồi ĐÓNG bằng
+  close_forum_topic (giữ nội dung, mở lại được). Bằng chứng
+  mâu thuẫn/không đủ → chỉ ghi nhận + báo trong kết quả
+  setup, không tự đóng. Từ nay không đường code nào tạo
+  topic tên "Chat chính" nữa (chat phụ đặt đúng tên này bị
+  chặn). Kiểm thử: +4 test `test_v13_topic_reconcile`.
+
 ## 1.2.0 — Mini App modal phong cách Muse + policy nấc "hỏi" + menu lệnh
 
 - **Khối 1 — Menu lệnh:** bot đăng ký toàn bộ lệnh hiện có + `/menu`
