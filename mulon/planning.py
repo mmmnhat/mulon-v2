@@ -6,6 +6,14 @@ bộ job tự động 2026-10-22). Khi tới hạn: tính lần kế tiếp và 
 TRƯỚC (chống bắn trùng — bài học heartbeat Mulon cũ), rồi tạo task
 cho agent trong session hệ thống và ghi trajectory.
 
+Từ 1.4 (Feed chủ động): scheduler biết thêm JOB HỆ THỐNG NỘI BỘ
+(payload JSON {"kind": "<tên>", "v": 1}) — do mã hệ thống đăng
+ký handler riêng, KHÔNG qua agent loop. Quy tắc CÔ LẬP TICK
+(spec feed 1.4 mục 4.3): vòng tick có thể chạy chỉ để phục vụ
+job nội bộ (run_due_once(include_regular=False)) — khi đó các
+schedule THƯỜNG (do agent tạo, mặc định tắt theo chính sách
+cứng) KHÔNG được bắn và KHÔNG bị tiêu thụ next_run.
+
 Goals: 2 trạng thái (active/completed), activity log, tracked items
 ở tầng DB. Goal không bao giờ tự đóng.
 """
@@ -13,6 +21,7 @@ Goals: 2 trạng thái (active/completed), activity log, tracked items
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -27,6 +36,26 @@ SYSTEM_SESSION = "agent:main:system:scheduler"
 _UTC = timezone.utc  # tránh bị tham số tool tên 'timezone' che
 
 AgentProvider = Callable[[], Awaitable[object]]
+InternalHandler = Callable[[dict], Awaitable[object]]
+
+
+def internal_payload(kind: str) -> str:
+    """Payload chuẩn của 1 job hệ thống nội bộ."""
+    return json.dumps({"kind": kind, "v": 1})
+
+
+def internal_kind(payload: str) -> Optional[str]:
+    """Tên job nội bộ nếu payload là marker nội bộ, else None.
+    Payload thường là text tự do của user/agent — không parse
+    được JSON dict có 'kind' + 'v' thì coi là lịch thường."""
+    try:
+        data = json.loads(payload or "")
+    except Exception:
+        return None
+    if isinstance(data, dict) and data.get("v") == 1 \
+            and isinstance(data.get("kind"), str):
+        return data["kind"]
+    return None
 
 
 class SchedulerService:
@@ -37,9 +66,25 @@ class SchedulerService:
         self.memory = memory
         self._agent_provider = agent_provider
         self._lock = asyncio.Lock()
+        self.internal_handlers: dict[str, InternalHandler] = {}
 
-    async def run_due_once(self, now: Optional[datetime] = None) -> list[str]:
-        """Chạy mọi schedule đã tới hạn. Trả danh sách id đã bắn.
+    def register_internal_handler(self, kind: str,
+                                  fn: InternalHandler) -> None:
+        """Đăng ký handler cho job hệ thống nội bộ (vd feed_auto).
+        Handler nhận dict schedule, tự ghi vết của nó."""
+        self.internal_handlers[kind] = fn
+
+    def has_internal_handlers(self) -> bool:
+        return bool(self.internal_handlers)
+
+    async def run_due_once(self, now: Optional[datetime] = None,
+                           include_regular: bool = True) -> list[str]:
+        """Chạy các schedule đã tới hạn. Trả danh sách id đã bắn.
+
+        include_regular=False = CHẾ ĐỘ CÔ LẬP (spec 1.4 mục 4.3):
+        chỉ job nội bộ được bắn; schedule thường tới hạn bị GIỮ
+        NGUYÊN (không advance next_run, không ghi trajectory) để
+        khi scheduler thường được bật thật, chúng vẫn còn hạn.
 
         Lỗi của từng schedule bị nuốt (ghi trajectory) — 1 job hỏng
         không chặn các job khác và không sập vòng lặp.
@@ -52,6 +97,9 @@ class SchedulerService:
             )
             agent = None
             for sched in due:
+                kind = internal_kind(sched["payload"])
+                if kind is None and not include_regular:
+                    continue  # giữ nguyên lịch thường — xem docstring
                 try:
                     # Tính + ghi lần kế tiếp TRƯỚC khi chạy: tiến trình
                     # có chết giữa chừng cũng không bắn trùng job này.
@@ -68,6 +116,16 @@ class SchedulerService:
                     nxt,
                 )
                 try:
+                    if kind is not None:
+                        handler = self.internal_handlers.get(kind)
+                        if handler is None:
+                            logger.warning(
+                                "job nội bộ %s chưa có handler — bỏ "
+                                "qua lượt này", kind)
+                            continue
+                        await handler(sched)
+                        fired.append(sched["id"])
+                        continue
                     if agent is None:
                         agent = await self._agent_provider()
                     session_key = sched["session_key"] or SYSTEM_SESSION
@@ -89,13 +147,21 @@ class SchedulerService:
         return fired
 
     async def run_forever(self) -> None:
-        """Vòng lặp nền — chỉ được tạo task khi SCHEDULER_ENABLED=1."""
-        logger.info("scheduler nền BẬT (tick %ss)",
-                    self.cfg.scheduler_tick_s)
+        """Vòng lặp nền. Bắn lịch thường CHỈ khi SCHEDULER_ENABLED=1;
+        job nội bộ luôn được phục vụ khi vòng lặp chạy (main.py chỉ
+        khởi động vòng lặp khi có handler nội bộ hoặc scheduler
+        thường bật — xem quy tắc cô lập tick ở docstring module).
+        """
+        include_regular = bool(self.cfg.scheduler_enabled)
+        logger.info("scheduler nền BẬT (tick %ss, lịch thường: %s)",
+                    self.cfg.scheduler_tick_s,
+                    "bật" if include_regular else "TẮT — chỉ job "
+                    "hệ thống nội bộ")
         while True:
             await asyncio.sleep(self.cfg.scheduler_tick_s)
             try:
-                fired = await self.run_due_once()
+                fired = await self.run_due_once(
+                    include_regular=include_regular)
                 if fired:
                     logger.info("scheduler đã bắn: %s", fired)
             except Exception as exc:
@@ -150,17 +216,21 @@ def register_planning_tools(registry, cfg, memory) -> None:
 
     @spec(
         "list_schedules",
-        "Liệt kê mọi lịch hẹn giờ đã tạo (kể cả đã tắt).",
+        "Liệt kê các lịch hẹn giờ ĐÃ TẠO QUA AGENT (kể cả đã tắt). "
+        "Job hệ thống nội bộ (vd Feed chủ động) không nằm trong "
+        "danh sách này và không tắt được bằng tool thường.",
         {"type": "object", "properties": {}, "required": []},
         "schedule", 10,
     )
     async def list_schedules():
-        items = await memory.list_schedules()
+        items = [s for s in await memory.list_schedules()
+                 if internal_kind(s.get("payload") or "") is None]
         return {"ok": True, "schedules": items}
 
     @spec(
         "cancel_schedule",
-        "Tắt 1 lịch hẹn giờ theo id (không xóa dữ liệu).",
+        "Tắt 1 lịch hẹn giờ theo id (không xóa dữ liệu). Job hệ "
+        "thống nội bộ không tắt được bằng tool này.",
         {
             "type": "object",
             "properties": {"schedule_id": {"type": "string"}},
@@ -169,6 +239,12 @@ def register_planning_tools(registry, cfg, memory) -> None:
         "schedule", 10,
     )
     async def cancel_schedule(schedule_id: str):
+        row = await memory.get_schedule(schedule_id)
+        if row is not None and internal_kind(
+                row.get("payload") or "") is not None:
+            return {"ok": False,
+                    "error": "đây là job hệ thống nội bộ — không "
+                             "tắt được bằng tool thường"}
         ok = await memory.cancel_schedule(schedule_id)
         if not ok:
             return {"ok": False,
