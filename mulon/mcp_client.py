@@ -161,6 +161,68 @@ class MCPManager:
         self.entries = load_server_configs(self.config_path)
         self._conns: dict[str, _Connection] = {}
         self._lock = asyncio.Lock()
+        # 1.3.0: resolver bí mật (Vault) do MarketplaceService gắn.
+        # fn(ref) -> giá trị thật hoặc None. Chỉ resolve vào bản sao
+        # trong bộ nhớ khi connect/probe; entry trên đĩa giữ ref.
+        self._secret_resolver = None
+
+    # ---------- bí mật qua Vault ref (1.3.0) ----------
+    def set_secret_resolver(self, fn) -> None:
+        """fn: callable(ref: str) -> Optional[str]."""
+        self._secret_resolver = fn
+
+    def _resolve_entry(self, entry: dict) -> dict:
+        """Bản sao entry đã gắn giá trị bí mật từ Vault ref vào
+        đúng vị trí (env/header/auth). Không có resolver hoặc
+        entry không khai ref -> trả nguyên entry. Giá trị đã
+        resolve KHÔNG bao giờ được ghi ra đĩa/log."""
+        if self._secret_resolver is None:
+            return entry
+        if not any(k in entry for k in
+                   ("env_vault_refs", "auth_vault_ref",
+                    "header_vault_refs")):
+            return entry
+        resolved = dict(entry)
+        env = dict(resolved.get("env") or {})
+        for name, ref in (resolved.get("env_vault_refs")
+                          or {}).items():
+            value = self._secret_resolver(str(ref))
+            if value is not None:
+                env[str(name)] = value
+            else:
+                logger.warning(
+                    "MCP '%s': không resolve được Vault ref cho "
+                    "env %s (bỏ qua biến này)",
+                    entry.get("name"), name)
+        resolved["env"] = env
+        headers = dict(resolved.get("headers") or {})
+        for name, ref in (resolved.get("header_vault_refs")
+                          or {}).items():
+            value = self._secret_resolver(str(ref))
+            if value is not None:
+                headers[str(name)] = value
+            else:
+                logger.warning(
+                    "MCP '%s': không resolve được Vault ref cho "
+                    "header %s (bỏ qua header này)",
+                    entry.get("name"), name)
+        if resolved.get("auth_vault_ref"):
+            value = self._secret_resolver(
+                str(resolved["auth_vault_ref"]))
+            if value is not None:
+                header_name = str(resolved.get("auth_header")
+                                  or "Authorization")
+                prefix = str(resolved.get("auth_prefix", "Bearer "))
+                headers[header_name] = f"{prefix}{value}"
+                # Đã có vault auth: bỏ auth_env để _http_headers
+                # không ghi đè bằng đường env legacy.
+                resolved.pop("auth_env", None)
+            else:
+                logger.warning(
+                    "MCP '%s': không resolve được Vault ref cho "
+                    "auth chính", entry.get("name"))
+        resolved["headers"] = headers
+        return resolved
 
     # ---------- vòng đời ----------
     async def start(self) -> None:
@@ -172,7 +234,7 @@ class MCPManager:
             await self._connect(entry)
 
     async def _connect(self, entry: dict) -> Optional[_Connection]:
-        conn = _Connection(entry)
+        conn = _Connection(self._resolve_entry(entry))
         self._conns[conn.name] = conn
         timeout = float(entry.get("timeout_s") or
                         self.cfg.mcp_connect_timeout_s)
@@ -254,8 +316,6 @@ class MCPManager:
     async def _open_stdio(self, conn: _Connection) -> None:
         entry = conn.entry
         env = dict(get_default_environment())
-        if "PYTHONPATH" in os.environ and "PYTHONPATH" not in env:
-            env["PYTHONPATH"] = os.environ["PYTHONPATH"]
         extra_env = entry.get("env") or {}
         if isinstance(extra_env, dict):
             env.update({str(k): str(v) for k, v in extra_env.items()})
@@ -299,6 +359,74 @@ class MCPManager:
         await self._connect(conn.entry)
         return self._conns.get(name)
 
+    # ---------- probe tách rời (1.3.0, spec marketplace 9.5) ----
+    async def probe_entry(self, entry: dict,
+                          timeout_s: Optional[float] = None) -> dict:
+        """Kết nối thử MỘT entry mà không đăng ký tool, không giữ
+        session trong manager: initialize + list_tools rồi đóng
+        chắc chắn. Entry được resolve Vault ref trong bộ nhớ như
+        đường connect thật. Trả {ok, latency_ms, tools, error_code,
+        error} — error đã rút gọn, không chứa giá trị bí mật."""
+        import time as _time
+
+        if not HAS_MCP:
+            return {"ok": False, "latency_ms": 0, "tools": [],
+                    "error_code": "probe_failed",
+                    "error": "gói 'mcp' chưa được cài trên máy này"}
+        conn = _Connection(self._resolve_entry(entry))
+        timeout = float(timeout_s or entry.get("timeout_s")
+                        or self.cfg.mcp_connect_timeout_s)
+        started = _time.monotonic()
+        try:
+            await asyncio.wait_for(self._open(conn), timeout=timeout)
+        except (asyncio.TimeoutError, TimeoutError):
+            return {"ok": False,
+                    "latency_ms": int((_time.monotonic() - started)
+                                      * 1000),
+                    "tools": [], "error_code": "probe_timeout",
+                    "error": f"quá {timeout:.0f}s không kết nối được"}
+        except Exception as exc:
+            return {"ok": False,
+                    "latency_ms": int((_time.monotonic() - started)
+                                      * 1000),
+                    "tools": [], "error_code": "probe_failed",
+                    "error": f"{type(exc).__name__}: {exc}"[:300]}
+        tools = [{
+            "name": str(t.name),
+            "description": str(getattr(t, "description", "") or ""),
+            "inputSchema": (t.inputSchema
+                            if isinstance(t.inputSchema, dict)
+                            else {}),
+        } for t in conn.tools]
+        latency = int((_time.monotonic() - started) * 1000)
+        if conn.stack is not None:
+            try:
+                await conn.stack.aclose()
+            except Exception:
+                pass
+            conn.stack = None
+            conn.session = None
+        return {"ok": True, "latency_ms": latency, "tools": tools,
+                "error_code": "", "error": ""}
+
+    def tool_snapshot(self) -> dict[str, list[dict]]:
+        """Ảnh chụp tool của các server ĐÃ NỐI trong manager:
+        {server_name: [{name, description, inputSchema}]} — dùng
+        cho boot gate đối chiếu dấu vân tay (marketplace 9.7)."""
+        out: dict[str, list[dict]] = {}
+        for name, conn in self._conns.items():
+            if not conn.connected:
+                continue
+            out[name] = [{
+                "name": str(t.name),
+                "description": str(getattr(t, "description", "")
+                                   or ""),
+                "inputSchema": (t.inputSchema
+                                if isinstance(t.inputSchema, dict)
+                                else {}),
+            } for t in conn.tools]
+        return out
+
     # ---------- gọi tool ----------
     async def call_tool(self, server: str, tool: str,
                         arguments: dict) -> dict:
@@ -333,11 +461,16 @@ class MCPManager:
         return {"ok": False, "error": "MCP call không rõ trạng thái"}
 
     # ---------- đăng ký vào registry chung ----------
-    def register_into(self, registry) -> list[str]:
-        """Đăng ký tool của mọi server đã nối. Trả tên tool nội bộ."""
+    def register_into(self, registry,
+                      exclude: Optional[set] = None) -> list[str]:
+        """Đăng ký tool của mọi server đã nối. Trả tên tool nội bộ.
+
+        ``exclude``: tên server KHÔNG đăng ký (1.3.0: boot gate
+        của marketplace giữ tool của server chưa đạt đối chiếu)."""
+        exclude = exclude or set()
         registered: list[str] = []
         for conn in self._conns.values():
-            if not conn.connected:
+            if not conn.connected or conn.name in exclude:
                 continue
             for tool in conn.tools:
                 local = f"mcp_{_safe_name(conn.name)}_{_safe_name(tool.name)}"
