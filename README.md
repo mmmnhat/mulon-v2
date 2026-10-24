@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="mulon-avatar.webp" alt="Mulon" width="150">
+  <img src="assets/mulon-avatar.webp" alt="Mulon" width="150">
 </p>
 
 <h1 align="center">Mulon</h1>
@@ -85,8 +85,12 @@ Playwright, pipeline media bằng ffmpeg, khung connector trung
 tính cho dịch vụ ngoài.
 
 **Bề mặt group.** Topic = tab: Chat chính, Feed, Ideas, Goals,
-Library, Lịch sử & Hệ thống. Feed sinh từ tư liệu nội bộ (không
-aggregator), học gu qua reaction. Thẻ Ideas tự hết hạn sau 14
+Library, Lịch sử & Hệ thống. Feed CHỦ ĐỘNG (1.4.0): tự đăng
+theo lịch (mặc định 2 bài/ngày, luôn bật — điều khiển ở Mini
+App → Cài đặt → Feed chủ động) từ tư liệu nội bộ cộng tin
+ngoài do hệ thống tự tìm kiếm từ nguồn tin cậy/chính thống,
+chỉ trích link thật đã lấy về (sai là bỏ bài), học gu qua
+reaction (cả theo nguồn và theo chủ đề). Thẻ Ideas tự hết hạn sau 14
 ngày, "làm luôn" là thành goal + task. Library có thùng rác khôi
 phục được trong 30 ngày. Ngoài các tab cố định, `/chatphu <tên>`
 tạo topic tự do làm đoạn chat phụ: lịch sử tách riêng theo topic,
@@ -138,6 +142,7 @@ flowchart LR
 | `mulon/voice.py` · `mulon/media_tools.py` | Whisper + TTS qua proxy · pipeline ffmpeg |
 | `mulon/skills.py` | SKILL.md nạp dần (progressive disclosure) + vet tĩnh |
 | `mulon/surfaces.py` · `feed.py` · `ideas.py` · `library.py` · `vault.py` | Bề mặt group: topics, Feed, Ideas, Library, Vault |
+| `mulon/feed_auto.py` · `websearch.py` | Feed chủ động 1.4: runner lịch xác định (job hệ thống nội bộ, cô lập tick) + tìm kiếm web không API key cho collector |
 | `mulon/evals.py` · `backup.py` · `report.py` · `tracing.py` | Eval vàng, backup checksum, báo cáo sức khỏe, Langfuse |
 
 ## Bắt đầu nhanh
@@ -206,7 +211,7 @@ thích từng biến. Các biến chính:
 | Lõi | `/start` `/status` `/new` — chốt phiên hiện tại · `/menu` — mở bảng điều khiển (Mini App) |
 | Group | `/setup_topics` — tạo các topic-tab · `/topics` — xem map |
 | Chat phụ | `/chatphu <tên>` — tạo đoạn chat phụ · `/chatphu_list` · `/dongchat` · `/chatphu_dong <thread_id>` · `/chatphu_mo <thread_id>` |
-| Feed | `/feed_now` — sinh bài mới · `/feedbrief <nội dung>` — sửa brief |
+| Feed | Tự chạy theo lịch (Mini App → Cài đặt → Feed chủ động) · `/feedbrief <nội dung>` — sửa brief · `/feedsources` — nguồn bổ sung |
 | Ideas | `/ideas` · trả lời thẻ "làm luôn" hoặc `/idea_do <id>` · `/idea_bo <id>` |
 | Đề xuất | `/notes` — đề xuất đang chờ · `/note_ok <id>` · `/note_bo <id>` |
 | Library | `/library` · `/trash_item <id>` · `/restore_item <id>` · `/share_item <id>` |
