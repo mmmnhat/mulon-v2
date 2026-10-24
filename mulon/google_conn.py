@@ -105,12 +105,12 @@ class GoogleAuth:
 
     # ---------- credential ----------
     def client_id(self) -> str:
-        return (self.cfg.google_client_id
-                or _vault_get(self.vault, LBL_CLIENT_ID) or "")
+        return (_vault_get(self.vault, LBL_CLIENT_ID)
+                or self.cfg.google_client_id or "")
 
     def client_secret(self) -> str:
-        return (self.cfg.google_client_secret
-                or _vault_get(self.vault, LBL_CLIENT_SECRET) or "")
+        return (_vault_get(self.vault, LBL_CLIENT_SECRET)
+                or self.cfg.google_client_secret or "")
 
     def refresh_token(self) -> str:
         return _vault_get(self.vault, LBL_REFRESH) or ""
@@ -127,7 +127,17 @@ class GoogleAuth:
     def status(self) -> dict:
         return {"configured": self.configured(),
                 "connected": self.connected(),
-                "email": self.account_email()}
+                "email": self.account_email(),
+                "redirect_uri": self.redirect_uri(),
+                "client_id": self.client_id(),
+                "has_client_secret": bool(self.client_secret())}
+
+    def save_credentials(self, client_id: str, client_secret: str = "") -> None:
+        """Lưu client_id và client_secret vào Vault."""
+        if client_id:
+            _vault_put(self.vault, LBL_CLIENT_ID, client_id.strip())
+        if client_secret:
+            _vault_put(self.vault, LBL_CLIENT_SECRET, client_secret.strip())
 
     # ---------- OAuth ----------
     def redirect_uri(self) -> str:

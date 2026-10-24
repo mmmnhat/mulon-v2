@@ -308,3 +308,42 @@ async def test_oauth_flow_end_to_end(app):
                           headers=_headers(), json={}) as r:
             assert (await r.json())["ok"] is True
         assert _vault_get(vault, LBL_REFRESH) is None
+
+
+async def test_google_config_api(app):
+    _, memory, server, vault = app
+    async with ClientSession() as s:
+        # GET config ban đầu
+        async with s.get(_url(server, "/api/google/config"),
+                         headers=_headers()) as r:
+            assert r.status == 200
+            data = await r.json()
+            assert data["ok"] is True
+            assert "redirect_uri" in data
+            assert data["configured"] is True
+
+        # POST config thiếu client_id -> 400
+        async with s.post(_url(server, "/api/google/config"),
+                          headers=_headers(),
+                          json={"client_id": ""}) as r:
+            assert r.status == 400
+
+        # POST lưu client_id và client_secret mới
+        async with s.post(_url(server, "/api/google/config"),
+                          headers=_headers(),
+                          json={"client_id": "NEW-CLIENT-ID.apps.googleusercontent.com",
+                                "client_secret": "NEW-SECRET"}) as r:
+            assert r.status == 200
+            res = await r.json()
+            assert res["ok"] is True
+            assert res["configured"] is True
+            assert res["client_id"] == "NEW-CLIENT-ID.apps.googleusercontent.com"
+            assert res["has_client_secret"] is True
+
+        # Kiểm tra GET phản ánh đúng
+        async with s.get(_url(server, "/api/google/config"),
+                         headers=_headers()) as r:
+            assert r.status == 200
+            data = await r.json()
+            assert data["client_id"] == "NEW-CLIENT-ID.apps.googleusercontent.com"
+            assert data["has_client_secret"] is True

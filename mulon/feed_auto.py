@@ -461,6 +461,7 @@ class FeedAutoRunner:
         return {
             "cron": st["cron"],
             "next_run_at": (row or {}).get("next_run_at", ""),
+            "enabled": bool((row or {}).get("enabled", 1)),
             "quiet_hours": st["quiet_hours"],
             "max_posts_per_day": st["max_posts_per_day"],
             "daily_token_budget": st["daily_token_budget"],

@@ -33,7 +33,7 @@ from urllib.parse import parse_qsl
 from . import __version__ as MULON_VERSION
 from .approvals import GROUP_SCOPE_LABELS
 from .cron import parse_cron
-from .feed_auto import valid_quiet_hours
+from .feed_auto import SCHEDULE_ID as FEED_SCHEDULE_ID, valid_quiet_hours
 from .planning import internal_kind
 from .proactivity import PROACTIVITY_KV_KEY, effective_enabled
 
@@ -366,6 +366,10 @@ class WebAppServer:
         # bằng state nonce dùng 1 lần, xem _handle_google_callback).
         app.router.add_get("/api/google/auth-url",
                            self._handle_google_auth_url)
+        app.router.add_get("/api/google/config",
+                           self._handle_google_config)
+        app.router.add_post("/api/google/config",
+                            self._handle_google_config)
         app.router.add_post("/api/google/disconnect",
                             self._handle_google_disconnect)
         app.router.add_get("/google/callback",
@@ -622,20 +626,18 @@ class WebAppServer:
             payload = str(r.get("payload") or "")
             internal = internal_kind(payload)
             if internal is not None:
-                # Job hệ thống nội bộ (1.4): hiển thị minh bạch
-                # nhưng KHÔNG toggle được ở tab Lịch — điều
-                # khiển ở Cài đặt → Feed chủ động.
+                # Job hệ thống nội bộ: hiển thị minh bạch
+                # và toggle được tại chỗ ở tab Lịch hoặc Cài đặt.
                 items.append({
                     "id": str(r.get("id")),
                     "name": "Feed chủ động (tự động)",
                     "cron": r.get("cron", ""),
                     "prompt": "Job hệ thống: tự viết bài Feed "
-                              "theo lịch. Điều khiển ở Cài đặt → "
-                              "Feed chủ động.",
-                    "enabled": bool(r.get("enabled")),
+                              "theo lịch.",
+                    "enabled": bool(r.get("enabled", 1)),
                     "next_run_at": r.get("next_run_at") or "",
                     "last_run_at": r.get("last_run_at") or "",
-                    "toggleable": False, "kind": "feed_auto",
+                    "toggleable": True, "kind": "feed_auto",
                 })
                 continue
             items.append({
@@ -1054,13 +1056,21 @@ class WebAppServer:
             return web.json_response(
                 {"ok": True, "enabled": enabled})
         row = await self.memory.get_schedule(schedule_id)
+        if schedule_id == FEED_SCHEDULE_ID or (row is not None and internal_kind(
+                row.get("payload") or "") == "feed_auto"):
+            ok = await self.memory.set_schedule_enabled(schedule_id, enabled)
+            if self.feed_auto is not None:
+                if enabled:
+                    await self.feed_auto.resume()
+                    await self.feed_auto.ensure_schedule()
+            await self.memory.log_trajectory(
+                "webapp", "feed_schedule_toggled", {"enabled": enabled})
+            return web.json_response({"ok": True, "enabled": enabled})
         if row is not None and internal_kind(
                 row.get("payload") or "") is not None:
             return web.json_response(
                 {"ok": False,
-                 "error": "Job hệ thống nội bộ — điều khiển ở "
-                          "Cài đặt → Feed chủ động, không bật/tắt "
-                          "ở tab Lịch."},
+                 "error": "Job hệ thống nội bộ — không hỗ trợ bật/tắt."},
                 status=400)
         ok = await self.memory.set_schedule_enabled(schedule_id,
                                                     enabled)
@@ -1163,6 +1173,14 @@ class WebAppServer:
                  "feed": await runner.get_state()})
         elif action == "resume":
             await runner.resume()
+        elif action == "set_enabled":
+            enabled = bool(body.get("enabled"))
+            await self.memory.set_schedule_enabled(FEED_SCHEDULE_ID, enabled)
+            if enabled:
+                await runner.resume()
+                await runner.ensure_schedule()
+            await self.memory.log_trajectory(
+                "webapp", "feed_schedule_toggled", {"enabled": enabled})
         else:
             return _bad(f"action không hỗ trợ: {action or '(trống)'}")
         return web.json_response(
@@ -1312,6 +1330,46 @@ class WebAppServer:
     # ---------- 1.5.0: Google OAuth ----------
 
     _GOOGLE_KV_STATE = "google_oauth_state"
+
+    async def _handle_google_config(self, request):
+        if self.google_auth is None:
+            return web.json_response(
+                {"ok": False,
+                 "error": "Google connector chưa được nối ở bản chạy này."},
+                status=503)
+        if request.method == "GET":
+            return web.json_response({
+                "ok": True,
+                "configured": self.google_auth.configured(),
+                "connected": self.google_auth.connected(),
+                "email": self.google_auth.account_email(),
+                "redirect_uri": self.google_auth.redirect_uri(),
+                "client_id": self.google_auth.client_id(),
+                "has_client_secret": bool(self.google_auth.client_secret()),
+            })
+        body = await self._json_body(request)
+        cid = str(body.get("client_id") or "").strip()
+        csec = str(body.get("client_secret") or "").strip()
+        if not cid:
+            return web.json_response(
+                {"ok": False, "error": "Vui lòng nhập Client ID."},
+                status=400)
+        if not csec and not self.google_auth.client_secret():
+            return web.json_response(
+                {"ok": False, "error": "Vui lòng nhập Client Secret."},
+                status=400)
+        self.google_auth.save_credentials(cid, csec)
+        await self.memory.log_trajectory(
+            "webapp", "google_configured", {"client_id_prefix": cid[:10]})
+        return web.json_response({
+            "ok": True,
+            "configured": self.google_auth.configured(),
+            "connected": self.google_auth.connected(),
+            "email": self.google_auth.account_email(),
+            "redirect_uri": self.google_auth.redirect_uri(),
+            "client_id": self.google_auth.client_id(),
+            "has_client_secret": bool(self.google_auth.client_secret()),
+        })
 
     async def _handle_google_auth_url(self, request):
         if self.google_auth is None:

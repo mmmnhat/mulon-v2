@@ -764,9 +764,19 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <section id="screen-feed" class="hidden">
   <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
   <h2 class="screen-title">Feed chủ động</h2>
-  <div class="note">Feed tự chạy theo lịch — không có công tắc
-    tắt. Mỗi lượt, hệ thống tự tìm tin từ nguồn tin cậy/chính
-    thống theo brief và đăng vào topic Feed.</div>
+  <div class="card">
+    <div class="row static">
+      <div class="r-main">
+        <div class="r-title">Tự động đăng bài theo lịch</div>
+        <div class="r-sub" id="feed-master-desc">Tự tìm tin và đăng bài theo lịch cron</div>
+      </div>
+      <label class="tgl">
+        <input type="checkbox" id="feed-master-switch">
+        <span class="tr"></span>
+      </label>
+    </div>
+  </div>
+  <div class="note">Mỗi lượt, hệ thống tự tìm tin từ nguồn tin cậy/chính thống theo brief và đăng vào topic Feed. Có thể bật/tắt tự động bằng công tắc ở trên hoặc ở tab Lịch.</div>
   <div id="feed-paused"></div>
   <div class="card">
     <div class="card-title">Trạng thái</div>
@@ -864,6 +874,51 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       <button class="btn btn-text btn-sm btn-auto" id="mkt-refresh">Làm mới</button>
     </div>
     <div id="mkt-stale"></div>
+  </div>
+</section>
+
+<!-- Cài đặt con: Cấu hình Google (Gmail & Google Calendar) -->
+<section id="screen-google-config" class="hidden">
+  <div class="backrow" data-back-sub="screen-connectors">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Công cụ kết nối
+  </div>
+  <h2 class="screen-title">Cấu hình Google</h2>
+  <div class="note">Dùng chung một ủy quyền OAuth2 cho cả <b>Gmail</b> và <b>Google Calendar</b>. Thông tin xác thực được mã hóa an toàn trong Kho lưu trữ (Vault).</div>
+
+  <div class="card">
+    <div class="card-title">Trạng thái kết nối</div>
+    <div id="gconfig-status-badge"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Authorized Redirect URI</div>
+    <div class="r-sub" style="margin-bottom:8px">Đăng ký đường dẫn này vào mục <i>Authorized redirect URIs</i> trên Google Cloud Console:</div>
+    <div style="display:flex; gap:8px; align-items:center">
+      <input id="gconfig-redirect-uri" class="field-input" type="text" readonly style="font-family:monospace; font-size:12px; background:var(--card-tint); margin:0" spellcheck="false">
+      <button class="btn btn-soft btn-sm" id="gconfig-copy-uri" type="button" style="flex-shrink:0">Chép</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Thông tin OAuth Client</div>
+    <div class="r-sub" style="margin-bottom:6px">Client ID</div>
+    <input id="gconfig-client-id" class="field-input" type="text" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false">
+
+    <div class="r-sub" style="margin-top:12px; margin-bottom:6px">Client Secret</div>
+    <input id="gconfig-client-secret" class="field-input" type="password" placeholder="Nhập Client Secret" autocomplete="off" spellcheck="false">
+
+    <div class="btn-row" style="padding:14px 0 0">
+      <button class="btn btn-accent btn-sm" id="gconfig-save">Lưu cấu hình</button>
+    </div>
+  </div>
+
+  <div class="card" id="gconfig-action-card">
+    <div class="card-title">Ủy quyền tài khoản</div>
+    <div id="gconfig-account-desc" class="r-sub" style="margin-bottom:12px"></div>
+    <div class="btn-row" style="display:flex; gap:8px">
+      <button class="btn btn-accent btn-sm" id="gconfig-connect-btn">Kết nối Google ngay</button>
+      <button class="btn btn-soft btn-sm" id="gconfig-disconnect-btn" style="color:var(--err)">Ngắt kết nối</button>
+    </div>
   </div>
 </section>
 
@@ -1042,7 +1097,8 @@ const TAB_OF_SCREEN = {"screen-task":"viec","screen-profile":"hoso",
   "screen-listing":"caidat","screen-install":"caidat",
   "screen-mktcat":"caidat",
   "screen-import":"caidat",
-  "screen-connector-policy":"caidat"};
+  "screen-connector-policy":"caidat",
+  "screen-google-config":"caidat"};
 function showMain(tab){
   stopOpPoll();
   mainTab = tab; subScreen = null;
@@ -1073,6 +1129,8 @@ document.querySelectorAll("#segbar button").forEach(b =>
 document.querySelectorAll("[data-back]").forEach(el =>
   el.addEventListener("click", () => showMain(TAB_OF_SCREEN[
     el.closest("section").id] || "viec")));
+document.querySelectorAll("[data-back-sub]").forEach(el =>
+  el.addEventListener("click", () => showSub(el.dataset.backSub)));
 document.querySelectorAll("[data-open]").forEach(el =>
   el.addEventListener("click", () => showSub(el.dataset.open)));
 
@@ -1755,12 +1813,14 @@ function googleAction(g){
   /* Nút/trạng thái cho connector Google theo 3 trạng thái
      thật từ server (google_auth.status()). */
   if (!g.configured)
-    return '<span class="r-state">Chưa cấu hình</span>';
+    return '<button class="btn btn-accent btn-sm" data-gconfig="1">Cấu hình</button>';
   if (!g.connected)
-    return '<button class="btn btn-soft btn-sm" ' +
-      'data-gconnect="1">Kết nối</button>';
-  return '<button class="btn btn-soft btn-sm" ' +
-    'data-gdisconnect="1">Ngắt kết nối</button>';
+    return '<div style="display:flex; gap:6px; align-items:center">' +
+      '<button class="btn btn-soft btn-sm" data-gconfig="1">Cấu hình</button>' +
+      '<button class="btn btn-accent btn-sm" data-gconnect="1">Kết nối</button></div>';
+  return '<div style="display:flex; gap:6px; align-items:center">' +
+    '<button class="btn btn-soft btn-sm" data-gconfig="1">Cấu hình</button>' +
+    '<button class="btn btn-soft btn-sm" data-gdisconnect="1">Ngắt</button></div>';
 }
 function renderConnectors(){
   const list = (S && S.connectors) || [];
@@ -1769,43 +1829,52 @@ function renderConnectors(){
     box.innerHTML = '<div class="empty">Chưa có connector nào. Thêm connector hoặc MCP server trong file cấu hình trên máy rồi khởi động lại bot.</div>';
     return;
   }
-  box.innerHTML = list.map(c =>
-    '<div class="row static"><div class="mono">' +
-    (c.kind === "mcp" ? "M" : "S") +
-    '</div><div class="r-main"><div class="r-title">' + esc(c.name) +
-    '</div><div class="r-sub">' + esc(connSub(c)) + '</div></div>' +
-    /* Như màn Lịch: toggle chỉ khi đổi được thật qua
-       /api/connector (MCP server); connector built-in không
-       tắt/bật nóng được thì hiện trạng thái bằng chữ, không
-       vẽ công tắc chết (gói vá 1.3.0). Riêng connector
-       Google (1.5.0): nút hành động thật — Kết nối khi đã có
-       client mà chưa ủy quyền, Ngắt kết nối khi đã nối. */
-    (c.google
-      ? googleAction(c.google)
-      : c.toggleable
-        ? '<label class="tgl"><input type="checkbox" data-conn="' +
-          esc(c.id) + '"' + (c.enabled ? " checked" : "") +
-          '><span class="tr"></span></label>'
-        : '<span class="r-state">' +
-          (c.enabled ? "Đang bật" : "Đã tắt") + '</span>') +
-    '</div>').join("");
+  box.innerHTML = list.map(c => {
+    const isGoogle = !!c.google;
+    return '<div class="row ' + (isGoogle ? 'clickable' : 'static') + '"' +
+      (isGoogle ? ' data-open-gconfig="1"' : '') + '>' +
+      '<div class="mono">' + (c.kind === "mcp" ? "M" : "S") + '</div>' +
+      '<div class="r-main"><div class="r-title">' + esc(c.name) + '</div>' +
+      '<div class="r-sub">' + esc(connSub(c)) + '</div></div>' +
+      (c.google
+        ? googleAction(c.google)
+        : c.toggleable
+          ? '<label class="tgl"><input type="checkbox" data-conn="' +
+            esc(c.id) + '"' + (c.enabled ? " checked" : "") +
+            '><span class="tr"></span></label>'
+          : '<span class="r-state">' +
+            (c.enabled ? "Đang bật" : "Đã tắt") + '</span>') +
+      '</div>';
+  }).join("");
+  box.querySelectorAll("[data-open-gconfig]").forEach(row =>
+    row.addEventListener("click", e => {
+      if (e.target.closest("button") || e.target.closest("label")) return;
+      openGoogleConfig();
+    }));
+  box.querySelectorAll("[data-gconfig]").forEach(btn =>
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      openGoogleConfig();
+    }));
   box.querySelectorAll("[data-gconnect]").forEach(btn =>
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
       try {
         const r = await api("/api/google/auth-url");
         if (!r.url) throw new Error(r.error || "không lấy được link");
         if (tg && tg.openLink) tg.openLink(r.url);
         else window.open(r.url, "_blank");
         toast("Đã mở trang ủy quyền Google — xong quay lại đây.");
-      } catch (e) { toast(e.message); }
+      } catch (err) { toast(err.message); }
     }));
   box.querySelectorAll("[data-gdisconnect]").forEach(btn =>
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
       try {
         await api("/api/google/disconnect", "POST", {});
         toast("Đã ngắt kết nối Google.");
         await load();
-      } catch (e) { toast(e.message); }
+      } catch (err) { toast(err.message); }
     }));
   box.querySelectorAll("[data-conn]").forEach(inp =>
     inp.addEventListener("change", async () => {
@@ -1820,6 +1889,118 @@ function renderConnectors(){
       } catch (e) { toast(e.message); inp.checked = !inp.checked; }
     }));
 }
+
+/* ---------------- Cấu hình Google (1.5.0) ---------------- */
+let gconfigData = null;
+async function openGoogleConfig(){
+  showSub("screen-google-config");
+  $("gconfig-status-badge").innerHTML = '<div class="r-sub">Đang kiểm tra trạng thái...</div>';
+  try {
+    const r = await api("/api/google/config");
+    gconfigData = r;
+    renderGoogleConfig(r);
+  } catch (e) {
+    $("gconfig-status-badge").innerHTML = '<div class="errbar">' + esc(e.message) + '</div>';
+  }
+}
+
+function renderGoogleConfig(cfg){
+  if (!cfg) return;
+  $("gconfig-redirect-uri").value = cfg.redirect_uri || "";
+  if (document.activeElement !== $("gconfig-client-id"))
+    $("gconfig-client-id").value = cfg.client_id || "";
+  $("gconfig-client-secret").placeholder = cfg.has_client_secret
+    ? "•••••••• (Đã lưu trong Kho — để trống nếu không đổi)"
+    : "Nhập Client Secret";
+  $("gconfig-client-secret").value = "";
+
+  const sb = $("gconfig-status-badge");
+  const desc = $("gconfig-account-desc");
+  const connBtn = $("gconfig-connect-btn");
+  const discBtn = $("gconfig-disconnect-btn");
+
+  if (cfg.connected){
+    sb.innerHTML = '<div style="display:flex; align-items:center; gap:8px">' +
+      '<span class="badge" style="background:#3E9B6C; color:#fff; font-weight:600; padding:3px 8px; border-radius:6px; font-size:12px">Đã kết nối</span>' +
+      '<span class="r-sub">Tài khoản: <b>' + esc(cfg.email || "Google") + '</b></span></div>';
+    desc.textContent = "Đang kết nối với: " + (cfg.email || "tài khoản Google") + ". Cả Gmail và Calendar đang hoạt động.";
+    connBtn.classList.add("hidden");
+    discBtn.classList.remove("hidden");
+  } else if (cfg.configured){
+    sb.innerHTML = '<div style="display:flex; align-items:center; gap:8px">' +
+      '<span class="badge" style="background:var(--lav); color:#fff; font-weight:600; padding:3px 8px; border-radius:6px; font-size:12px">Đã có Client ID &amp; Secret</span>' +
+      '<span class="r-sub">Sẵn sàng kết nối tài khoản</span></div>';
+    desc.textContent = "Thông tin xác thực đã sẵn sàng trong Kho. Hãy bấm nút bên dưới để ủy quyền tài khoản.";
+    connBtn.classList.remove("hidden");
+    connBtn.removeAttribute("disabled");
+    discBtn.classList.add("hidden");
+  } else {
+    sb.innerHTML = '<div style="display:flex; align-items:center; gap:8px">' +
+      '<span class="badge" style="background:var(--border); color:var(--text); padding:3px 8px; border-radius:6px; font-size:12px">Chưa cấu hình</span>' +
+      '<span class="r-sub">Cần nhập Client ID và Secret</span></div>';
+    desc.textContent = "Vui lòng nhập Client ID và Secret bên trên rồi bấm Lưu cấu hình trước khi kết nối.";
+    connBtn.classList.remove("hidden");
+    connBtn.setAttribute("disabled", "true");
+    discBtn.classList.add("hidden");
+  }
+}
+
+$("gconfig-copy-uri").addEventListener("click", () => {
+  const uri = $("gconfig-redirect-uri").value;
+  if (!uri) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(uri).then(() => toast("Đã sao chép Redirect URI."));
+  } else {
+    $("gconfig-redirect-uri").select();
+    document.execCommand("copy");
+    toast("Đã sao chép Redirect URI.");
+  }
+});
+
+$("gconfig-save").addEventListener("click", async () => {
+  const cid = ($("gconfig-client-id").value || "").trim();
+  const csec = ($("gconfig-client-secret").value || "").trim();
+  if (!cid) {
+    toast("Vui lòng nhập Client ID");
+    return;
+  }
+  if (!csec && (!gconfigData || !gconfigData.has_client_secret)) {
+    toast("Vui lòng nhập Client Secret");
+    return;
+  }
+  try {
+    const res = await api("/api/google/config", "POST", {
+      client_id: cid,
+      client_secret: csec
+    });
+    if (!res.ok) throw new Error(res.error || "Không lưu được cấu hình");
+    toast("Đã lưu thông tin Google vào Kho lưu trữ.");
+    gconfigData = res;
+    renderGoogleConfig(res);
+    await load();
+  } catch (e) {
+    toast(e.message);
+  }
+});
+
+$("gconfig-connect-btn").addEventListener("click", async () => {
+  try {
+    const r = await api("/api/google/auth-url");
+    if (!r.url) throw new Error(r.error || "không lấy được link");
+    if (tg && tg.openLink) tg.openLink(r.url);
+    else window.open(r.url, "_blank");
+    toast("Đã mở trang ủy quyền Google — xong quay lại đây.");
+  } catch (e) { toast(e.message); }
+});
+
+$("gconfig-disconnect-btn").addEventListener("click", async () => {
+  try {
+    await api("/api/google/disconnect", "POST", {});
+    toast("Đã ngắt kết nối Google.");
+    await load();
+    openGoogleConfig();
+  } catch (e) { toast(e.message); }
+});
 function renderVault(){
   const list = (S && S.vault) || [];
   const box = $("vault-list");
@@ -3014,11 +3195,22 @@ function renderFeed(){
   const f = S && S.feed;
   const pausedBox = $("feed-paused");
   const stateBox = $("feed-state");
+  const ms = $("feed-master-switch");
+  const md = $("feed-master-desc");
   if (!f){
     pausedBox.innerHTML = "";
     stateBox.innerHTML = '<div class="empty">Feed chủ động chưa ' +
       'được nối ở bản chạy này.</div>';
+    if (ms) { ms.checked = false; ms.setAttribute("disabled", "true"); }
     return;
+  }
+  if (ms) {
+    ms.removeAttribute("disabled");
+    const isEn = f.enabled !== false;
+    ms.checked = isEn;
+    if (md) md.textContent = isEn
+      ? "Đang bật tự động theo lịch cron"
+      : "Đang tắt — không tự động đăng bài";
   }
   pausedBox.innerHTML = f.auto_paused_reason
     ? '<div class="errbar">' + esc(f.auto_paused_reason) +
@@ -3088,6 +3280,17 @@ function renderFeed(){
       }));
   }
 }
+$("feed-master-switch").addEventListener("change", async (e) => {
+  try {
+    const en = e.target.checked;
+    await feedPost({action: "set_enabled", enabled: en});
+    toast(en ? "Đã bật Feed tự động." : "Đã tắt Feed tự động.");
+    await load();
+  } catch (err) {
+    toast(err.message);
+    e.target.checked = !e.target.checked;
+  }
+});
 $("feed-run-now").addEventListener("click", async () => {
   try {
     const r = await feedPost({action:"run_now"});

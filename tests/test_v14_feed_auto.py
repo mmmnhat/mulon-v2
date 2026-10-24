@@ -814,10 +814,11 @@ async def test_webapp_feed_state_and_actions(app14):
         assert feed is not None
         assert feed["cron"] == "0 8,20 * * *"
         assert feed["quiet_hours"] == "23:00-07:00"
-        # Job Feed hiện ở tab Lịch dạng hệ thống, không gạt được.
+        # Job Feed hiện ở tab Lịch dạng hệ thống, có switch gạt được (toggleable=True).
         kinds = {it["id"]: it for it in state["schedule"]["items"]}
         assert kinds[SCHEDULE_ID]["kind"] == "feed_auto"
-        assert kinds[SCHEDULE_ID]["toggleable"] is False
+        assert kinds[SCHEDULE_ID]["toggleable"] is True
+        assert kinds[SCHEDULE_ID]["enabled"] is True
         assert state["schedule"]["feed_auto"] is True
         # set_cron sai -> 400; đúng -> 200 + state phản ánh.
         async with s.post(_url(server, "/api/feed"), headers=h,
@@ -830,16 +831,20 @@ async def test_webapp_feed_state_and_actions(app14):
             assert r.status == 200
             body = await r.json()
         assert body["feed"]["cron"] == "15 9 * * *"
-        # Không có action tắt Feed.
+        # Có action bật/tắt Feed qua /api/feed.
         async with s.post(_url(server, "/api/feed"), headers=h,
                           json={"action": "set_enabled",
                                 "enabled": False}) as r:
-            assert r.status == 400
-        # Toggle job Feed ở tab Lịch bị từ chối.
+            assert r.status == 200
+            body = await r.json()
+            assert body["feed"]["enabled"] is False
+        # Toggle job Feed ở tab Lịch qua /api/schedule thành công.
         async with s.post(_url(server, "/api/schedule"), headers=h,
                           json={"id": SCHEDULE_ID,
-                                "enabled": False}) as r:
-            assert r.status == 400
+                                "enabled": True}) as r:
+            assert r.status == 200
+            body = await r.json()
+            assert body["enabled"] is True
         # run_now đăng thật qua sender đã gắn.
         async with s.post(_url(server, "/api/feed"), headers=h,
                           json={"action": "run_now"}) as r:
