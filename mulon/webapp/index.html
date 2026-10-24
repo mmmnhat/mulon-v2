@@ -845,13 +845,15 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <input id="feed-src-label" class="field-input" type="text"
       placeholder="Nhãn (tuỳ chọn)" autocomplete="off"
       style="margin-top:8px">
-    <div class="btn-row" style="padding:12px 0 0">
-      <select id="feed-src-trust" class="field-input" style="width:auto; flex:1">
-        <option value="high">Tin cậy cao</option>
-        <option value="normal" selected>Tin cậy thường</option>
-        <option value="low">Tin cậy thấp</option>
-      </select>
-      <button class="btn btn-accent btn-sm" id="feed-src-add" style="flex-shrink:0">Ghim nguồn</button>
+    <div class="btn-row" style="padding:12px 0 0; display:flex; gap:var(--s2); align-items:center;">
+      <div class="field-input" id="feed-trust-trigger" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; flex:1; width:auto; user-select:none; -webkit-user-select:none;">
+        <span id="feed-trust-label" style="font-size:var(--fs-cap); font-weight:var(--fw-m); color:var(--ink);">Tin cậy thường</span>
+        <span class="pol-chev" style="color:var(--ink3); display:flex; align-items:center;">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9.5l4-4 4 4M8 14.5l4 4 4-4"/></svg>
+        </span>
+      </div>
+      <input type="hidden" id="feed-src-trust" value="normal">
+      <button class="btn btn-soft btn-sm" id="feed-src-add" style="flex-shrink:0; font-weight:var(--fw-s)">Ghim nguồn</button>
     </div>
   </div>
   <div class="card">
@@ -860,7 +862,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <textarea id="feed-denylist" class="field-input" rows="3"
       spellcheck="false" placeholder="vd: example.xyz"></textarea>
     <div class="btn-row" style="padding:12px 0 0">
-      <button class="btn btn-accent btn-sm" id="feed-denylist-save">Lưu danh sách tránh</button>
+      <button class="btn btn-soft btn-sm" id="feed-denylist-save" style="font-weight:var(--fw-s)">Lưu danh sách tránh</button>
     </div>
   </div>
 </section>
@@ -1057,6 +1059,11 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <button data-verdict="allow">Cho phép<span class="tick">✓</span></button>
   <button data-verdict="ask">Hỏi<span class="tick">✓</span></button>
   <button data-verdict="deny">Chặn<span class="tick">✓</span></button>
+</div>
+<div id="feed-trust-menu" class="pol-menu hidden">
+  <button type="button" data-val="high">Tin cậy cao<span class="tick">✓</span></button>
+  <button type="button" data-val="normal" class="cur">Tin cậy thường<span class="tick">✓</span></button>
+  <button type="button" data-val="low">Tin cậy thấp<span class="tick">✓</span></button>
 </div>
 
 <div id="toast"></div>
@@ -2177,8 +2184,9 @@ const CHEV_UD = '<svg viewBox="0 0 24 24" width="12" height="12" ' +
 let polTarget = null;   // {scope, name} của hàng đang mở menu
 function closePolMenu(){
   polTarget = null;
-  const m = $("pol-menu"), sc = $("pol-scrim");
+  const m = $("pol-menu"), fm = $("feed-trust-menu"), sc = $("pol-scrim");
   if (m) m.classList.add("hidden");
+  if (fm) fm.classList.add("hidden");
   if (sc) sc.classList.add("hidden");
 }
 function openPolMenu(row){
@@ -2200,6 +2208,37 @@ function openPolMenu(row){
   menu.style.left = left + "px";
   menu.style.top = Math.max(8, top) + "px";
 }
+
+const TRUST_LABELS = {high:"Tin cậy cao", normal:"Tin cậy thường", low:"Tin cậy thấp"};
+function openFeedTrustMenu(){
+  closePolMenu();
+  const menu = $("feed-trust-menu");
+  const tr = $("feed-trust-trigger");
+  if (!menu || !tr) return;
+  const cur = ($("feed-src-trust") && $("feed-src-trust").value) || "normal";
+  menu.querySelectorAll("button").forEach(b =>
+    b.classList.toggle("cur", b.dataset.val === cur));
+  menu.classList.remove("hidden");
+  $("pol-scrim").classList.remove("hidden");
+  const r = tr.getBoundingClientRect();
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  let left = Math.max(8, Math.min(r.left, window.innerWidth - mw - 8));
+  let top = r.bottom + 4;
+  if (top + mh > window.innerHeight - 8) top = r.top - mh - 4;
+  menu.style.left = left + "px";
+  menu.style.top = Math.max(8, top) + "px";
+}
+const feedTrig = $("feed-trust-trigger");
+if (feedTrig) feedTrig.addEventListener("click", openFeedTrustMenu);
+document.querySelectorAll("#feed-trust-menu button").forEach(b =>
+  b.addEventListener("click", () => {
+    const val = b.dataset.val;
+    if (val && TRUST_LABELS[val]){
+      $("feed-src-trust").value = val;
+      $("feed-trust-label").textContent = TRUST_LABELS[val];
+    }
+    closePolMenu();
+  }));
 $("pol-scrim").addEventListener("click", closePolMenu);
 window.addEventListener("scroll", closePolMenu, {passive:true});
 document.querySelectorAll("#pol-menu button").forEach(b =>
@@ -3408,6 +3447,8 @@ $("feed-src-add").addEventListener("click", async () => {
       url: $("feed-src-url").value, label: $("feed-src-label").value,
       trust: $("feed-src-trust").value});
     $("feed-src-url").value = ""; $("feed-src-label").value = "";
+    $("feed-src-trust").value = "normal";
+    if ($("feed-trust-label")) $("feed-trust-label").textContent = "Tin cậy thường";
     toast("Đã ghim nguồn.");
   } catch (e) { toast(e.message); }
 });
