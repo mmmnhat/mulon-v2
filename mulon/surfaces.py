@@ -15,8 +15,10 @@ from __future__ import annotations
 import json
 import logging
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .memory import fold_vi, now_iso
 
@@ -200,6 +202,280 @@ def format_topics_map(mapping: dict[str, int]) -> str:
         lines.append(
             f"- {by_key.get(key, {}).get('title', key)}: thread {tid}")
     return "\n".join(lines)
+
+
+# ----------------- chat phụ: topic tự do ngoài 6 tab cố định -----------------
+
+SIDECHAT_MAX_TITLE_CHARS = 128
+
+
+def sanitize_sidechat_title(raw_title: str) -> str:
+    """Làm sạch tên topic: bỏ ký tự điều khiển/xuống dòng, gộp
+    khoảng trắng và cắt đúng trần 128 ký tự của Telegram."""
+    cleaned = "".join(
+        " " if ord(ch) < 32 or ord(ch) == 127 else ch
+        for ch in (raw_title or ""))
+    return " ".join(cleaned.split())[:SIDECHAT_MAX_TITLE_CHARS].strip()
+
+
+def default_sidechat_title(timezone_name: str = "Asia/Ho_Chi_Minh",
+                           now: Optional[datetime] = None) -> str:
+    if now is None:
+        try:
+            tz = ZoneInfo(timezone_name)
+        except (ZoneInfoNotFoundError, ValueError):
+            tz = timezone.utc
+        now = datetime.now(tz)
+    return f"Chat phụ {now:%H:%M %d/%m}"
+
+
+def sidechat_opening_text(title: str) -> str:
+    return (
+        f"💬 {title}\n\n"
+        "Đây là đoạn chat phụ: lịch sử hội thoại ở topic này tách "
+        "riêng với các topic khác, còn ký ức dài hạn và hồ sơ vẫn "
+        "dùng chung. Khi xong, gõ /dongchat để đóng chat phụ này."
+    )
+
+
+def format_sidechat_list(records: list[dict]) -> str:
+    if not records:
+        return "Chưa có chat phụ nào đang mở."
+    lines = ["Chat phụ đang mở:"]
+    for record in records:
+        lines.append(
+            f"- {record['title']} (thread {record['thread_id']})")
+    return "\n".join(lines)
+
+
+class SideChatRegistry:
+    """Registry các topic phụ tự do của từng group forum.
+
+    Lưu ở kv_state dưới key riêng ``sidechats:<chat_id>`` để không
+    trộn với map 6 topic-tab cố định của TopicManager. Mỗi record
+    chỉ gồm thread_id, title, status (open/closed), created_at.
+    """
+
+    @staticmethod
+    def _kv_key(chat_id: int) -> str:
+        return f"sidechats:{chat_id}"
+
+    async def list_all(self, memory, chat_id: int,
+                       status: Optional[str] = None) -> list[dict]:
+        raw = await memory.kv_get(self._kv_key(chat_id))
+        if not raw:
+            return []
+        try:
+            data = json.loads(raw)
+        except Exception:
+            return []
+        if not isinstance(data, list):
+            return []
+        records = []
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            try:
+                record = {
+                    "thread_id": int(item["thread_id"]),
+                    "title": str(item.get("title") or ""),
+                    "status": str(item.get("status") or "open"),
+                    "created_at": str(item.get("created_at") or ""),
+                }
+            except (KeyError, TypeError, ValueError):
+                continue
+            if status is None or record["status"] == status:
+                records.append(record)
+        return records
+
+    async def _save_all(self, memory, chat_id: int,
+                        records: list[dict]) -> None:
+        await memory.kv_set(
+            self._kv_key(chat_id),
+            json.dumps(records, ensure_ascii=False))
+
+    async def get(self, memory, chat_id: int,
+                  thread_id: int) -> Optional[dict]:
+        for record in await self.list_all(memory, chat_id):
+            if record["thread_id"] == int(thread_id):
+                return record
+        return None
+
+    async def list_open(self, memory, chat_id: int) -> list[dict]:
+        return await self.list_all(memory, chat_id, status="open")
+
+    async def _upsert(self, memory, chat_id: int,
+                      record: dict) -> dict:
+        records = await self.list_all(memory, chat_id)
+        for idx, old in enumerate(records):
+            if old["thread_id"] == record["thread_id"]:
+                records[idx] = record
+                break
+        else:
+            records.append(record)
+        await self._save_all(memory, chat_id, records)
+        return record
+
+    async def set_status(self, memory, chat_id: int, thread_id: int,
+                         status: str) -> Optional[dict]:
+        records = await self.list_all(memory, chat_id)
+        updated = None
+        for record in records:
+            if record["thread_id"] == int(thread_id):
+                record["status"] = status
+                updated = record
+                break
+        if updated is None:
+            return None
+        await self._save_all(memory, chat_id, records)
+        return updated
+
+    async def create(self, bot, memory, chat_id: int, raw_title: str,
+                     is_forum: bool,
+                     timezone_name: str = "Asia/Ho_Chi_Minh") -> dict:
+        """Tạo topic phụ + gửi tin mở đầu; chỉ ghi registry khi
+        cả hai bước Telegram đều thành công."""
+        result: dict = {"ok": False, "record": None, "error": ""}
+        if bot is None:
+            result["error"] = "Bot chưa sẵn sàng để tạo chat phụ."
+            return result
+        if not is_forum:
+            result["error"] = (
+                "Chat phụ chỉ tạo được trong group đã bật Topics "
+                "(forum). Group này chưa bật Topics.")
+            return result
+
+        me_id = getattr(bot, "id", None)
+        if me_id and hasattr(bot, "get_chat_member"):
+            try:
+                member = await bot.get_chat_member(chat_id, me_id)
+                status = str(getattr(member, "status", ""))
+                if status not in ("administrator", "creator"):
+                    result["error"] = (
+                        "Bot chưa có quyền admin/quản lý topic "
+                        "trong group này nên chưa tạo được chat phụ.")
+                    return result
+            except Exception as exc:
+                logger.warning("check admin chat phụ lỗi (đi tiếp): %s",
+                               exc)
+
+        title = sanitize_sidechat_title(raw_title) \
+            or default_sidechat_title(timezone_name)
+        try:
+            topic = await bot.create_forum_topic(chat_id, name=title)
+            thread_id = int(topic.message_thread_id)
+        except Exception as exc:
+            result["error"] = (
+                f"Không tạo được chat phụ: {exc} "
+                "(bot cần quyền admin/quản lý topic).")
+            return result
+
+        opening = sidechat_opening_text(title)
+        try:
+            await bot.send_message(
+                chat_id, opening, message_thread_id=thread_id)
+        except Exception as exc:
+            # Topic đã sinh nhưng chưa có tin mở đầu/registry thì là
+            # trạng thái nửa vời: đóng lại ngay để dọn sạch.
+            try:
+                await bot.close_forum_topic(
+                    chat_id, message_thread_id=thread_id)
+            except Exception as close_exc:
+                logger.warning(
+                    "đóng topic phụ sau lỗi gửi tin mở đầu lỗi: %s",
+                    close_exc)
+            result["error"] = (
+                f"Đã tạo topic nhưng không gửi được tin mở đầu: {exc}")
+            return result
+
+        record = {
+            "thread_id": thread_id,
+            "title": title,
+            "status": "open",
+            "created_at": now_iso(),
+        }
+        await self._upsert(memory, chat_id, record)
+        result.update({"ok": True, "record": record})
+        return result
+
+    async def _change_status(self, bot, memory, chat_id: int,
+                             thread_id: int,
+                             target_status: str) -> dict:
+        record = await self.get(memory, chat_id, thread_id)
+        if record is None:
+            return {
+                "ok": False, "record": None,
+                "error": (
+                    f"Không thấy chat phụ với thread id {thread_id} "
+                    "trong group này."),
+            }
+        if record["status"] == target_status:
+            state = "đóng" if target_status == "closed" else "mở"
+            return {
+                "ok": False, "record": record,
+                "error": f"Chat phụ '{record['title']}' đã {state} rồi.",
+            }
+        if bot is None:
+            return {
+                "ok": False, "record": record,
+                "error": "Bot chưa sẵn sàng để đổi trạng thái chat phụ.",
+            }
+        try:
+            if target_status == "closed":
+                await bot.close_forum_topic(
+                    chat_id, message_thread_id=int(thread_id))
+            else:
+                await bot.reopen_forum_topic(
+                    chat_id, message_thread_id=int(thread_id))
+        except Exception as exc:
+            action = "đóng" if target_status == "closed" else "mở lại"
+            return {
+                "ok": False, "record": record,
+                "error": f"Không {action} được chat phụ: {exc}",
+            }
+        updated = await self.set_status(
+            memory, chat_id, thread_id, target_status)
+        return {"ok": True, "record": updated, "error": ""}
+
+    async def close_by_id(self, bot, memory, chat_id: int,
+                          thread_id: int) -> dict:
+        return await self._change_status(
+            bot, memory, chat_id, thread_id, "closed")
+
+    async def reopen_by_id(self, bot, memory, chat_id: int,
+                           thread_id: int) -> dict:
+        return await self._change_status(
+            bot, memory, chat_id, thread_id, "open")
+
+    async def close_current(self, bot, memory, topics, chat_id: int,
+                            current_thread_id: Optional[int]) -> dict:
+        thread_id = int(current_thread_id or 0)
+        if thread_id in (0, 1):
+            return {
+                "ok": False, "record": None,
+                "error": (
+                    "Bạn đang ở Chat chính (General), không phải "
+                    "chat phụ, nên mình không đóng ở đây."),
+            }
+        if topics is not None:
+            mapping = await topics.get_map(memory, chat_id)
+            if thread_id in mapping.values():
+                return {
+                    "ok": False, "record": None,
+                    "error": (
+                        "Đây là topic cố định của group, không phải "
+                        "chat phụ, nên mình không đóng nhầm."),
+                }
+        record = await self.get(memory, chat_id, thread_id)
+        if record is None:
+            return {
+                "ok": False, "record": None,
+                "error": (
+                    "Topic hiện tại không phải chat phụ đã đăng ký, "
+                    "nên mình không đóng."),
+            }
+        return await self._change_status(
+            bot, memory, chat_id, thread_id, "closed")
 
 
 # ----------------- trình duyệt proactive notes -----------------
