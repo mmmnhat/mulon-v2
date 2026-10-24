@@ -23,6 +23,7 @@ from .consolidation import ConsolidationWorker
 from .context import ContextEngine, Dossier
 from .embeddings import build_embedder
 from .feed import FeedEngine
+from .feed_auto import FeedAutoRunner
 from .gateway import ModelGateway
 from .ideas import IdeaEngine
 from .library import LibraryService
@@ -42,6 +43,7 @@ from .tracing import build_tracer, traced_gateway
 from .vault import VaultFormServer, VaultStore
 from .voice import VoiceService
 from .webapp_server import ActivityTracker, WebAppServer
+from .websearch import register_search_tool
 
 logger = logging.getLogger("mulon.main")
 
@@ -80,6 +82,10 @@ async def build_system(cfg: Config):
     # Browser worker (Playwright optional — vắng thì tool báo
     # unavailable, không sập).
     browser_worker = register_browser_tools(registry, cfg)
+    # Tool tìm kiếm web (1.4): cùng năng lực search mà collector
+    # Feed dùng — agent được TÌM trang, việc đọc vẫn qua
+    # web_fetch/web_read như cũ.
+    register_search_tool(registry)
     # Connector framework: adapter ví dụ trung tính 'system'.
     connectors = build_default_connectors(cfg)
     register_connector_tools(registry, connectors)
@@ -154,9 +160,26 @@ async def build_system(cfg: Config):
     # không vòng lặp nền mới nào được bật ở đây. Vault form server
     # chỉ start() trong _run, không start ở dry-run. vault_store
     # đã dựng ở khối 1.3 phía trên (dùng chung một instance).
+    # 1.4.0 (spec Feed chủ động + quyết định owner 0.2b): engine
+    # được nối collector NGOÀI (tự tìm kiếm web + nguồn ghim +
+    # connector feed_snapshot) và FeedAutoRunner đăng ký job hệ
+    # thống nội bộ 'feed_auto' vào scheduler — Feed LUÔN tự động,
+    # không công tắc. Vòng tick scheduler trong _run chạy khi có
+    # handler nội bộ dù SCHEDULER_ENABLED vẫn tắt (cô lập tick:
+    # lịch thường không bắn — planning.run_due_once).
+    topics = TopicManager()
+    feed_engine = FeedEngine(
+        cfg, memory, gateway, connectors=connectors,
+        reader=browser_worker.read, collect_external=True)
+    feed_auto = FeedAutoRunner(cfg, memory, feed_engine,
+                               topics=topics, connectors=connectors)
+    scheduler.register_internal_handler(
+        "feed_auto", lambda sched: feed_auto.run_once())
+    await feed_auto.ensure_schedule()
     phase6 = {
-        "topics": TopicManager(),
-        "feed": FeedEngine(cfg, memory, gateway),
+        "topics": topics,
+        "feed": feed_engine,
+        "feed_auto": feed_auto,
         "ideas": IdeaEngine(cfg, memory, gateway),
         "library": LibraryService(cfg, memory),
         "vault_server": VaultFormServer(cfg, vault_store),
@@ -170,7 +193,8 @@ async def build_system(cfg: Config):
         cfg, memory=memory, policy=policy, broker=broker,
         connectors=connectors, mcp_manager=mcp_manager,
         vault_store=vault_store, registry=registry, dossier=dossier,
-        skills=catalog, activity=activity, marketplace=marketplace)
+        skills=catalog, activity=activity, marketplace=marketplace,
+        feed_auto=feed_auto)
     services = {
         "mcp": mcp_manager,
         "connectors": connectors,
@@ -186,6 +210,7 @@ async def build_system(cfg: Config):
         "webapp": webapp,
         "activity": activity,
         "marketplace": marketplace,
+        "feed_auto": feed_auto,
     }
     return agent, memory, dossier, registry, worker, services
 
@@ -259,6 +284,11 @@ async def _dry_run(cfg: Config) -> int:
                             else None),
             "catalog_auto_update":
                 cfg.marketplace_catalog_auto_update,
+        },
+        "v14": {
+            "feed_auto": await services["feed_auto"].get_state(),
+            "scheduler_isolated_tick": bool(
+                services["scheduler"].has_internal_handlers()),
         },
         "db": str(cfg.db_path),
     }
@@ -335,8 +365,17 @@ async def _run(cfg: Config) -> int:
         )
         logger.info("consolidation nền BẬT (mỗi %ss)",
                     cfg.consolidation_interval_s)
-    if cfg.scheduler_enabled:
+    # Vòng tick scheduler: chạy khi scheduler thường BẬT hoặc có
+    # job hệ thống nội bộ (Feed chủ động 1.4 — luôn có). Chế độ
+    # cô lập: lịch thường chỉ bắn khi SCHEDULER_ENABLED=1, job
+    # nội bộ luôn được phục vụ (planning.run_forever tự quyết).
+    if cfg.scheduler_enabled or services["scheduler"] \
+            .has_internal_handlers():
         asyncio.create_task(services["scheduler"].run_forever())
+        if not cfg.scheduler_enabled:
+            logger.info("scheduler nền chạy ở chế độ CÔ LẬP: chỉ "
+                        "job hệ thống nội bộ (Feed chủ động); lịch "
+                        "thường vẫn TẮT (SCHEDULER_ENABLED=0)")
     else:
         logger.info("scheduler nền TẮT (bật bằng SCHEDULER_ENABLED=1)")
     if cfg.proactivity_enabled:
