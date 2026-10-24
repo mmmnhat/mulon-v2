@@ -79,6 +79,7 @@ BOT_COMMANDS: list[tuple[str, str]] = [
     ("export_memory", "Xuất bản sao ký ức"),
     ("quyen", "Quyền của agent bằng lời thường"),
     ("approvals", "Lịch sử quyết định quyền"),
+    ("the_duyet", "Gửi thẻ phê duyệt thử (thật, vô hại)"),
     ("voiceon", "Bật trả lời bằng giọng"),
     ("voiceoff", "Tắt trả lời bằng giọng"),
 ]
@@ -326,12 +327,16 @@ def extract_bootstrap_questions(boot_text: str) -> str:
 class TelegramSurface:
     def __init__(self, cfg, agent, memory, dossier, consolidator=None,
                  voice=None, policy=None, surfaces=None, broker=None,
-                 activity=None):
+                 activity=None, marketplace=None):
         self.cfg = cfg
         self.agent = agent
         self.memory = memory
         self.dossier = dossier
         self.consolidator = consolidator
+        # Marketplace 1.3.0: bề mặt trình thẻ duyệt operation +
+        # chuyển thông báo đối chiếu sau restart cho owner. Gắn
+        # presenter/notifier khi bot sẵn sàng trong run().
+        self.marketplace = marketplace
         # ApprovalBroker (1.2.0): agent mở yêu cầu ở broker này;
         # bề mặt trình thẻ + đăng ký listener để TỰ GỠ thẻ và ghi
         # dòng lịch sử ngay khi có quyết định (kể cả hết hạn).
@@ -687,23 +692,29 @@ class TelegramSurface:
             "/memory /quyen /approvals /topics /chatphu",
             None)
 
-    def approval_keyboard(self,
-                          approval_id: str) -> InlineKeyboardMarkup:
+    def approval_keyboard(self, approval_id: str,
+                          rememberable: bool = True
+                          ) -> InlineKeyboardMarkup:
         """Bàn phím thẻ duyệt: hàng quyết định INLINE là đường
         chính (Duyệt / Chặn / Duyệt và nhớ — quyết ngay tại thẻ,
         không cần app). Có WEBAPP_URL thì thêm MỘT nút phụ hàng
-        dưới "Xem chi tiết" (Direct Link vào màn Phê duyệt)."""
-        rows: list[list[InlineKeyboardButton]] = [[
+        dưới "Xem chi tiết" (Direct Link vào màn Phê duyệt).
+        ``rememberable=False`` (1.3.0: duyệt operation marketplace)
+        -> CHỈ Duyệt / Chặn: không có "duyệt và nhớ" cho thao tác
+        đổi hạ tầng."""
+        buttons = [
             InlineKeyboardButton(
                 text="✅ Duyệt",
                 callback_data=f"appr:1:{approval_id}"),
             InlineKeyboardButton(
                 text="❌ Chặn",
                 callback_data=f"appr:0:{approval_id}"),
-            InlineKeyboardButton(
+        ]
+        if rememberable:
+            buttons.append(InlineKeyboardButton(
                 text="📌 Duyệt và nhớ",
-                callback_data=f"appr:2:{approval_id}"),
-        ]]
+                callback_data=f"appr:2:{approval_id}"))
+        rows: list[list[InlineKeyboardButton]] = [buttons]
         link = webapp_direct_link(self.cfg, self._bot_username(),
                                   f"approve_{approval_id}")
         if link:
@@ -723,6 +734,9 @@ class TelegramSurface:
         from .approvals import approval_scope
 
         approval_id = str(payload.get("approval_id") or "")
+        if payload.get("kind") == "marketplace_operation":
+            return await self._send_marketplace_card(
+                chat_id, thread_id, payload, approval_id)
         tool = str(payload.get("tool") or "")
         group = str(payload.get("group") or "")
         action = tool_action_label(tool, group)
@@ -777,6 +791,135 @@ class TelegramSurface:
             "thread_id": thread_id})
         return msg.message_id
 
+    async def send_test_approval_card(
+            self, chat_id: int,
+            thread_id: Optional[int] = None) -> Optional[str]:
+        """Lệnh /the_duyet (1.3.0): gửi một THẺ DUYỆT THỬ THẬT.
+
+        Đi đúng đường thật — mở yêu cầu ở ApprovalBroker rồi
+        trình bằng send_approval_card (renderer thẻ sẵn có, nút
+        bấm thật, quyết qua callback/Mini App như thẻ thường).
+        Payload VÔ HẠI: quyết xong chỉ ghi nhận + nhắn xác nhận,
+        KHÔNG thực thi hành động nào. Đây là đường duy nhất để
+        "xem thử thẻ duyệt" — agent bị cấm bịa thẻ mẫu bằng văn
+        bản (xem khối TỰ NHẬN THỨC trong agent.py).
+        """
+        if self.broker is None:
+            return None
+        import uuid as _uuid
+
+        approval_id = "test" + _uuid.uuid4().hex[:10]
+        payload = {
+            "approval_id": approval_id,
+            "tool": "the_duyet",
+            "group": "system",
+            "summary": "Thẻ duyệt thử theo lệnh /the_duyet — "
+                       "bấm nút chỉ để kiểm tra luồng duyệt, "
+                       "không có hành động nào được thực thi.",
+            "target": "",
+            "reason": "Chủ nhân xin xem một thẻ phê duyệt THẬT.",
+            "session_key": "",
+            "task_id": "",
+            "kind": "test",
+        }
+        self.broker.open(approval_id, payload)
+        await self.send_approval_card(chat_id, thread_id, payload)
+        asyncio.create_task(
+            self._settle_test_approval(chat_id, thread_id,
+                                        approval_id))
+        return approval_id
+
+    async def _settle_test_approval(
+            self, chat_id: int, thread_id: Optional[int],
+            approval_id: str) -> None:
+        """Chờ quyết định của thẻ thử rồi nhắn xác nhận. Thẻ tự
+        được gỡ bởi listener _on_approval_decided như thẻ
+        thường; ở đây chỉ ghi vết + báo kết quả cho chủ nhân."""
+        record = await self.broker.wait(approval_id)
+        outcome = record.get("outcome", "")
+        if self.memory is not None:
+            try:
+                await self.memory.log_trajectory(
+                    "", "approval_decision",
+                    {"tool": "the_duyet", "group": "system",
+                     "approval_id": approval_id,
+                     "outcome": outcome,
+                     "approved": bool(record.get("approved")),
+                     "remember": bool(record.get("remember")),
+                     "test": True})
+            except Exception:
+                pass
+        note = {
+            "approved": "✅ Đã ghi nhận: anh vừa DUYỆT thẻ thử.",
+            "denied": "❌ Đã ghi nhận: anh vừa CHẶN thẻ thử.",
+            "expired": "⌛ Thẻ duyệt thử hết hạn — chưa có quyết "
+                       "định nào.",
+        }.get(outcome, "Đã ghi nhận quyết định thẻ thử.")
+        text = (note + " Đây chỉ là thẻ thử để kiểm tra luồng "
+                "duyệt — không có hành động nào được thực thi.")
+        if self.bot is not None:
+            kwargs: dict = {}
+            if thread_id:
+                kwargs["message_thread_id"] = thread_id
+            try:
+                await self.bot.send_message(chat_id, text, **kwargs)
+            except Exception as exc:
+                logger.warning("gửi xác nhận thẻ thử lỗi: %s", exc)
+
+    async def _send_marketplace_card(self, chat_id: int,
+                                     thread_id: Optional[int],
+                                     payload: dict,
+                                     approval_id: str
+                                     ) -> Optional[int]:
+        """Thẻ duyệt operation của Chợ MCP (1.3.0): tiêu đề +
+        tóm tắt + đích + dấu vân tay + hạn TTL của operation.
+        Chỉ 2 nút Duyệt / Chặn — không "duyệt và nhớ"."""
+        if self.bot is None or self.broker is None:
+            return None
+        import html as _html
+
+        ttl = int(payload.get("marketplace_ttl_s") or 900)
+        lines = [
+            f"🧩 <b>{_html.escape(str(payload.get('title') or 'Thao tác MCP'))}</b>",
+            f"Chi tiết: {_html.escape(str(payload.get('summary') or ''))}",
+        ]
+        target = str(payload.get("target") or "")
+        if target:
+            lines.append(f"Đích: <code>{_html.escape(target)}</code>")
+        if payload.get("fingerprint"):
+            lines.append(
+                f"Dấu vân tay: <code>{_html.escape(str(payload['fingerprint']))}</code>")
+        lines.append(
+            f"⏳ Thẻ hết hạn sau {ttl}s — không chọn coi như Chặn.")
+        text = "\n".join(lines)
+        kwargs: dict = {}
+        if thread_id:
+            kwargs["message_thread_id"] = thread_id
+        try:
+            msg = await self.bot.send_message(
+                chat_id, text, parse_mode="HTML",
+                reply_markup=self.approval_keyboard(
+                    approval_id, rememberable=False),
+                **kwargs)
+        except Exception as exc:
+            logger.warning("gửi thẻ duyệt marketplace lỗi: %s", exc)
+            return None
+        self.broker.attach(approval_id, {
+            "chat_id": chat_id, "message_id": msg.message_id,
+            "thread_id": thread_id})
+        return msg.message_id
+
+    async def send_marketplace_card_to_owner(self,
+                                             payload: dict
+                                             ) -> Optional[int]:
+        """Gửi thẻ duyệt marketplace về DM của owner (operation
+        được mở từ Mini App nên không có topic chat neo sẵn)."""
+        owner = int(getattr(self.cfg, "allowed_user_id", 0) or 0)
+        if not owner:
+            return None
+        approval_id = str(payload.get("approval_id") or "")
+        return await self.send_approval_card(owner, None, payload)
+
     async def handle_approval_callback(self, data: str,
                                        user_id: int) -> tuple[bool, str]:
         """Lõi xử lý nút inline của thẻ duyệt (tách khỏi handler
@@ -826,10 +969,15 @@ class TelegramSurface:
                  "denied": "❌ Đã chặn",
                  "expired": "⌛ Thẻ duyệt hết hạn"}.get(
                      outcome, outcome)
-        line = (f"{label}: tool {payload.get('tool', '?')} "
-                f"(nhóm {payload.get('group') or '—'})"
-                + (" — đã nhớ cho phiên này."
-                   if record.get("remember") else ""))
+        if payload.get("kind") == "marketplace_operation":
+            mkt_title = payload.get("title") or "Thao tác MCP"
+            mkt_name = payload.get("local_name") or "?"
+            line = f"{label}: {mkt_title} (server {mkt_name})"
+        else:
+            line = (f"{label}: tool {payload.get('tool', '?')} "
+                    f"(nhóm {payload.get('group') or '—'})"
+                    + (" — đã nhớ cho phiên này."
+                       if record.get("remember") else ""))
         if chat_id:
             await self._post_history_line(chat_id, line)
 
@@ -1451,6 +1599,20 @@ class TelegramSurface:
                 return
             await _library_action(message, "share_item")
 
+        @dp.message(F.text.startswith("/the_duyet"))
+        async def cmd_the_duyet(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            thread_id = None
+            if getattr(message, "is_topic_message", False):
+                thread_id = message.message_thread_id
+            aid = await self.send_test_approval_card(
+                message.chat.id, thread_id)
+            if aid is None:
+                await message.answer(
+                    "Kênh duyệt chưa được nối ở bản chạy này — "
+                    "không gửi được thẻ thử.")
+
         @dp.message(F.text.startswith("/vault"))
         async def cmd_vault(message: Message) -> None:
             if not self._is_allowed(message):
@@ -1463,19 +1625,37 @@ class TelegramSurface:
                 return
             label = _arg_text(message) or "secret"
             link = server.link_for(label)
-            note = (f"Form nhập bí mật '{label}': {link}\n"
-                    "Link dùng đúng 1 lần, hết hạn sau "
-                    f"{self.cfg.vault_token_ttl_s // 60} phút. "
-                    "Giá trị không đi qua chat — nhập xong form sẽ "
-                    "cho một ref dạng vault:<uuid>.")
+            # Đường CHÍNH từ 1.3.0: nhập NGAY trong Mini App
+            # (màn Kho lưu trữ an toàn) — link 127.0.0.1 chỉ mở
+            # được trên chính máy chạy bot, chết trên điện thoại,
+            # nên hạ xuống đường phụ cho desktop.
+            app_link = webapp_direct_link(
+                self.cfg, self._bot_username(), "vault")
+            lines = [
+                f"Nhập bí mật '{label}' ngay trong Mini App: mở "
+                "Cài đặt → Kho lưu trữ an toàn, điền nhãn + giá "
+                "trị rồi bấm Lưu — giá trị đi thẳng vào kho, "
+                "không qua chat, lưu xong chỉ còn ref dạng "
+                "vault:<uuid>.",
+            ]
+            kb = None
+            if app_link:
+                kb = InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(
+                        text="Mở Kho trong Mini App", url=app_link)]])
+            lines.append(
+                f"Đường phụ (chỉ mở được trên máy tính đang chạy "
+                f"bot): form một lần {link} — hết hạn sau "
+                f"{self.cfg.vault_token_ttl_s // 60} phút.")
+            note = "\n".join(lines)
             if message.chat.type == ChatType.PRIVATE:
-                await message.answer(note)
+                await message.answer(note, reply_markup=kb)
             elif self.bot is not None:
                 # Trong group: link là capability — chỉ gửi DM.
                 await self.bot.send_message(
-                    self.cfg.allowed_user_id, note)
+                    self.cfg.allowed_user_id, note, reply_markup=kb)
                 await message.answer(
-                    "Đã gửi link form vault vào DM của bạn "
+                    "Đã gửi hướng dẫn nhập vault vào DM của bạn "
                     "(không đăng link ở group).")
 
         @dp.message(F.text.startswith("/forget"))
@@ -1659,6 +1839,23 @@ class TelegramSurface:
         me = await self.bot.get_me()
         self.bot._me_username = me.username  # type: ignore[attr-defined]
         logger.info("bot @%s bắt đầu polling", me.username)
+        # Marketplace 1.3.0: bot đã sẵn sàng -> gắn trình thẻ +
+        # notifier rồi quyết toán boot (thông báo đối chiếu sau
+        # restart + restart lần 2 nếu vừa tự rollback). Chạy nền
+        # để không chặn polling.
+        if self.marketplace is not None:
+            self.marketplace.bind_card_presenter(
+                self.send_marketplace_card_to_owner)
+
+            async def _notify(text: str) -> None:
+                if self.bot is not None and \
+                        self.cfg.allowed_user_id:
+                    await self.bot.send_message(
+                        self.cfg.allowed_user_id, text)
+
+            self.marketplace.bind_notifier(_notify)
+            import asyncio as _asyncio
+            _asyncio.create_task(self.marketplace.settle_boot())
         # Menu lệnh "/" cho user thấy ngay (Khối 1, 1.2.0). Lỗi
         # đăng ký chỉ log warning — không được làm sập bot.
         try:
