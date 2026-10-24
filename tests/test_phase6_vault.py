@@ -115,3 +115,53 @@ async def test_secret_never_touches_memory(cfg):
     blob = " ".join(str(r[0]) for r in await cur.fetchall())
     assert SECRET not in blob
     await memory.close()
+
+
+def test_vault_store_update_and_delete_by_label(cfg):
+    store = VaultStore(cfg.vault_path)
+    ref = store.put("old_label", "old_val")
+    assert store.resolve(ref) == "old_val"
+
+    # Update label only
+    assert store.update(ref, label="new_label") is True
+    assert store.resolve(ref) == "old_val"
+    labels = store.labels()
+    found = [x for x in labels if x["ref"] == ref]
+    assert found and found[0]["label"] == "new_label"
+
+    # Update value only
+    assert store.update(ref, value="new_val") is True
+    assert store.resolve(ref) == "new_val"
+
+    # Update both
+    assert store.update(ref, label="final_label", value="final_val") is True
+    assert store.resolve(ref) == "final_val"
+
+    # Delete by label
+    deleted_cnt = store.delete_by_label("final_label")
+    assert deleted_cnt == 1
+    assert store.resolve(ref) is None
+
+
+async def test_vault_tools_list_and_delete(cfg):
+    from mulon.tools import ToolRegistry
+    from mulon.vault import register_vault_tools
+
+    reg = ToolRegistry()
+    register_vault_tools(reg, cfg)
+    assert reg.get("list_vault_secrets") is not None
+    assert reg.get("delete_vault_secret") is not None
+
+    store = VaultStore(cfg.vault_path)
+    ref = store.put("secret:test_item", "my_secret_token_999")
+
+    list_tool = reg.get("list_vault_secrets").handler
+    list_res = await list_tool()
+    assert list_res["ok"] is True
+    assert any(x["ref"] == ref for x in list_res["secrets"])
+    assert "my_secret_token_999" not in json.dumps(list_res)
+
+    del_tool = reg.get("delete_vault_secret").handler
+    del_res = await del_tool(label="secret:test_item")
+    assert del_res["ok"] is True
+    assert store.resolve(ref) is None

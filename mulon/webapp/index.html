@@ -1829,13 +1829,105 @@ function renderVault(){
     box.innerHTML = '<div class="empty">Chưa có bí mật nào trong kho.</div>';
     return;
   }
-  box.innerHTML = list.map(v =>
-    '<div class="row static"><div class="glyph">' +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>' +
-    '<div class="r-main"><div class="r-title">' + esc(v.label) +
-    '</div><div class="r-sub">' + esc(v.ref) +
-    (v.created_at ? " · " + esc(todayLabel(v.created_at)) : "") +
-    '</div></div></div>').join("");
+  box.innerHTML = list.map(v => {
+    const safeId = String(v.ref).replace(/[^a-zA-Z0-9]/g, "_");
+    return '<div class="vault-row" style="padding:12px 14px; border-bottom:1px solid var(--border)">' +
+      '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px">' +
+        '<div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1">' +
+          '<div class="glyph" style="flex-shrink:0">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>' +
+          '</div>' +
+          '<div style="min-width:0; flex:1">' +
+            '<div class="r-title" style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">' + esc(v.label) + '</div>' +
+            '<div class="r-sub" style="font-size:11px; opacity:0.65; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">' + esc(v.ref) +
+              (v.created_at ? " · " + esc(todayLabel(v.created_at)) : "") +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex; gap:6px; flex-shrink:0">' +
+          '<button class="btn btn-soft btn-sm" style="min-height:34px; padding:0 10px; font-size:12px" data-v-edit="' + safeId + '">Sửa</button>' +
+          '<button class="btn btn-danger-text btn-sm" style="min-height:34px; padding:0 10px; font-size:12px" data-v-del="' + esc(v.ref) + '" data-label="' + esc(v.label) + '">Xoá</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="vedit-' + safeId + '" class="hidden" style="margin-top:10px; padding:10px 12px; background:var(--surface2); border-radius:8px">' +
+        '<div style="font-size:12px; font-weight:600; margin-bottom:6px">Chỉnh sửa bí mật</div>' +
+        '<input class="field-input" id="vedit-lbl-' + safeId + '" type="text" placeholder="Nhãn mới" value="' + esc(v.label) + '" style="margin-bottom:6px">' +
+        '<input class="field-input" id="vedit-val-' + safeId + '" type="password" placeholder="Giá trị bí mật mới (để trống nếu giữ nguyên)" autocomplete="off">' +
+        '<div style="display:flex; gap:8px; margin-top:8px">' +
+          '<button class="btn btn-accent btn-sm" style="min-height:34px; padding:0 12px; font-size:12px" data-v-save="' + esc(v.ref) + '" data-sid="' + safeId + '">Lưu</button>' +
+          '<button class="btn btn-ghost btn-sm" style="min-height:34px; padding:0 12px; font-size:12px" data-v-cancel="' + safeId + '">Huỷ</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join("");
+
+  box.querySelectorAll("[data-v-edit]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const sid = btn.dataset.vEdit;
+      const form = $("vedit-" + sid);
+      if (form) form.classList.toggle("hidden");
+    });
+  });
+  box.querySelectorAll("[data-v-cancel]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const sid = btn.dataset.vCancel;
+      const form = $("vedit-" + sid);
+      if (form) form.classList.add("hidden");
+    });
+  });
+  box.querySelectorAll("[data-v-save]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const ref = btn.dataset.vSave;
+      const sid = btn.dataset.sid;
+      const lblInput = $("vedit-lbl-" + sid);
+      const valInput = $("vedit-val-" + sid);
+      const newLabel = lblInput ? lblInput.value.trim() : "";
+      const newVal = valInput ? valInput.value : "";
+      if (!newLabel){
+        toast("Nhãn không được để trống.");
+        return;
+      }
+      btn.disabled = true;
+      try {
+        await api("/api/vault/update", "POST", {
+          ref: ref,
+          label: newLabel,
+          value: newVal || undefined,
+        });
+        toast("Đã cập nhật bí mật.");
+        haptic("impact");
+        await load();
+      } catch (e) {
+        toast("Lỗi cập nhật: " + e.message);
+        btn.disabled = false;
+      }
+    });
+  });
+  box.querySelectorAll("[data-v-del]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const ref = btn.dataset.vDel;
+      const label = btn.dataset.label || "bí mật này";
+      const doDel = async () => {
+        btn.disabled = true;
+        try {
+          await api("/api/vault/delete", "POST", {ref: ref});
+          toast("Đã xoá bí mật khỏi kho.");
+          haptic("impact");
+          await load();
+        } catch (e) {
+          toast("Lỗi xoá: " + e.message);
+          btn.disabled = false;
+        }
+      };
+      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showConfirm){
+        window.Telegram.WebApp.showConfirm("Xoá '" + label + "' khỏi kho an toàn?", ok => {
+          if (ok) doDel();
+        });
+      } else {
+        if (confirm("Xoá '" + label + "' khỏi kho an toàn?")) doDel();
+      }
+    });
+  });
 }
 /* Vault nhập ngay trong app (1.3.0): POST /api/vault/capture
    (auth initData như mọi /api/*) — server ghi thẳng vào kho và

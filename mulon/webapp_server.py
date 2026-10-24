@@ -356,6 +356,10 @@ class WebAppServer:
                            self._handle_skill_detail)
         app.router.add_post("/api/vault/capture",
                             self._handle_vault_capture)
+        app.router.add_post("/api/vault/delete",
+                            self._handle_vault_delete)
+        app.router.add_post("/api/vault/update",
+                            self._handle_vault_update)
         # 1.5.0: Google OAuth — auth-url + disconnect qua auth
         # initData như mọi /api/*; callback là route CÔNG KHAI
         # duy nhất (trình duyệt ngoài quay về từ Google, bảo vệ
@@ -1238,6 +1242,69 @@ class WebAppServer:
                 await self.memory.log_trajectory(
                     "webapp", "vault_captured",
                     {"label": label, "ref": ref})
+            except Exception:
+                pass
+        return web.json_response({"ok": True, "ref": ref})
+
+    async def _handle_vault_delete(self, request):
+        """Xoá một bí mật khỏi Vault qua ref."""
+        body = await self._json_body(request)
+        ref = str(body.get("ref") or "").strip()
+        if self.vault_store is None:
+            return web.json_response(
+                {"ok": False, "error": "Vault chưa được nối ở bản chạy này."},
+                status=503)
+        if not ref:
+            return web.json_response(
+                {"ok": False, "error": "thiếu ref bí mật"},
+                status=400)
+        ok = self.vault_store.delete(ref)
+        if not ok:
+            return web.json_response(
+                {"ok": False, "error": "không tìm thấy bí mật trong kho"},
+                status=404)
+        if self.memory is not None:
+            try:
+                await self.memory.log_trajectory(
+                    "webapp", "vault_deleted", {"ref": ref})
+            except Exception:
+                pass
+        return web.json_response({"ok": True, "ref": ref})
+
+    async def _handle_vault_update(self, request):
+        """Sửa nhãn hoặc cập nhật giá trị bí mật trong Vault."""
+        body = await self._json_body(request)
+        ref = str(body.get("ref") or "").strip()
+        label = body.get("label")
+        value = body.get("value")
+        if self.vault_store is None:
+            return web.json_response(
+                {"ok": False, "error": "Vault chưa được nối ở bản chạy này."},
+                status=503)
+        if not ref:
+            return web.json_response(
+                {"ok": False, "error": "thiếu ref bí mật"},
+                status=400)
+        lbl_str = str(label).strip() if label is not None else None
+        val_str = str(value) if value is not None and value != "" else None
+        if lbl_str is not None and len(lbl_str) > 120:
+            return web.json_response(
+                {"ok": False, "error": "nhãn quá dài (tối đa 120 ký tự)"},
+                status=400)
+        if val_str is not None and len(val_str) > 8192:
+            return web.json_response(
+                {"ok": False, "error": "giá trị quá dài (tối đa 8192 ký tự)"},
+                status=400)
+        ok = self.vault_store.update(ref, label=lbl_str, value=val_str)
+        if not ok:
+            return web.json_response(
+                {"ok": False, "error": "không tìm thấy bí mật trong kho"},
+                status=404)
+        if self.memory is not None:
+            try:
+                await self.memory.log_trajectory(
+                    "webapp", "vault_updated",
+                    {"ref": ref, "label": lbl_str, "value_changed": bool(val_str)})
             except Exception:
                 pass
         return web.json_response({"ok": True, "ref": ref})

@@ -105,6 +105,36 @@ class VaultStore:
             self._save(data)
             return True
 
+    def delete_by_label(self, label: str) -> int:
+        lbl = str(label or "").strip()
+        if not lbl:
+            return 0
+        with self._lock:
+            data = self._load()
+            to_del = [ref for ref, e in data.items() if isinstance(e, dict) and e.get("label") == lbl]
+            if not to_del:
+                return 0
+            for r in to_del:
+                del data[r]
+            self._save(data)
+            return len(to_del)
+
+    def update(self, ref: str, label: Optional[str] = None, value: Optional[str] = None) -> bool:
+        from .memory import now_iso
+
+        ref_str = str(ref or "").strip()
+        with self._lock:
+            data = self._load()
+            if ref_str not in data or not isinstance(data[ref_str], dict):
+                return False
+            if label is not None and str(label).strip():
+                data[ref_str]["label"] = str(label).strip()
+            if value is not None and str(value) != "":
+                data[ref_str]["value"] = str(value)
+            data[ref_str]["updated_at"] = now_iso()
+            self._save(data)
+            return True
+
 
 _FORM_HTML = """<!doctype html>
 <html lang="vi"><head><meta charset="utf-8">
@@ -348,4 +378,56 @@ def register_vault_tools(registry, cfg, notifier=None) -> None:
         group="vault",
         timeout_s=15,
         handler=request_vault_secret,
+    ), overwrite=True)
+
+    store = VaultStore(cfg.vault_path)
+
+    async def list_vault_secrets() -> dict:
+        items = store.labels()
+        return {
+            "ok": True,
+            "count": len(items),
+            "secrets": items,
+        }
+
+    registry.register(ToolSpec(
+        name="list_vault_secrets",
+        description=(
+            "Liệt kê danh sách các bí mật đang có trong Kho lưu trữ an toàn (chỉ nhãn, ref "
+            "và thời gian tạo — KHÔNG BAO GIỜ hiện giá trị bí mật)."
+        ),
+        parameters={"type": "object", "properties": {}},
+        group="vault",
+        timeout_s=10,
+        handler=list_vault_secrets,
+    ), overwrite=True)
+
+    async def delete_vault_secret(ref: str = "", label: str = "") -> dict:
+        r = str(ref or "").strip()
+        lbl = str(label or "").strip()
+        if not r and not lbl:
+            return {"ok": False, "error": "cần cung cấp ref (dạng vault:...) hoặc nhãn (label) để xoá"}
+        deleted = 0
+        if r:
+            if store.delete(r):
+                deleted += 1
+        elif lbl:
+            deleted = store.delete_by_label(lbl)
+        if deleted > 0:
+            return {"ok": True, "message": f"Đã xoá {deleted} bí mật khỏi kho an toàn."}
+        return {"ok": False, "error": "Không tìm thấy bí mật tương ứng để xoá."}
+
+    registry.register(ToolSpec(
+        name="delete_vault_secret",
+        description="Xoá một bí mật khỏi Kho lưu trữ an toàn theo mã tham chiếu ref hoặc nhãn label.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "ref": {"type": "string", "description": "Mã tham chiếu dạng vault:<uuid>"},
+                "label": {"type": "string", "description": "Tên nhãn của bí mật"},
+            },
+        },
+        group="vault",
+        timeout_s=15,
+        handler=delete_vault_secret,
     ), overwrite=True)

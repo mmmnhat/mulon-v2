@@ -3,6 +3,7 @@ không lộ bí mật Vault, /api/approve resolve broker, /api/policy
 đổi verdict, thiếu initData -> 403."""
 
 import asyncio
+import json
 from dataclasses import replace
 
 import pytest
@@ -129,3 +130,41 @@ async def test_index_served_without_auth(app):
             assert r.status == 200
             text = await r.text()
     assert "Phê duyệt" in text and "Hồ sơ" in text
+
+
+async def test_api_vault_update_and_delete(app):
+    _, _, _, server = app
+    headers = {"X-Telegram-Init-Data": make_init_data()}
+    async with ClientSession() as s:
+        # Create
+        async with s.post(_url(server, "/api/vault/capture"),
+                          headers=headers,
+                          json={"label": "init_label", "value": "init_val"}) as r:
+            assert r.status == 200
+            ref = (await r.json())["ref"]
+
+        # Update label and value
+        async with s.post(_url(server, "/api/vault/update"),
+                          headers=headers,
+                          json={"ref": ref, "label": "updated_label", "value": "new_secret"}) as r:
+            assert r.status == 200
+            assert (await r.json())["ok"] is True
+
+        # Check state has updated label (never value)
+        async with s.get(_url(server, "/api/state"), headers=headers) as r:
+            st = await r.json()
+            found = [x for x in st["vault"] if x["ref"] == ref]
+            assert found and found[0]["label"] == "updated_label"
+            assert "new_secret" not in json.dumps(st)
+
+        # Delete
+        async with s.post(_url(server, "/api/vault/delete"),
+                          headers=headers,
+                          json={"ref": ref}) as r:
+            assert r.status == 200
+            assert (await r.json())["ok"] is True
+
+        # Check state no longer has ref
+        async with s.get(_url(server, "/api/state"), headers=headers) as r:
+            st = await r.json()
+            assert not any(x["ref"] == ref for x in st["vault"])
