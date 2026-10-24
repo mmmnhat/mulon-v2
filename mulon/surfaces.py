@@ -34,10 +34,14 @@ SURFACES: list[dict] = [
     },
     {
         "key": "feed", "title": "Feed",
-        "blurb": "Bài Feed do agent tự viết từ goals + ký ức của "
-                 "user (không lấy tin ngoài). Reaction trên bài là "
-                 "tín hiệu gu (taste) cho các bài sau.",
-        "commands": "/feed_now · /feedbrief <nội dung>",
+        "blurb": "Bài Feed TỰ đăng theo lịch (mặc định 2 lần/ngày) "
+                 "từ goals + ký ức của user và tin ngoài do hệ "
+                 "thống tự tìm kiếm từ nguồn tin cậy/chính thống "
+                 "(trích dẫn chỉ dùng link thật đã lấy về). "
+                 "Reaction trên bài là tín hiệu gu (taste) cho "
+                 "các bài sau.",
+        "commands": "/feedbrief <nội dung> · /feedsources · tự "
+                    "chạy theo lịch (điều khiển ở Mini App)",
     },
     {
         "key": "ideas", "title": "Ideas",
