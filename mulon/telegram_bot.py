@@ -136,6 +136,41 @@ def session_key_for(message: Message) -> str:
     return f"agent:main:telegram:{kind}:{chat.id}:topic:{topic_id}"
 
 
+# --------------------- nghi lễ khởi tạo (mục 16.10) ---------------------
+
+# Bộ câu hỏi dự phòng khi BOOTSTRAP.md không trích được mục
+# "## Cần hỏi" — đủ 5 ý của nghi lễ, viết sẵn để /start không bao
+# giờ gửi một tin chào cụt không có câu hỏi.
+BOOTSTRAP_QUESTIONS_FALLBACK = (
+    "1. Bạn muốn gọi agent là gì? Agent xưng hô với bạn thế nào?\n"
+    "2. Bạn tên gì, muốn được gọi là gì? Múi giờ có đúng "
+    "Asia/Ho_Chi_Minh?\n"
+    "3. Bạn đang làm gì / quan tâm nhất chuyện gì thời gian này?\n"
+    "4. Phong cách trả lời: ngắn tới mức nào, khi nào được tự làm "
+    "luôn, khi nào phải hỏi trước?\n"
+    "5. Có điều gì agent tuyệt đối không được tự làm không?"
+)
+
+
+def extract_bootstrap_questions(boot_text: str) -> str:
+    """Trích đúng mục '## Cần hỏi' trong BOOTSTRAP.md.
+
+    Chỉ phần câu hỏi mới được gửi cho user; phần mở đầu và các mục
+    chỉ thị nội bộ ('## Sau khi hỏi xong'…) không bao giờ lọt vào
+    tin nhắn. Không trích được thì trả '' để nơi gọi dùng bản
+    dự phòng.
+    """
+    if not boot_text:
+        return ""
+    match = re.search(
+        r"^##\s*Cần hỏi\s*$([\s\S]*?)(?=^##\s|\Z)",
+        boot_text, flags=re.MULTILINE,
+    )
+    if not match:
+        return ""
+    return match.group(1).strip()
+
+
 # ------------------------------- bot -------------------------------
 
 class TelegramSurface:
@@ -171,6 +206,31 @@ class TelegramSurface:
             self._voice_reply.add(key)
         else:
             self._voice_reply.discard(key)
+
+    # ---- /start ----
+    def start_message_text(self) -> str:
+        """Nội dung trả lời /start.
+
+        Dossier là snapshot đóng băng nên nạp lại từ đĩa trước khi
+        xét: USER.md có thể đã đổi kể từ lúc boot. Lần chạy đầu
+        (còn BOOTSTRAP_PENDING): câu chào + ĐÚNG phần câu hỏi của
+        nghi lễ trích từ BOOTSTRAP.md — không dump cả file, không
+        để lọt chỉ thị nội bộ; trích không được thì dùng bộ câu
+        hỏi dự phòng trong code.
+        """
+        self.dossier.reload()
+        if self.dossier.bootstrap_pending():
+            boot = self.dossier.files.get("BOOTSTRAP.md", "")
+            questions = extract_bootstrap_questions(boot) \
+                or BOOTSTRAP_QUESTIONS_FALLBACK
+            return (
+                "Chào bạn, đây là lần chạy đầu tiên. Mình hỏi nhanh "
+                "vài câu để dựng hồ sơ rồi làm việc luôn nhé.\n\n"
+                + questions
+            )
+        identity = self.dossier.files.get("IDENTITY.md", "")
+        return ("Mình đang chạy. Cứ nhắn việc bằng lời thường.\n\n"
+                + identity[:1000])
 
     # ---- điều kiện đáp trong group ----
     def _should_respond(self, message: Message) -> bool:
@@ -222,6 +282,13 @@ class TelegramSurface:
                     placeholder = await anchor.answer("…")
                 except Exception:
                     placeholder = None
+            # Ghi trạng thái nghi lễ TRƯỚC lượt: nếu lượt này bắt
+            # đầu khi BOOTSTRAP còn chờ, agent có thể vừa hoàn tất
+            # nghi lễ trên đĩa — cuối lượt phải nạp lại snapshot.
+            was_bootstrap_pending = bool(
+                self.dossier is not None
+                and self.dossier.bootstrap_pending()
+            )
             result = await self.agent.handle(
                 key, joined, on_delta=on_delta
             )
@@ -241,6 +308,18 @@ class TelegramSurface:
                     plain = re.sub(r"<[^>]+>", "", chunk)
                     await anchor.answer(plain)
             await self._maybe_send_voice(key, anchor, final)
+            if was_bootstrap_pending and self.dossier is not None:
+                # Lượt vừa rồi có thể đã gỡ BOOTSTRAP_PENDING khỏi
+                # USER.md trên đĩa: nạp lại để /start và ngữ cảnh
+                # các lượt sau thấy trạng thái mới, khỏi chờ restart.
+                # Đây là cùng 1 instance Dossier mà ContextEngine
+                # đang giữ (main.build_system truyền chung).
+                try:
+                    self.dossier.reload()
+                except Exception as exc:
+                    logger.warning(
+                        "nạp lại dossier sau lượt bootstrap lỗi: %s",
+                        exc)
 
     # ---- voice (Phase 4, mục 8.1) ----
     async def _maybe_send_voice(self, key: str, anchor: Message,
@@ -437,18 +516,7 @@ class TelegramSurface:
         async def cmd_start(message: Message) -> None:
             if not self._is_allowed(message):
                 return
-            if self.dossier.bootstrap_pending():
-                boot = self.dossier.files.get("BOOTSTRAP.md", "")
-                await message.answer(
-                    "Chào bạn, đây là lần chạy đầu tiên. Mình hỏi nhanh vài "
-                    "câu để dựng hồ sơ rồi làm việc luôn nhé.\n\n" + boot[:3000]
-                )
-            else:
-                identity = self.dossier.files.get("IDENTITY.md", "")
-                await message.answer(
-                    "Mình đang chạy. Cứ nhắn việc bằng lời thường.\n\n"
-                    + identity[:1000]
-                )
+            await message.answer(self.start_message_text())
 
         @dp.message(F.text.startswith("/status"))
         async def cmd_status(message: Message) -> None:
