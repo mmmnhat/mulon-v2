@@ -85,6 +85,89 @@ VERIFY_SYSTEM = (
 )
 
 
+def _roster_label(spec) -> str:
+    """Nhãn lời thường cho 1 tool trong bảng kê tự nhận thức:
+    ưu tiên nhãn sẵn có của bề mặt (webapp_server), thiếu thì lấy
+    mệnh đề đầu của mô tả tool — vẫn là lời thường, không bịa."""
+    try:
+        from .webapp_server import known_action_label
+
+        label = known_action_label(spec.name, spec.group)
+    except Exception:
+        label = ""
+    if label:
+        return label
+    desc = " ".join(str(spec.description or "").split())
+    clause = desc.split(".")[0].strip()
+    return clause[:80] or spec.name
+
+
+def build_self_knowledge(cfg, registry) -> str:
+    """Khối TỰ NHẬN THỨC chèn vào prompt hệ thống mỗi lượt.
+
+    Nền của bản vá 1.3.0: model từng tự nhận "không có tool đọc
+    file" (thực tế có read_file), bịa thẻ phê duyệt mẫu bằng văn
+    bản rồi chối không gắn được nút thật, và hỏi ngược chủ nhân
+    "bot của anh chạy bằng code gì". Cả ba đều là lỗi KHÔNG BIẾT
+    MÌNH — khối này đưa sự thật hệ thống (danh sách tool thật lấy
+    từ registry đang chạy, đường workspace/dossier, các bề mặt
+    thật) vào ngữ cảnh kèm quy tắc cứng, để model đối chiếu
+    trước khi phát biểu về khả năng của chính mình.
+    """
+    specs = registry.specs() if registry is not None else []
+    roster = "\n".join(
+        f"- {_roster_label(spec)} (tool: {spec.name})"
+        for spec in specs)
+    if not roster:
+        roster = "- (registry trống ở bản chạy này)"
+    return (
+        "## TỰ NHẬN THỨC — SỰ THẬT VỀ CHÍNH BẠN\n"
+        "Đối chiếu khối này TRƯỚC khi nói bất cứ điều gì về khả "
+        "năng của chính mình.\n"
+        "- Bạn là Mulon — một bot Telegram ĐANG CHẠY THẬT mà chủ "
+        "nhân của bạn đang vận hành và đang nói chuyện cùng. Bạn "
+        "viết bằng Python (aiogram 3); mã nguồn của bạn chính là "
+        "codebase này (thư mục mulon/). Khi chủ nhân nhắc tới "
+        "\"bot\", \"code của tui\", \"chính mình\" — đó là BẠN. "
+        "Không có bot của ai khác trong cuộc trò chuyện này.\n"
+        f"- Nơi bạn làm việc: workspace {cfg.workspace_dir}; hồ "
+        f"sơ (dossier) {cfg.dossier_dir}. Các tool file của bạn "
+        "với tới được workspace và thư mục dossier.\n"
+        f"- Tool THẬT của bạn ({len(specs)} tool — lấy từ "
+        "registry đang chạy, là sự thật hệ thống):\n"
+        f"{roster}\n"
+        "- Thẻ phê duyệt của bạn là THẺ THẬT CÓ NÚT BẤM THẬT: "
+        "khi một hành động CHẠY THẬT rơi vào nấc \"hỏi\" của "
+        "policy, backend tự gửi thẻ (nút Duyệt / Chặn / Duyệt "
+        "và nhớ) qua kênh duyệt ApprovalBroker — bạn không tự "
+        "vẽ thẻ, không cần \"gắn markup\" bằng tay. Muốn cho chủ "
+        "nhân xem thẻ duyệt thật, bảo anh ấy gõ /the_duyet: lệnh "
+        "đó gửi một thẻ duyệt THỬ thật, vô hại. Mini App (bảng "
+        "điều khiển) cũng là bề mặt thật của bạn, mở bằng nút "
+        "trong chat.\n"
+        "- Bí mật (Vault): giá trị bí mật KHÔNG đi qua chat. Chủ "
+        "nhân nhập qua form một lần hoặc ngay trong Mini App; "
+        "bạn chỉ cầm mã tham chiếu dạng vault:<uuid> và không "
+        "bao giờ thấy giá trị thật.\n"
+        "QUY TẮC CỨNG VỀ KHẢ NĂNG CỦA CHÍNH MÌNH:\n"
+        "1. Không bao giờ tuyên bố \"không có tool / chưa có "
+        "công cụ / không làm được\" khi chưa đối chiếu danh sách "
+        "tool ở trên. Tool có trong danh sách nghĩa là bạn LÀM "
+        "ĐƯỢC — hãy gọi tool mà làm thay vì từ chối bằng lời. "
+        "(Đã từng sai thật: bạn CÓ read_file, đừng bao giờ nói "
+        "không có công cụ đọc file.)\n"
+        "2. Không bịa giao diện, thẻ hay mẫu bằng văn bản rồi "
+        "trình như đồ thật — không \"card mẫu\", không nút bấm "
+        "vẽ bằng ký tự, không layout giả. Cần đồ thật thì đi "
+        "đường thật: thẻ duyệt từ kênh duyệt, lệnh /the_duyet, "
+        "Mini App.\n"
+        "3. Không bao giờ hỏi chủ nhân \"bot của anh chạy bằng "
+        "gì / framework nào / code gì\" — chính bạn là bot đó. "
+        "Cần biết chi tiết về chính mình thì dùng tool mà kiểm "
+        "tra trong vùng với tới được, đừng hỏi ngược."
+    )
+
+
 class Agent:
     def __init__(self, cfg, gateway, memory, context_engine, registry,
                  policy, broker=None):
@@ -99,6 +182,16 @@ class Agent:
         # toàn thay vì treo chờ một thẻ duyệt không ai thấy.
         self.broker = broker
         self._llm_calls = 0
+        self._self_knowledge_cache: Optional[str] = None
+
+    def self_knowledge(self) -> str:
+        """Khối tự nhận thức (build_self_knowledge) — dựng 1 lần
+        mỗi tiến trình: roster tool chỉ đổi khi restart (cài MCP
+        qua Chợ cũng kết thúc bằng restart)."""
+        if self._self_knowledge_cache is None:
+            self._self_knowledge_cache = build_self_knowledge(
+                self.cfg, self.registry)
+        return self._self_knowledge_cache
 
     # ---------- tiện ích ----------
     async def _emit(self, on_event: Optional[EventFn], kind: str, **payload):
@@ -140,6 +233,11 @@ class Agent:
         except Exception as exc:
             logger.warning("phát hiện correction lỗi (bỏ qua): %s", exc)
         built = await self.ctx.build(session_key, user_text)
+        # Tự nhận thức (1.3.0): chèn ngay sau khối dossier để cả
+        # fast path lẫn task path đều thấy sự thật về chính agent
+        # (tool thật, bề mặt thật, quy tắc không bịa khả năng).
+        built.messages.insert(
+            1, {"role": "system", "content": self.self_knowledge()})
         intent = classify_intent(user_text)
 
         if intent is Intent.CHAT:
