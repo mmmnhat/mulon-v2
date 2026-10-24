@@ -1,4 +1,4 @@
-"""Mulon — Muse clone 1.3.0 (Phase 1 + 2 + 3 + 4 + 5 + 6 + Mini App + Chợ MCP).
+"""Mulon — Muse clone 1.4.0 (Phase 1 + 2 + 3 + 4 + 5 + 6 + Mini App + Chợ MCP + Feed chủ động).
 
 Lõi agent mỏng tự viết theo tài liệu thiết kế
 ``thiet-ke-ky-thuat-muse-clone.md``: gateway model qua LiteLLM trỏ vào
@@ -41,6 +41,17 @@ bí mật chỉ qua Vault ref, tool vào group policy ở nấc ask,
 bot TỰ khởi động lại để áp dụng kèm đối chiếu lúc boot và tự
 khôi phục cấu hình trước đó khi áp dụng thất bại; catalog tự
 cập nhật dữ kiện từ repo (kiểm checksum, không bao giờ tự cài).
+Bản 1.4.0 biến Feed thành FEED CHỦ ĐỘNG (quyết định owner
+0.2b: luôn tự động, không công tắc tổng, không lệnh
+/feed_auto; /feed_now rút khỏi menu lệnh, giữ handler ẩn):
+lịch hệ thống nội bộ trên SchedulerService (cô lập tick —
+lịch thường vẫn tắt khi SCHEDULER_ENABLED=0), collector tự
+tìm kiếm web theo chủ đề nóng + chấm độ tin cậy ưu tiên
+nguồn official/chính thống, kiểm trích dẫn tất định sau
+sinh (sai là bỏ bài), chống trùng 3 lớp, trần bài/ngày +
+trần token/ngày + giờ yên lặng, lỗi 3 lượt liên tiếp thì tự
+tạm dừng và báo owner đúng 1 tin; điều khiển ở Mini App
+(Cài đặt → Feed chủ động) và /feedsources.
 """
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
