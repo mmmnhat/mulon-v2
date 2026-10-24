@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.1.1-blueviolet">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.2.0-blueviolet">
   <img alt="Python" src="https://img.shields.io/badge/python-3.12-3776AB">
   <img alt="Tests" src="https://img.shields.io/badge/tests-147%20passing-brightgreen">
   <img alt="Eval" src="https://img.shields.io/badge/eval%20gate-85%25-orange">
@@ -23,7 +23,9 @@ cấu trúc — chứ không phụ thuộc vào độ mạnh của model. Ba rà
 cứng của thiết kế:
 
 - **Telegram-only.** Một supergroup riêng tư bật forum là toàn bộ
-  giao diện; mỗi topic là một "tab". Không Mini App, không kênh phụ.
+  giao diện; mỗi topic là một "tab". Từ 1.2.0 có thêm Mini App
+  (bảng điều khiển chạy trong Telegram) cho cấu hình và duyệt
+  việc — vẫn không kênh phụ nào ngoài Telegram.
 - **Proxy-only.** Model chỉ được gọi qua một proxy local tương thích
   OpenAI (kiểu CLI-Proxy-API). Không dùng API chính thức của hãng
   nào, không khóa vào nhà cung cấp nào — đổi model là đổi cấu hình.
@@ -186,12 +188,16 @@ thích từng biến. Các biến chính:
 | `CONSOLIDATION_ENABLED` | `0` | Worker chắt lọc ký ức (mặc định tắt) |
 | `PROACTIVITY_ENABLED` | `0` | Heartbeat chủ động (mặc định tắt) |
 | `VAULT_PORT` | `8765` | Cổng form Vault trên 127.0.0.1 (`0` = tắt) |
+| `WEBAPP_URL` | — | URL HTTPS công khai của Mini App (tunnel về `WEBAPP_PORT`) |
+| `WEBAPP_APP_NAME` | — | Short name Mini App trong BotFather (`/myapps`) |
+| `WEBAPP_PORT` | `8320` | Cổng Mini App server trên 127.0.0.1 |
+| `APPROVAL_TIMEOUT_S` | `60` | Thẻ duyệt (policy nấc `ask`) hết hạn sau ngần này giây |
 
 ## Lệnh Telegram
 
 | Nhóm | Lệnh |
 |---|---|
-| Lõi | `/start` `/status` `/new` — chốt phiên hiện tại |
+| Lõi | `/start` `/status` `/new` — chốt phiên hiện tại · `/menu` — mở bảng điều khiển (Mini App) |
 | Group | `/setup_topics` — tạo các topic-tab · `/topics` — xem map |
 | Chat phụ | `/chatphu <tên>` — tạo đoạn chat phụ · `/chatphu_list` · `/dongchat` · `/chatphu_dong <thread_id>` · `/chatphu_mo <thread_id>` |
 | Feed | `/feed_now` — sinh bài mới · `/feedbrief <nội dung>` — sửa brief |
@@ -203,6 +209,57 @@ thích từng biến. Các biến chính:
 
 Trong group có người khác, bot chỉ lên tiếng khi được nhắc tên,
 được trả lời trực tiếp, hoặc đúng lệnh của chủ nhân.
+
+## Bảng điều khiển (Mini App)
+
+Từ 1.2.0, gõ `/menu` trong chat: bot gửi một tin gọn kèm nút mở
+**Mini App** phủ lên chat kiểu modal — mọi cấu hình và chi tiết
+tiến trình nằm trong app, không nằm trong chat:
+
+- **Việc** — các lượt việc gần nhất; bấm một lượt xem timeline
+  từng bước + tóm tắt kết quả.
+- **Phê duyệt** — việc đang chờ duyệt (Duyệt / Chặn / Duyệt và
+  nhớ) + lịch sử phê duyệt dạng bảng trường.
+- **Lịch** — việc hẹn giờ + heartbeat, bật/tắt tại chỗ.
+- **Hồ sơ** — thẻ Hồ sơ & Bộ nhớ (xem nội dung dossier/facts,
+  chỉ chủ nhân) + số kỹ năng đã nạp.
+- **Cài đặt** — Công cụ kết nối (connector/MCP + công tắc), Kho
+  lưu trữ an toàn (chỉ nhãn + ref, không giá trị), Quyền
+  (segmented 3 nấc Cho phép / Hỏi / Chặn cho từng nhóm việc và
+  từng tool, lưu phiên hoặc lưu bền vào file policy).
+
+Policy có nấc thứ ba là **"hỏi"** (`ask`): việc thuộc nấc này sẽ
+hiện *thẻ duyệt* ngay trong topic đang chạy — quyết định xong
+(duyệt, chặn hay hết hạn 60s) bot **tự xóa thẻ**, quyết định lưu
+vào lịch sử duyệt. Không có Mini App vẫn duyệt được bằng nút
+inline trên thẻ.
+
+Cách bật Mini App (3 bước, làm một lần):
+
+1. Dựng tunnel HTTPS về `127.0.0.1:8320`, ví dụ
+   `cloudflared tunnel --url http://127.0.0.1:8320` hoặc
+   `tailscale funnel 8320` — lấy URL HTTPS đó làm `WEBAPP_URL`.
+2. Trong BotFather: `/myapps` → tạo app cho bot, đặt short name
+   (ví dụ `panel`) làm `WEBAPP_APP_NAME`, Web App URL = `WEBAPP_URL`.
+3. Đặt hai biến vào `.env` rồi khởi động lại bot.
+
+Bot mở app bằng **Direct Link**
+(`https://t.me/<bot>/<app>?startapp=...&mode=compact`) — chạy
+được cả trong group lẫn DM. Mọi API của app đều khóa bằng chữ ký
+`initData` của Telegram + đúng `ALLOWED_USER_ID`; thiếu cấu hình
+thì tính năng degrade sạch về inline như trên.
+
+Giao diện app theo design system riêng — token màu lấy mẫu từ
+chính nhân vật Mulon, kỷ luật màu 60/30/10, responsive
+360→desktop: xem [`mulon/webapp/DESIGN.md`](mulon/webapp/DESIGN.md).
+
+> **Tuỳ chọn cho chủ bot — video hồ sơ:** Telegram cho bot đặt
+> một *video hồ sơ* qua BotFather (clip lặp 800×800, H.264,
+> tối đa 10 giây, tối đa 2MB, không tiếng). Đó chỉ là MỘT clip
+> duy nhất cho mọi hoàn cảnh — không đổi theo trạng thái. Các
+> trạng thái thật của avatar (rảnh / đang làm / chờ duyệt /
+> xong / lỗi) chỉ có bên trong Mini App, vẽ bằng CSS trên ảnh
+> tĩnh sẵn có.
 
 ## Công cụ dòng lệnh
 
@@ -219,7 +276,7 @@ Trong group có người khác, bot chỉ lên tiếng khi được nhắc tên,
 
 ```bash
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/python -m pytest tests/ -q     # 147 test
+.venv/bin/python -m pytest tests/ -q     # 221 test
 .venv/bin/python -m mulon.evals          # stub offline: 30/30, cổng 85%
 ```
 
@@ -253,7 +310,7 @@ thật qua proxy với cùng bộ case. CI (GitHub Actions) chạy pytest
 
 ```
 mulon/          Mã nguồn agent (gateway, core, memory, surfaces…)
-tests/          147 test — mỗi phase một cụm test riêng
+tests/          221 test — mỗi phase một cụm test riêng
 dossier/        SOUL / IDENTITY / USER / MEMORY / FEED / HEARTBEAT…
 docs/           Tài liệu thiết kế kỹ thuật đầy đủ
 evals/          Bộ eval vàng (golden.jsonl) + case sinh từ correction
