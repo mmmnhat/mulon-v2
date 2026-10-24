@@ -523,6 +523,30 @@ pre.content{
 }
 .field-input:focus-visible{outline:2px solid var(--lav-deep);
   outline-offset:1px}
+textarea.field-input{
+  padding:var(--s2) var(--s3); min-height:80px;
+  resize:vertical; line-height:var(--lh-body);
+}
+select, select.field-input, .mkt-select{
+  -webkit-appearance:none; -moz-appearance:none; appearance:none;
+  display:inline-block; min-height:44px;
+  padding:0 34px 0 var(--s3);
+  border:1px solid var(--line); border-radius:var(--r-btn);
+  background-color:var(--surface); color:var(--ink);
+  font:inherit; font-size:var(--fs-cap);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+  background-size:14px 14px;
+  cursor:pointer;
+  box-sizing:border-box;
+}
+select:focus, select.field-input:focus, .mkt-select:focus{
+  outline:2px solid var(--lav-deep); outline-offset:1px;
+}
+select option{
+  background:var(--paper); color:var(--ink);
+}
 .mkt-text{
   width:100%; border:0; resize:vertical; background:var(--surface);
   color:var(--ink); font-family:ui-monospace, Menlo, monospace;
@@ -531,10 +555,7 @@ pre.content{
 }
 .mkt-text:focus{outline:none}
 .mkt-select{
-  min-height:44px; max-width:56%; padding:0 var(--s2);
-  border:1px solid var(--line); border-radius:var(--r-btn);
-  background:var(--surface); color:var(--ink);
-  font:inherit; font-size:var(--fs-cap);
+  max-width:56%; padding:0 30px 0 var(--s2);
 }
 .mono-block{
   white-space:pre-wrap; word-break:break-all;
@@ -825,12 +846,12 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       placeholder="Nhãn (tuỳ chọn)" autocomplete="off"
       style="margin-top:8px">
     <div class="btn-row" style="padding:12px 0 0">
-      <select id="feed-src-trust" class="field-input" style="width:auto">
+      <select id="feed-src-trust" class="field-input" style="width:auto; flex:1">
         <option value="high">Tin cậy cao</option>
         <option value="normal" selected>Tin cậy thường</option>
         <option value="low">Tin cậy thấp</option>
       </select>
-      <button class="btn btn-accent btn-sm" id="feed-src-add">Ghim nguồn</button>
+      <button class="btn btn-accent btn-sm" id="feed-src-add" style="flex-shrink:0">Ghim nguồn</button>
     </div>
   </div>
   <div class="card">

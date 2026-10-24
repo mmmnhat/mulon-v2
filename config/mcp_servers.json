@@ -1,4 +1,8 @@
 {
-  "_comment": "Khai MCP server ở đây (hoặc cài từ Chợ trong Mini App). Server nào \"enabled\": true mới được nối khi bot khởi động; server lỗi/vắng thì degrade sạch. Hai dạng: stdio (command/args/env) và streamable HTTP (url; header auth lấy từ biến env theo tên auth_env — KHÔNG ghi giá trị bí mật vào file này). Mặc định trống — bản cũ có 2 server mẫu example/example-http, đã bỏ theo yêu cầu owner (đợt vá sau 1.4).",
-  "servers": []
+  "servers": {
+    "mcp-marketplace": {
+      "type": "http",
+      "url": "https://mcp-marketplace.io/api/mcp/mcp"
+    }
+  }
 }

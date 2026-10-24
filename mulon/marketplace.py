@@ -518,6 +518,11 @@ def write_mcp_file(path: Path, data: dict) -> None:
 
 def _entries_of(data: dict) -> list[dict]:
     servers = data.get("servers")
+    if servers is None:
+        servers = data.get("mcpServers")
+    if isinstance(servers, dict):
+        return [{"name": k, **v} if isinstance(v, dict) else {"name": k}
+                for k, v in servers.items()]
     return servers if isinstance(servers, list) else []
 
 

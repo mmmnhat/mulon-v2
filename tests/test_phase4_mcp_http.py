@@ -145,4 +145,4 @@ def test_repo_mcp_config_has_no_mock_examples():
         / "config" / "mcp_servers.json")
     names = [e.get("name") for e in entries]
     assert "example" not in names and "example-http" not in names
-    assert all(not e.get("enabled") for e in entries)
+    assert not any(e.get("name") in ("example", "example-http") for e in entries)

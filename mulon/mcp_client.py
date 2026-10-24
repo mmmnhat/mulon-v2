@@ -59,7 +59,21 @@ def load_server_configs(path: str | Path) -> list[dict]:
     except Exception as exc:
         logger.warning("đọc %s lỗi: %s", p, exc)
         return []
-    servers = data.get("servers") if isinstance(data, dict) else None
+    if not isinstance(data, dict):
+        return []
+    servers = data.get("servers")
+    if servers is None:
+        servers = data.get("mcpServers")
+    if isinstance(servers, dict):
+        out = []
+        for name, cfg in servers.items():
+            if isinstance(cfg, dict):
+                item = dict(cfg)
+                item["name"] = item.get("name") or name
+                if "enabled" not in item:
+                    item["enabled"] = True
+                out.append(item)
+        return out
     if not isinstance(servers, list):
         return []
     return [s for s in servers if isinstance(s, dict) and s.get("name")]
@@ -97,8 +111,8 @@ def _result_to_dict(result) -> dict:
 
 
 def _transport_of(entry: dict) -> str:
-    """'http' khi entry có url hoặc transport khai rõ; còn lại stdio."""
-    declared = str(entry.get("transport") or "").lower()
+    """'http' khi entry có url hoặc transport/type khai rõ; còn lại stdio."""
+    declared = str(entry.get("transport") or entry.get("type") or "").lower()
     if declared in ("http", "streamable-http", "streamable_http"):
         return "http"
     if declared == "stdio":
