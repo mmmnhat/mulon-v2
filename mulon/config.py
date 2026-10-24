@@ -199,6 +199,41 @@ class Config:
     # Thẻ duyệt (policy nấc "ask") hết hạn sau ngần này giây.
     approval_timeout_s: float = 60.0
 
+    # --- 1.3.0: MCP Marketplace (spec marketplace mục 10.7 +
+    # quyết định owner 15.3) ---
+    # Chỉ server miễn phí + local stdio; không remote, không paid.
+    marketplace_enabled: bool = True
+    # Bundle tuyển chọn đóng gói cùng bản phát hành (nguồn cài đặt
+    # chính) + snapshot catalog đã tự tải về (chỉ dữ kiện niêm yết).
+    marketplace_curated_path: Path = field(
+        default_factory=lambda: PROJECT_ROOT / "config"
+        / "marketplace_curated.json")
+    marketplace_catalog_path: Path = field(
+        default_factory=lambda: PROJECT_ROOT / "data"
+        / "marketplace_catalog.json")
+    # Sổ marketplace: installed registry + operation journal +
+    # trạng thái restart/catalog (JSON nguyên tử, không chứa
+    # secret value — bí mật chỉ ở Vault).
+    marketplace_store_path: Path = field(
+        default_factory=lambda: PROJECT_ROOT / "data"
+        / "marketplace.json")
+    # Catalog tự cập nhật (owner duyệt riêng 2026-10-24): file
+    # tuyển chọn duy trì tại repo GitHub của dự án; kiểm tra lúc
+    # khởi động + hàng tuần, kiểm checksum trước khi thay, CHỈ
+    # cập nhật dữ kiện — không bao giờ tự cài server.
+    marketplace_catalog_url: str = (
+        "https://raw.githubusercontent.com/mmmnhat/mulon-v2/main"
+        "/config/marketplace_curated.json")
+    marketplace_catalog_auto_update: bool = True
+    marketplace_catalog_check_interval_s: int = 7 * 24 * 3600
+    marketplace_catalog_timeout_s: float = 15.0
+    # TTL của plan + mỗi stage duyệt operation (giây).
+    marketplace_operation_ttl_s: int = 900
+    # Ngưỡng điểm bảo mật để được cài nhanh từ listing có điểm.
+    marketplace_security_min_score: float = 7.0
+    # Trần kích thước payload import/catalog (byte).
+    marketplace_max_input_bytes: int = 65536
+
     @classmethod
     def load(cls, env_file: str | Path | None = None) -> "Config":
         """Nạp .env (nếu có) rồi đọc env. Không ghi secret ra bất cứ đâu."""
@@ -293,6 +328,31 @@ class Config:
             webapp_app_name=_env("WEBAPP_APP_NAME", ""),
             webapp_port=_env_int("WEBAPP_PORT", 8320),
             approval_timeout_s=_env_float("APPROVAL_TIMEOUT_S", 60.0),
+            marketplace_enabled=_env_bool("MARKETPLACE_ENABLED", True),
+            marketplace_curated_path=_resolve(_env(
+                "MARKETPLACE_CURATED_PATH",
+                "config/marketplace_curated.json")),
+            marketplace_catalog_path=_resolve(_env(
+                "MARKETPLACE_CATALOG_PATH",
+                "data/marketplace_catalog.json")),
+            marketplace_store_path=_resolve(_env(
+                "MARKETPLACE_STORE_PATH", "data/marketplace.json")),
+            marketplace_catalog_url=_env(
+                "MARKETPLACE_CATALOG_URL",
+                "https://raw.githubusercontent.com/mmmnhat/mulon-v2"
+                "/main/config/marketplace_curated.json"),
+            marketplace_catalog_auto_update=_env_bool(
+                "MARKETPLACE_CATALOG_AUTO_UPDATE", True),
+            marketplace_catalog_check_interval_s=_env_int(
+                "MARKETPLACE_CATALOG_CHECK_INTERVAL_S", 7 * 24 * 3600),
+            marketplace_catalog_timeout_s=_env_float(
+                "MARKETPLACE_CATALOG_TIMEOUT_S", 15.0),
+            marketplace_operation_ttl_s=_env_int(
+                "MARKETPLACE_OPERATION_TTL_S", 900),
+            marketplace_security_min_score=_env_float(
+                "MARKETPLACE_SECURITY_MIN_SCORE", 7.0),
+            marketplace_max_input_bytes=_env_int(
+                "MARKETPLACE_MAX_INPUT_BYTES", 65536),
         )
 
     def masked_summary(self) -> dict:
@@ -344,4 +404,9 @@ class Config:
                                       and self.webapp_app_name),
             "webapp_port": self.webapp_port,
             "approval_timeout_s": self.approval_timeout_s,
+            "marketplace_enabled": self.marketplace_enabled,
+            "marketplace_catalog_auto_update":
+                self.marketplace_catalog_auto_update,
+            "marketplace_security_min_score":
+                self.marketplace_security_min_score,
         }
