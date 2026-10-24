@@ -2,6 +2,9 @@
 # Lưu ý: aiogram 3.31 yêu cầu pydantic <2.14, nên pydantic ghim ở 2.13.x.
 litellm>=1.106,<1.107
 aiogram>=3.31,<3.32
+# 1.2.0: Mini App server (aiogram vốn đã kéo aiohttp theo — khai
+# báo tường minh vì webapp_server dùng trực tiếp).
+aiohttp>=3.9,<3.15
 aiosqlite>=0.22,<0.23
 pydantic>=2.13,<2.14
 httpx>=0.28,<0.29
