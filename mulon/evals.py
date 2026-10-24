@@ -289,9 +289,10 @@ async def _seed(memory, session_key: str, setup: dict, workspace: Path):
             salience=float(fact.get("salience", 0.8)),
             source="eval_seed",
         )
+    ws = workspace.resolve()
     for name, content in (setup.get("files") or {}).items():
-        target = (workspace / str(name)).resolve()
-        if workspace not in target.parents and target != workspace:
+        target = (ws / str(name)).resolve()
+        if ws not in target.parents and target != ws:
             raise ValueError(f"setup file ra ngoài workspace: {name}")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(str(content), encoding="utf-8")

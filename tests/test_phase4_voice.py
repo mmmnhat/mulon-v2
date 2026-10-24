@@ -243,7 +243,8 @@ async def test_voice_reply_toggle_and_send(cfg, tmp_path):
 
 
 async def test_voice_service_wraps_module_functions(cfg, monkeypatch):
+    monkeypatch.setattr(voice_mod, "whisper_available", lambda: False)
     svc = VoiceService(cfg, gateway=None)
-    assert svc.stt_available() is False  # venv test chưa cài whisper
+    assert svc.stt_available() is False
     monkeypatch.setattr(voice_mod, "whisper_available", lambda: True)
     assert svc.stt_available() is True
