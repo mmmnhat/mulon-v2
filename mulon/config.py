@@ -121,6 +121,21 @@ class Config:
     # (bài học vụ user xóa toàn bộ job tự động 2026-10-22).
     scheduler_enabled: bool = False
     scheduler_tick_s: int = 30
+    # Feed chủ động (1.4, spec + quyết định owner 0.2b): LUÔN TỰ
+    # ĐỘNG — các giá trị dưới đây chỉ là MẶC ĐỊNH KHỞI TẠO (seed);
+    # cài đặt hiệu lực sống trong DB (bảng feed_settings), đổi
+    # qua Mini App/chat. KHÔNG có công tắc tắt Feed ở đây: job
+    # feed-auto là job hệ thống nội bộ, tách khỏi scheduler
+    # thường ở trên (cô lập tick — planning.py).
+    feed_auto_cron: str = "0 8,20 * * *"
+    feed_quiet_hours: str = "23:00-07:00"
+    feed_max_posts_per_day: int = 3
+    feed_daily_token_budget: int = 60_000
+    # Trần fetch nguồn ghim + tìm kiếm trong 1 lượt collector.
+    feed_fetch_max_sources: int = 8
+    # Trần leo thang sang browser render khi trang fetch thường
+    # quá mỏng (mỗi lượt).
+    feed_web_read_max: int = 2
     # Subagents: trần riêng + tối đa chạy đồng thời.
     subagent_max_concurrent: int = 4
     subagent_max_llm_calls: int = 15
@@ -289,6 +304,15 @@ class Config:
             mcp_call_timeout_s=_env_float("MCP_CALL_TIMEOUT_S", 60.0),
             scheduler_enabled=_env_bool("SCHEDULER_ENABLED", False),
             scheduler_tick_s=_env_int("SCHEDULER_TICK_S", 30),
+            feed_auto_cron=_env("FEED_AUTO_CRON", "0 8,20 * * *"),
+            feed_quiet_hours=_env("FEED_QUIET_HOURS", "23:00-07:00"),
+            feed_max_posts_per_day=_env_int(
+                "FEED_MAX_POSTS_PER_DAY", 3),
+            feed_daily_token_budget=_env_int(
+                "FEED_DAILY_TOKEN_BUDGET", 60_000),
+            feed_fetch_max_sources=_env_int(
+                "FEED_FETCH_MAX_SOURCES", 8),
+            feed_web_read_max=_env_int("FEED_WEB_READ_MAX", 2),
             subagent_max_concurrent=_env_int("SUBAGENT_MAX_CONCURRENT", 4),
             subagent_max_llm_calls=_env_int("SUBAGENT_MAX_LLM_CALLS", 15),
             subagent_token_budget=_env_int("SUBAGENT_TOKEN_BUDGET", 60_000),
@@ -379,6 +403,10 @@ class Config:
             "default_timezone": self.default_timezone,
             "mcp_config_path": str(self.mcp_config_path),
             "scheduler_enabled": self.scheduler_enabled,
+            "feed_auto_cron": self.feed_auto_cron,
+            "feed_quiet_hours": self.feed_quiet_hours,
+            "feed_max_posts_per_day": self.feed_max_posts_per_day,
+            "feed_daily_token_budget": self.feed_daily_token_budget,
             "subagent_max_concurrent": self.subagent_max_concurrent,
             "browser_profile_dir": (
                 str(self.browser_profile_dir)
