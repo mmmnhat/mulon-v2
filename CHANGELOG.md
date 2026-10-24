@@ -1,5 +1,73 @@
 # CHANGELOG
 
+## 1.4.0 — Feed chủ động: Feed tự chạy theo lịch, tự tìm nguồn tin cậy
+
+- **Quyết định owner 0.2b (thắng mọi đề xuất trái ngược trong
+  spec):** Feed **LUÔN TỰ ĐỘNG** ngay sau nâng cấp — không
+  công tắc tổng, không bước kích hoạt, **không lệnh
+  `/feed_auto`**; `/feed_now` rút khỏi menu lệnh (giữ handler
+  ẩn tương thích, bài qua đó ghi origin `manual`); giữ
+  `/feedbrief`, thêm `/feedsources`. Nghiệm thu: nâng cấp
+  xong, tới nhịp đầu tiên là có bài auto mà owner không thao
+  tác gì. Nhịp mặc định `0 8,20 * * *` (08:00 + 20:00), trần
+  3 bài/ngày, giờ yên lặng 23:00–07:00, trần token model rẻ
+  60.000/ngày.
+- **Module mới:** `mulon/feed_auto.py` (FeedAutoRunner: cổng
+  lượt — tạm dừng/giờ yên lặng/trần token/trần bài; ghi
+  trajectory `feed_run` kèm trạng thái từng lượt; 3 lượt lỗi
+  liên tiếp → tự tạm dừng + báo owner đúng 1 tin vào topic
+  Lịch sử & Hệ thống; `resume()` qua Mini App) và
+  `mulon/websearch.py` (tìm kiếm web không API key trả phí:
+  DuckDuckGo HTML/Lite → Bing, parser thuần + giải redirect;
+  fetch trang cho collector). Tool `web_search` (chỉ đọc)
+  đăng ký cho agent ngoài registry lõi.
+- **Job hệ thống nội bộ + cô lập tick (planning.py):**
+  SchedulerService dispatch payload marker
+  `{"kind": "feed_auto", "v": 1}` thẳng tới handler xác định
+  — KHÔNG qua agent loop, không tool ghi, không approval.
+  `run_due_once(include_regular=False)`: lịch thường tới hạn
+  bị giữ nguyên (không bắn, không tiêu thụ next_run) —
+  bật tick cho Feed không làm lịch thường (mặc định tắt)
+  chạy theo. Tools `list_schedules`/`cancel_schedule` không
+  thấy/không tắt được job nội bộ.
+- **Collector ngoài (feed.py):** tự search theo chủ đề nóng
+  (goals + cam kết sắp tới + chủ đề taste đang hưởng ứng),
+  cộng nguồn owner ghim (section SOURCES trong FEED.md, chỉ
+  là bổ sung) và connector khai `feed_snapshot` (chưa có
+  adapter nào khai → rỗng sạch). Chấm tin cậy tất định
+  (`.gov`/`.edu`/hãng tin lớn/wikipedia = cao; TLD tín hiệu
+  thấp = thấp; link rút gọn + denylist = loại), cache theo
+  hash nội dung (hash không đổi = tư liệu cũ, hạ ưu tiên;
+  được dùng lại 1 lần khi hash đổi), đối chiếu chéo: số liệu
+  chỉ từ 1 nguồn thấp duy nhất thì không vào bài, leo thang
+  browser render khi trang quá mỏng (trần/lượt).
+- **Kỷ luật sau sinh:** kiểm tất định trước khi đăng — trích
+  dẫn `[n]`/URL phải thuộc đúng tư liệu đã lấy về (sai → sinh
+  lại tối đa 1 lần → bỏ bài), chống trùng 3 lớp (URL đã trích
+  7 ngày theo hash; overlap đề tài gấp dấu > 0,6; trần ngày),
+  thiếu tư liệu → bỏ lượt không đăng bài rỗng/bịa. Taste v2:
+  reaction gộp theo NGUỒN và theo CHỦ ĐỀ đổi được khâu chọn
+  tư liệu (xếp hạng tất định), nguồn bị 👎 ≥3 lần và 0 👍
+  trong 14 ngày bị ghi nhận hạ tin cậy.
+- **Dữ liệu (memory.py):** `feed_posts` thêm `origin` +
+  `topic` (migration idempotent); bảng mới `feed_post_sources`
+  (URL đã trích theo bài), `feed_material_cache` (hash nội
+  dung theo URL), `feed_settings` (cài đặt Feed hiệu lực —
+  DB thắng env, env chỉ seed lần đầu).
+- **Điều khiển:** Mini App thêm màn Cài đặt → Feed chủ động
+  (trạng thái, chạy ngay, nhịp + preset, giờ yên lặng, trần
+  bài/token, nguồn ghim thêm/xoá/bật-tắt, denylist) qua
+  `POST /api/feed` — cố ý không có action tắt; `/api/state`
+  thêm block `feed`; tab Lịch hiện job Feed là mục hệ thống
+  không gạt tắt được. Sau `/setup_topics` thành công, group
+  được lưu làm đích đăng Feed. Dry-run thêm block `v14`.
+- **Điểm lệch có chủ đích so với spec:** eval vàng §11.3 (20
+  ca trích dẫn) là hạng mục chạy ngoài CI khi phát hành,
+  không đóng thành unit test đợt này; nguồn social qua MCP
+  tool (đường 2 của §3.3) không làm — chỉ interface
+  `feed_snapshot`; vết lượt chạy dùng 1 kind trajectory
+  `feed_run` + `payload.status` thay cho nhiều kind rời.
+
 ## 1.3.0 — Chợ MCP (Marketplace): cài MCP server local miễn phí qua 2 lần duyệt
 
 - **Phạm vi đã khoá theo quyết định owner:** chỉ server **miễn
