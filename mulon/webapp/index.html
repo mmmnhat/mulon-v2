@@ -101,36 +101,27 @@ button, .backrow, .tgl, .segbar, .swatch{
 }
 .avatar img{position:relative; z-index:1; width:100%; height:100%;
   object-fit:cover; display:block}
-/* avatar có trạng thái — CSS thuần trên asset sẵn có */
-.avatar.st-idle{animation:av-breathe 4.2s ease-in-out infinite}
-@keyframes av-breathe{
-  0%,100%{transform:translateY(0) scale(1)}
-  50%{transform:translateY(-2px) scale(1.015)}}
-.avatar.st-working{animation:av-work .9s ease-in-out infinite}
-@keyframes av-work{
-  0%,100%{transform:translateY(0) rotate(0deg)}
-  25%{transform:translateY(-1.5px) rotate(-1.6deg)}
-  75%{transform:translateY(-1.5px) rotate(1.6deg)}}
-.avatar.st-working:after{
-  content:""; position:absolute; inset:-8px; border-radius:50%;
-  border:2px solid transparent; border-top-color:var(--lav);
-  border-right-color:var(--lav); animation:av-spin 1.15s linear infinite;
+/* Avatar sprite states (1.3.0): phát ATLAS PNG thật (bộ
+   mulon-states v0 owner đã chốt: lưới 5x5, ô 256x256) theo
+   trạng thái app biết thật từ /api/state. Một ô phóng vừa vòng
+   tròn bằng background-size 500% 500%; vị trí frame theo % =
+   chỉ số/(số ô mỗi chiều - 1)*100. Nhịp đổi frame do JS
+   (spritePlay) theo fps của manifest. Lớp sprite chỉ hiện khi
+   atlas tải được (class .sprite-on do JS gắn sau khi probe
+   ảnh thành công) — thiếu asset thì lộ ảnh tĩnh /app/avatar,
+   dưới nữa là chữ cái đầu trên nền tint tím theo theme. */
+.avatar .sprite{
+  position:absolute; inset:0; z-index:2; display:none;
+  background-image:url("/app/assets/sprite-sheet-alpha.png");
+  background-size:500% 500%; background-repeat:no-repeat;
+  background-position:0% 50%;
 }
-@keyframes av-spin{to{transform:rotate(360deg)}}
-.avatar.st-waiting{animation:av-wait 1.15s ease-out infinite}
-@keyframes av-wait{
-  0%{box-shadow:0 0 0 0 rgba(149,152,196,.55)}
-  70%{box-shadow:0 0 0 12px rgba(149,152,196,0)}
-  100%{box-shadow:0 0 0 0 rgba(149,152,196,0)}}
-.avatar.st-done{animation:av-done .7s var(--ease)}
-@keyframes av-done{
-  0%{transform:translateY(0)} 40%{transform:translateY(-11px)}
-  70%{transform:translateY(1px)} 100%{transform:translateY(0)}}
-.avatar.st-error{animation:av-err .5s var(--ease)}
-@keyframes av-err{
-  0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)}
-  40%{transform:translateX(6px)} 60%{transform:translateX(-5px)}
-  80%{transform:translateX(4px)}}
+.avatar.sprite-on .sprite{display:block}
+.avatar.sprite-on img{visibility:hidden}
+/* Frame sprite trong suốt: chữ cái dự phòng phải ẩn hẳn khi
+   sprite bật, nếu không nó ló qua phần trong suốt của frame
+   thành "vết lạ" cạnh nhân vật (bắt được ở render 1.3.0). */
+.avatar.sprite-on #avatar-letter{visibility:hidden}
 .app-name{font-size:var(--fs-name); font-weight:var(--fw-s);
   letter-spacing:-0.01em; line-height:var(--lh-title)}
 .app-status{font-size:var(--fs-cap); color:var(--ink2);
@@ -510,6 +501,61 @@ pre.content{
   text-align:center; z-index:50; box-shadow:var(--shadow-pop);
 }
 #toast.show{opacity:.96}
+/* ---------- Chợ MCP (1.3) ---------- */
+/* Segmented phụ trong màn con: cùng pattern segbar (track
+   surface2, active surface + ink đậm, chỉ chữ) nhưng không
+   dính — header đã ẩn ở màn con. */
+.segbar.inline{position:static}
+.mkt-search{display:flex; gap:var(--s2); align-items:center;
+  padding:var(--s3) var(--s4)}
+.field-input{
+  flex:1; min-width:0; min-height:44px; padding:0 var(--s3);
+  border:1px solid var(--line); border-radius:var(--r-btn);
+  background:var(--surface); color:var(--ink);
+  font:inherit; font-size:var(--fs-body);
+}
+.field-input:focus-visible{outline:2px solid var(--lav-deep);
+  outline-offset:1px}
+.mkt-text{
+  width:100%; border:0; resize:vertical; background:var(--surface);
+  color:var(--ink); font-family:ui-monospace, Menlo, monospace;
+  font-size:var(--fs-cap); line-height:var(--lh-body);
+  padding:var(--s4);
+}
+.mkt-text:focus{outline:none}
+.mkt-select{
+  min-height:44px; max-width:56%; padding:0 var(--s2);
+  border:1px solid var(--line); border-radius:var(--r-btn);
+  background:var(--surface); color:var(--ink);
+  font:inherit; font-size:var(--fs-cap);
+}
+.mono-block{
+  white-space:pre-wrap; word-break:break-all;
+  margin:0 var(--s4) var(--s3); padding:var(--s3);
+  font-family:ui-monospace, Menlo, monospace;
+  font-size:var(--fs-cap); line-height:var(--lh-body);
+  background:var(--surface2); border-radius:8px;
+}
+/* Nút chữ nguy hiểm (Gỡ): không nền, nhẹ hơn nút chính. */
+.btn-danger-text{background:transparent; color:var(--err)}
+.btn-danger-text:active{background:var(--surface2)}
+.btn-auto{width:auto; flex:0 0 auto}
+.mkt-fresh{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:var(--s2); padding:0 var(--s1); margin-bottom:var(--s2);
+  font-size:var(--fs-cap); color:var(--ink2);
+}
+.mkt-cat.active .r-title{font-weight:var(--fw-s)}
+.detail-text{padding:0 var(--s4) var(--s3);
+  font-size:var(--fs-body); line-height:var(--lh-body)}
+.detail-list{padding:0 var(--s4) var(--s3);
+  font-size:var(--fs-cap); color:var(--ink2);
+  line-height:var(--lh-body)}
+.op-note{padding:var(--s2) var(--s4);
+  font-size:var(--fs-cap); color:var(--ink2);
+  line-height:var(--lh-body)}
+.fp{word-break:break-all}
+a.ext{color:var(--lav-deep); word-break:break-all}
 /* ---------- responsive ---------- */
 @media (min-width:640px){
   body{padding-left:var(--s6); padding-right:var(--s6)}
@@ -543,8 +589,9 @@ pre.content{
 
 <!-- ================= HEADER ================= -->
 <header class="app-header" id="app-header">
-  <div class="avatar st-idle" id="avatar-box"><img src="/app/avatar" alt=""
-    onerror="this.remove()"><span id="avatar-letter">M</span></div>
+  <div class="avatar" id="avatar-box"><img src="/app/avatar" alt=""
+    onerror="this.remove()"><span id="avatar-letter">M</span><div
+    class="sprite" id="avatar-sprite"></div></div>
   <div class="head-meta">
     <div class="app-name">Mulon</div>
     <div class="app-status"><span class="dot" id="status-dot"></span>
@@ -633,6 +680,14 @@ pre.content{
   <div class="card"><pre class="content" id="profile-content"></pre></div>
 </section>
 
+<!-- đọc nội dung 1 kỹ năng (SKILL.md) -->
+<section id="screen-skill" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
+  <h2 class="screen-title" id="skill-title">Kỹ năng</h2>
+  <div class="note" id="skill-source"></div>
+  <div class="card"><pre class="content" id="skill-content"></pre></div>
+</section>
+
 <!-- ================= TAB: CÀI ĐẶT ================= -->
 <section id="tab-caidat" class="hidden">
   <div class="card">
@@ -688,12 +743,71 @@ pre.content{
     máy đó và của phiên đang xem.</div>
 </section>
 
-<!-- Cài đặt con: Kết nối -->
+<!-- Cài đặt con: Kết nối + Chợ MCP -->
 <section id="screen-connectors" class="hidden">
   <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
   <h2 class="screen-title">Công cụ kết nối</h2>
-  <div id="connector-note"></div>
-  <div class="card"><div id="connector-list"></div></div>
+  <div class="segbar inline" id="conn-seg">
+    <button data-conn-tab="installed" class="active">Đã cài</button>
+    <button data-conn-tab="market">Chợ</button>
+  </div>
+  <div id="conn-view-installed">
+    <div id="connector-note"></div>
+    <div class="card"><div id="connector-list"></div></div>
+    <div class="card"><div class="row" id="conn-add-manual">
+      <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+      <div class="r-main"><div class="r-title">Thêm thủ công</div></div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div></div>
+  </div>
+  <div id="conn-view-market" class="hidden">
+    <div class="card">
+      <div class="mkt-search">
+        <input id="mkt-q" class="field-input" type="search"
+          placeholder="Tìm MCP…" enterkeyhint="search">
+        <button class="btn btn-soft btn-sm" id="mkt-search-btn">Tìm</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Danh mục</div>
+      <div id="mkt-cats"></div>
+    </div>
+    <div class="mkt-fresh">
+      <span id="mkt-fresh-text"></span>
+      <button class="btn btn-text btn-sm btn-auto" id="mkt-refresh">Làm mới</button>
+    </div>
+    <div id="mkt-stale"></div>
+    <div class="card"><div id="mkt-list"></div></div>
+  </div>
+</section>
+
+<!-- Chợ MCP: Chi tiết listing -->
+<section id="screen-listing" class="hidden">
+  <div class="backrow" id="listing-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Kết nối</div>
+  <h2 class="screen-title" id="listing-title">Chi tiết</h2>
+  <div id="listing-body"></div>
+</section>
+
+<!-- Chợ MCP: Wizard / operation -->
+<section id="screen-install" class="hidden">
+  <div class="backrow" id="install-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Kết nối</div>
+  <h2 class="screen-title" id="install-title">Cài đặt MCP</h2>
+  <div id="install-body"></div>
+  <button class="btn btn-text" id="install-cancel">Huỷ operation</button>
+</section>
+
+<!-- Chợ MCP: Nhập thủ công -->
+<section id="screen-import" class="hidden">
+  <div class="backrow" id="import-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Kết nối</div>
+  <h2 class="screen-title">Nhập thủ công</h2>
+  <div class="note">Dán JSON cấu hình MCP vào đây.</div>
+  <div class="card"><textarea id="import-text" class="mkt-text"
+    rows="10" spellcheck="false"
+    placeholder='{"mcpServers": {…}}'></textarea></div>
+  <div id="import-error"></div>
+  <div class="btn-row" style="padding:0">
+    <button class="btn btn-accent" id="import-parse">Phân tích</button>
+  </div>
 </section>
 
 <!-- Cài đặt con: Vault -->
@@ -701,10 +815,21 @@ pre.content{
   <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
   <h2 class="screen-title">Kho lưu trữ an toàn</h2>
   <div class="note">Chỉ hiện nhãn và mã tham chiếu, không hiện
-    giá trị.</div>
+    giá trị. Nhập bí mật mới ngay tại đây: giá trị đi thẳng vào
+    kho trên máy đang chạy Mulon, lưu xong không hiện lại ở
+    đâu nữa.</div>
   <div class="card"><div id="vault-list"></div></div>
-  <div class="btn-row" style="padding:0">
-    <button class="btn btn-accent" id="vault-add">Thêm qua form trong chat</button>
+  <div class="card">
+    <div class="card-title">Thêm bí mật mới</div>
+    <input id="vault-label" class="field-input" type="text"
+      placeholder="Nhãn (vd: API key dịch vụ X)" autocomplete="off">
+    <input id="vault-value" class="field-input" type="password"
+      placeholder="Giá trị bí mật" autocomplete="off"
+      style="margin-top:8px">
+    <div class="btn-row" style="padding:12px 0 0">
+      <button class="btn btn-accent" id="vault-save">Lưu vào kho</button>
+    </div>
+    <div id="vault-result"></div>
   </div>
 </section>
 
@@ -798,9 +923,13 @@ function todayLabel(iso){
 /* ---------------- điều hướng ---------------- */
 const MAIN_TABS = ["viec","pheduyet","lich","hoso","caidat"];
 const TAB_OF_SCREEN = {"screen-task":"viec","screen-profile":"hoso",
+  "screen-skill":"hoso",
   "screen-connectors":"caidat","screen-vault":"caidat",
-  "screen-policy":"caidat","screen-system":"caidat"};
+  "screen-policy":"caidat","screen-system":"caidat",
+  "screen-listing":"caidat","screen-install":"caidat",
+  "screen-import":"caidat"};
 function showMain(tab){
+  stopOpPoll();
   mainTab = tab; subScreen = null;
   document.body.classList.remove("split");
   MAIN_TABS.forEach(t => $("tab-" + t).classList.toggle("hidden", t !== tab));
@@ -814,6 +943,7 @@ function showMain(tab){
   window.scrollTo(0, 0);
 }
 function showSub(id){
+  if (id !== "screen-install") stopOpPoll();
   subScreen = id;
   MAIN_TABS.forEach(t => $("tab-" + t).classList.add("hidden"));
   Object.keys(TAB_OF_SCREEN).forEach(s =>
@@ -882,7 +1012,13 @@ async function pickTheme(key){
   haptic("select");
   try {
     await api("/api/profile/theme", "POST", {theme: key});
-  } catch (e) { /* thiếu API cũ: theme local vẫn giữ, áp ngay */ }
+  } catch (e) {
+    /* Áp màu trên máy này vẫn giữ, nhưng lỗi lưu KHÔNG được
+       nuốt im lặng nữa (gói vá 1.3.0): owner phải thấy vì sao
+       màu chưa bền qua các lần mở app. */
+    toast("Đã áp màu trên máy này, nhưng chưa lưu được lên " +
+      "máy chủ: " + e.message);
+  }
 }
 (function initThemes(){
   const box = $("theme-swatches");
@@ -903,12 +1039,112 @@ async function pickTheme(key){
 })();
 
 /* ---------------- header: trạng thái lời thường + avatar ---------- */
-let lastTaskStatus = null;
-function flashAvatar(cls){
-  const box = $("avatar-box");
-  box.className = "avatar " + cls;
-  setTimeout(renderStatus, cls === "st-done" ? 750 : 550);
+/* Avatar sprite states (1.3.0): phát atlas thật theo trạng thái.
+   Hình học/fps/loop lấy từ manifest đi kèm atlas
+   (assets/mulon-states-manifest.json: ô 256, lưới 5 cột;
+   hàng done 0, error 1, idle 2, waiting 3, working 4). Bảng
+   SPRITE_FALLBACK trùng manifest — chỉ dùng khi nạp manifest
+   hỏng. Trạng thái KHÔNG bịa: nền suy từ /api/state (có thẻ chờ
+   duyệt -> waiting; đang chạy lượt -> working; còn lại idle);
+   done/error là state chiếu MỘT lần khi lượt việc thật vừa
+   chuyển sang xong/lỗi, chiếu hết thì tự về trạng thái nền. */
+const SPRITE_FALLBACK = {
+  done:{row:0, frames:5, fps:8, loop:false},
+  error:{row:1, frames:4, fps:6, loop:false},
+  idle:{row:2, frames:4, fps:4, loop:true},
+  waiting:{row:3, frames:4, fps:4, loop:true},
+  working:{row:4, frames:4, fps:6, loop:true},
+};
+const sprite = {cfg: SPRITE_FALLBACK, state: null, frame: 0,
+  cols: 5, rows: 5,
+  timer: null, once: false, ready: false,
+  reduced: !!(window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches)};
+function spritePos(){
+  const el = $("avatar-sprite");
+  const c = sprite.cfg[sprite.state];
+  if (!el || !c) return;
+  // Vị trí % của background bám theo HÌNH HỌC LƯỚI (số cột/số
+  // hàng của atlas), KHÔNG theo số frame của hàng: atlas 5 cột
+  // thì frame f nằm ở f/(5-1). Chia theo (frames-1) sẽ đẩy
+  // frame cuối sang ô thứ 5 (ô trống ở các hàng 4 frame) —
+  // avatar biến mất 1 nhịp, bắt được khi render kiểm 1.3.0.
+  const cols = sprite.cols || 5, rowsN = sprite.rows || 5;
+  const x = (sprite.frame / (cols - 1)) * 100;
+  const y = (c.row / (rowsN - 1)) * 100;
+  el.style.backgroundPosition = x + "% " + y + "%";
 }
+function spriteStop(){
+  if (sprite.timer) clearInterval(sprite.timer);
+  sprite.timer = null;
+}
+function spriteTick(){
+  const c = sprite.cfg[sprite.state];
+  if (!c) return;
+  sprite.frame++;
+  if (sprite.frame >= c.frames){
+    if (c.loop) sprite.frame = 0;
+    else {
+      sprite.frame = c.frames - 1;
+      spritePos(); spriteStop();
+      sprite.once = false; sprite.state = null;
+      spriteApplyBase();
+      return;
+    }
+  }
+  spritePos();
+}
+function spritePlay(name, once){
+  const c = sprite.cfg[name];
+  if (!c || !sprite.ready) return;
+  if (sprite.state === name && sprite.timer && !once) return;
+  spriteStop();
+  sprite.state = name; sprite.frame = 0; sprite.once = !!once;
+  spritePos();
+  if (!sprite.reduced)
+    sprite.timer = setInterval(spriteTick, Math.round(1000 / c.fps));
+  else if (once){ sprite.once = false; sprite.state = null; }
+}
+function spriteBaseState(){
+  const st = (S && S.status) || {busy: false};
+  const pending = (S && S.approvals && S.approvals.pending) || [];
+  return pending.length ? "waiting" : st.busy ? "working" : "idle";
+}
+function spriteApplyBase(){ spritePlay(spriteBaseState(), false); }
+function flashAvatar(stateName){ spritePlay(stateName, true); }
+(function initSprite(){
+  const probe = new Image();
+  probe.onload = () => {
+    sprite.ready = true;
+    $("avatar-box").classList.add("sprite-on");
+    spriteApplyBase();
+  };
+  probe.onerror = () => { /* thiếu atlas: giữ ảnh tĩnh/chữ cái */ };
+  probe.src = "/app/assets/sprite-sheet-alpha.png";
+  fetch("/app/assets/mulon-states-manifest.json")
+    .then(r => (r.ok ? r.json() : null))
+    .then(m => {
+      const rows = m && m.animation && m.animation.rows;
+      if (!rows) return;
+      sprite.cols = m.animation.columns || sprite.cols;
+      sprite.rows = Object.keys(rows).length || sprite.rows;
+      const cfg = {};
+      for (const k of Object.keys(SPRITE_FALLBACK)){
+        const r = rows[k];
+        cfg[k] = r ? {row: r.row, frames: r.frames, fps: r.fps,
+                      loop: !!r.loop} : SPRITE_FALLBACK[k];
+      }
+      sprite.cfg = cfg;
+      if (sprite.ready){
+        const cur = sprite.state;
+        sprite.state = null; spriteStop();
+        spritePlay(cur || spriteBaseState(), false);
+      }
+    })
+    .catch(() => {});
+})();
+
+let lastTaskStatus = null;
 function renderStatus(){
   const st = (S && S.status) || {busy:false};
   const pending = (S && S.approvals.pending) || [];
@@ -918,19 +1154,18 @@ function renderStatus(){
   $("status-text").textContent = st.busy && st.current
     ? (st.current.step || "Đang xử lý")
     : "Sẵn sàng";
-  /* Avatar có trạng thái — cùng nguồn với dòng trạng thái:
-     chờ duyệt > đang làm > rảnh. */
-  const box = $("avatar-box");
-  if (!box.className.includes("st-done")
-      && !box.className.includes("st-error"))
-    box.className = "avatar " + (pending.length ? "st-waiting"
-      : st.busy ? "st-working" : "st-idle");
-  /* Chuyển lượt: xong -> nảy 1 nhịp; lỗi -> lắc 2 nhịp. */
-  const latest = (S && S.tasks && S.tasks[0]) || null;
+  /* Avatar sprite — cùng nguồn với dòng trạng thái: chờ duyệt
+     > đang làm > rảnh. State một lần (done/error) đang chiếu
+     thì không bị trạng thái nền đè. */
+  if (!sprite.once) spriteApplyBase();
+  /* Chuyển lượt VIỆC THẬT (bản ghi task, không phải lượt chat):
+     xong -> chiếu done 1 lần; lỗi -> chiếu error 1 lần. */
+  const latest = ((S && S.tasks) || []).find(t => t.kind === "task")
+    || null;
   if (latest && lastTaskStatus !== null
       && latest.status !== lastTaskStatus
       && (latest.status === "done" || latest.status === "failed")){
-    flashAvatar(latest.status === "done" ? "st-done" : "st-error");
+    flashAvatar(latest.status === "done" ? "done" : "error");
     if (latest.status === "done") toast("Một lượt việc vừa hoàn tất.");
   }
   if (latest) lastTaskStatus = latest.status;
@@ -960,7 +1195,12 @@ function renderTasks(){
   }
   box.innerHTML = tasks.map(t => {
     const sub = taskSub(t);
-    return '<div class="row" data-task="' + esc(t.id) + '">' +
+    /* Lượt chat (kind="turn") không có bản ghi task để mở chi
+       tiết — hàng tĩnh, không gắn data-task. Lượt việc thật
+       (kind="task") mới mở được màn dòng thời gian. */
+    const openable = t.kind === "task";
+    return '<div class="row' + (openable ? "" : " static") + '"' +
+      (openable ? ' data-task="' + esc(t.id) + '"' : "") + '>' +
       '<div class="r-main"><div class="r-title">' + esc(t.title) +
       '</div>' + (sub ? '<div class="r-sub">' + esc(sub) +
       '</div>' : "") + '</div>' +
@@ -1075,6 +1315,7 @@ function renderApprovals(){
   const pending = (S && S.approvals.pending) || [];
   if (pending.length){
     wrap.innerHTML = pending.map(p =>
+      p.kind === "marketplace_operation" ? mktApprovalCard(p) :
       '<div class="card appr-card" id="appr-' + esc(p.approval_id) + '">' +
       '<div class="appr-head"><span class="appr-dot"></span>' +
       '<div class="appr-title">' +
@@ -1103,7 +1344,7 @@ function renderApprovals(){
         try {
           await api("/api/approve", "POST",
             {id: b.dataset.id, decision: b.dataset.appr});
-          flashAvatar("st-done");
+          flashAvatar("done");
           toast("Đã ghi quyết định — thẻ trong chat sẽ được gỡ.");
           await load();
         } catch (e) { toast(e.message); b.disabled = false; }
@@ -1173,9 +1414,16 @@ function renderSchedule(){
     '</div><div class="r-sub">' + esc(it.cron) +
     (it.next_run_at ? " · tới: " + esc(todayLabel(it.next_run_at)) : "") +
     '</div></div>' +
-    '<label class="tgl"><input type="checkbox" data-sched="' +
-    esc(it.id) + '"' + (it.enabled ? " checked" : "") +
-    (it.toggleable ? "" : " disabled") + '><span class="tr"></span></label>' +
+    /* Toggle chỉ khi có trạng thái THẬT phía sau (đổi qua
+       /api/schedule được). Mục không đổi được tại đây (vd
+       heartbeat qua biến môi trường) hiện TRẠNG THÁI BẰNG CHỮ
+       — cấm công tắc trang trí bất động (gói vá 1.3.0). */
+    (it.toggleable
+      ? '<label class="tgl"><input type="checkbox" data-sched="' +
+        esc(it.id) + '"' + (it.enabled ? " checked" : "") +
+        '><span class="tr"></span></label>'
+      : '<span class="r-state">' +
+        (it.enabled ? "Đang bật" : "Đang tắt") + '</span>') +
     '</div>').join("");
   box.querySelectorAll("[data-sched]").forEach(inp =>
     inp.addEventListener("change", async () => {
@@ -1200,12 +1448,58 @@ function renderProfile(){
   $("memory-date").textContent = p.facts_active +
     " fact đang hiệu lực";
   const sk = p.skills || {};
-  $("skills-box").innerHTML = sk.available
+  if (SKILLS) renderSkills();
+  else $("skills-box").innerHTML = sk.available
     ? '<div class="row static"><div class="glyph">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.5l1.9 5.6 5.6 1.9-5.6 1.9L12 18.5l-1.9-5.6L4.5 11l5.6-1.9z"/></svg></div>' +
       '<div class="r-main"><div class="r-title">' + sk.count +
       ' kỹ năng đã nạp</div></div></div>'
     : '<div class="empty">Chưa nạp kỹ năng nào.</div>';
+}
+/* Kỹ năng ĐỌC ĐƯỢC (1.3.0): danh sách từ /api/skills (tên +
+   mô tả + nguồn), bấm 1 kỹ năng mở màn chi tiết đọc toàn văn
+   SKILL.md — thay cảnh cũ chỉ thấy tên + số lượng. */
+let SKILLS = null;
+function renderSkills(){
+  const box = $("skills-box");
+  if (!box || !SKILLS) return;
+  const items = SKILLS.skills || [];
+  if (!SKILLS.available || !items.length){
+    box.innerHTML = '<div class="empty">Chưa nạp kỹ năng nào.</div>';
+    return;
+  }
+  box.innerHTML = items.map(s =>
+    '<div class="row" data-skill="' + esc(s.name) + '">' +
+    '<div class="r-main"><div class="r-title">' + esc(s.name) +
+    '</div>' + (s.description ? '<div class="r-sub">' +
+      esc(s.description) + '</div>' : "") + '</div>' +
+    '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
+    '</div>').join("");
+  box.querySelectorAll("[data-skill]").forEach(el =>
+    el.addEventListener("click", () => openSkill(el.dataset.skill)));
+}
+async function loadSkills(){
+  try {
+    SKILLS = await api("/api/skills");
+    renderSkills();
+  } catch (e) {
+    toast("Không tải được danh sách kỹ năng: " + e.message);
+  }
+}
+async function openSkill(name){
+  showSub("screen-skill");
+  $("skill-title").textContent = name;
+  $("skill-source").textContent = "";
+  $("skill-content").textContent = "Đang tải…";
+  try {
+    const d = await api("/api/skills/" + encodeURIComponent(name));
+    $("skill-source").textContent = d.source
+      ? "Nguồn: " + d.source : "";
+    $("skill-content").textContent = d.content || "(kỹ năng trống)";
+  } catch (e) {
+    $("skill-content").textContent = e.message;
+    toast("Không đọc được kỹ năng: " + e.message);
+  }
 }
 $("card-dossier").addEventListener("click", async () => {
   showSub("screen-profile");
@@ -1245,12 +1539,17 @@ function renderConnectors(){
     '<div class="row static"><div class="mono">' +
     (c.kind === "mcp" ? "M" : "S") +
     '</div><div class="r-main"><div class="r-title">' + esc(c.name) +
-    '</div><div class="r-sub">' +
-    (c.ok ? "Đang nối" : "Chưa nối") +
-    (c.detail ? " · " + esc(c.detail) : "") + '</div></div>' +
-    '<label class="tgl"><input type="checkbox" data-conn="' +
-    esc(c.id) + '"' + (c.enabled ? " checked" : "") +
-    (c.toggleable ? "" : " disabled") + '><span class="tr"></span></label>' +
+    '</div><div class="r-sub">' + esc(connSub(c)) + '</div></div>' +
+    /* Như màn Lịch: toggle chỉ khi đổi được thật qua
+       /api/connector (MCP server); connector built-in không
+       tắt/bật nóng được thì hiện trạng thái bằng chữ, không
+       vẽ công tắc chết (gói vá 1.3.0). */
+    (c.toggleable
+      ? '<label class="tgl"><input type="checkbox" data-conn="' +
+        esc(c.id) + '"' + (c.enabled ? " checked" : "") +
+        '><span class="tr"></span></label>'
+      : '<span class="r-state">' +
+        (c.enabled ? "Đang bật" : "Đã tắt") + '</span>') +
     '</div>').join("");
   box.querySelectorAll("[data-conn]").forEach(inp =>
     inp.addEventListener("change", async () => {
@@ -1280,9 +1579,36 @@ function renderVault(){
     (v.created_at ? " · " + esc(todayLabel(v.created_at)) : "") +
     '</div></div></div>').join("");
 }
-$("vault-add").addEventListener("click", () => {
-  toast("Đóng app rồi gõ /vault <nhãn> trong chat để nhận link form.");
-  if (tg) setTimeout(() => tg.close(), 900);
+/* Vault nhập ngay trong app (1.3.0): POST /api/vault/capture
+   (auth initData như mọi /api/*) — server ghi thẳng vào kho và
+   chỉ trả ref. Giá trị KHÔNG được giữ lại ở frontend sau khi
+   gửi: xoá ô nhập ngay khi lưu xong, kể cả khi lỗi thì cũng
+   không echo lại giá trị vào bất kỳ thông báo nào. */
+$("vault-save").addEventListener("click", async () => {
+  const label = $("vault-label").value.trim();
+  const value = $("vault-value").value;
+  if (!label || !value){
+    toast("Nhập đủ nhãn và giá trị bí mật đã.");
+    return;
+  }
+  const btn = $("vault-save");
+  btn.disabled = true;
+  try {
+    const r = await api("/api/vault/capture", "POST",
+      {label: label, value: value});
+    $("vault-value").value = "";
+    $("vault-label").value = "";
+    $("vault-result").innerHTML = '<div class="note">Đã lưu vào ' +
+      'kho. Mã tham chiếu: <b>' + esc(r.ref) + '</b> — đưa ref ' +
+      'này cho Mulon khi một luồng cần dùng bí mật.</div>';
+    toast("Đã lưu bí mật vào kho.");
+    haptic("impact");
+    await load();
+  } catch (e) {
+    toast("Chưa lưu được bí mật: " + e.message);
+  } finally {
+    btn.disabled = false;
+  }
 });
 /* KT-2: hàng quyền = nhãn + giá trị chữ + chevron; đổi nấc
    qua menu nổi dùng chung (#pol-menu). Payload /api/policy
@@ -1406,6 +1732,817 @@ function renderSystem(){
     '</table>';
 }
 
+/* ---------------- Chợ MCP (1.3) ---------------- */
+/* Mọi dữ kiện listing/operation là dữ kiện NGOÀI — luôn qua
+   esc() khi vào HTML. Không ô nhập giá trị bí mật ở bất kỳ
+   bước nào: bí mật chỉ gắn bằng cách CHỌN Vault item sẵn có. */
+const MKT = {installed:[], summary:null, cats:[], items:[],
+  fresh:null, snapshot:null, q:"", cat:"", marketLoaded:false};
+let connTab = "installed";
+let curListing = null;    // listing đang xem ở screen-listing
+let curDraftId = null;    // draft_id khi listing từ Nhập thủ công
+let curOp = null;         // operation đang theo dõi ở screen-install
+let curOpId = null;
+let opTimer = null;
+
+function shortFp(s){
+  s = String(s ?? "");
+  return s.length <= 14 ? s : s.slice(0, 8) + "…" + s.slice(-4);
+}
+function reasonText(r){
+  if (r == null) return "";
+  if (typeof r === "string") return r;
+  return r.message || r.detail || r.code || "";
+}
+function reasonsText(list){
+  return (list || []).map(reasonText).filter(Boolean);
+}
+const LIFECYCLE_LABELS = {
+  active:"Đang chạy", disabled:"Đã tắt",
+  degraded:"Hoạt động không ổn định", quarantined:"Bị giữ",
+  pending_restart:"Chờ khởi động lại",
+  uninstall_pending_restart:"Chờ gỡ khi khởi động lại",
+  update_pending:"Chờ cập nhật",
+  config_drift:"Bị giữ — tool đã thay đổi",
+  not_installed:"Chưa cài",
+};
+function lifecycleText(it){
+  let t;
+  if (it.lifecycle_state === "quarantined" && it.policy_verdict)
+    t = "Bị giữ — tool đã thay đổi";
+  else t = LIFECYCLE_LABELS[it.lifecycle_state] || it.lifecycle_state || "";
+  if (it.lifecycle_state === "active" && it.tool_count != null)
+    t += " · " + it.tool_count + " tool";
+  if (it.pending_restart && it.lifecycle_state !== "pending_restart")
+    t += " · Chờ khởi động lại";
+  return t;
+}
+function mktInstalledFor(c){
+  return MKT.installed.find(it =>
+    it.local_name === c.id || it.local_name === c.name ||
+    it.name === c.name) || null;
+}
+function connSub(c){
+  /* Server MCP có dữ kiện marketplace: dòng phụ là trạng
+     thái vòng đời bằng chữ, thay "Đang nối/Chưa nối". Toggle
+     vẫn POST /api/connector như cũ (server route tiếp). */
+  const m = mktInstalledFor(c);
+  if (m) return lifecycleText(m) +
+    (c.detail ? " · " + c.detail : "");
+  return (c.ok ? "Đang nối" : "Chưa nối") +
+    (c.detail ? " · " + c.detail : "");
+}
+function mktInstalledForListing(L){
+  if (!L) return null;
+  const inst = L.installed;
+  if (inst && typeof inst === "object" && inst.local_name)
+    return inst;
+  return MKT.installed.find(it =>
+    (L.canonical_id && it.canonical_id === L.canonical_id) ||
+    it.local_name === L.slug || it.name === L.name) || null;
+}
+function listingIsInstalled(L){
+  const inst = L.installed;
+  if (inst && typeof inst === "object")
+    return inst.lifecycle_state !== "not_installed" &&
+      !!(inst.local_name || inst.lifecycle_state);
+  if (inst === true) return true;
+  if (L.installed_state === "installed") return true;
+  return !!mktInstalledForListing(L);
+}
+
+/* ----- thẻ duyệt kind marketplace_operation ----- */
+function mktApprovalCard(p){
+  /* Chỉ 2 nút Duyệt / Chặn — KHÔNG "Duyệt và nhớ" (quyết qua
+     POST /api/approve như cũ, handler chung ở renderApprovals). */
+  const id = p.approval_id || p.id || "";
+  let h = '<div class="card appr-card" id="appr-' + esc(id) + '">' +
+    '<div class="appr-head"><span class="appr-dot"></span>' +
+    '<div class="appr-title">' +
+    esc(p.title || p.action_label || "Thao tác Chợ MCP") +
+    '</div></div>';
+  if (p.summary)
+    h += '<div class="appr-sub">' + esc(p.summary) + '</div>';
+  if (p.target)
+    h += '<div class="appr-scope">' + esc(p.target) + '</div>';
+  if (p.fingerprint)
+    h += '<div class="appr-scope fp">Dấu vân tay: ' +
+      esc(p.fingerprint) + '</div>';
+  h += '<div class="appr-actions"><div class="btn-row">' +
+    '<button class="btn btn-soft" data-appr="deny" data-id="' +
+      esc(id) + '">Chặn</button>' +
+    '<button class="btn btn-accent" data-appr="approve" data-id="' +
+      esc(id) + '">Duyệt</button>' +
+    '</div></div></div>';
+  return h;
+}
+
+/* ----- segmented Đã cài | Chợ + tải dữ kiện ----- */
+document.querySelectorAll("#conn-seg button").forEach(b =>
+  b.addEventListener("click", () => {
+    connTab = b.dataset.connTab; haptic("select");
+    document.querySelectorAll("#conn-seg button").forEach(x =>
+      x.classList.toggle("active", x === b));
+    $("conn-view-installed").classList.toggle("hidden",
+      connTab !== "installed");
+    $("conn-view-market").classList.toggle("hidden",
+      connTab !== "market");
+    if (connTab === "market" && !MKT.marketLoaded){
+      MKT.marketLoaded = true;
+      loadMktCategories(); loadMktCatalog();
+    }
+    if (connTab === "installed") loadMktInstalled();
+  }));
+$("conn-add-manual").addEventListener("click",
+  () => showSub("screen-import"));
+$("listing-back").addEventListener("click",
+  () => showSub("screen-connectors"));
+$("install-back").addEventListener("click",
+  () => showSub("screen-connectors"));
+$("import-back").addEventListener("click",
+  () => showSub("screen-connectors"));
+document.querySelector('[data-open="screen-connectors"]')
+  .addEventListener("click", () => {
+    loadMktSummary(); loadMktInstalled();
+  });
+
+function freshnessText(cat){
+  if (!cat) return "";
+  if (cat.fetched_at)
+    return "Dữ liệu cập nhật lúc " + todayLabel(cat.fetched_at);
+  if (cat.bundle_version)
+    return /^\d{4}-\d{2}-\d{2}/.test(cat.bundle_version)
+      ? "Dữ liệu đóng gói ngày " + cat.bundle_version
+      : "Dữ liệu đóng gói " + cat.bundle_version;
+  return "Dữ liệu đóng gói sẵn trong app";
+}
+function updateFreshness(cat){
+  if (!cat) return;
+  MKT.fresh = cat;
+  $("mkt-fresh-text").textContent = freshnessText(cat);
+  /* Dữ kiện cũ (stale): vẫn hiện danh sách, chỉ thêm 1 dòng. */
+  $("mkt-stale").innerHTML = cat.status === "stale"
+    ? '<div class="note">Dữ kiện có thể đã cũ — bấm Làm mới ' +
+      'để cập nhật.</div>' : "";
+}
+async function loadMktSummary(){
+  try {
+    const d = await api("/api/marketplace/summary");
+    MKT.summary = d;
+    if (d.catalog) updateFreshness(d.catalog);
+  } catch (e) { /* chợ chưa sẵn sàng: màn Đã cài vẫn chạy */ }
+}
+async function loadMktInstalled(){
+  try {
+    const d = await api("/api/marketplace/installed");
+    MKT.installed = d.items || [];
+    renderConnectors();
+  } catch (e) { /* giữ danh sách connector từ /api/state */ }
+}
+async function loadMktCategories(){
+  const box = $("mkt-cats");
+  try {
+    const d = await api("/api/marketplace/categories");
+    MKT.cats = d.categories || [];
+    if (d.freshness) updateFreshness(d.freshness);
+    renderMktCats();
+  } catch (e) {
+    box.innerHTML = '<div class="empty">Chưa tải được danh mục.</div>';
+  }
+}
+function renderMktCats(){
+  const box = $("mkt-cats");
+  const total = MKT.cats.reduce((a, c) => a + (c.count || 0), 0);
+  const row = (id, label, count) =>
+    '<div class="row mkt-cat' + (MKT.cat === id ? " active" : "") +
+    '" data-cat="' + esc(id) + '"><div class="r-main">' +
+    '<div class="r-title">' + esc(label) + '</div></div>' +
+    '<span class="r-time">' + esc(count) + '</span>' +
+    '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span></div>';
+  box.innerHTML = row("", "Tất cả", total) +
+    MKT.cats.map(c => row(c.id, c.label, c.count)).join("");
+  box.querySelectorAll("[data-cat]").forEach(el =>
+    el.addEventListener("click", () => {
+      MKT.cat = el.dataset.cat;
+      renderMktCats(); loadMktCatalog();
+    }));
+}
+async function loadMktCatalog(){
+  const box = $("mkt-list");
+  box.innerHTML = '<div class="skel"><div class="bar w70"></div>' +
+    '<div class="bar w40"></div></div>';
+  try {
+    const qs = new URLSearchParams();
+    if (MKT.q) qs.set("query", MKT.q);
+    if (MKT.cat) qs.set("category", MKT.cat);
+    qs.set("limit", "50");
+    const d = await api("/api/marketplace/catalog?" + qs.toString());
+    MKT.items = d.items || [];
+    if (d.snapshot) updateFreshness(d.snapshot);
+    renderMktList();
+  } catch (e) {
+    box.innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+  }
+}
+function renderMktList(){
+  const box = $("mkt-list");
+  const items = MKT.items || [];
+  if (!items.length){
+    box.innerHTML = '<div class="empty">' + (MKT.cat
+      ? "Danh mục này chưa có mục nào."
+      : "Không có kết quả nào khớp.") + '</div>';
+    return;
+  }
+  box.innerHTML = items.map(it => {
+    const parts = [];
+    // Dòng phụ duy nhất: Local · số tool · bảo mật · giá. Tên
+    // tác giả để ở màn chi tiết — nhét vào đây làm tràn mất
+    // phần bảo mật/giá trên màn 390px (đã kiểm bằng render).
+    parts.push(!it.locality || it.locality === "local" ||
+      it.locality === "local_process" ? "Local" : it.locality);
+    if (it.tool_count_known != null)
+      parts.push(it.tool_count_known + " tool");
+    const sec = it.security || {};
+    parts.push(sec.score != null
+      ? "Bảo mật " + sec.score : "Bảo mật: chưa có");
+    if (it.pricing && it.pricing.label) parts.push(it.pricing.label);
+    let state = "";
+    if (it.update_available) state = "Có bản mới";
+    else if (it.installed_state === "installed") state = "Đã cài";
+    else if (it.support_state === "unsupported" ||
+        (it.unsupported_reasons || []).length){
+      const rs = reasonsText(it.unsupported_reasons);
+      state = "Chưa hỗ trợ" + (rs.length ? " — " + rs[0] : "");
+    }
+    return '<div class="row" data-pid="' + esc(it.provider_id) +
+      '" data-slug="' + esc(it.slug) + '">' +
+      '<div class="r-main"><div class="r-title">' + esc(it.name) +
+      '</div><div class="r-sub">' + esc(parts.join(" · ")) +
+      '</div></div>' +
+      (state ? '<span class="r-state">' + esc(state) + '</span>' : "") +
+      '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span></div>';
+  }).join("");
+  box.querySelectorAll("[data-pid]").forEach(el =>
+    el.addEventListener("click", () =>
+      openListing(el.dataset.pid, el.dataset.slug)));
+}
+function doMktSearch(){
+  MKT.q = $("mkt-q").value.trim();
+  loadMktCatalog();
+}
+$("mkt-search-btn").addEventListener("click", doMktSearch);
+$("mkt-q").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") doMktSearch();
+});
+$("mkt-refresh").addEventListener("click", async () => {
+  try {
+    const d = await api("/api/marketplace/refresh", "POST", {});
+    if (d.catalog) updateFreshness(d.catalog);
+    MKT.marketLoaded = true;
+    await loadMktCategories();
+    await loadMktCatalog();
+    toast("Đã làm mới dữ kiện chợ.");
+  } catch (e) { toast(e.message); }
+});
+
+/* ----- Chi tiết listing ----- */
+async function openListing(providerId, slug){
+  curDraftId = null; curListing = null;
+  showSub("screen-listing");
+  $("listing-title").textContent = "Chi tiết";
+  $("listing-body").innerHTML = '<div class="card"><div class="skel">' +
+    '<div class="bar w70"></div><div class="bar w40"></div></div></div>';
+  try {
+    const d = await api("/api/marketplace/listings/" +
+      encodeURIComponent(providerId) + "/" +
+      encodeURIComponent(slug));
+    curListing = d.listing;
+    renderListingDetail();
+  } catch (e) {
+    $("listing-body").innerHTML = '<div class="card">' +
+      '<div class="empty">' + esc(e.message) + '</div></div>';
+  }
+}
+function openListingData(listing){
+  curListing = listing;
+  showSub("screen-listing");
+  renderListingDetail();
+}
+function vaultBound(req){
+  if (req.vault_ref || req.bound || req.value_ref) return true;
+  const name = String(req.name || "").toLowerCase();
+  return ((S && S.vault) || []).some(v =>
+    String(v.label || "").toLowerCase().includes(name) ||
+    String(v.ref || "").toLowerCase().includes(name));
+}
+function permText(perm){
+  if (perm == null) return "";
+  if (typeof perm === "string") return perm;
+  if (typeof perm === "object"){
+    if (perm.label || perm.name)
+      return perm.label || perm.name;
+    return Object.keys(perm).map(k =>
+      k + ": " + (typeof perm[k] === "object"
+        ? JSON.stringify(perm[k]) : perm[k])).join(" · ");
+  }
+  return String(perm);
+}
+function renderListingDetail(){
+  const L = curListing;
+  if (!L) return;
+  $("listing-title").textContent = L.name || "Chi tiết";
+  const sec = L.security || {};
+  const man = L.manifest || {};
+  const pkg = man.package || {};
+  const installed = listingIsInstalled(L);
+  const instObj = mktInstalledForListing(L);
+  const instName = instObj ? (instObj.local_name || "") : "";
+  const unsupported = L.support_state === "unsupported" ||
+    (L.support_state == null &&
+      reasonsText(L.unsupported_reasons).length > 0);
+  const reasons = reasonsText(L.unsupported_reasons);
+  const updateAvail = !!(L.update_available ||
+    (instObj && instObj.update_available));
+  let h = "";
+
+  /* Tác giả · nguồn · mô tả */
+  h += '<div class="card"><table class="fields">' +
+    '<tr><td class="k">Tác giả</td><td>' +
+    esc(L.creator_name || "—") + '</td></tr>';
+  if (L.source_url)
+    h += '<tr><td class="k">Nguồn</td><td><a class="ext" href="' +
+      esc(L.source_url) + '" target="_blank" rel="noopener">' +
+      esc(L.source_url) + '</a></td></tr>';
+  h += '</table>';
+  if (L.description)
+    h += '<div class="detail-text">' + esc(L.description) + '</div>';
+  else if (L.summary)
+    h += '<div class="detail-text">' + esc(L.summary) + '</div>';
+  h += '</div>';
+
+  /* Trạng thái hỗ trợ */
+  h += '<div class="card"><div class="card-title">Hỗ trợ</div>' +
+    '<div class="row static"><div class="r-main">' +
+    '<div class="r-title">' +
+    (unsupported ? "Chưa hỗ trợ" : "Được hỗ trợ") +
+    '</div></div></div>';
+  if (unsupported && reasons.length)
+    h += '<div class="detail-list">' +
+      reasons.map(r => esc(r)).join("<br>") + '</div>';
+  h += '</div>';
+
+  /* Tin cậy & quyền */
+  h += '<div class="card"><div class="card-title">Tin cậy &amp; quyền</div>' +
+    '<table class="fields">' +
+    '<tr><td class="k">Điểm bảo mật</td><td>' +
+    (sec.score != null ? esc(sec.score) : "Chưa có") +
+    (sec.risk_label ? " · " + esc(sec.risk_label) : "") +
+    '</td></tr>' +
+    '<tr><td class="k">Nhãn rủi ro</td><td>' +
+    esc(sec.risk_label || "—") + '</td></tr>' +
+    '<tr><td class="k">Phát hiện nghiêm trọng</td><td>' +
+    esc(sec.critical_findings_count != null
+      ? sec.critical_findings_count : "—") + '</td></tr>' +
+    '</table>';
+  if ((sec.findings || []).length)
+    h += '<div class="detail-list">' + sec.findings.map(f =>
+      esc(f.severity ? f.severity + " · " : "") +
+      esc(f.title || "") +
+      (f.detail ? " — " + esc(f.detail) : "")).join("<br>") + '</div>';
+  h += '<div class="note" style="margin:0 var(--s4) var(--s2)">' +
+    'Điểm này là tín hiệu tham khảo, không phải bảo đảm an toàn.</div>';
+  const perms = Array.isArray(L.permissions)
+    ? L.permissions.map(permText).filter(Boolean)
+    : (L.permissions ? [permText(L.permissions)] : []);
+  if (perms.length)
+    h += '<div class="detail-list">Quyền: ' +
+      perms.map(esc).join(" · ") + '</div>';
+  h += '</div>';
+
+  /* Tool đã biết */
+  const tools = L.tool_names_known || [];
+  h += '<div class="card"><div class="card-title">Tool đã biết (' +
+    (L.tool_count_known != null ? L.tool_count_known : tools.length) +
+    ')</div>';
+  h += tools.length
+    ? '<div class="detail-list">' + tools.map(esc).join(" · ") + '</div></div>'
+    : '<div class="empty">Chưa biết tool nào.</div></div>';
+
+  /* Cấu hình sẽ dùng */
+  const cmdline = [man.command].concat(man.args || [])
+    .filter(Boolean).join(" ");
+  h += '<div class="card"><div class="card-title">Cấu hình sẽ dùng</div>';
+  if (cmdline) h += '<pre class="mono-block">' + esc(cmdline) + '</pre>';
+  h += '<table class="fields">';
+  if (man.transport)
+    h += '<tr><td class="k">Transport</td><td>' +
+      esc(man.transport) + '</td></tr>';
+  if (pkg.name)
+    h += '<tr><td class="k">Package</td><td>' +
+      esc([pkg.ecosystem, pkg.name].filter(Boolean).join("/")) +
+      '</td></tr>';
+  if (pkg.version)
+    h += '<tr><td class="k">Phiên bản</td><td>' + esc(pkg.version) +
+      (pkg.pinned ? " · đã ghim" : "") + '</td></tr>';
+  h += '</table>';
+  (man.setup_requirements || []).forEach(req => {
+    const needTag = req.secret || req.location === "env" ||
+      req.location === "header";
+    h += '<div class="row static"><div class="r-main">' +
+      '<div class="r-title">' + esc(req.label || req.name) +
+      '</div><div class="r-sub">' + esc(req.name) +
+      (req.required ? " · bắt buộc" : "") + '</div></div>' +
+      (needTag ? '<span class="r-state">' +
+        (vaultBound(req) ? "đã gắn Vault" : "chưa gắn") +
+        '</span>' : "") + '</div>';
+  });
+  const warns = (man.warnings || []).map(reasonText).filter(Boolean);
+  if (warns.length)
+    h += '<div class="detail-list">' +
+      warns.map(w => esc(w)).join("<br>") + '</div>';
+  h += '</div>';
+
+  /* Giá */
+  h += '<div class="card"><div class="row static"><div class="r-main">' +
+    '<div class="r-title">Giá</div></div><span class="r-state">' +
+    esc((L.pricing && L.pricing.label) || "—") + '</span></div></div>';
+
+  /* Hành động — tối đa 1 nút accent */
+  h += '<div class="btn-row" style="padding:0" id="listing-actions">';
+  if (!installed && !unsupported)
+    h += '<button class="btn btn-accent" id="lst-install">Cài</button>';
+  if (installed && updateAvail)
+    h += '<button class="btn btn-accent" id="lst-update">Cập nhật</button>';
+  if (installed){
+    h += '<button class="btn btn-soft" id="lst-check">Kiểm tra</button>';
+    const isOn = instObj &&
+      (instObj.lifecycle_state === "active" ||
+        instObj.desired_state === "enabled");
+    h += '<button class="btn btn-soft" id="lst-toggle">' +
+      (isOn ? "Tắt" : "Bật") + '</button>';
+    h += '<button class="btn btn-danger-text" id="lst-uninstall">Gỡ</button>';
+  }
+  h += '</div>';
+  $("listing-body").innerHTML = h;
+
+  const bind = (id, fn) => {
+    const el = $(id);
+    if (el) el.addEventListener("click", fn);
+  };
+  bind("lst-install", prepareInstall);
+  bind("lst-update", async () => {
+    if (!instName) return;
+    try {
+      const d = await api("/api/marketplace/installed/" +
+        encodeURIComponent(instName) + "/update/prepare",
+        "POST", {});
+      if (d.ok === false) throw new Error(d.error || "không chuẩn bị được");
+      openInstall(d.operation);
+    } catch (e) { toast(e.message); }
+  });
+  bind("lst-check", async () => {
+    if (!instName) return;
+    try {
+      await api("/api/marketplace/installed/" +
+        encodeURIComponent(instName) + "/health-check", "POST", {});
+      toast("Đã bắt đầu kiểm tra tình trạng.");
+      await loadMktInstalled();
+    } catch (e) { toast(e.message); }
+  });
+  bind("lst-toggle", async () => {
+    if (!instObj) return;
+    const isOn = instObj.lifecycle_state === "active" ||
+      instObj.desired_state === "enabled";
+    try {
+      await api("/api/marketplace/installed/" +
+        encodeURIComponent(instName) +
+        (isOn ? "/disable" : "/enable"), "POST", {});
+      toast(isOn ? "Đã tắt." : "Đã bật.");
+      await loadMktInstalled();
+      await openListing(L.provider_id, L.slug);
+    } catch (e) { toast(e.message); }
+  });
+  bind("lst-uninstall", async () => {
+    if (!instName) return;
+    try {
+      const d = await api("/api/marketplace/installed/" +
+        encodeURIComponent(instName) + "/uninstall/prepare",
+        "POST", {delete_vault_refs: []});
+      if (d.ok === false) throw new Error(d.error || "không chuẩn bị được");
+      openInstall(d.operation);
+    } catch (e) { toast(e.message); }
+  });
+}
+async function prepareInstall(){
+  const L = curListing;
+  if (!L) return;
+  try {
+    const body = curDraftId
+      ? {draft_id: curDraftId}
+      : {provider_id: L.provider_id, slug: L.slug};
+    const d = await api("/api/marketplace/install/prepare",
+      "POST", body);
+    if (d.ok === false)
+      throw new Error(d.error || "không chuẩn bị được");
+    openInstall(d.operation);
+  } catch (e) { toast(e.message); }
+}
+
+/* ----- Wizard / operation ----- */
+const OP_TERMINAL = ["done","failed","expired","cancelled"];
+const OP_STAGE_LABELS = {
+  draft:"Đang chuẩn bị", awaiting_secret:"Chờ gắn bí mật",
+  awaiting_probe_approval:"Chờ duyệt chạy thử",
+  probing:"Đang chạy thử",
+  awaiting_commit_approval:"Chờ duyệt cài",
+  committing:"Đang cài", pending_restart:"Chờ khởi động lại",
+  done:"Đã xong", failed:"Đã lỗi", expired:"Hết hạn",
+  cancelled:"Đã huỷ",
+};
+function openInstall(operation){
+  if (!operation || !operation.id){
+    toast("Không tạo được operation.");
+    return;
+  }
+  curOp = operation; curOpId = operation.id;
+  showSub("screen-install");
+  $("install-title").textContent =
+    (operation.type === "uninstall" ? "Gỡ " : "Cài ") +
+    (operation.subject_name || operation.local_name || "MCP");
+  renderOperation();
+  startOpPoll();
+}
+function startOpPoll(){
+  stopOpPoll();
+  opTimer = setInterval(async () => {
+    if (document.hidden || subScreen !== "screen-install" ||
+        !curOpId) return;
+    try {
+      const d = await api("/api/marketplace/operations/" +
+        encodeURIComponent(curOpId));
+      if (d.operation){
+        curOp = d.operation;
+        renderOperation();
+        if (OP_TERMINAL.includes(curOp.stage)){
+          stopOpPoll();
+          loadMktInstalled();
+        }
+      }
+    } catch (e) { /* bot có thể đang tự khởi động lại: bỏ qua */ }
+  }, 2000);
+}
+function stopOpPoll(){
+  if (opTimer){ clearInterval(opTimer); opTimer = null; }
+}
+function opRequirements(op){
+  const plan = (op && op.plan) || {};
+  return plan.setup_requirements || plan.requirements ||
+    plan.secrets ||
+    (curListing && curListing.manifest &&
+      curListing.manifest.setup_requirements) || [];
+}
+function opPendingApproval(op, key){
+  return (op.approvals || []).find(a =>
+    a.pending && String(a.stage || "").includes(key)) || null;
+}
+function opFingerprint(op){
+  const plan = op.plan || {};
+  return plan.fingerprint || plan.tool_fingerprint ||
+    (op.probe_result && op.probe_result.tool_fingerprint) || "";
+}
+function renderOperation(){
+  const op = curOp;
+  const body = $("install-body");
+  if (!op){
+    body.innerHTML = '<div class="card"><div class="empty">' +
+      'Chưa có operation nào.</div></div>';
+    return;
+  }
+  const stage = op.stage || "draft";
+  const order = {draft:0, awaiting_secret:0,
+    awaiting_probe_approval:1, probing:1,
+    awaiting_commit_approval:2, committing:2,
+    pending_restart:3, done:3};
+  const cur = order[stage];
+  const steps = ["Bí mật", "Chạy thử", "Xác nhận", "Hoàn tất"];
+  let h = '<div class="card"><div class="card-title">' +
+    esc(op.subject_name || op.local_name || "Operation") +
+    ' · ' + esc(OP_STAGE_LABELS[stage] || stage) + '</div>' +
+    '<div class="timeline">' + steps.map((name, i) => {
+      const cls = stage === "failed" || stage === "expired" ||
+          stage === "cancelled" ? ""
+        : (cur == null || i < cur) ? "done"
+        : i === cur ? (stage === "done" ? "done" : "doing") : "";
+      return '<div class="tl-item"><div class="tl-dot ' + cls +
+        '"></div><div class="tl-body"><div class="tl-name">' +
+        esc(name) + '</div></div></div>';
+    }).join("") + '</div></div>';
+
+  if (stage === "awaiting_secret"){
+    const reqs = opRequirements(op);
+    h += '<div class="card"><div class="card-title">Gắn bí mật</div>';
+    if (!reqs.length)
+      h += '<div class="empty">Không có bí mật nào cần gắn.</div>';
+    reqs.forEach(req => {
+      h += '<div class="row static"><div class="r-main">' +
+        '<div class="r-title">' + esc(req.label || req.name) +
+        '</div><div class="r-sub">' + esc(req.name) +
+        '</div></div>' +
+        '<select class="mkt-select" data-secret="' +
+        esc(req.name) + '">' +
+        '<option value="">Chọn Vault…</option>' +
+        ((S && S.vault) || []).map(v =>
+          '<option value="' +
+          esc(String(v.ref).startsWith("vault:")
+            ? v.ref : "vault:" + v.ref) + '">' +
+          esc(v.label) + ' · ' + esc(shortFp(v.ref)) +
+          '</option>').join("") +
+        '<option value="__create__">Tạo mới qua chat /vault</option>' +
+        '</select></div>';
+    });
+    h += '<div class="btn-row"><button class="btn btn-accent" ' +
+      'id="op-bind">Gắn bí mật</button></div></div>';
+  }
+
+  if (stage === "awaiting_probe_approval"){
+    h += '<div class="card"><div class="card-title">Chạy thử</div>';
+    if (opPendingApproval(op, "probe") || op._probeReq)
+      h += '<div class="op-note">Đang chờ duyệt trên thẻ Telegram ' +
+        '/ mục Phê duyệt.</div>';
+    else
+      h += '<div class="btn-row"><button class="btn btn-accent" ' +
+        'id="op-probe">Xin duyệt chạy thử</button></div>';
+    const fp = opFingerprint(op);
+    if (fp)
+      h += '<div class="op-note fp">Dấu vân tay: ' +
+        esc(shortFp(fp)) + '</div>';
+    h += '</div>';
+  }
+  if (stage === "probing")
+    h += '<div class="card"><div class="op-note">Đang chạy thử…</div></div>';
+
+  if (op.probe_result){
+    const pr = op.probe_result;
+    h += '<div class="card"><div class="card-title">Kết quả chạy thử</div>' +
+      '<div class="op-note">' + (pr.tools || []).length +
+      ' tool · ' + (pr.latency_ms != null
+        ? esc(pr.latency_ms) + ' ms' : '—') +
+      (pr.ok === false ? ' · lỗi' : '') + '</div>';
+    (pr.tools || []).forEach(t => {
+      h += '<div class="row static"><div class="r-main">' +
+        '<div class="r-title">' + esc(t.name) + '</div>' +
+        (t.description ? '<div class="r-sub">' +
+          esc(t.description) + '</div>' : '') + '</div>' +
+        ((t.required || []).length ? '<span class="r-state">' +
+          esc((t.required || []).join(", ")) + '</span>' : "") +
+        '</div>';
+    });
+    if (pr.tool_fingerprint)
+      h += '<div class="op-note fp">Dấu vân tay tool: ' +
+        esc(shortFp(pr.tool_fingerprint)) + '</div>';
+    const pw = (pr.warnings || []).map(reasonText).filter(Boolean);
+    if (pw.length)
+      h += '<div class="detail-list">' +
+        pw.map(w => esc(w)).join("<br>") + '</div>';
+    h += '</div>';
+  }
+
+  if (stage === "awaiting_commit_approval"){
+    const plan = op.plan || {};
+    const man = (curListing && curListing.manifest) || {};
+    const cmd = plan.command || man.command || "";
+    const args = plan.args || man.args || [];
+    h += '<div class="card"><div class="card-title">Xác nhận cài</div>' +
+      '<table class="fields">' +
+      '<tr><td class="k">Tên local</td><td>' +
+      esc(op.local_name || plan.local_name || "—") + '</td></tr>' +
+      '<tr><td class="k">Policy</td><td>tool ở nấc Hỏi trước</td></tr>' +
+      '</table>';
+    const cmdline = [cmd].concat(args).filter(Boolean).join(" ");
+    if (cmdline)
+      h += '<pre class="mono-block">' + esc(cmdline) + '</pre>';
+    if (opPendingApproval(op, "commit") || op._commitReq)
+      h += '<div class="op-note">Đang chờ duyệt trên thẻ Telegram ' +
+        '/ mục Phê duyệt.</div>';
+    else
+      h += '<div class="btn-row"><button class="btn btn-accent" ' +
+        'id="op-commit">Xin duyệt cài</button></div>';
+    h += '</div>';
+  }
+  if (stage === "committing")
+    h += '<div class="card"><div class="op-note">Đang cài…</div></div>';
+  if (stage === "draft")
+    h += '<div class="card"><div class="op-note">Đang chuẩn bị…</div></div>';
+  if (stage === "pending_restart")
+    h += '<div class="card"><div class="op-note">Đã lưu — bot đang ' +
+      'tự khởi động lại để áp dụng.</div></div>';
+  if (stage === "done")
+    h += '<div class="card"><div class="op-note">Đã cài và đang ' +
+      'hoạt động.</div></div>';
+  if (stage === "failed")
+    h += '<div class="card"><div class="op-note">' +
+      esc(op.error
+        ? [op.error.code, op.error.message].filter(Boolean).join(" · ")
+        : "Đã lỗi không rõ nguyên nhân.") + '</div></div>';
+  if (stage === "expired")
+    h += '<div class="card"><div class="op-note">Operation đã hết hạn.</div></div>';
+  if (stage === "cancelled")
+    h += '<div class="card"><div class="op-note">Đã huỷ operation.</div></div>';
+
+  body.innerHTML = h;
+  $("install-cancel").classList.toggle("hidden",
+    OP_TERMINAL.includes(stage) || stage === "pending_restart");
+
+  const bindBtn = $("op-bind");
+  if (bindBtn) bindBtn.addEventListener("click", async () => {
+    const bindings = {};
+    let wantsCreate = false;
+    body.querySelectorAll("[data-secret]").forEach(sel => {
+      if (sel.value === "__create__") wantsCreate = true;
+      else if (sel.value) bindings[sel.dataset.secret] = sel.value;
+    });
+    if (wantsCreate && !Object.keys(bindings).length){
+      toast("Đóng app rồi gõ /vault trong chat để tạo bí mật mới.");
+      return;
+    }
+    if (!Object.keys(bindings).length){
+      toast("Chưa chọn Vault item nào.");
+      return;
+    }
+    try {
+      const d = await api("/api/marketplace/operations/" +
+        encodeURIComponent(curOpId) + "/bind-secrets",
+        "POST", {bindings: bindings});
+      if (d.operation) curOp = d.operation;
+      toast("Đã gắn bí mật.");
+      renderOperation();
+    } catch (e) { toast(e.message); }
+  });
+  const probeBtn = $("op-probe");
+  if (probeBtn) probeBtn.addEventListener("click", async () => {
+    try {
+      await api("/api/marketplace/operations/" +
+        encodeURIComponent(curOpId) + "/request-probe-approval",
+        "POST", {});
+      curOp._probeReq = true;
+      toast("Đã gửi yêu cầu — chờ duyệt trên thẻ Telegram.");
+      renderOperation();
+    } catch (e) { toast(e.message); }
+  });
+  const commitBtn = $("op-commit");
+  if (commitBtn) commitBtn.addEventListener("click", async () => {
+    try {
+      await api("/api/marketplace/operations/" +
+        encodeURIComponent(curOpId) + "/request-commit-approval",
+        "POST", {});
+      curOp._commitReq = true;
+      toast("Đã gửi yêu cầu — chờ duyệt trên thẻ Telegram.");
+      renderOperation();
+    } catch (e) { toast(e.message); }
+  });
+}
+$("install-cancel").addEventListener("click", async () => {
+  if (!curOpId) return;
+  try {
+    await api("/api/marketplace/operations/" +
+      encodeURIComponent(curOpId) + "/cancel", "POST", {});
+    stopOpPoll();
+    toast("Đã huỷ operation.");
+    showSub("screen-connectors");
+  } catch (e) { toast(e.message); }
+});
+
+/* ----- Nhập thủ công ----- */
+$("import-parse").addEventListener("click", async () => {
+  const text = $("import-text").value.trim();
+  if (!text){ toast("Dán JSON trước đã."); return; }
+  $("import-error").innerHTML = "";
+  try {
+    const res = await fetch("/api/marketplace/import/parse", {
+      method: "POST",
+      headers: {"X-Telegram-Init-Data": INIT,
+                "Content-Type": "application/json"},
+      body: JSON.stringify({text: text}),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false){
+      $("import-error").innerHTML = '<div class="errbar">' +
+        esc(data.error || ("HTTP " + res.status)) +
+        (data.code ? " (" + esc(data.code) + ")" : "") + '</div>';
+      return;
+    }
+    curDraftId = data.draft_id || null;
+    const listing = data.listing || {};
+    if (data.support_state) listing.support_state = data.support_state;
+    if (data.unsupported_reasons)
+      listing.unsupported_reasons = data.unsupported_reasons;
+    openListingData(listing);
+  } catch (e) {
+    $("import-error").innerHTML = '<div class="errbar">' +
+      esc(e.message) + '</div>';
+  }
+});
+
 /* ---------------- nạp state ---------------- */
 function renderAll(){
   renderStatus(); renderTasks(); renderApprovals(); renderSchedule();
@@ -1423,6 +2560,7 @@ async function load(){
     if (!themeTouched && srvTheme && srvTheme !== curTheme
         && THEMES[srvTheme]) applyTheme(srvTheme);
     renderAll();
+    if (!SKILLS) loadSkills();
   } catch (e) {
     $("status-text").textContent = "lỗi tải dữ liệu";
     $("global-error").innerHTML = '<div class="errbar">Không tải ' +
@@ -1435,8 +2573,12 @@ async function load(){
 /* Vòng 3: header đã gọn cố định 56pt — bỏ cơ chế co header +
    nhảy --stick-top 132<->92 khi cuộn (nguồn cơn segbar giật
    vị trí ở vòng 2). --stick-top là hằng số trong :root. */
-/* mở qua thẻ duyệt: startapp=approve_<id> -> thẳng tab Phê duyệt */
+/* mở qua thẻ duyệt: startapp=approve_<id> -> thẳng tab Phê duyệt;
+   startapp=vault (từ lệnh /vault) -> thẳng màn Kho trong Cài đặt */
 if (START_PARAM.indexOf("approve_") === 0) showMain("pheduyet");
+else if (START_PARAM === "vault"){
+  showMain("caidat"); showSub("screen-vault");
+}
 else showMain("viec");
 load().then(() => {
   if (START_PARAM.indexOf("approve_") === 0) {
