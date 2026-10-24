@@ -6,7 +6,9 @@
 - Session key theo (chat, topic): `agent:main:telegram:<loại>:<chat>:topic:<id>`.
 - Group có người khác: chỉ đáp khi được mention/reply (GROUP_MENTION_ONLY).
 - Lệnh lõi: /start /status /new /memory. Phase 6 thêm bề mặt group
-  (mục 16): /setup_topics /topics, Feed (/feedbrief /feed_now +
+  (mục 16): /setup_topics /topics, chat phụ bằng topic tự do
+  (/chatphu /chatphu_list /dongchat /chatphu_dong /chatphu_mo),
+  Feed (/feedbrief /feed_now +
   reaction -> taste), Ideas (/ideas /idea_do /idea_bo + reply
   'làm luôn'), duyệt note (/notes /note_ok /note_bo + reply
   'duyệt'/'bỏ'), Library (/library /trash_item /restore_item
@@ -22,7 +24,6 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import nullcontext
 import json
 import logging
 import re
@@ -32,7 +33,6 @@ from typing import Awaitable, Callable, Optional
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ChatType
 from aiogram.types import FSInputFile, Message, ReactionTypeEmoji
-from aiogram.utils.chat_action import ChatActionSender
 
 from . import surfaces as surf
 from .ideas import format_idea_card, parse_do_reply
@@ -191,6 +191,7 @@ class TelegramSurface:
         # nào thì lệnh của bề mặt đó báo "chưa nối" sạch, không sập.
         self.policy = policy
         self.surfaces = surfaces or {}
+        self.sidechats = surf.SideChatRegistry()
         self._voice_reply: set[str] = set()
         self.bot: Optional[Bot] = None
         self.dp = Dispatcher()
@@ -266,20 +267,6 @@ class TelegramSurface:
                 await anchor.react([ReactionTypeEmoji(emoji="👀")])
             except Exception:
                 pass
-
-            chat = getattr(anchor, "chat", None)
-            chat_id = getattr(chat, "id", None)
-            thread_id = getattr(anchor, "message_thread_id", None)
-            typing_ctx = (
-                ChatActionSender.typing(
-                    bot=self.bot,
-                    chat_id=chat_id,
-                    message_thread_id=thread_id,
-                )
-                if self.bot is not None and chat_id is not None
-                else nullcontext()
-            )
-
             placeholder = None
             state = {"shown": "", "last_edit": 0.0}
 
@@ -305,10 +292,9 @@ class TelegramSurface:
                 self.dossier is not None
                 and self.dossier.bootstrap_pending()
             )
-            async with typing_ctx:
-                result = await self.agent.handle(
-                    key, joined, on_delta=on_delta
-                )
+            result = await self.agent.handle(
+                key, joined, on_delta=on_delta
+            )
             final = result.text or "(không có nội dung)"
             chunks = chunk_html(final)
             try:
@@ -383,15 +369,6 @@ class TelegramSurface:
                 "Tính năng nghe voice chưa sẵn sàng trên bản chạy này.")
             return
         try:
-            thread_id = getattr(message, "message_thread_id", None)
-            await self.bot.send_chat_action(
-                chat_id=message.chat.id,
-                action="typing",
-                message_thread_id=thread_id,
-            )
-        except Exception:
-            pass
-        try:
             tg_file = await self.bot.get_file(message.voice.file_id)
             in_dir = Path(self.cfg.workspace_dir) / "voice_in"
             in_dir.mkdir(parents=True, exist_ok=True)
@@ -444,6 +421,84 @@ class TelegramSurface:
         if getattr(message, "is_topic_message", False):
             return message.message_thread_id
         return None
+
+    # ---- chat phụ: mỗi topic tự do là một đoạn chat riêng ----
+    @staticmethod
+    def _current_thread_id(message: Message) -> int:
+        if getattr(message, "is_topic_message", False):
+            return int(message.message_thread_id or 0)
+        return 0
+
+    @staticmethod
+    def _sidechat_id_arg(message: Message) -> Optional[int]:
+        parts = (message.text or "").split()
+        if len(parts) < 2:
+            return None
+        try:
+            return int(parts[1])
+        except ValueError:
+            return None
+
+    async def _chatphu_create_text(self, message: Message) -> str:
+        if message.chat.type == ChatType.PRIVATE:
+            return (
+                "Chat phụ chỉ tạo được trong group đã bật Topics "
+                "(forum), không tạo được trong DM.")
+        if self.bot is None:
+            return "Bot chưa sẵn sàng để tạo chat phụ."
+        parts = (message.text or "").split(maxsplit=1)
+        raw_title = parts[1] if len(parts) > 1 else ""
+        result = await self.sidechats.create(
+            self.bot, self.memory, message.chat.id, raw_title,
+            is_forum=bool(getattr(message.chat, "is_forum", False)),
+            timezone_name=self.cfg.default_timezone)
+        if not result.get("ok"):
+            return result.get("error") or "Chưa tạo được chat phụ."
+        record = result["record"]
+        return (
+            f"Đã tạo chat phụ '{record['title']}' "
+            f"(thread {record['thread_id']}). Vào topic mới để "
+            "trò chuyện riêng trong đó.")
+
+    async def _chatphu_list_text(self, message: Message) -> str:
+        records = await self.sidechats.list_open(
+            self.memory, message.chat.id)
+        return surf.format_sidechat_list(records)
+
+    async def _dongchat_text(self, message: Message) -> str:
+        if self.bot is None:
+            return "Bot chưa sẵn sàng để đóng chat phụ."
+        result = await self.sidechats.close_current(
+            self.bot, self.memory, self._svc("topics"),
+            message.chat.id, self._current_thread_id(message))
+        if not result.get("ok"):
+            return result.get("error") or "Chưa đóng được chat phụ."
+        record = result["record"]
+        return (
+            f"Đã đóng chat phụ '{record['title']}' "
+            f"(thread {record['thread_id']}).")
+
+    async def _chatphu_status_text(self, message: Message,
+                                   reopen: bool) -> str:
+        command = "/chatphu_mo" if reopen else "/chatphu_dong"
+        thread_id = self._sidechat_id_arg(message)
+        if thread_id is None:
+            return f"Dùng: {command} <thread_id> (xem /chatphu_list)"
+        if self.bot is None:
+            return "Bot chưa sẵn sàng để đổi trạng thái chat phụ."
+        if reopen:
+            result = await self.sidechats.reopen_by_id(
+                self.bot, self.memory, message.chat.id, thread_id)
+        else:
+            result = await self.sidechats.close_by_id(
+                self.bot, self.memory, message.chat.id, thread_id)
+        if not result.get("ok"):
+            return result.get("error") or "Chưa đổi được chat phụ."
+        record = result["record"]
+        action = "mở lại" if reopen else "đóng"
+        return (
+            f"Đã {action} chat phụ '{record['title']}' "
+            f"(thread {record['thread_id']}).")
 
     async def _handle_reaction(self, chat_id: int, message_id: int,
                                emojis: list[str]) -> bool:
@@ -653,6 +708,43 @@ class TelegramSurface:
                 return
             mapping = await topics.get_map(self.memory, message.chat.id)
             await message.answer(surf.format_topics_map(mapping))
+
+        # Đăng ký lệnh dài/cụ thể trước /chatphu vì filter là
+        # startswith: /chatphu_list, /chatphu_dong, /chatphu_mo
+        # không được rơi vào handler tạo mới.
+        @dp.message(F.text.startswith("/chatphu_list"))
+        async def cmd_chatphu_list(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            await message.answer(
+                await self._chatphu_list_text(message))
+
+        @dp.message(F.text.startswith("/chatphu_dong"))
+        async def cmd_chatphu_dong(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            await message.answer(
+                await self._chatphu_status_text(message, reopen=False))
+
+        @dp.message(F.text.startswith("/chatphu_mo"))
+        async def cmd_chatphu_mo(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            await message.answer(
+                await self._chatphu_status_text(message, reopen=True))
+
+        @dp.message(F.text.startswith("/dongchat"))
+        async def cmd_dongchat(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            await message.answer(await self._dongchat_text(message))
+
+        @dp.message(F.text.startswith("/chatphu"))
+        async def cmd_chatphu(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            await message.answer(
+                await self._chatphu_create_text(message))
 
         @dp.message(F.text.startswith("/feedbrief"))
         async def cmd_feedbrief(message: Message) -> None:
@@ -1053,16 +1145,6 @@ class TelegramSurface:
                 return
             key = session_key_for(message)
             self._sessions_meta[key] = message
-            try:
-                thread_id = getattr(message, "message_thread_id", None)
-                if message.bot:
-                    await message.bot.send_chat_action(
-                        chat_id=message.chat.id,
-                        action="typing",
-                        message_thread_id=thread_id,
-                    )
-            except Exception:
-                pass
             await self.batcher.add(key, message.text or "")
 
     async def _consolidate_closed(self, key: str) -> None:
