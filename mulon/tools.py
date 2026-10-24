@@ -107,6 +107,30 @@ def _resolve_in_workspace(cfg, raw: str) -> Path:
     return resolved
 
 
+def _resolve_for_file_tool(cfg, raw: str) -> Path:
+    """Neo của các file tool: workspace HOẶC thư mục dossier.
+
+    Đường tương đối vẫn neo vào workspace như cũ. Kết quả resolve
+    chỉ được chấp nhận khi rơi vào đúng 1 trong 2 vùng — thư mục
+    dossier được mở thêm để agent điền IDENTITY.md/USER.md hoàn
+    tất nghi lễ BOOTSTRAP (mục 16.10). Ngoài cả hai vùng vẫn chặn
+    như cũ. run_command KHÔNG dùng resolver này (chỉ workspace).
+    """
+    base = Path(cfg.workspace_dir).resolve()
+    p = Path(raw or ".").expanduser()
+    resolved = p.resolve() if p.is_absolute() else (base / p).resolve()
+    if cfg.allow_outside_workspace:
+        return resolved
+    dossier_base = Path(cfg.dossier_dir).resolve()
+    for root in (base, dossier_base):
+        if resolved == root or root in resolved.parents:
+            return resolved
+    raise PermissionError(
+        f"đường dẫn ngoài workspace/dossier bị chặn: {raw} "
+        "(bật ALLOW_OUTSIDE_WORKSPACE=1 nếu thật sự cần)"
+    )
+
+
 def build_default_registry(cfg, memory) -> ToolRegistry:
     reg = ToolRegistry()
 
@@ -120,7 +144,8 @@ def build_default_registry(cfg, memory) -> ToolRegistry:
     # --- file ---
     @spec(
         "read_file",
-        "Đọc file trong workspace (mặc định tối đa 400 dòng).",
+        "Đọc file trong workspace hoặc thư mục dossier "
+        "(mặc định tối đa 400 dòng).",
         {
             "type": "object",
             "properties": {
@@ -133,7 +158,7 @@ def build_default_registry(cfg, memory) -> ToolRegistry:
         "file", 15,
     )
     async def read_file(path: str, start_line: int = 1, end_line: int = 0):
-        p = _resolve_in_workspace(cfg, path)
+        p = _resolve_for_file_tool(cfg, path)
         if not p.is_file():
             return {"ok": False, "error": f"không thấy file: {path}"}
         lines = p.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -150,7 +175,7 @@ def build_default_registry(cfg, memory) -> ToolRegistry:
 
     @spec(
         "write_file",
-        "Ghi (tạo mới/ghi đè) file trong workspace.",
+        "Ghi (tạo mới/ghi đè) file trong workspace hoặc thư mục dossier.",
         {
             "type": "object",
             "properties": {
@@ -162,7 +187,7 @@ def build_default_registry(cfg, memory) -> ToolRegistry:
         "file", 15,
     )
     async def write_file(path: str, content: str):
-        p = _resolve_in_workspace(cfg, path)
+        p = _resolve_for_file_tool(cfg, path)
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, encoding="utf-8")
         if memory is not None:
@@ -171,7 +196,8 @@ def build_default_registry(cfg, memory) -> ToolRegistry:
 
     @spec(
         "edit_file",
-        "Thay đúng 1 đoạn văn bản khớp chính xác trong file.",
+        "Thay đúng 1 đoạn văn bản khớp chính xác trong file "
+        "(workspace hoặc thư mục dossier).",
         {
             "type": "object",
             "properties": {
@@ -184,7 +210,7 @@ def build_default_registry(cfg, memory) -> ToolRegistry:
         "file", 15,
     )
     async def edit_file(path: str, old_text: str, new_text: str):
-        p = _resolve_in_workspace(cfg, path)
+        p = _resolve_for_file_tool(cfg, path)
         if not p.is_file():
             return {"ok": False, "error": f"không thấy file: {path}"}
         text = p.read_text(encoding="utf-8")
@@ -198,7 +224,7 @@ def build_default_registry(cfg, memory) -> ToolRegistry:
 
     @spec(
         "list_dir",
-        "Liệt kê thư mục trong workspace.",
+        "Liệt kê thư mục trong workspace hoặc thư mục dossier.",
         {
             "type": "object",
             "properties": {"path": {"type": "string", "default": "."}},
@@ -207,7 +233,7 @@ def build_default_registry(cfg, memory) -> ToolRegistry:
         "file", 10,
     )
     async def list_dir(path: str = "."):
-        p = _resolve_in_workspace(cfg, path)
+        p = _resolve_for_file_tool(cfg, path)
         if not p.is_dir():
             return {"ok": False, "error": f"không phải thư mục: {path}"}
         entries = [
