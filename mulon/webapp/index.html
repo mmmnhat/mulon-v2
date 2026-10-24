@@ -2563,7 +2563,7 @@ async function loadMktCatalog(){
   try {
     const qs = new URLSearchParams();
     if (MKT.cat) qs.set("category", MKT.cat);
-    qs.set("limit", "50");
+    qs.set("limit", "25");
     const d = await api("/api/marketplace/catalog?" + qs.toString());
     MKT.items = d.items || [];
     if (d.snapshot) updateFreshness(d.snapshot);

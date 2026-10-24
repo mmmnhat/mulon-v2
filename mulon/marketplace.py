@@ -941,32 +941,42 @@ class MarketplaceService:
 
         if self.mcp is not None:
             try:
-                args: dict = {"limit": limit}
-                if category:
-                    args["category"] = category
-                if query:
-                    args["query"] = query
-                mkt_res = await self.mcp.call_tool(
-                    "mcp-marketplace", "search_servers", args)
-                if isinstance(mkt_res, dict) and mkt_res.get("ok"):
-                    data = mkt_res.get("result") or {}
-                    raw_results = data.get("results") or []
-                    for raw in raw_results:
-                        if raw.get("slug") not in curated_slugs:
-                            it = self._mcp_marketplace_item_to_listing(
-                                raw, cat_slug=category)
-                            if (pricing and it.get("pricing", {}).get(
-                                    "model") != pricing):
-                                continue
-                            if (installed == "installed"
-                                    and it["installed_state"]
-                                    in ("not_installed", "uninstalled")):
-                                continue
-                            if (installed == "not_installed"
-                                    and it["installed_state"]
-                                    not in ("not_installed", "uninstalled")):
-                                continue
-                            items.append(it)
+                # mcp-marketplace search_servers giới hạn limit <= 25 mỗi trang
+                req_limit = int(limit or 20)
+                sub_limit = max(1, min(req_limit, 25))
+                mkt_pages = [1, 2] if req_limit > 25 else [1]
+
+                for page_num in mkt_pages:
+                    args: dict = {"limit": sub_limit, "page": page_num}
+                    if category:
+                        args["category"] = category
+                    if query:
+                        args["query"] = query
+                    mkt_res = await self.mcp.call_tool(
+                        "mcp-marketplace", "search_servers", args)
+                    if isinstance(mkt_res, dict) and mkt_res.get("ok"):
+                        data = mkt_res.get("result") or {}
+                        raw_results = data.get("results") or []
+                        for raw in raw_results:
+                            rslug = raw.get("slug")
+                            if rslug and rslug not in curated_slugs:
+                                it = self._mcp_marketplace_item_to_listing(
+                                    raw, cat_slug=category)
+                                if (pricing and it.get("pricing", {}).get(
+                                        "model") != pricing):
+                                    continue
+                                if (installed == "installed"
+                                        and it["installed_state"]
+                                        in ("not_installed", "uninstalled")):
+                                    continue
+                                if (installed == "not_installed"
+                                        and it["installed_state"]
+                                        not in ("not_installed", "uninstalled")):
+                                    continue
+                                items.append(it)
+                                curated_slugs.add(rslug)
+                        if not data.get("has_more"):
+                            break
             except Exception as exc:
                 logger.debug("lỗi search_servers từ mcp-marketplace: %s",
                              exc)
