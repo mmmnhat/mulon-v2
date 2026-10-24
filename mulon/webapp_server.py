@@ -320,7 +320,13 @@ class WebAppServer:
             return await self._auth_middleware(request, handler)
 
         app = web.Application(middlewares=[_auth])
+        app.router.add_get("/", self._handle_index)
+        app.router.add_get("/a", self._handle_index)
+        app.router.add_get("/a/", self._handle_index)
         app.router.add_get("/app", self._handle_index)
+        app.router.add_get("/app/", self._handle_index)
+        app.router.add_get("/panel", self._handle_index)
+        app.router.add_get("/dashboard", self._handle_index)
         app.router.add_get("/app/avatar", self._handle_avatar)
         app.router.add_get("/app/assets/{name}",
                            self._handle_static_asset)
