@@ -1,4 +1,4 @@
-"""Mulon — Muse clone 1.0.0 (Phase 1 + 2 + 3 + 4 + 5 + 6).
+"""Mulon — Muse clone 1.0.1 (Phase 1 + 2 + 3 + 4 + 5 + 6).
 
 Lõi agent mỏng tự viết theo tài liệu thiết kế
 ``thiet-ke-ky-thuat-muse-clone.md``: gateway model qua LiteLLM trỏ vào
@@ -28,4 +28,4 @@ bề mặt (truy nguồn, quên có kế hoạch + xác nhận, export/import),
 quyền bằng lời thường + lịch sử duyệt.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
