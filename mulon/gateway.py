@@ -243,7 +243,11 @@ class ModelGateway:
             async for chunk in resp:  # type: AsyncIterator[Any]
                 try:
                     delta = chunk.choices[0].delta
-                    piece = getattr(delta, "content", None) or ""
+                    piece = (
+                        getattr(delta, "content", None)
+                        or getattr(delta, "text", None)
+                        or ""
+                    )
                 except Exception:
                     piece = ""
                 if piece:

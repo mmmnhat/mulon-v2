@@ -246,6 +246,7 @@ class Agent:
     # ---------- fast path: chat thường ----------
     async def _fast_path(self, session_key: str, messages: list[dict],
                          on_delta: Optional[DeltaFn]) -> TurnResult:
+        text = ""
         try:
             comp = await self.gateway.stream(
                 messages, model=self.cfg.model_brain, purpose="chat",
@@ -253,7 +254,28 @@ class Agent:
             )
             text = comp.text.strip()
         except GatewayError as exc:
-            text = f"(Đang lỗi đường gọi model: {exc})"
+            logger.warning("stream chat lỗi, thử fallback complete: %s", exc)
+
+        if not text:
+            # Fallback 1: non-streaming complete() với model_brain phòng khi rớt stream
+            try:
+                comp = await self.gateway.complete(
+                    messages, model=self.cfg.model_brain, purpose="chat_fallback"
+                )
+                text = comp.text.strip()
+            except Exception as exc:
+                logger.warning("fallback complete model_brain lỗi: %s", exc)
+
+        if not text:
+            # Fallback 2: non-streaming với model_cheap
+            try:
+                comp = await self.gateway.complete(
+                    messages, model=self.cfg.model_cheap, purpose="chat_cheap_fallback"
+                )
+                text = comp.text.strip()
+            except Exception as exc:
+                logger.warning("fallback complete model_cheap lỗi: %s", exc)
+
         if not text:
             text = "(Model không trả nội dung — thử lại giúp mình.)"
         return TurnResult(text=text, intent=Intent.CHAT, verified=None)
