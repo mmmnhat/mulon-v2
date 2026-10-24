@@ -177,11 +177,23 @@ theme. Thiếu API (server cũ) thì app vẫn chạy với theme local.
   hằng số duy nhất — bỏ hẳn cơ chế co header/nhảy offset
   khi cuộn). **Màn con ẩn hẳn header**, chỉ còn hàng nav
   (back + tiêu đề màn 20/600) như app Muse. Avatar states
-  (CSS thuần trên asset sẵn có): idle (thở nhẹ), working
-  (rung nhịp + vòng sáng xoay), waiting (vòng nhấp nháy
-  `--lav` — chờ duyệt), done (nảy 1 nhịp), error (lắc
-  ngang 2 nhịp). Chấm trạng thái cạnh dòng trạng thái:
-  `--ink3` khi rảnh, `--lav` khi bận.
+  (1.3.0 — thay cơ chế CSS keyframes cũ): phát ATLAS PNG
+  thật, bộ sprite mulon-states v0 owner đã chốt ở
+  `webapp/assets/` (atlas 1280x1280, lưới 5x5 ô 256, kèm
+  manifest hình học `mulon-states-manifest.json`; route tĩnh
+  `/app/assets/{name}` danh sách trắng ở webapp_server).
+  Hàng: done (5 frame @8fps, chiếu 1 lần), error (4 @6, 1
+  lần), idle (4 @4, lặp), waiting (4 @4, lặp), working
+  (4 @6, lặp). Trạng thái nền suy từ dữ kiện thật của
+  `/api/state` — KHÔNG bịa: có thẻ chờ duyệt → waiting;
+  đang chạy lượt → working; còn lại idle. done/error chỉ
+  chiếu 1 lần khi một lượt VIỆC thật (bản ghi task) vừa
+  chuyển sang xong/lỗi, rồi tự về trạng thái nền. Thiếu
+  asset: rơi về ảnh tĩnh `/app/avatar`, dưới nữa là chữ
+  cái đầu trên nền `--tint-lav` + chữ `--lav-deep` (đúng
+  họ tím Mulon theo theme — cấm họ màu lạ). Chấm trạng
+  thái cạnh dòng trạng thái: `--ink3` khi rảnh, `--lav`
+  khi bận.
 - **Segmented tabs — Phương án A (TB-2):** chỉ chữ, đúng
   mẫu control "Hiện có / Đã kết nối" của Muse. Track
   `--surface2` bo 12, đệm 3; nút cao 32 bo 9, chữ 13 —
