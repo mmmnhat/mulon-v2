@@ -220,7 +220,7 @@ class _BootstrapFinishingAgent:
     def __init__(self, dossier_dir):
         self.dossier_dir = dossier_dir
 
-    async def handle(self, key, text, on_delta=None):
+    async def handle(self, key, text, on_delta=None, on_event=None):
         user_md = self.dossier_dir / "USER.md"
         user_md.write_text(
             user_md.read_text(encoding="utf-8").replace(
