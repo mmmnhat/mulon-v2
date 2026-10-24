@@ -26,6 +26,7 @@ from .feed import FeedEngine
 from .gateway import ModelGateway
 from .ideas import IdeaEngine
 from .library import LibraryService
+from .marketplace import MarketplaceService, make_reexec_restarter
 from .mcp_client import MCPManager
 from .media_tools import ffmpeg_available, ffprobe_available, \
     register_media_tools
@@ -86,15 +87,34 @@ async def build_system(cfg: Config):
     # chúng vào registry chung. Server lỗi/vắng -> degrade sạch.
     mcp_manager = MCPManager(cfg, cfg.mcp_config_path)
     await mcp_manager.start()
-    mcp_tools = mcp_manager.register_into(registry)
-    if mcp_tools:
-        logger.info("MCP đã đăng ký %d tool: %s",
-                    len(mcp_tools), mcp_tools)
     # 1.2.0: broker duyệt việc (policy nấc "ask") — dùng chung cho
     # agent (mở yêu cầu), bề mặt Telegram (trình + gỡ thẻ) và Mini
     # App (/api/approve).
     broker = ApprovalBroker(policy=policy,
                             timeout_s=cfg.approval_timeout_s)
+    # 1.3.0: Marketplace cần VaultStore SỚM (secret resolver cho
+    # MCPManager) — phase 6 dùng lại đúng instance này.
+    vault_store = VaultStore(cfg.vault_path)
+    # 1.3.0: MCP Marketplace — boot gate chạy giữa start() và
+    # register_into(): server managed chỉ được đăng ký tool khi
+    # config fingerprint + tool fingerprint khớp bản đã duyệt;
+    # kèm đối chiếu restart pending + tự rollback khi áp dụng
+    # thất bại. Restarter/notifier chỉ gắn ở _run (dry-run không
+    # tự khởi động lại, không gửi tin).
+    marketplace = None
+    excluded: set = set()
+    if cfg.marketplace_enabled:
+        marketplace = MarketplaceService(
+            cfg, policy=policy, broker=broker,
+            vault_store=vault_store, mcp_manager=mcp_manager)
+        excluded = await marketplace.boot_gate()
+        if excluded:
+            logger.info("marketplace boot gate giữ tool của: %s",
+                        sorted(excluded))
+    mcp_tools = mcp_manager.register_into(registry, exclude=excluded)
+    if mcp_tools:
+        logger.info("MCP đã đăng ký %d tool: %s",
+                    len(mcp_tools), mcp_tools)
     agent = Agent(cfg, gateway, memory, ctx, registry, policy,
                   broker=broker)
     # Subagents: agent loop đầy đủ, toolset thu hẹp theo profile.
@@ -132,8 +152,8 @@ async def build_system(cfg: Config):
     # --- Phase 6: bề mặt group (mục 16) ---
     # Toàn bộ là dịch vụ theo yêu cầu (lệnh chat gọi mới chạy) —
     # không vòng lặp nền mới nào được bật ở đây. Vault form server
-    # chỉ start() trong _run, không start ở dry-run.
-    vault_store = VaultStore(cfg.vault_path)
+    # chỉ start() trong _run, không start ở dry-run. vault_store
+    # đã dựng ở khối 1.3 phía trên (dùng chung một instance).
     phase6 = {
         "topics": TopicManager(),
         "feed": FeedEngine(cfg, memory, gateway),
@@ -150,7 +170,7 @@ async def build_system(cfg: Config):
         cfg, memory=memory, policy=policy, broker=broker,
         connectors=connectors, mcp_manager=mcp_manager,
         vault_store=vault_store, registry=registry, dossier=dossier,
-        skills=catalog, activity=activity)
+        skills=catalog, activity=activity, marketplace=marketplace)
     services = {
         "mcp": mcp_manager,
         "connectors": connectors,
@@ -165,6 +185,7 @@ async def build_system(cfg: Config):
         "broker": broker,
         "webapp": webapp,
         "activity": activity,
+        "marketplace": marketplace,
     }
     return agent, memory, dossier, registry, worker, services
 
@@ -231,6 +252,14 @@ async def _dry_run(cfg: Config) -> int:
             "approval_timeout_s": cfg.approval_timeout_s,
             "commands": 31,
         },
+        "v13": {
+            "marketplace_enabled": cfg.marketplace_enabled,
+            "marketplace": (services["marketplace"].summary()
+                            if services.get("marketplace")
+                            else None),
+            "catalog_auto_update":
+                cfg.marketplace_catalog_auto_update,
+        },
         "db": str(cfg.db_path),
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -278,7 +307,20 @@ async def _run(cfg: Config) -> int:
                               policy=services["policy"],
                               surfaces=services["phase6"],
                               broker=services["broker"],
-                              activity=services["activity"])
+                              activity=services["activity"],
+                              marketplace=services.get("marketplace"))
+    # 1.3.0: marketplace — gắn restarter thật (bot tự khởi động
+    # lại sau cài/gỡ/cập nhật). Notifier + quyết toán boot do bề
+    # mặt Telegram gắn khi bot sẵn sàng (trong run()). Job nền
+    # hẹp duy nhất: kiểm tra catalog (boot + hàng tuần, chỉ dữ
+    # kiện — không bao giờ tự cài).
+    marketplace = services.get("marketplace")
+    if marketplace is not None:
+        marketplace.restarter = make_reexec_restarter()
+        if cfg.marketplace_catalog_auto_update:
+            asyncio.create_task(marketplace.catalog_loop())
+            logger.info("marketplace: tự kiểm tra catalog BẬT "
+                        "(boot + hàng tuần, chỉ dữ kiện)")
     # Vault form server: bind 127.0.0.1, link một lần qua /vault.
     if services["phase6"]["vault_server"].start():
         logger.info("vault form server BẬT (chỉ localhost)")
