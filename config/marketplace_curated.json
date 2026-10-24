@@ -1,0 +1,370 @@
+{
+  "schema_version": 1,
+  "provider_id": "mulon-curated",
+  "bundle_version": "2026.10.24-1",
+  "reviewed_at": "2026-10-24",
+  "listings": [
+    {
+      "slug": "filesystem",
+      "name": "Filesystem",
+      "creator_name": "Model Context Protocol (chính thức)",
+      "creator_url": "https://github.com/modelcontextprotocol/servers",
+      "source_url": "https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem",
+      "summary": "Đọc/ghi file trong thư mục workspace của Mulon.",
+      "description": "Server tham chiếu chính thức: đọc, ghi, sửa, liệt kê và tìm file — chỉ trong các thư mục được phép. Bản Mulon chỉ cho phép đúng thư mục workspace.",
+      "categories": [
+        "file-storage"
+      ],
+      "tags": [
+        "file",
+        "local"
+      ],
+      "locality": "local_process",
+      "transport": "stdio",
+      "pricing": {
+        "model": "free"
+      },
+      "security": {
+        "score": 8.5,
+        "risk_label": "Thấp",
+        "critical_findings_count": 0,
+        "findings": [],
+        "scanned_at": "2026-10-24",
+        "scan_source": "Mulon curated review — đã chạy probe thật 2026-10-24"
+      },
+      "permissions": [
+        "Chạy tiến trình local",
+        "Đọc file trong thư mục workspace",
+        "Ghi file trong thư mục workspace"
+      ],
+      "tool_count_known": 11,
+      "tool_names_known": [
+        "read_file",
+        "read_multiple_files",
+        "write_file",
+        "edit_file",
+        "create_directory",
+        "list_directory",
+        "directory_tree",
+        "move_file",
+        "search_files",
+        "get_file_info",
+        "list_allowed_directories"
+      ],
+      "reviewed_tool_fingerprint": "456c26d67d78570e503fe5d843472ee35684085a0750e7a3008b15b0b226d1b2a2",
+      "revision": "2025.3.28",
+      "install": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-filesystem@2025.3.28",
+          "{{workspace_dir}}"
+        ],
+        "env": {},
+        "package": {
+          "ecosystem": "npm",
+          "name": "@modelcontextprotocol/server-filesystem",
+          "version": "2025.3.28",
+          "pinned": true
+        },
+        "setup_requirements": []
+      }
+    },
+    {
+      "slug": "memory",
+      "name": "Memory (đồ thị tri thức)",
+      "creator_name": "Model Context Protocol (chính thức)",
+      "creator_url": "https://github.com/modelcontextprotocol/servers",
+      "source_url": "https://github.com/modelcontextprotocol/servers/tree/main/src/memory",
+      "summary": "Lưu tri thức dạng đồ thị thực thể/quan hệ trong một file local.",
+      "description": "Server bộ nhớ tham chiếu chính thức: tạo thực thể, quan hệ, quan sát và tìm kiếm trong đồ thị tri thức lưu tại máy.",
+      "categories": [
+        "ai-ml",
+        "data"
+      ],
+      "tags": [
+        "memory",
+        "knowledge-graph"
+      ],
+      "locality": "local_process",
+      "transport": "stdio",
+      "pricing": {
+        "model": "free"
+      },
+      "security": {
+        "score": 9.0,
+        "risk_label": "Thấp",
+        "critical_findings_count": 0,
+        "findings": [],
+        "scanned_at": "2026-10-24",
+        "scan_source": "Mulon curated review — đã chạy probe thật 2026-10-24"
+      },
+      "permissions": [
+        "Chạy tiến trình local",
+        "Đọc/ghi file dữ liệu bộ nhớ của chính nó"
+      ],
+      "tool_count_known": 9,
+      "tool_names_known": [
+        "create_entities",
+        "create_relations",
+        "add_observations",
+        "delete_entities",
+        "delete_observations",
+        "delete_relations",
+        "read_graph",
+        "search_nodes",
+        "open_nodes"
+      ],
+      "reviewed_tool_fingerprint": "97d51dd86d59b9de09448325298a38833c45809b98049fb45207b27f05702aa8a7",
+      "revision": "2025.3.28",
+      "install": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-memory@2025.3.28"
+        ],
+        "env": {},
+        "package": {
+          "ecosystem": "npm",
+          "name": "@modelcontextprotocol/server-memory",
+          "version": "2025.3.28",
+          "pinned": true
+        },
+        "setup_requirements": []
+      }
+    },
+    {
+      "slug": "sequential-thinking",
+      "name": "Sequential Thinking",
+      "creator_name": "Model Context Protocol (chính thức)",
+      "creator_url": "https://github.com/modelcontextprotocol/servers",
+      "source_url": "https://github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking",
+      "summary": "Hỗ trợ suy luận từng bước có cấu trúc cho bài toán phức tạp.",
+      "description": "Server tham chiếu chính thức cho suy luận tuần tự: chia bài toán thành các bước nghĩ có thể rẽ nhánh và xem lại.",
+      "categories": [
+        "ai-ml",
+        "productivity"
+      ],
+      "tags": [
+        "reasoning"
+      ],
+      "locality": "local_process",
+      "transport": "stdio",
+      "pricing": {
+        "model": "free"
+      },
+      "security": {
+        "score": 9.0,
+        "risk_label": "Thấp",
+        "critical_findings_count": 0,
+        "findings": [],
+        "scanned_at": "2026-10-24",
+        "scan_source": "Mulon curated review — đã chạy probe thật 2026-10-24"
+      },
+      "permissions": [
+        "Chạy tiến trình local"
+      ],
+      "tool_count_known": 1,
+      "tool_names_known": [
+        "sequentialthinking"
+      ],
+      "reviewed_tool_fingerprint": "13b2ea9c6ec037709bdae296979bfe728826fa11ce589d5ba28f2d58d542dcd4f2",
+      "revision": "2025.3.28",
+      "install": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-sequential-thinking@2025.3.28"
+        ],
+        "env": {},
+        "package": {
+          "ecosystem": "npm",
+          "name": "@modelcontextprotocol/server-sequential-thinking",
+          "version": "2025.3.28",
+          "pinned": true
+        },
+        "setup_requirements": []
+      }
+    },
+    {
+      "slug": "git",
+      "name": "Git",
+      "creator_name": "Model Context Protocol (chính thức)",
+      "creator_url": "https://github.com/modelcontextprotocol/servers",
+      "source_url": "https://github.com/modelcontextprotocol/servers/tree/main/src/git",
+      "summary": "Đọc và thao tác kho Git: status, diff, log, commit, branch.",
+      "description": "Server Git tham chiếu chính thức. Có tool ghi (add/commit/checkout) nên điểm thấp hơn nhóm chỉ-đọc; mọi lần gọi vẫn qua nấc Hỏi trước của Mulon.",
+      "categories": [
+        "developer-tools"
+      ],
+      "tags": [
+        "git",
+        "code"
+      ],
+      "locality": "local_process",
+      "transport": "stdio",
+      "pricing": {
+        "model": "free"
+      },
+      "security": {
+        "score": 8.0,
+        "risk_label": "Thấp",
+        "critical_findings_count": 0,
+        "findings": [],
+        "scanned_at": "2026-10-24",
+        "scan_source": "Mulon curated review — đã chạy probe thật 2026-10-24"
+      },
+      "permissions": [
+        "Chạy tiến trình local",
+        "Đọc kho Git theo đường dẫn được gọi",
+        "Ghi kho Git (add/commit/branch) khi được duyệt từng lần gọi"
+      ],
+      "tool_count_known": 12,
+      "tool_names_known": [
+        "git_status",
+        "git_diff_unstaged",
+        "git_diff_staged",
+        "git_diff",
+        "git_commit",
+        "git_add",
+        "git_reset",
+        "git_log",
+        "git_create_branch",
+        "git_checkout",
+        "git_show",
+        "git_branch"
+      ],
+      "reviewed_tool_fingerprint": "c1fc3865a996c1ecaa19913f8541fe62c66433eadd28aefb474962b09d0577b5dd",
+      "revision": "2026.10.19",
+      "install": {
+        "command": "uvx",
+        "args": [
+          "mcp-server-git@2026.10.19"
+        ],
+        "env": {},
+        "package": {
+          "ecosystem": "pypi",
+          "name": "mcp-server-git",
+          "version": "2026.10.19",
+          "pinned": true
+        },
+        "setup_requirements": []
+      }
+    },
+    {
+      "slug": "time",
+      "name": "Time (giờ & múi giờ)",
+      "creator_name": "Model Context Protocol (chính thức)",
+      "creator_url": "https://github.com/modelcontextprotocol/servers",
+      "source_url": "https://github.com/modelcontextprotocol/servers/tree/main/src/time",
+      "summary": "Giờ hiện tại và chuyển đổi múi giờ IANA.",
+      "description": "Server tham chiếu chính thức: lấy giờ theo múi giờ và chuyển đổi giờ giữa các múi giờ. Chỉ đọc, không ghi gì.",
+      "categories": [
+        "utilities",
+        "productivity"
+      ],
+      "tags": [
+        "time",
+        "timezone"
+      ],
+      "locality": "local_process",
+      "transport": "stdio",
+      "pricing": {
+        "model": "free"
+      },
+      "security": {
+        "score": 9.0,
+        "risk_label": "Thấp",
+        "critical_findings_count": 0,
+        "findings": [],
+        "scanned_at": "2026-10-24",
+        "scan_source": "Mulon curated review — đã chạy probe thật 2026-10-24"
+      },
+      "permissions": [
+        "Chạy tiến trình local"
+      ],
+      "tool_count_known": 2,
+      "tool_names_known": [
+        "get_current_time",
+        "convert_time"
+      ],
+      "reviewed_tool_fingerprint": "701a19d611da8aa4fdac457dec3210957edcbf8194c59f7e1f07d53cc3662de0",
+      "revision": "2026.10.19",
+      "install": {
+        "command": "uvx",
+        "args": [
+          "mcp-server-time@2026.10.19"
+        ],
+        "env": {},
+        "package": {
+          "ecosystem": "pypi",
+          "name": "mcp-server-time",
+          "version": "2026.10.19",
+          "pinned": true
+        },
+        "setup_requirements": []
+      }
+    },
+    {
+      "slug": "fetch",
+      "name": "Fetch (đọc web)",
+      "creator_name": "Model Context Protocol (chính thức)",
+      "creator_url": "https://github.com/modelcontextprotocol/servers",
+      "source_url": "https://github.com/modelcontextprotocol/servers/tree/main/src/fetch",
+      "summary": "Tải trang web và chuyển thành markdown.",
+      "description": "Server tham chiếu chính thức để đọc nội dung web. Có quyền truy cập mạng ra ngoài; mặc định của nhà phát hành chặn địa chỉ IP nội bộ/loopback.",
+      "categories": [
+        "data",
+        "utilities"
+      ],
+      "tags": [
+        "web",
+        "http"
+      ],
+      "locality": "local_process",
+      "transport": "stdio",
+      "pricing": {
+        "model": "free"
+      },
+      "security": {
+        "score": 7.5,
+        "risk_label": "Trung bình",
+        "critical_findings_count": 0,
+        "findings": [
+          {
+            "severity": "medium",
+            "title": "Truy cập mạng ra ngoài",
+            "detail": "Tool fetch tải URL bất kỳ trên internet; nhà phát hành mặc định chặn IP nội bộ nhưng vẫn nên giữ nấc Hỏi trước khi gọi."
+          }
+        ],
+        "scanned_at": "2026-10-24",
+        "scan_source": "Mulon curated review — đã chạy probe thật 2026-10-24"
+      },
+      "permissions": [
+        "Chạy tiến trình local",
+        "Truy cập mạng ra ngoài (HTTP/HTTPS)"
+      ],
+      "tool_count_known": 1,
+      "tool_names_known": [
+        "fetch"
+      ],
+      "reviewed_tool_fingerprint": "f1a2a37708b820a51de44402c34b8d5ea6b2ac0df67c39375476b2d460a5f5a78",
+      "revision": "2026.10.19",
+      "install": {
+        "command": "uvx",
+        "args": [
+          "mcp-server-fetch@2026.10.19"
+        ],
+        "env": {},
+        "package": {
+          "ecosystem": "pypi",
+          "name": "mcp-server-fetch",
+          "version": "2026.10.19",
+          "pinned": true
+        },
+        "setup_requirements": []
+      }
+    }
+  ],
+  "content_sha256": "0b3ee2b5c938240f84bc02071234cf0f0e0f005ccbb596eb214b29b961764d04"
+}
