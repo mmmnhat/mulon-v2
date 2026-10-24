@@ -181,7 +181,7 @@ class TopicManager:
 def format_topics_result(result: dict) -> str:
     if not result["map"] and result["errors"]:
         return "Chưa setup được topic:\n- " + "\n- ".join(result["errors"])
-    lines = ["**Bản đồ topic của group này:**"]
+    lines = ["Bản đồ topic của group này:"]
     by_key = {s["key"]: s for s in SURFACES}
     for key, tid in result["map"].items():
         title = by_key.get(key, {}).get("title", key)
@@ -197,7 +197,7 @@ def format_topics_map(mapping: dict[str, int]) -> str:
         return ("Chưa có bản đồ topic cho group này. "
                 "Chạy /setup_topics trong group forum trước.")
     by_key = {s["key"]: s for s in SURFACES}
-    lines = ["**Bản đồ topic hiện tại:**"]
+    lines = ["Bản đồ topic hiện tại:"]
     for key, tid in mapping.items():
         lines.append(
             f"- {by_key.get(key, {}).get('title', key)}: thread {tid}")
@@ -506,7 +506,7 @@ def parse_note_action(text: str,
 def format_notes_list(notes: list[dict]) -> str:
     if not notes:
         return "Không có đề xuất chủ động nào đang chờ."
-    lines = ["**Đề xuất chủ động đang chờ duyệt:**"]
+    lines = ["Đề xuất chủ động đang chờ duyệt:"]
     for n in notes:
         why = f" — {n['reason']}" if n.get("reason") else ""
         lines.append(f"- #{n['id']}: {n['content']}{why}")
@@ -522,49 +522,70 @@ def summarize_policy(policy) -> str:
     """Tóm tắt policy 2 lớp thành tiếng Việt dễ hiểu."""
     host = getattr(policy, "host", {}) or {}
     default = str(host.get("default") or "allow").lower()
-    lines = ["**Quyền hiện tại (đọc từ policy của máy):**"]
+    lines = ["Quyền hiện tại (đọc từ policy của máy):"]
     if default in {"deny", "block"}:
-        lines.append("- Mặc định: KHÔNG tự làm — mọi tool phải được "
-                     "duyệt trước.")
+        lines.append("- Mặc định: KHÔNG tự làm — mọi tool bị chặn "
+                     "hẳn.")
+    elif default in {"ask", "prompt", "confirm"}:
+        lines.append("- Mặc định: phải hỏi trước — tool nào cũng "
+                     "qua thẻ duyệt, mọi quyết định vẫn ghi vào "
+                     "lịch sử duyệt (/approvals).")
     else:
         lines.append("- Mặc định: full-auto — agent tự làm trong "
                      "phạm vi đã cấp, mọi quyết định vẫn ghi vào "
                      "lịch sử duyệt (/approvals).")
+    def _verdict_text(v: str) -> str:
+        if v in {"ask", "prompt", "confirm"}:
+            return "phải hỏi trước khi làm (hiện thẻ duyệt)."
+        if v in {"deny", "block"}:
+            return ("bị chặn — không tự làm được (muốn làm phải "
+                    "hỏi và sửa policy).")
+        return "được tự làm."
+
     tools = host.get("tools") or {}
     for name, verdict in sorted(tools.items()):
-        v = str(verdict).lower()
         lines.append(
-            f"- Tool {name}: "
-            + ("phải hỏi trước / bị chặn." if v in {"deny", "block"}
-               else "được tự làm."))
+            f"- Tool {name}: " + _verdict_text(str(verdict).lower()))
     groups = host.get("groups") or {}
     for name, verdict in sorted(groups.items()):
-        v = str(verdict).lower()
         lines.append(
-            f"- Nhóm {name}: "
-            + ("phải hỏi trước / bị chặn." if v in {"deny", "block"}
-               else "được tự làm."))
+            f"- Nhóm {name}: " + _verdict_text(str(verdict).lower()))
     s_tools = getattr(policy, "session_tools", {}) or {}
     s_groups = getattr(policy, "session_groups", {}) or {}
     if s_tools or s_groups:
         lines.append("- Có override tạm trong phiên hiện tại: "
                      + ", ".join(sorted({**s_tools, **s_groups})))
     lines.append(
-        "Muốn siết/nới: sửa file policy.json trên máy (lớp host "
-        "luôn thắng phiên) — không có đường tắt qua chat.")
+        "Muốn siết/nới: mở /menu -> Cài đặt -> Quyền (đổi tại "
+        "chỗ, chọn lưu bền để ghi vào file policy.json — lớp "
+        "host luôn thắng phiên).")
     return "\n".join(lines)
 
 
 def format_approvals(rows: list[dict]) -> str:
+    """Lịch sử quyết định — DUY-1: hàng từ thẻ duyệt (kind
+    approval_decision, có `outcome`) phải dịch theo outcome:
+    việc user ĐÃ DUYỆT qua nấc ask không được hiện thành CHẶN
+    chỉ vì policy.check ban đầu ghi allowed=False."""
     if not rows:
         return "Chưa có quyết định quyền nào được ghi."
-    lines = ["**Lịch sử duyệt gần nhất:**"]
+    lines = ["Lịch sử duyệt gần nhất:"]
     for r in rows:
         p = r.get("payload") or {}
-        verdict = "CHO" if p.get("allowed") else "CHẶN"
+        outcome = p.get("outcome")
+        if outcome == "approved":
+            verdict = "CHO (đã duyệt qua thẻ)"
+        elif outcome == "denied":
+            verdict = "CHẶN (user từ chối qua thẻ)"
+        elif outcome == "expired":
+            verdict = "HẾT HẠN (thẻ duyệt không ai bấm)"
+        elif outcome:
+            verdict = str(outcome).upper()
+        else:
+            verdict = "CHO" if p.get("allowed") else "CHẶN"
         lines.append(
             f"- {r.get('created_at', '')} · {verdict} tool "
-            f"`{p.get('tool', '?')}` (nhóm {p.get('group', '') or '—'}, "
+            f"{p.get('tool', '?')} (nhóm {p.get('group', '') or '—'}, "
             f"lớp {p.get('layer', '?')})")
     return "\n".join(lines)
 
@@ -599,7 +620,7 @@ async def build_forget_plan(memory, dossier_dir, topic: str) -> dict:
 
 
 def format_forget_plan(plan: dict) -> str:
-    lines = [f"**Kế hoạch quên chủ đề: {plan['topic']}**"]
+    lines = [f"Kế hoạch quên chủ đề: {plan['topic']}"]
     if plan["facts"]:
         lines.append("Fact sẽ bị vô hiệu:")
         lines += [f"- #{f['id']}: {f['fact']}" for f in plan["facts"]]
