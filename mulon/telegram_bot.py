@@ -2015,10 +2015,11 @@ class TelegramSurface:
 
             feed_auto.bind_sender(_feed_send)
         # Vault 1.6.0: gắn notifier gửi thẻ Vault cho agent tool
-        if self.registry is not None:
+        reg = getattr(self.agent, "registry", None)
+        if reg is not None:
             from .vault import register_vault_tools
             register_vault_tools(
-                self.registry, self.cfg, notifier=self.send_vault_card_to_owner)
+                reg, self.cfg, notifier=self.send_vault_card_to_owner)
         # Menu lệnh "/" cho user thấy ngay (Khối 1, 1.2.0). Lỗi
         # đăng ký chỉ log warning — không được làm sập bot.
         try:
