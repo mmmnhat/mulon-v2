@@ -77,6 +77,8 @@ Phase 6 trình — không tự gửi.
 | `mulon/ideas.py` | IdeaEngine: sinh thẻ ý tưởng (hết hạn theo config), dọn thẻ hết hạn, 'làm luôn' -> goal + task, bỏ qua |
 | `mulon/library.py` | LibraryService: lập chỉ mục workspace, thùng rác 30 ngày (move file thật vào workspace/trash/), chia sẻ <=48h trạng thái chờ host |
 | `mulon/vault.py` | Secure Vault: VaultStore (file JSON 0600, cửa đọc duy nhất resolve(ref)) + VaultFormServer (stdlib HTTP bind 127.0.0.1, token 1 lần + TTL); giá trị không qua chat/log/trajectory |
+| `mulon/approvals.py` | ApprovalBroker (1.2.0): yêu cầu duyệt của policy nấc ask — open/wait/resolve, timeout = hết hạn, "duyệt và nhớ" ghi rule session, listener cho bề mặt tự gỡ thẻ; payload chỉ có tóm tắt args an toàn |
+| `mulon/webapp_server.py` | Mini App server (1.2.0): aiohttp bind 127.0.0.1 cổng WEBAPP_PORT, phục vụ `mulon/webapp/index.html` (1 file tĩnh) + API JSON (state/task/profile/policy/connector/approve/schedule); mọi /api/* khóa bằng initData HMAC + ALLOWED_USER_ID; ActivityTracker cho trạng thái sống |
 
 ## Nguyên tắc bất biến (rút từ mục 0 của thiết kế)
 
