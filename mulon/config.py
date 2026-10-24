@@ -186,6 +186,19 @@ class Config:
     # File trong thùng rác Library khôi phục được trong ngần này ngày.
     library_trash_days: int = 30
 
+    # --- 1.2.0: Mini App (bảng điều khiển) + thẻ duyệt ---
+    # WEBAPP_URL: URL HTTPS công khai của Mini App (vd qua tunnel
+    # cloudflared/tailscale funnel trỏ về 127.0.0.1:WEBAPP_PORT).
+    # WEBAPP_APP_NAME: short name của Mini App đăng ký trong
+    # BotFather (/myapps) — dùng dựng Direct Link
+    # https://t.me/<bot>/<app>?startapp=... Thiếu 1 trong 2 ->
+    # nút mở app degrade về inline callback, bot vẫn chạy đủ.
+    webapp_url: str = ""
+    webapp_app_name: str = ""
+    webapp_port: int = 8320
+    # Thẻ duyệt (policy nấc "ask") hết hạn sau ngần này giây.
+    approval_timeout_s: float = 60.0
+
     @classmethod
     def load(cls, env_file: str | Path | None = None) -> "Config":
         """Nạp .env (nếu có) rồi đọc env. Không ghi secret ra bất cứ đâu."""
@@ -276,6 +289,10 @@ class Config:
             vault_token_ttl_s=_env_int("VAULT_TOKEN_TTL_S", 600),
             idea_ttl_days=_env_int("IDEA_TTL_DAYS", 14),
             library_trash_days=_env_int("LIBRARY_TRASH_DAYS", 30),
+            webapp_url=_env("WEBAPP_URL", ""),
+            webapp_app_name=_env("WEBAPP_APP_NAME", ""),
+            webapp_port=_env_int("WEBAPP_PORT", 8320),
+            approval_timeout_s=_env_float("APPROVAL_TIMEOUT_S", 60.0),
         )
 
     def masked_summary(self) -> dict:
@@ -323,4 +340,8 @@ class Config:
             "vault_path": str(self.vault_path),
             "idea_ttl_days": self.idea_ttl_days,
             "library_trash_days": self.library_trash_days,
+            "webapp_configured": bool(self.webapp_url
+                                      and self.webapp_app_name),
+            "webapp_port": self.webapp_port,
+            "approval_timeout_s": self.approval_timeout_s,
         }
