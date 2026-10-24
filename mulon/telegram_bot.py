@@ -1,7 +1,9 @@
 """Bề mặt Telegram (aiogram 3) — kênh duy nhất (thiết kế mục 16).
 
 - Allowlist cứng theo ALLOWED_USER_ID: người khác ra lệnh không chạy.
-- Gom tin liên tiếp (mục 16.1): debounce ~2.5s, cả chùm thành 1 lượt.
+- Gom tin liên tiếp (mục 16.1): debounce ~2.5s, cả chùm thành 1 lượt;
+  tin tới trong lúc session đang bận bị giữ lại rồi drain/gộp vào
+  lượt đang chờ lock hoặc lượt kế tiếp — không nứt lượt riêng lẻ.
 - Ack bằng reaction thay tin trạng thái rác; streaming bằng edit tại chỗ.
 - Session key theo (chat, topic): `agent:main:telegram:<loại>:<chat>:topic:<id>`.
 - Group có người khác: chỉ đáp khi được mention/reply (GROUP_MENTION_ONLY).
@@ -43,20 +45,75 @@ FlushFn = Callable[[str, str, list[str]], Awaitable[None]]
 
 
 class MessageBatcher:
-    """Gom các tin liên tiếp của cùng 1 session thành 1 lượt xử lý."""
+    """Gom các tin liên tiếp của cùng 1 session thành 1 lượt xử lý.
+
+    Trạng thái bận theo key (mục 16.1): trong lúc một lượt của
+    session đang chạy — hoặc một lượt khác đang chờ lock của
+    session — tin mới chỉ bị GIỮ trong buffer, không hẹn giờ
+    flush. Lượt chờ lock khi vào được lock sẽ drain cả buffer
+    vào input của chính nó; lượt đang chạy xong thì release()
+    kick một nhịp debounce mới cho phần tin còn lại. Nhờ vậy tin
+    gõ trong lúc bot còn đang xử lý không bao giờ nứt thành
+    nhiều lượt riêng lẻ chồng nhau.
+    """
 
     def __init__(self, debounce_s: float, on_flush: FlushFn):
         self.debounce_s = debounce_s
         self.on_flush = on_flush
         self._buffers: dict[str, list[str]] = {}
         self._timers: dict[str, asyncio.Task] = {}
+        self._busy: dict[str, int] = {}
 
-    async def add(self, key: str, text: str) -> None:
-        self._buffers.setdefault(key, []).append(text)
+    # ---- trạng thái bận (bề mặt gọi quanh mỗi lượt) ----
+    def is_busy(self, key: str) -> bool:
+        return self._busy.get(key, 0) > 0
+
+    def mark_busy(self, key: str) -> None:
+        """Một lượt bắt đầu (kể cả còn đang chờ lock): đếm +1.
+
+        Đếm thay vì cờ bật/tắt vì lượt đang chạy và lượt đang
+        chờ lock có thể chồng nhau — chỉ khi lượt cuối cùng nhả
+        ra thì session mới hết bận thật sự.
+        """
+        self._busy[key] = self._busy.get(key, 0) + 1
+
+    def release(self, key: str) -> None:
+        """Một lượt kết thúc: đếm -1. Khi đếm về 0 mà buffer
+        còn tin bị giữ thì hẹn giờ flush theo debounce như
+        bình thường, để các tin đó thành lượt kế tiếp (và vẫn
+        kịp gộp với tin gõ ngay sau đó)."""
+        left = self._busy.get(key, 0) - 1
+        if left > 0:
+            self._busy[key] = left
+            return
+        self._busy.pop(key, None)
+        if self._buffers.get(key):
+            self._schedule(key)
+
+    def drain(self, key: str) -> list[str]:
+        """Rút toàn bộ buffer (hủy timer tương ứng): tin tới
+        trong lúc lượt chờ lock thuộc về chính lượt đó, không
+        sinh lượt thừa."""
+        timer = self._timers.pop(key, None)
+        if timer is not None:
+            timer.cancel()
+        return self._buffers.pop(key, [])
+
+    # ---- gom tin ----
+    def _schedule(self, key: str) -> None:
         old = self._timers.get(key)
         if old is not None:
             old.cancel()
         self._timers[key] = asyncio.create_task(self._delayed_flush(key))
+
+    async def add(self, key: str, text: str) -> None:
+        self._buffers.setdefault(key, []).append(text)
+        if self.is_busy(key):
+            # Session đang bận: chỉ giữ tin, KHÔNG hẹn giờ.
+            # Lượt chờ lock sẽ drain, hoặc release() của lượt
+            # đang chạy sẽ kick nhịp debounce khi nó xong.
+            return
+        self._schedule(key)
 
     async def _delayed_flush(self, key: str) -> None:
         try:
@@ -261,68 +318,86 @@ class TelegramSurface:
         anchor = self._sessions_meta.get(key)
         if anchor is None:
             return
-        lock = self._locks.setdefault(key, asyncio.Lock())
-        async with lock:  # mỗi session tối đa 1 lượt active (mục 3.3)
-            try:
-                await anchor.react([ReactionTypeEmoji(emoji="👀")])
-            except Exception:
-                pass
-            placeholder = None
-            state = {"shown": "", "last_edit": 0.0}
-
-            async def on_delta(piece: str) -> None:
-                state["shown"] += piece
-                now = asyncio.get_event_loop().time()
-                if placeholder is not None and now - state["last_edit"] > 1.0:
-                    state["last_edit"] = now
-                    try:
-                        await placeholder.edit_text(state["shown"][:4000])
-                    except Exception:
-                        pass
-
-            if True:
+        # Đánh dấu bận NGAY, trước cả khi chờ lock: từ đây tới
+        # lúc lượt xong, batcher chỉ giữ tin mới trong buffer,
+        # không hẹn giờ flush thành lượt riêng (vá 1.1.1, mục
+        # 16.1). try/finally bảo đảm luôn nhả bận kể cả khi
+        # agent.handle ném lỗi — session không kẹt bận vĩnh viễn.
+        self.batcher.mark_busy(key)
+        try:
+            lock = self._locks.setdefault(key, asyncio.Lock())
+            async with lock:  # mỗi session tối đa 1 lượt active (mục 3.3)
+                # Drain: tin tới trong lúc lượt này chờ lock
+                # thuộc về chính lượt này — gộp vào input theo
+                # đúng thứ tự, không sinh lượt thừa.
+                extra = self.batcher.drain(key)
+                if extra:
+                    parts = parts + extra
+                    joined = "\n".join(parts)
                 try:
-                    placeholder = await anchor.answer("…")
+                    await anchor.react([ReactionTypeEmoji(emoji="👀")])
                 except Exception:
-                    placeholder = None
-            # Ghi trạng thái nghi lễ TRƯỚC lượt: nếu lượt này bắt
-            # đầu khi BOOTSTRAP còn chờ, agent có thể vừa hoàn tất
-            # nghi lễ trên đĩa — cuối lượt phải nạp lại snapshot.
-            was_bootstrap_pending = bool(
-                self.dossier is not None
-                and self.dossier.bootstrap_pending()
-            )
-            result = await self.agent.handle(
-                key, joined, on_delta=on_delta
-            )
-            final = result.text or "(không có nội dung)"
-            chunks = chunk_html(final)
-            try:
-                if placeholder is not None:
-                    await placeholder.edit_text(chunks[0], parse_mode="HTML")
-                    for extra in chunks[1:]:
-                        await anchor.answer(extra, parse_mode="HTML")
-                else:
-                    for chunk in chunks:
-                        await anchor.answer(chunk, parse_mode="HTML")
-            except Exception:
-                # HTML lỗi ở đâu đó -> gửi lại dạng text thuần, không nuốt kết quả.
-                for chunk in chunk_html(final):
-                    plain = re.sub(r"<[^>]+>", "", chunk)
-                    await anchor.answer(plain)
-            await self._maybe_send_voice(key, anchor, final)
-            if was_bootstrap_pending and self.dossier is not None:
-                # Lượt vừa rồi có thể đã gỡ BOOTSTRAP_PENDING khỏi
-                # USER.md trên đĩa: nạp lại để /start và ngữ cảnh
-                # các lượt sau thấy trạng thái mới, khỏi chờ restart.
-                # Đây là cùng 1 instance Dossier mà ContextEngine
-                # đang giữ (main.build_system truyền chung).
+                    pass
+                placeholder = None
+                state = {"shown": "", "last_edit": 0.0}
+
+                async def on_delta(piece: str) -> None:
+                    state["shown"] += piece
+                    now = asyncio.get_event_loop().time()
+                    if placeholder is not None and now - state["last_edit"] > 1.0:
+                        state["last_edit"] = now
+                        try:
+                            await placeholder.edit_text(state["shown"][:4000])
+                        except Exception:
+                            pass
+
+                if True:
+                    try:
+                        placeholder = await anchor.answer("…")
+                    except Exception:
+                        placeholder = None
+                # Ghi trạng thái nghi lễ TRƯỚC lượt: nếu lượt này bắt
+                # đầu khi BOOTSTRAP còn chờ, agent có thể vừa hoàn tất
+                # nghi lễ trên đĩa — cuối lượt phải nạp lại snapshot.
+                was_bootstrap_pending = bool(
+                    self.dossier is not None
+                    and self.dossier.bootstrap_pending()
+                )
+                result = await self.agent.handle(
+                    key, joined, on_delta=on_delta
+                )
+                final = result.text or "(không có nội dung)"
+                chunks = chunk_html(final)
                 try:
-                    self.dossier.reload()
-                except Exception as exc:
-                    logger.warning(
-                        "nạp lại dossier sau lượt bootstrap lỗi: %s",
-                        exc)
+                    if placeholder is not None:
+                        await placeholder.edit_text(chunks[0], parse_mode="HTML")
+                        for extra in chunks[1:]:
+                            await anchor.answer(extra, parse_mode="HTML")
+                    else:
+                        for chunk in chunks:
+                            await anchor.answer(chunk, parse_mode="HTML")
+                except Exception:
+                    # HTML lỗi ở đâu đó -> gửi lại dạng text thuần, không nuốt kết quả.
+                    for chunk in chunk_html(final):
+                        plain = re.sub(r"<[^>]+>", "", chunk)
+                        await anchor.answer(plain)
+                await self._maybe_send_voice(key, anchor, final)
+                if was_bootstrap_pending and self.dossier is not None:
+                    # Lượt vừa rồi có thể đã gỡ BOOTSTRAP_PENDING khỏi
+                    # USER.md trên đĩa: nạp lại để /start và ngữ cảnh
+                    # các lượt sau thấy trạng thái mới, khỏi chờ restart.
+                    # Đây là cùng 1 instance Dossier mà ContextEngine
+                    # đang giữ (main.build_system truyền chung).
+                    try:
+                        self.dossier.reload()
+                    except Exception as exc:
+                        logger.warning(
+                            "nạp lại dossier sau lượt bootstrap lỗi: %s",
+                            exc)
+        finally:
+            # Luôn nhả bận + kick nhịp debounce cho phần tin bị
+            # giữ (nếu còn) — chạy cả khi lượt xử lý ném lỗi.
+            self.batcher.release(key)
 
     # ---- voice (Phase 4, mục 8.1) ----
     async def _maybe_send_voice(self, key: str, anchor: Message,
