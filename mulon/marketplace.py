@@ -1283,6 +1283,30 @@ class MarketplaceService:
                       f"{result.get('latency_ms', 0)}ms")
         self._save_op(op)
 
+    async def install_one_click(self, operation_id: str) -> dict:
+        """Cài đặt một chạm (1.6.0): owner bấm cài trực tiếp trong Mini App
+        thì cài luôn, không gửi 2 thẻ duyệt vào Telegram chat.
+        Tự động: probe -> đối chiếu bảo mật -> commit."""
+        op = self._get_op(operation_id)
+        if op["stage"] in TERMINAL_STAGES:
+            raise MarketplaceError("operation_conflict",
+                                   "Operation đã kết thúc.")
+        if op["stage"] == "awaiting_secret":
+            raise MarketplaceError("operation_conflict",
+                                   "Cần gắn bí mật trước khi cài đặt.")
+        self._journal(op, "probe_auto_approved", "one_click_webapp")
+        self._save_op(op)
+        await self._run_probe(operation_id)
+        op = self._get_op(operation_id)
+        if op["stage"] == "failed":
+            return self.operation_view(op)
+        if op["stage"] == "awaiting_commit_approval":
+            self._journal(op, "commit_auto_approved", "one_click_webapp")
+            self._save_op(op)
+            await self._run_commit(operation_id)
+        op = self._get_op(operation_id)
+        return self.operation_view(op)
+
     def cancel_operation(self, operation_id: str) -> dict:
         op = self._get_op(operation_id)
         if op["stage"] in TERMINAL_STAGES or \

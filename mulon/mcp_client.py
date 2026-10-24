@@ -243,16 +243,13 @@ class MCPManager:
             logger.info("MCP server '%s' đã nối: %d tool",
                         conn.name, len(conn.tools))
         except asyncio.CancelledError as exc:
-            # Cancel scope của anyio (trong SDK) đôi khi "rò" một
-            # CancelledError ra ngoài khi kết nối chết giữa chừng,
-            # dù không ai hủy task này thật. Chỉ nuốt khi tầng
-            # asyncio không ghi nhận yêu cầu hủy (cancelling()==0);
-            # hủy thật từ bên ngoài thì để lan ra như thường.
+            # Cancel scope của anyio (trong SDK) rò CancelledError khi tiến
+            # trình con chết bất ngờ. Uncancel để task hiện tại tiếp tục và degrade.
             task = asyncio.current_task()
-            if task is not None and task.cancelling() > 0:
-                raise
+            if task is not None and hasattr(task, "uncancel"):
+                task.uncancel()
             conn.error = ("connect_failed: CancelledError: kết nối bị "
-                          "hủy giữa chừng (server không phản hồi?)")
+                          "hủy giữa chừng (server không phản hồi hoặc lệnh không hợp lệ)")
             conn.session = None
             logger.warning("MCP server '%s' nối lỗi (degrade): %s",
                            conn.name, conn.error)
@@ -316,6 +313,8 @@ class MCPManager:
     async def _open_stdio(self, conn: _Connection) -> None:
         entry = conn.entry
         env = dict(get_default_environment())
+        if "PYTHONPATH" in os.environ and "PYTHONPATH" not in env:
+            env["PYTHONPATH"] = os.environ["PYTHONPATH"]
         extra_env = entry.get("env") or {}
         if isinstance(extra_env, dict):
             env.update({str(k): str(v) for k, v in extra_env.items()})

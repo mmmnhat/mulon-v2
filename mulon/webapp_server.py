@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import html
 import json
 import logging
 import platform
@@ -276,7 +277,8 @@ class WebAppServer:
     def __init__(self, cfg, *, memory, policy, broker, connectors,
                  mcp_manager, vault_store, registry, dossier=None,
                  skills=None, activity: Optional[ActivityTracker] = None,
-                 marketplace=None, feed_auto=None, google_auth=None):
+                 marketplace=None, feed_auto=None, google_auth=None,
+                 library=None):
         self.cfg = cfg
         self.memory = memory
         self.policy = policy
@@ -287,6 +289,7 @@ class WebAppServer:
         self.registry = registry
         self.dossier = dossier
         self.skills = skills
+        self.library = library
         # Marketplace 1.3.0 (mulon.marketplace) — None thì toàn bộ
         # /api/marketplace/* trả 503 sạch, màn Kết nối giữ hành vi cũ.
         self.marketplace = marketplace
@@ -408,6 +411,17 @@ class WebAppServer:
         app.router.add_post(
             "/api/marketplace/installed/{name}/uninstall/prepare",
             self._mkt_uninstall_prepare)
+        # 1.6.0: Chia sẻ tài liệu / Artifacts công khai không qua auth
+        app.router.add_get("/share/{token}", self._handle_public_share)
+        # 1.6.0: Library management API cho Mini App
+        app.router.add_get("/api/library/items", self._handle_library_items)
+        app.router.add_post("/api/library/items/{id}/pin", self._handle_library_pin)
+        app.router.add_post("/api/library/items/{id}/rename", self._handle_library_rename)
+        app.router.add_post("/api/library/items/{id}/share", self._handle_library_share)
+        # 1.6.0: One-click MCP Install
+        app.router.add_post(
+            "/api/marketplace/operations/{id}/install-now",
+            self._mkt_install_now)
         return app
 
     async def start(self) -> bool:
@@ -581,6 +595,7 @@ class WebAppServer:
                         if self.registry.get(t) else "")).verdict
                 for t in tools},
             "host": desc,
+            "connector_specs": desc.get("connector_specs", {}),
         }
 
     async def _schedule_state(self) -> dict:
@@ -1462,6 +1477,10 @@ class WebAppServer:
             view = self.marketplace.prepare_install(
                 source, alias=body.get("alias"),
                 idempotency_key=self._idem_key(request))
+            if body.get("auto_install") and view.get("stage") == "awaiting_probe_approval":
+                import asyncio as _asyncio
+                _asyncio.create_task(
+                    self.marketplace.install_one_click(view["id"]))
         except Exception as exc:
             return self._mkt_error(exc)
         return web.json_response({"ok": True, "operation": view})
@@ -1582,3 +1601,162 @@ class WebAppServer:
         except Exception as exc:
             return self._mkt_error(exc)
         return web.json_response({"ok": True, "operation": view})
+
+    async def _mkt_install_now(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        op_id = request.match_info["id"]
+        try:
+            res = await self.marketplace.install_one_click(op_id)
+            return web.json_response({"ok": True, "operation": res})
+        except Exception as exc:
+            return self._mkt_error(exc)
+
+    # ---------- 1.6.0: Library & Public Artifact Sharing ----------
+    async def _handle_public_share(self, request):
+        token = request.match_info.get("token", "")
+        if self.library is None:
+            return web.Response(
+                text="Library service chưa được kích hoạt.", status=503)
+        res = await self.library.get_item_by_token(token)
+        if not res.get("ok"):
+            err = html.escape(res.get("error", "Tài liệu không khả dụng."))
+            html_body = f"""<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mulon Share · Lỗi</title>
+<style>
+body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; color: #1e293b; max-width: 600px; margin: 80px auto; padding: 20px; text-align: center; }}
+h2 {{ font-size: 20px; font-weight: 600; color: #e11d48; margin-bottom: 8px; }}
+p {{ color: #64748b; font-size: 15px; }}
+</style></head>
+<body><h2>Liên kết không khả dụng</h2><p>{err}</p></body></html>"""
+            return web.Response(text=html_body, content_type="text/html", status=404)
+
+        item = res["item"]
+        name = html.escape(str(item.get("name") or "Tài liệu"))
+        kind = html.escape(str(item.get("kind") or "tài liệu"))
+        content = str(res.get("content") or "")
+        is_binary = res.get("is_binary", False)
+
+        if is_binary:
+            p = Path(item["path"])
+            if p.is_file():
+                return web.FileResponse(p)
+            return web.Response(text="File không tồn tại", status=404)
+
+        escaped_content = html.escape(content)
+        html_page = f"""<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{name} · Mulon Artifact</title>
+<style>
+:root {{
+  --bg: #ffffff; --fg: #0f172a; --muted: #64748b; --border: #e2e8f0;
+  --card-bg: #f8fafc; --accent: #2563eb; --accent-hover: #1d4ed8;
+  --code-bg: #1e293b; --code-fg: #f8fafc;
+}}
+@media (prefers-color-scheme: dark) {{
+  :root {{
+    --bg: #0b0f17; --fg: #f1f5f9; --muted: #94a3b8; --border: #1e293b;
+    --card-bg: #131b2a; --accent: #3b82f6; --accent-hover: #60a5fa;
+    --code-bg: #050811; --code-fg: #f1f5f9;
+  }}
+}}
+body {{
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg); color: var(--fg);
+  max-width: 820px; margin: 0 auto; padding: 24px 16px 80px;
+  line-height: 1.65;
+}}
+header {{
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 24px;
+}}
+.title-group {{ display: flex; flex-direction: column; gap: 4px; }}
+h1 {{ font-size: 20px; font-weight: 700; margin: 0; }}
+.meta {{ font-size: 13px; color: var(--muted); display: flex; gap: 10px; align-items: center; }}
+.badge {{ background: var(--card-bg); border: 1px solid var(--border); padding: 2px 8px; border-radius: 999px; text-transform: uppercase; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }}
+.actions {{ display: flex; gap: 8px; }}
+button {{
+  background: var(--card-bg); border: 1px solid var(--border); color: var(--fg);
+  padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s ease;
+}}
+button:hover {{ border-color: var(--accent); color: var(--accent); }}
+pre {{
+  background: var(--card-bg); border: 1px solid var(--border);
+  padding: 20px; border-radius: 12px; overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+}}
+footer {{ margin-top: 40px; text-align: center; font-size: 12px; color: var(--muted); }}
+</style></head>
+<body>
+<header>
+  <div class="title-group">
+    <h1>{name}</h1>
+    <div class="meta">
+      <span class="badge">{kind}</span>
+      <span>Được chia sẻ từ Mulon</span>
+    </div>
+  </div>
+  <div class="actions">
+    <button id="copy-btn" onclick="copyContent()">Sao chép</button>
+  </div>
+</header>
+<main>
+  <pre id="artifact-content">{escaped_content}</pre>
+</main>
+<footer>Mulon Personal Agent · Chia sẻ bảo mật</footer>
+<script>
+function copyContent() {{
+  const txt = document.getElementById("artifact-content").innerText;
+  navigator.clipboard.writeText(txt).then(() => {{
+    const b = document.getElementById("copy-btn");
+    b.innerText = "Đã sao chép!";
+    setTimeout(() => b.innerText = "Sao chép", 2000);
+  }});
+}}
+</script>
+</body></html>"""
+        return web.Response(text=html_page, content_type="text/html")
+
+    async def _handle_library_items(self, request):
+        if self.library is None:
+            return web.json_response(
+                {"ok": False, "error": "Library chưa được kết nối"}, status=503)
+        items = await self.library.list_items(status="active", limit=100)
+        return web.json_response({"ok": True, "items": items})
+
+    async def _handle_library_pin(self, request):
+        if self.library is None:
+            return web.json_response(
+                {"ok": False, "error": "Library chưa được kết nối"}, status=503)
+        body = await self._json_body(request)
+        item_id = int(request.match_info["id"])
+        pinned = bool(body.get("pinned", True))
+        res = await self.library.pin_item(item_id, pinned=pinned)
+        return web.json_response(res)
+
+    async def _handle_library_rename(self, request):
+        if self.library is None:
+            return web.json_response(
+                {"ok": False, "error": "Library chưa được kết nối"}, status=503)
+        body = await self._json_body(request)
+        item_id = int(request.match_info["id"])
+        name = str(body.get("name") or "").strip()
+        res = await self.library.rename_item(item_id, name)
+        return web.json_response(res)
+
+    async def _handle_library_share(self, request):
+        if self.library is None:
+            return web.json_response(
+                {"ok": False, "error": "Library chưa được kết nối"}, status=503)
+        body = await self._json_body(request)
+        item_id = int(request.match_info["id"])
+        hours = float(body.get("hours") or 48.0)
+        base = self.cfg.webapp_url or f"{request.scheme}://{request.host}"
+        res = await self.library.share_item(item_id, hours=hours, base_url=base)
+        return web.json_response(res)

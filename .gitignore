@@ -24,6 +24,7 @@ venv/
 backups/
 evals/report.json
 evals/cases.jsonl
+workspace/
 
 # Hệ điều hành / editor
 .DS_Store

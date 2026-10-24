@@ -69,6 +69,12 @@ Bản 1.5.0 (2026-10-24): connector thật đầu tiên — Gmail
 qua OAuth2 ủy quyền 1 lần từ Mini App, refresh token
 ở Vault, client id/secret qua env hoặc Vault. Xem
 docs/google-connector-setup.md.
+
+Bản 1.6.0 (2026-10-24): Thư viện Artifacts + Link chia sẻ
+công khai thật (/share/{token}) có thời hạn 48h; Thẻ nhập
+bí mật Vault an toàn tương tác trong chat (request_vault_secret);
+Phân quyền chi tiết từng hành động cho connector (Action-Level
+Connector Policy); Cài đặt MCP 1-Click từ Mini App.
 """
 
-__version__ = "1.5.0"
+__version__ = "1.6.0"

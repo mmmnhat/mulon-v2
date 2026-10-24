@@ -385,6 +385,8 @@ CREATE TABLE IF NOT EXISTS library_items (
     status           TEXT NOT NULL DEFAULT 'active',
     share_status     TEXT NOT NULL DEFAULT '',
     share_expires_at TEXT DEFAULT '',
+    share_token      TEXT DEFAULT '',
+    pinned           INTEGER DEFAULT 0,
     trashed_at       TEXT DEFAULT '',
     created_at       TEXT NOT NULL,
     updated_at       TEXT NOT NULL
@@ -414,6 +416,21 @@ async def _migrate_feed_14(db) -> None:
     await db.commit()
 
 
+async def _migrate_library_16(db) -> None:
+    """Migration 1.6.0: library_items thêm cột share_token và pinned."""
+    cur = await db.execute("PRAGMA table_info(library_items)")
+    cols = {row[1] for row in await cur.fetchall()}
+    if "share_token" not in cols:
+        await db.execute(
+            "ALTER TABLE library_items ADD COLUMN share_token TEXT DEFAULT ''")
+    if "pinned" not in cols:
+        await db.execute(
+            "ALTER TABLE library_items ADD COLUMN pinned INTEGER DEFAULT 0")
+    await db.execute(
+        "CREATE INDEX IF NOT EXISTS idx_library_token ON library_items(share_token)")
+    await db.commit()
+
+
 class Memory:
     """Cửa ngõ duy nhất tới DB. Mọi ghi/đọc ký ức đi qua đây."""
 
@@ -440,6 +457,7 @@ class Memory:
         await db.executescript(SCHEMA)
         await db.commit()
         await _migrate_feed_14(db)
+        await _migrate_library_16(db)
         mem = cls(db)
         mem.vector_enabled = await mem._try_enable_vector()
         return mem
@@ -1680,16 +1698,26 @@ class Memory:
         row = await cur.fetchone()
         return dict(row) if row else None
 
+    async def get_library_item_by_token(self, token: str) -> Optional[dict]:
+        if not token:
+            return None
+        cur = await self.db.execute(
+            "SELECT * FROM library_items WHERE share_token=? ORDER BY id DESC LIMIT 1",
+            (token,),
+        )
+        row = await cur.fetchone()
+        return dict(row) if row else None
+
     async def list_library_items(self, status: Optional[str] = "active",
                                  limit: int = 100) -> list[dict]:
         if status:
             cur = await self.db.execute(
-                "SELECT * FROM library_items WHERE status=? ORDER BY id"
+                "SELECT * FROM library_items WHERE status=? ORDER BY pinned DESC, id DESC"
                 " LIMIT ?", (status, limit),
             )
         else:
             cur = await self.db.execute(
-                "SELECT * FROM library_items ORDER BY id LIMIT ?",
+                "SELECT * FROM library_items ORDER BY pinned DESC, id DESC LIMIT ?",
                 (limit,),
             )
         return [dict(r) for r in await cur.fetchall()]
@@ -1697,7 +1725,7 @@ class Memory:
     async def update_library_item(self, item_id: int, **fields) -> bool:
         allowed = {"name", "kind", "path", "trash_path", "source",
                    "status", "share_status", "share_expires_at",
-                   "trashed_at"}
+                   "trashed_at", "share_token", "pinned"}
         clean = {k: v for k, v in fields.items() if k in allowed}
         if not clean:
             return False

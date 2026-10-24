@@ -275,3 +275,77 @@ class VaultFormServer:
             self._httpd.server_close()
             self._httpd = None
             self._thread = None
+
+
+def register_vault_tools(registry, cfg, notifier=None) -> None:
+    """Đăng ký tool request_vault_secret (1.6.0) cho agent.
+
+    Khi agent thiếu bí mật (API key, OAuth credentials, tokens...),
+    thay vì bắt người dùng gõ lệnh thủ công trong chat, agent gọi tool này
+    để gửi thẻ hành động có nút mở Mini App điền sẵn nhãn và khóa nhãn.
+    Giá trị người dùng dán vào sẽ đi thẳng vào Kho mã hóa an toàn.
+    """
+    from .tools import ToolSpec
+
+    async def request_vault_secret(label: str, description: str = "") -> dict:
+        lbl = str(label or "").strip()
+        if not lbl:
+            return {"ok": False, "error": "thiếu nhãn (label) bí mật"}
+        safe_param = "vault_" + lbl.replace(":", "__")
+        bot_username = getattr(cfg, "_bot_username", "") or "Mulon_bot"
+        app_url = ""
+        if getattr(cfg, "webapp_url", "") and getattr(cfg, "webapp_app_name", ""):
+            app_url = (f"https://t.me/{bot_username}/{cfg.webapp_app_name}"
+                       f"?startapp={safe_param}&mode=compact")
+
+        info = {
+            "label": lbl,
+            "description": str(description or "").strip(),
+            "startapp_param": safe_param,
+            "direct_url": app_url,
+        }
+        sent = False
+        if notifier is not None:
+            try:
+                res = notifier(info)
+                if hasattr(res, "__await__"):
+                    await res
+                sent = True
+            except Exception as exc:
+                logger.warning("Gửi thẻ Vault qua notifier thất bại: %s", exc)
+
+        return {
+            "ok": True,
+            "label": lbl,
+            "card_sent": sent,
+            "direct_url": app_url,
+            "message": (f"Đã gửi thẻ yêu cầu nhập bí mật cho '{lbl}' vào chat."
+                        if sent else f"Vui lòng nhập bí mật cho '{lbl}' trong Mini App."),
+        }
+
+    registry.register(ToolSpec(
+        name="request_vault_secret",
+        description=(
+            "Gửi thẻ tương tác vào chat để yêu cầu chủ nhân nhập bí mật "
+            "(như API key, Client ID/Secret...) vào Kho lưu trữ an toàn. "
+            "Nhãn được điền sẵn, giá trị bảo mật được mã hóa lưu thẳng "
+            "vào Kho, không đi qua nội dung chat."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "description": "Nhãn bí mật (vd: google:client_id, google:client_secret)",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Mục đích hoặc hướng dẫn ngắn gọn cho chủ nhân",
+                },
+            },
+            "required": ["label"],
+        },
+        group="vault",
+        timeout_s=15,
+        handler=request_vault_secret,
+    ), overwrite=True)

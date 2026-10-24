@@ -37,8 +37,8 @@ class ToolRegistry:
     def __init__(self):
         self._tools: dict[str, ToolSpec] = {}
 
-    def register(self, spec: ToolSpec) -> ToolSpec:
-        if spec.name in self._tools:
+    def register(self, spec: ToolSpec, overwrite: bool = False) -> ToolSpec:
+        if spec.name in self._tools and not overwrite:
             raise ValueError(f"tool trùng tên: {spec.name}")
         self._tools[spec.name] = spec
         return spec

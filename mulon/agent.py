@@ -517,11 +517,15 @@ class Agent:
                 spec = self.registry.get(tc.name)
                 group = spec.group if spec else ""
                 if tc.name == "connector_call" and args.get("name"):
-                    # Quyền RIÊNG từng connector (màn Quyền, mục
-                    # Connector): group mang tên connector để
-                    # policy tra rule connector:<tên> trước,
-                    # không có thì rơi về nhóm "connector".
-                    group = f"connector:{args['name']}"
+                    # Quyền RIÊNG từng connector và hành động (1.6.0):
+                    # group mang tên connector:action để policy tra
+                    # rule cụ thể trước, rồi mới rơi về connector:<tên> và "connector".
+                    conn_name = str(args["name"])
+                    conn_action = str(args.get("action") or "")
+                    if conn_action:
+                        group = f"connector:{conn_name}:{conn_action}"
+                    else:
+                        group = f"connector:{conn_name}"
                 decision = await self.policy.check(tc.name, group,
                                                    session_key=session_key)
                 if decision.needs_ask:

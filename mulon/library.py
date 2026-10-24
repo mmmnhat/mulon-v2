@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import logging
+import secrets
 import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -150,8 +151,9 @@ class LibraryService:
             {"item_id": item_id, "path": str(dest)})
         return {"ok": True, "item_id": item_id, "path": str(dest)}
 
-    # ---------- chia sẻ <= 48h (chờ host, không bịa link) ----------
-    async def share_item(self, item_id: int, hours: float = 48) -> dict:
+    # ---------- chia sẻ <= 48h (1.6.0: link thật qua host / tunnel) ----------
+    async def share_item(self, item_id: int, hours: float = 48,
+                         base_url: str = "") -> dict:
         item = await self.memory.get_library_item(item_id)
         if item is None:
             return {"ok": False, "error": f"không thấy item #{item_id}"}
@@ -161,20 +163,92 @@ class LibraryService:
         hours = max(0.1, min(float(hours), 48.0))
         expires = (_now() + timedelta(hours=hours)).isoformat(
             timespec="seconds")
+        token = secrets.token_urlsafe(16)
+        effective_base = (base_url or getattr(self.cfg, "webapp_url", "")).rstrip("/")
+        if effective_base:
+            share_url = f"{effective_base}/share/{token}"
+            share_status = "active"
+            note = f"Đã tạo link chia sẻ có hạn {hours:.1f} giờ."
+        else:
+            share_url = ""
+            share_status = "pending_host"
+            note = ("Bản này chưa có host công khai — yêu cầu chia sẻ "
+                    "đã ghi với hạn <=48h ở trạng thái chờ host, "
+                    "chưa có link để gửi.")
         await self.memory.update_library_item(
-            item_id, share_status="pending_host",
-            share_expires_at=expires)
+            item_id, share_status=share_status,
+            share_expires_at=expires,
+            share_token=token)
         await self.memory.log_trajectory(
             "", "library_share_requested",
-            {"item_id": item_id, "share_expires_at": expires})
+            {"item_id": item_id, "share_expires_at": expires,
+             "share_token": token, "share_status": share_status})
         return {
             "ok": True,
             "item_id": item_id,
-            "share_status": "pending_host",
+            "name": item.get("name", ""),
+            "share_status": share_status,
+            "share_token": token,
+            "share_url": share_url,
+            "url": share_url,
             "share_expires_at": expires,
-            "note": "Bản này chưa có host công khai — yêu cầu chia sẻ "
-                    "đã ghi với hạn <=48h ở trạng thái chờ host, "
-                    "chưa có link để gửi.",
+            "note": note,
+        }
+
+    # ---------- ghim & đổi tên (1.6.0) ----------
+    async def pin_item(self, item_id: int, pinned: bool = True) -> dict:
+        item = await self.memory.get_library_item(item_id)
+        if item is None:
+            return {"ok": False, "error": f"không thấy item #{item_id}"}
+        val = 1 if pinned else 0
+        await self.memory.update_library_item(item_id, pinned=val)
+        return {"ok": True, "item_id": item_id, "pinned": bool(val)}
+
+    async def rename_item(self, item_id: int, name: str) -> dict:
+        item = await self.memory.get_library_item(item_id)
+        if item is None:
+            return {"ok": False, "error": f"không thấy item #{item_id}"}
+        name = name.strip()
+        if not name:
+            return {"ok": False, "error": "tên không được để trống"}
+        await self.memory.update_library_item(item_id, name=name)
+        return {"ok": True, "item_id": item_id, "name": name, "title": name}
+
+    async def get_item_by_token(self, token: str) -> dict:
+        if not token:
+            return {"ok": False, "error": "thiếu token chia sẻ"}
+        item = await self.memory.get_library_item_by_token(token)
+        if item is None:
+            return {"ok": False, "error": "link chia sẻ không tồn tại hoặc đã thu hồi"}
+        if item.get("status") != "active":
+            return {"ok": False, "error": "tài liệu không còn khả dụng"}
+        expires_at = item.get("share_expires_at") or ""
+        if expires_at:
+            try:
+                exp_dt = datetime.fromisoformat(expires_at)
+                if _now() > exp_dt:
+                    return {"ok": False, "error": "link chia sẻ đã hết hạn"}
+            except Exception:
+                pass
+        p = Path(item["path"])
+        if not p.is_file():
+            return {"ok": False, "error": "file tài liệu không còn trên máy"}
+        is_binary = False
+        content = ""
+        size_bytes = p.stat().st_size
+        if item.get("kind") in ("document", "code"):
+            try:
+                content = p.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                is_binary = True
+        else:
+            is_binary = True
+        return {
+            "ok": True,
+            "item": item,
+            "content": content,
+            "is_binary": is_binary,
+            "size_bytes": size_bytes,
         }
 
 
@@ -184,9 +258,12 @@ def format_library_list(items: list[dict]) -> str:
     lines = ["Library:"]
     for it in items:
         extra = ""
-        if it.get("share_status") == "pending_host":
-            extra = f" · chia sẻ chờ host tới {it['share_expires_at']}"
+        pin = "📌 " if it.get("pinned") else ""
+        if it.get("share_status") == "active" and it.get("share_token"):
+            extra = f" · share active (hết hạn {it.get('share_expires_at')})"
+        elif it.get("share_status") == "pending_host":
+            extra = f" · chia sẻ chờ host tới {it.get('share_expires_at')}"
         lines.append(
-            f"- #{it['id']} [{it['kind']}] {it['name']} ({it['path']})"
+            f"{pin}- #{it['id']} [{it['kind']}] {it['name']} ({it['path']})"
             + extra)
     return "\n".join(lines)

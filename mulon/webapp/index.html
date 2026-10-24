@@ -678,6 +678,10 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <div class="card-title">Kỹ năng</div>
     <div id="skills-box"></div>
   </div>
+  <div class="card">
+    <div class="card-title">Thư viện tài liệu (Artifacts)</div>
+    <div id="library-box"></div>
+  </div>
 </section>
 
 <!-- xem nội dung hồ sơ/bộ nhớ -->
@@ -950,6 +954,21 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     phiên.</div>
 </section>
 
+<!-- Cài đặt con: Quyền chi tiết connector (1.6.0) -->
+<section id="screen-connector-policy" class="hidden">
+  <div class="backrow" id="conn-pol-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quyền</div>
+  <h2 class="screen-title" id="conn-pol-title">Quyền connector</h2>
+  <div class="note">Phân quyền chi tiết theo từng hành động. Đổi là áp dụng ngay.</div>
+  <div class="card">
+    <div class="card-title">Quyền đọc</div>
+    <div id="conn-pol-read"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Quyền ghi và xóa</div>
+    <div id="conn-pol-write"></div>
+  </div>
+</section>
+
 <!-- menu nổi chọn nấc quyền (KT-2) — 1 phần tử dùng chung,
      JS định vị cạnh hàng được bấm -->
 <div id="pol-scrim" class="hidden"></div>
@@ -1022,7 +1041,8 @@ const TAB_OF_SCREEN = {"screen-task":"viec","screen-profile":"hoso",
   "screen-feed":"caidat",
   "screen-listing":"caidat","screen-install":"caidat",
   "screen-mktcat":"caidat",
-  "screen-import":"caidat"};
+  "screen-import":"caidat",
+  "screen-connector-policy":"caidat"};
 function showMain(tab){
   stopOpPoll();
   mainTab = tab; subScreen = null;
@@ -1588,6 +1608,78 @@ function renderProfile(){
       '<div class="r-main"><div class="r-title">' + sk.count +
       ' kỹ năng đã nạp</div></div></div>'
     : '<div class="empty">Chưa nạp kỹ năng nào.</div>';
+  renderLibrary();
+}
+/* Thư viện tài liệu (Artifacts 1.6.0) */
+function renderLibrary(){
+  const box = $("library-box");
+  if (!box) return;
+  const list = (S && S.library) || [];
+  if (!list.length){
+    box.innerHTML = '<div class="empty">Chưa có tài liệu nào trong thư viện. ' +
+      'Khi Mulon tạo artifact hoặc tài liệu, kết quả sẽ lưu ở đây.</div>';
+    return;
+  }
+  box.innerHTML = list.map(it => {
+    const pinBadge = it.pinned
+      ? '<span class="badge" style="background:var(--tint-lav);color:var(--lav-deep);padding:2px 6px;border-radius:4px;font-size:11px;margin-right:6px">Đã ghim</span>'
+      : '';
+    const pinLabel = it.pinned ? "Bỏ ghim" : "Ghim";
+    const wc = it.word_count ? (it.word_count + " từ · ") : "";
+    return '<div class="row static">' +
+      '<div class="r-main">' +
+      '<div class="r-title">' + pinBadge + esc(it.title) + '</div>' +
+      '<div class="r-sub">' + esc(wc + todayLabel(it.created_at)) + '</div>' +
+      '</div>' +
+      '<div class="btn-row" style="padding:0;gap:4px">' +
+      '<button class="btn btn-soft btn-sm" data-lib-share="' + esc(it.id) + '">Chia sẻ</button>' +
+      '<button class="btn btn-ghost btn-sm" data-lib-pin="' + esc(it.id) + '" data-pinned="' + (it.pinned ? 1 : 0) + '">' + esc(pinLabel) + '</button>' +
+      '<button class="btn btn-ghost btn-sm" data-lib-rename="' + esc(it.id) + '" data-title="' + esc(it.title) + '">Sửa tên</button>' +
+      '</div></div>';
+  }).join("");
+
+  box.querySelectorAll("[data-lib-share]").forEach(btn =>
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.libShare;
+      try {
+        const r = await api("/api/library/items/" + encodeURIComponent(id) + "/share", "POST", {});
+        if (r.url) {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(r.url);
+            toast("Đã sao chép link chia sẻ!");
+          } else {
+            prompt("Link chia sẻ (sao chép bên dưới):", r.url);
+          }
+        } else {
+          toast("Không tạo được link chia sẻ.");
+        }
+      } catch (e) { toast(e.message); }
+    }));
+
+  box.querySelectorAll("[data-lib-pin]").forEach(btn =>
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.libPin;
+      const curPinned = btn.dataset.pinned === "1";
+      try {
+        await api("/api/library/items/" + encodeURIComponent(id) + "/pin", "POST", {pinned: !curPinned});
+        toast(!curPinned ? "Đã ghim tài liệu lên đầu." : "Đã bỏ ghim tài liệu.");
+        await load();
+      } catch (e) { toast(e.message); }
+    }));
+
+  box.querySelectorAll("[data-lib-rename]").forEach(btn =>
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.libRename;
+      const oldTitle = btn.dataset.title;
+      const newTitle = window.prompt("Nhập tên mới cho tài liệu:", oldTitle);
+      if (newTitle && newTitle.trim() && newTitle.trim() !== oldTitle) {
+        try {
+          await api("/api/library/items/" + encodeURIComponent(id) + "/rename", "POST", {title: newTitle.trim()});
+          toast("Đã đổi tên tài liệu.");
+          await load();
+        } catch (e) { toast(e.message); }
+      }
+    }));
 }
 /* Kỹ năng ĐỌC ĐƯỢC (1.3.0): danh sách từ /api/skills (tên +
    mô tả + nguồn), bấm 1 kỹ năng mở màn chi tiết đọc toàn văn
@@ -1828,6 +1920,47 @@ document.querySelectorAll("#pol-menu button").forEach(b =>
       await load();
     } catch (e) { toast(e.message); }
   }));
+let curConnPolCname = null;
+function openConnectorPolicy(cname){
+  curConnPolCname = cname;
+  const pol = (S && S.policy) || {};
+  const specs = (pol.connector_specs || {})[cname];
+  if (!specs) return;
+  showSub("screen-connector-policy");
+  $("conn-pol-title").textContent = "Quyền " + (specs.title || cname);
+  renderConnectorPolicyDetail();
+}
+
+function renderConnectorPolicyDetail(){
+  if (!curConnPolCname) return;
+  const pol = (S && S.policy) || {};
+  const specs = (pol.connector_specs || {})[curConnPolCname];
+  if (!specs) return;
+  const acts = specs.actions || [];
+  const readActs = acts.filter(a => a.kind === "read");
+  const writeActs = acts.filter(a => a.kind === "write");
+
+  const renderActs = (list) => {
+    if (!list.length) return '<div class="empty">Không có hành động nào.</div>';
+    return list.map(a => {
+      const verd = (pol.groups || {})[a.name] || a.effective;
+      return '<div class="row pol-row" data-scope="group" data-name="' + esc(a.name) +
+        '" data-verdict="' + esc(verd) + '">' +
+        '<div class="r-main"><div class="r-title">' + esc(a.label || a.id) + '</div>' +
+        '<div class="r-sub">' + esc(a.name) + '</div></div>' +
+        '<span class="pol-val">' + esc(VERDICT_LABELS[verd] || verd) + '</span>' +
+        '<span class="pol-chev">' + CHEV_UD + '</span></div>';
+    }).join("");
+  };
+
+  $("conn-pol-read").innerHTML = renderActs(readActs);
+  $("conn-pol-write").innerHTML = renderActs(writeActs);
+  $("screen-connector-policy").querySelectorAll(".pol-row").forEach(row =>
+    row.addEventListener("click", () => openPolMenu(row)));
+}
+const connPolBack = $("conn-pol-back");
+if (connPolBack) connPolBack.addEventListener("click", () => showSub("screen-policy"));
+
 function renderPolicy(){
   const pol = (S && S.policy) || {groups:{}, tools:{}};
   /* Tên hiển thị ưu tiên nhãn tiếng Việt (pol.group_labels từ
@@ -1845,13 +1978,35 @@ function renderPolicy(){
   $("policy-groups").innerHTML =
     grow(pol.groups, "group", pol.group_labels) ||
     '<div class="empty">Chưa có nhóm việc nào.</div>';
-  $("policy-connectors").innerHTML =
-    grow(pol.connectors, "group", pol.connector_labels) ||
+
+  const connSpecs = pol.connector_specs || {};
+  const connRows = Object.keys(pol.connectors || {}).sort().map(key => {
+    const cname = key.startsWith("connector:") ? key.slice(10) : key;
+    const spec = connSpecs[cname];
+    if (spec) {
+      return '<div class="row" data-open-conn-pol="' + esc(cname) + '">' +
+        '<div class="r-main"><div class="r-title">' + esc(spec.title || (pol.connector_labels || {})[key] || key) + '</div>' +
+        '<div class="r-sub">Phân quyền chi tiết theo từng hành động</div></div>' +
+        '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
+        '</div>';
+    }
+    return '<div class="row pol-row" data-scope="group" data-name="' + esc(key) +
+      '" data-verdict="' + esc(pol.connectors[key]) + '">' +
+      '<div class="r-main"><div class="r-title">' + esc((pol.connector_labels || {})[key] || key) + '</div></div>' +
+      '<span class="pol-val">' + esc(VERDICT_LABELS[pol.connectors[key]] || pol.connectors[key]) + '</span>' +
+      '<span class="pol-chev">' + CHEV_UD + '</span></div>';
+  }).join("");
+  $("policy-connectors").innerHTML = connRows ||
     '<div class="empty">Chưa có connector nào.</div>';
+  $("policy-connectors").querySelectorAll("[data-open-conn-pol]").forEach(el =>
+    el.addEventListener("click", () => openConnectorPolicy(el.dataset.openConnPol)));
+
   $("policy-tools").innerHTML = grow(pol.tools, "tool") ||
     '<div class="empty">Chưa có tool nào.</div>';
-  document.querySelectorAll(".pol-row").forEach(row =>
+  document.querySelectorAll("#policy-groups .pol-row, #policy-connectors .pol-row, #policy-tools .pol-row").forEach(row =>
     row.addEventListener("click", () => openPolMenu(row)));
+
+  if (subScreen === "screen-connector-policy") renderConnectorPolicyDetail();
 }
 
 /* ---------------- Thiết bị & hệ thống ---------------- */
@@ -2438,8 +2593,8 @@ async function prepareInstall(){
   if (!L) return;
   try {
     const body = curDraftId
-      ? {draft_id: curDraftId}
-      : {provider_id: L.provider_id, slug: L.slug};
+      ? {draft_id: curDraftId, auto_install: true}
+      : {provider_id: L.provider_id, slug: L.slug, auto_install: true};
     const d = await api("/api/marketplace/install/prepare",
       "POST", body);
     if (d.ok === false)
@@ -2566,12 +2721,13 @@ function renderOperation(){
 
   if (stage === "awaiting_probe_approval"){
     h += '<div class="card"><div class="card-title">Chạy thử</div>';
+    h += '<div class="btn-row"><button class="btn btn-accent" id="op-install-now">Cài đặt ngay (1-Click)</button></div>';
     if (opPendingApproval(op, "probe") || op._probeReq)
       h += '<div class="op-note">Đang chờ duyệt trên thẻ Telegram ' +
         '/ mục Phê duyệt.</div>';
     else
-      h += '<div class="btn-row"><button class="btn btn-accent" ' +
-        'id="op-probe">Xin duyệt chạy thử</button></div>';
+      h += '<div class="btn-row" style="padding-top:0"><button class="btn btn-soft" ' +
+        'id="op-probe">Xin duyệt chạy thử qua chat</button></div>';
     const fp = opFingerprint(op);
     if (fp)
       h += '<div class="op-note fp">Dấu vân tay: ' +
@@ -2621,12 +2777,13 @@ function renderOperation(){
     const cmdline = [cmd].concat(args).filter(Boolean).join(" ");
     if (cmdline)
       h += '<pre class="mono-block">' + esc(cmdline) + '</pre>';
+    h += '<div class="btn-row"><button class="btn btn-accent" id="op-install-now">Xác nhận cài ngay (1-Click)</button></div>';
     if (opPendingApproval(op, "commit") || op._commitReq)
       h += '<div class="op-note">Đang chờ duyệt trên thẻ Telegram ' +
         '/ mục Phê duyệt.</div>';
     else
-      h += '<div class="btn-row"><button class="btn btn-accent" ' +
-        'id="op-commit">Xin duyệt cài</button></div>';
+      h += '<div class="btn-row" style="padding-top:0"><button class="btn btn-soft" ' +
+        'id="op-commit">Xin duyệt cài qua chat</button></div>';
     h += '</div>';
   }
   if (stage === "committing")
@@ -2699,6 +2856,20 @@ function renderOperation(){
       toast("Đã gửi yêu cầu — chờ duyệt trên thẻ Telegram.");
       renderOperation();
     } catch (e) { toast(e.message); }
+  });
+  const installNowBtn = $("op-install-now");
+  if (installNowBtn) installNowBtn.addEventListener("click", async () => {
+    installNowBtn.disabled = true;
+    try {
+      const d = await api("/api/marketplace/operations/" +
+        encodeURIComponent(curOpId) + "/install-now", "POST", {});
+      if (d.operation) curOp = d.operation;
+      toast("Đang tiến hành cài đặt...");
+      renderOperation();
+    } catch (e) {
+      toast(e.message);
+      installNowBtn.disabled = false;
+    }
   });
 }
 $("install-cancel").addEventListener("click", async () => {
@@ -2909,10 +3080,21 @@ async function load(){
    nhảy --stick-top 132<->92 khi cuộn (nguồn cơn segbar giật
    vị trí ở vòng 2). --stick-top là hằng số trong :root. */
 /* mở qua thẻ duyệt: startapp=approve_<id> -> thẳng tab Phê duyệt;
-   startapp=vault (từ lệnh /vault) -> thẳng màn Kho trong Cài đặt */
+   startapp=vault (từ lệnh /vault) hoặc startapp=vault_<encoded> -> thẳng màn Kho */
 if (START_PARAM.indexOf("approve_") === 0) showMain("pheduyet");
-else if (START_PARAM === "vault"){
+else if (START_PARAM.indexOf("vault_") === 0 || START_PARAM === "vault"){
   showMain("caidat"); showSub("screen-vault");
+  if (START_PARAM.indexOf("vault_") === 0){
+    const encoded = START_PARAM.slice(6);
+    const label = decodeURIComponent(encoded.replace(/__/g, ":"));
+    const lblInput = $("vault-label");
+    const valInput = $("vault-value");
+    if (lblInput){
+      lblInput.value = label;
+      lblInput.readOnly = true;
+    }
+    if (valInput) setTimeout(() => valInput.focus(), 300);
+  }
 }
 else showMain("viec");
 load().then(() => {

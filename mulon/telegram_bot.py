@@ -923,6 +923,36 @@ class TelegramSurface:
         approval_id = str(payload.get("approval_id") or "")
         return await self.send_approval_card(owner, None, payload)
 
+    async def send_vault_card_to_owner(self, info: dict) -> bool:
+        """Gửi thẻ yêu cầu bí mật vào DM của owner (1.6.0)."""
+        owner = int(getattr(self.cfg, "allowed_user_id", 0) or 0)
+        if not owner or self.bot is None:
+            return False
+        label = info.get("label", "")
+        desc = info.get("description", "")
+        safe_param = info.get("startapp_param") or f"vault_{label.replace(':', '__')}"
+        direct_url = webapp_direct_link(self.cfg, self._bot_username(), safe_param)
+        lines = [
+            f"🔐 Yêu cầu bí mật vào Kho",
+            f"Agent cần thông tin: {label}",
+        ]
+        if desc:
+            lines.append(f"Mục đích: {desc}")
+        lines.append("")
+        lines.append("Bí mật được mã hoá lưu thẳng vào Kho trên máy của bạn, không gửi qua chat.")
+        kb = None
+        if direct_url:
+            kb = InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text=f"Nhập {label} vào Kho", url=direct_url)
+            ]])
+        try:
+            await self.bot.send_message(
+                owner, "\n".join(lines), reply_markup=kb)
+            return True
+        except Exception as exc:
+            logger.warning("Gửi thẻ Vault vào chat lỗi: %s", exc)
+            return False
+
     async def handle_approval_callback(self, data: str,
                                        user_id: int) -> tuple[bool, str]:
         """Lõi xử lý nút inline của thẻ duyệt (tách khỏi handler
@@ -1654,13 +1684,33 @@ class TelegramSurface:
                         f"{result.get('path')}."
                         if result.get("ok")
                         else result.get("error", "Lỗi."))
-            else:  # share_item
-                result = await library.share_item(item_id)
-                text = (f"Item #{item_id}: chia sẻ ở trạng thái "
-                        f"'chờ host', hết hạn {result['share_expires_at']}. "
-                        + result["note"]
+            elif action == "pin_item":
+                result = await library.pin_item(item_id, pinned=True)
+                text = (f"Đã ghim item #{item_id} lên đầu Thư viện."
                         if result.get("ok")
                         else result.get("error", "Lỗi."))
+            elif action == "rename_item":
+                parts = (message.text or "").split(None, 2)
+                new_name = parts[2].strip() if len(parts) > 2 else ""
+                if not new_name:
+                    text = f"Dùng: /rename_item {item_id} <tên mới>"
+                else:
+                    result = await library.rename_item(item_id, new_name)
+                    text = (f"Đã đổi tên item #{item_id} thành '{new_name}'."
+                            if result.get("ok")
+                            else result.get("error", "Lỗi."))
+            else:  # share_item
+                result = await library.share_item(item_id)
+                if not result.get("ok"):
+                    text = result.get("error", "Lỗi.")
+                elif result.get("share_url"):
+                    text = (f"Item #{item_id} ({result.get('name', '')}): "
+                            f"link chia sẻ (hết hạn {result['share_expires_at']}):\n"
+                            f"{result['share_url']}")
+                else:
+                    text = (f"Item #{item_id}: chia sẻ ở trạng thái "
+                            f"'chờ host', hết hạn {result['share_expires_at']}. "
+                            + result.get("note", ""))
             await message.answer(text)
 
         @dp.message(F.text.startswith("/trash_item"))
@@ -1680,6 +1730,18 @@ class TelegramSurface:
             if not self._is_allowed(message):
                 return
             await _library_action(message, "share_item")
+
+        @dp.message(F.text.startswith("/pin_item"))
+        async def cmd_pin_item(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            await _library_action(message, "pin_item")
+
+        @dp.message(F.text.startswith("/rename_item"))
+        async def cmd_rename_item(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            await _library_action(message, "rename_item")
 
         @dp.message(F.text.startswith("/the_duyet"))
         async def cmd_the_duyet(message: Message) -> None:
@@ -1952,6 +2014,11 @@ class TelegramSurface:
                 return int(getattr(msg, "message_id", 0) or 0)
 
             feed_auto.bind_sender(_feed_send)
+        # Vault 1.6.0: gắn notifier gửi thẻ Vault cho agent tool
+        if self.registry is not None:
+            from .vault import register_vault_tools
+            register_vault_tools(
+                self.registry, self.cfg, notifier=self.send_vault_card_to_owner)
         # Menu lệnh "/" cho user thấy ngay (Khối 1, 1.2.0). Lỗi
         # đăng ký chỉ log warning — không được làm sập bot.
         try:

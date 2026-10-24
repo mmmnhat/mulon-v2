@@ -35,6 +35,49 @@ VERDICT_DENY = "deny"
 _DENY_WORDS = {"deny", "block", "false", "0", "no"}
 _ASK_WORDS = {"ask", "prompt", "confirm"}
 
+# Mặc định theo hành động (1.6.0): đọc = Cho phép (allow), ghi/xoá = Hỏi (ask)
+CONNECTOR_ACTION_DEFAULTS = {
+    # Gmail
+    "connector:gmail:search": VERDICT_ALLOW,
+    "connector:gmail:read": VERDICT_ALLOW,
+    "connector:gmail:send": VERDICT_ASK,
+    # Google Calendar
+    "connector:gcalendar:list_events": VERDICT_ALLOW,
+    "connector:gcalendar:list": VERDICT_ALLOW,
+    "connector:gcalendar:create_event": VERDICT_ASK,
+    "connector:gcalendar:create": VERDICT_ASK,
+    "connector:gcalendar:delete_event": VERDICT_ASK,
+    "connector:gcalendar:delete": VERDICT_ASK,
+}
+
+CONNECTOR_SPECS = {
+    "gmail": {
+        "title": "Gmail",
+        "actions": [
+            {"id": "search", "name": "connector:gmail:search",
+             "label": "Tìm kiếm thư", "kind": "read", "default": VERDICT_ALLOW},
+            {"id": "read", "name": "connector:gmail:read",
+             "label": "Đọc thư", "kind": "read", "default": VERDICT_ALLOW},
+            {"id": "send", "name": "connector:gmail:send",
+             "label": "Gửi thư", "kind": "write", "default": VERDICT_ASK},
+        ],
+    },
+    "gcalendar": {
+        "title": "Google Calendar",
+        "actions": [
+            {"id": "list_events", "alias": "list",
+             "name": "connector:gcalendar:list_events",
+             "label": "Xem sự kiện", "kind": "read", "default": VERDICT_ALLOW},
+            {"id": "create_event", "alias": "create",
+             "name": "connector:gcalendar:create_event",
+             "label": "Tạo sự kiện", "kind": "write", "default": VERDICT_ASK},
+            {"id": "delete_event", "alias": "delete",
+             "name": "connector:gcalendar:delete_event",
+             "label": "Xoá sự kiện", "kind": "delete", "default": VERDICT_ASK},
+        ],
+    },
+}
+
 
 def parse_verdict(value) -> Optional[str]:
     """Chuẩn hoá 1 giá trị policy thành allow/ask/deny.
@@ -94,13 +137,16 @@ class PolicyEngine:
     def decide(self, tool_name: str, group: str = "") -> PolicyDecision:
         host_tools = self.host.get("tools") or {}
         host_groups = self.host.get("groups") or {}
-        # Nhóm có tiền tố (vd "connector:gmail", "mcp:filesystem"):
-        # thử key đầy đủ trước, rồi tới nhóm gốc ("connector",
-        # "mcp") — rule chung vẫn phủ được khi chưa có rule
-        # riêng cho từng connector/server (đợt vá sau 1.4).
-        group_keys = [group]
-        if ":" in group:
-            group_keys.append(group.split(":", 1)[0])
+        # Nhóm có tiền tố đa cấp (vd "connector:gmail:send", "connector:gmail", "mcp:filesystem"):
+        # thử key đầy đủ trước, rồi bóc dần từng cấp tới nhóm gốc ("connector", "mcp").
+        group_keys = []
+        cur = group
+        while cur:
+            group_keys.append(cur)
+            if ":" in cur:
+                cur = cur.rsplit(":", 1)[0]
+            else:
+                break
         for layer, table, key in (
             ("host-tool", host_tools, tool_name),
             *[("host-group", host_groups, gk) for gk in group_keys],
@@ -122,6 +168,13 @@ class PolicyEngine:
             if verdict is not None:
                 return PolicyDecision(verdict == VERDICT_ALLOW, layer,
                                       verdict=verdict)
+        # 1.6.0: Mặc định nấc riêng theo hành động connector (đọc=allow, ghi/xoá=ask)
+        if group and group in CONNECTOR_ACTION_DEFAULTS:
+            act_default = CONNECTOR_ACTION_DEFAULTS[group]
+            return PolicyDecision(act_default == VERDICT_ALLOW,
+                                  "connector-action-default",
+                                  reason="mặc định hành động connector (đọc=cho phép, ghi/xoá=hỏi)",
+                                  verdict=act_default)
         return PolicyDecision(True, "builtin",
                               "mặc định full-auto theo lệnh user",
                               verdict=VERDICT_ALLOW)
@@ -220,6 +273,24 @@ class PolicyEngine:
 
     def describe(self) -> dict:
         """Ảnh chụp policy cho bề mặt hiển thị (Mini App / /quyen)."""
+        connector_details = {}
+        for cname, spec in CONNECTOR_SPECS.items():
+            acts = []
+            for act in spec["actions"]:
+                full_name = act["name"]
+                dec = self.decide("", full_name)
+                acts.append({
+                    "id": act["id"],
+                    "name": full_name,
+                    "label": act["label"],
+                    "kind": act["kind"],
+                    "default": act["default"],
+                    "effective": dec.verdict,
+                })
+            connector_details[cname] = {
+                "title": spec["title"],
+                "actions": acts,
+            }
         return {
             "default": parse_verdict(self.host.get("default"))
                        or VERDICT_ALLOW,
@@ -229,4 +300,5 @@ class PolicyEngine:
                        for k, v in (self.host.get("groups") or {}).items()},
             "session_tools": dict(self.session_tools),
             "session_groups": dict(self.session_groups),
+            "connector_specs": connector_details,
         }

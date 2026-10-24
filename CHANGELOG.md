@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 1.6.0 — 2026-10-24 — Artifacts + Library Share Link + Vault Cards + Action-Level Policy + One-Click MCP Install
+
+- **Thư viện Artifacts & Link chia sẻ thật công khai:**
+  - Tạo link chia sẻ công khai (`/share/{token}`) thật qua tunnel/domain hiện tại có thời hạn tối đa 48h.
+  - Trang đọc tài liệu trực tiếp, hiển thị markdown, styling responsive, kèm nút "Sao chép" (Copy) tiện lợi.
+  - Hỗ trợ Ghim (pin) tài liệu lên đầu danh sách và Đổi tên (rename) tài liệu trực tiếp trong Mini App hoặc qua lệnh chat `/share_item`, `/pin_item`, `/rename_item`.
+- **Thẻ nhập bí mật Vault an toàn tương tác trong chat:**
+  - Agent được trang bị tool `request_vault_secret(label, description)`: gửi thẻ hành động trực tiếp vào chat với nút mở thẳng màn Kho trong Mini App.
+  - Nhãn bí mật được điền sẵn và khóa (read-only), tự động focus vào ô nhập giá trị. Bí mật đi thẳng từ giao diện vào kho mã hóa, không bao giờ lộ ra tin nhắn chat plain text.
+- **Phân quyền chi tiết từng hành động (Action-Level Connector Policy):**
+  - Quản lý quyền theo hành động cụ thể cho từng connector: Gmail (`gmail:search`, `gmail:read`, `gmail:send`) và Google Calendar (`gcalendar:list_events`, `gcalendar:create_event`, `gcalendar:delete_event`).
+  - Phân cấp chính xác: `connector:<name>:<action>` -> `connector:<name>` -> `connector` -> `default`.
+  - Màn con "Quyền chi tiết" trong Mini App chia nhóm Quyền đọc và Quyền ghi/xóa với menu đổi 3 nấc (`allow` / `ask` / `deny`).
+- **Cài đặt MCP 1-Click từ Mini App:**
+  - Khi chủ nhân bấm "Cài đặt ngay" trong Mini App, hệ thống tự động chạy thử và commit cấu hình ngay lập tức mà không phải duyệt qua 2 thẻ chat trung gian. Thao tác cài do agent khởi xướng từ chat vẫn giữ nguyên 2 bước duyệt an toàn.
+
 ## 1.5.0 — 2026-10-24 — Connector thật đầu tiên: Gmail + Google Calendar
 
 - Connector `gmail`: tìm thư, đọc thư (bóc text từ cây MIME,

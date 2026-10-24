@@ -40,7 +40,7 @@ from .subagents import PROFILES, SubagentRunner, register_subagent_tool
 from .surfaces import SURFACE_KEYS, TopicManager
 from .tools import build_default_registry
 from .tracing import build_tracer, traced_gateway
-from .vault import VaultFormServer, VaultStore
+from .vault import VaultFormServer, VaultStore, register_vault_tools
 from .voice import VoiceService
 from .webapp_server import ActivityTracker, WebAppServer
 from .websearch import register_search_tool
@@ -91,6 +91,7 @@ async def build_system(cfg: Config):
     # sớm ở đây để auth đọc credential (marketplace + phase 6
     # dùng lại đúng instance này).
     vault_store = VaultStore(cfg.vault_path)
+    register_vault_tools(registry, cfg)
     from .google_conn import build_google_auth
 
     google_auth = build_google_auth(cfg, vault_store)
@@ -198,7 +199,8 @@ async def build_system(cfg: Config):
         connectors=connectors, mcp_manager=mcp_manager,
         vault_store=vault_store, registry=registry, dossier=dossier,
         skills=catalog, activity=activity, marketplace=marketplace,
-        feed_auto=feed_auto, google_auth=google_auth)
+        feed_auto=feed_auto, google_auth=google_auth,
+        library=phase6["library"])
     services = {
         "mcp": mcp_manager,
         "connectors": connectors,
