@@ -29,15 +29,124 @@ from pathlib import Path
 from typing import Optional
 
 CATEGORY_LABELS = {
-    "file-storage": "File & lưu trữ",
     "developer-tools": "Công cụ dev",
-    "productivity": "Năng suất",
-    "ai-ml": "AI & ML",
+    "data-analytics": "Dữ liệu & phân tích",
+    "productivity": "Năng suất & ghi chú",
+    "communication": "Giao tiếp & chat",
+    "design": "Thiết kế & đồ họa",
+    "cloud-devops": "Cloud & DevOps",
+    "finance": "Tài chính & thanh toán",
+    "file-storage": "File & lưu trữ",
+    "ai-ml": "AI & Machine Learning",
+    "content-media": "Nội dung & media",
+    "security": "Bảo mật & xác thực",
+    "business-tools": "Công cụ doanh nghiệp",
+    "search-web": "Tìm kiếm & web",
+    "marketing-social": "Marketing & mạng xã hội",
+    "education-research": "Giáo dục & nghiên cứu",
+    "utilities": "Tiện ích hệ thống",
     "data": "Dữ liệu",
-    "utilities": "Tiện ích",
-    "communication": "Giao tiếp",
     "other": "Khác",
 }
+
+MCP_MARKETPLACE_CATEGORIES_FALLBACK = [
+    {
+        "slug": "developer-tools",
+        "name": "Công cụ dev",
+        "description": "Kho code, CI/CD, automation trình duyệt, dev workflow",
+        "server_count": 37825,
+    },
+    {
+        "slug": "finance",
+        "name": "Tài chính & thanh toán",
+        "description": "Cổng thanh toán, hoá đơn, dữ liệu tài chính",
+        "server_count": 825,
+    },
+    {
+        "slug": "security",
+        "name": "Bảo mật & xác thực",
+        "description": "Xác thực, mã hoá, quét lỗ hổng và tuân thủ",
+        "server_count": 329,
+    },
+    {
+        "slug": "marketing-social",
+        "name": "Marketing & mạng xã hội",
+        "description": "Mạng xã hội, email marketing, chiến dịch và analytics",
+        "server_count": 322,
+    },
+    {
+        "slug": "data-analytics",
+        "name": "Dữ liệu & phân tích",
+        "description": "Cơ sở dữ liệu, query engines, pipeline dữ liệu",
+        "server_count": 293,
+    },
+    {
+        "slug": "cloud-devops",
+        "name": "Cloud & DevOps",
+        "description": "Hạ tầng cloud, container, triển khai và vận hành",
+        "server_count": 205,
+    },
+    {
+        "slug": "search-web",
+        "name": "Tìm kiếm & web",
+        "description": "Tìm kiếm web, thu thập dữ liệu, scraping và khám phá",
+        "server_count": 193,
+    },
+    {
+        "slug": "ai-ml",
+        "name": "AI & Machine Learning",
+        "description": "Mô hình suy luận AI, tìm kiếm ngữ nghĩa, công cụ ML",
+        "server_count": 188,
+    },
+    {
+        "slug": "content-media",
+        "name": "Nội dung & media",
+        "description": "Video, audio, tạo ảnh và trích xuất nội dung",
+        "server_count": 180,
+    },
+    {
+        "slug": "education-research",
+        "name": "Giáo dục & nghiên cứu",
+        "description": "Tìm kiếm học thuật, công cụ học tập, quản lý trích dẫn",
+        "server_count": 130,
+    },
+    {
+        "slug": "communication",
+        "name": "Giao tiếp & chat",
+        "description": "Nền tảng chat, tin nhắn, giao tiếp đội ngũ",
+        "server_count": 127,
+    },
+    {
+        "slug": "business-tools",
+        "name": "Công cụ doanh nghiệp",
+        "description": "CRM, quản trị dự án, hoá đơn và tự động hoá doanh nghiệp",
+        "server_count": 119,
+    },
+    {
+        "slug": "productivity",
+        "name": "Năng suất & ghi chú",
+        "description": "Quản lý công việc, ghi chú và kho tri thức cá nhân",
+        "server_count": 117,
+    },
+    {
+        "slug": "design",
+        "name": "Thiết kế & đồ họa",
+        "description": "Công cụ thiết kế UI/UX, mô hình 3D, sáng tạo hình ảnh",
+        "server_count": 67,
+    },
+    {
+        "slug": "file-storage",
+        "name": "File & lưu trữ",
+        "description": "Hệ thống file, lưu trữ đám mây, quản lý tài liệu",
+        "server_count": 37,
+    },
+    {
+        "slug": "other",
+        "name": "Khác",
+        "description": "Các server tiện ích và tích hợp chuyên biệt khác",
+        "server_count": 7,
+    },
+]
 
 CURATED_PROVIDER_ID = "mulon-curated"
 MANUAL_PROVIDER_ID = "manual"

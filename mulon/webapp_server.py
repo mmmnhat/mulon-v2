@@ -1505,15 +1505,15 @@ class WebAppServer:
         guard = self._mkt_guard()
         if guard is not None:
             return guard
-        return web.json_response(
-            {"ok": True, **self.marketplace.categories()})
+        cats = await self.marketplace.get_categories()
+        return web.json_response({"ok": True, **cats})
 
     async def _mkt_catalog(self, request):
         guard = self._mkt_guard()
         if guard is not None:
             return guard
         q = request.query
-        result = self.marketplace.search_catalog(
+        result = await self.marketplace.search_catalog_async(
             query=q.get("query", ""), category=q.get("category", ""),
             pricing=q.get("pricing", ""),
             installed=q.get("installed", ""),
@@ -1526,7 +1526,7 @@ class WebAppServer:
         if guard is not None:
             return guard
         try:
-            detail = self.marketplace.listing_detail(
+            detail = await self.marketplace.get_listing_detail(
                 request.match_info["provider"],
                 request.match_info["slug"])
         except Exception as exc:
@@ -1596,9 +1596,25 @@ class WebAppServer:
         if body.get("draft_id"):
             source = {"draft_id": str(body["draft_id"])}
         elif body.get("slug"):
-            source = {"provider_id": str(
-                body.get("provider_id") or "mulon-curated"),
-                "slug": str(body["slug"])}
+            pid = str(body.get("provider_id") or "mulon-curated")
+            source = {"provider_id": pid, "slug": str(body["slug"])}
+            if pid == "mcp-marketplace":
+                try:
+                    detail = await self.marketplace.get_listing_detail(
+                        pid, str(body["slug"]))
+                    manifest = detail.get("manifest") or {}
+                    source["install"] = {
+                        "command": manifest.get("command"),
+                        "args": manifest.get("args") or [],
+                        "env": manifest.get("public_env") or {},
+                    }
+                    source["security"] = detail.get("security")
+                    source["name"] = detail.get("name")
+                    source["source_url"] = detail.get("source_url")
+                    source["version"] = detail.get("version")
+                except Exception as exc:
+                    logger.warning("Không thể lấy install config cho %s: %s",
+                                   body.get("slug"), exc)
         else:
             return web.json_response(
                 {"ok": False, "code": "invalid_config",

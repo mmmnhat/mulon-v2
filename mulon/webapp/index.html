@@ -2532,14 +2532,17 @@ async function loadMktCategories(){
 function renderMktCats(){
   const box = $("mkt-cats");
   const total = MKT.cats.reduce((a, c) => a + (c.count || 0), 0);
-  const row = (id, label, count) =>
+  const fmt = (n) => (n != null ? Number(n).toLocaleString("vi-VN") : "");
+  const row = (id, label, count, desc) =>
     '<div class="row mkt-cat' + (MKT.cat === id ? " active" : "") +
     '" data-cat="' + esc(id) + '"><div class="r-main">' +
-    '<div class="r-title">' + esc(label) + '</div></div>' +
-    '<span class="r-time">' + esc(count) + '</span>' +
+    '<div class="r-title">' + esc(label) + '</div>' +
+    (desc ? '<div class="r-sub">' + esc(desc) + '</div>' : '') +
+    '</div>' +
+    '<span class="r-time">' + esc(fmt(count)) + '</span>' +
     '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span></div>';
-  box.innerHTML = row("", "Tất cả", total) +
-    MKT.cats.map(c => row(c.id, c.label, c.count)).join("");
+  box.innerHTML = row("", "Tất cả", total, "Toàn bộ danh mục server MCP") +
+    MKT.cats.map(c => row(c.id, c.label, c.count, c.description)).join("");
   box.querySelectorAll("[data-cat]").forEach(el =>
     el.addEventListener("click", () => {
       MKT.cat = el.dataset.cat;

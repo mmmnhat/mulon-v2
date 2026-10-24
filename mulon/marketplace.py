@@ -43,8 +43,10 @@ from pathlib import Path
 from typing import Optional
 
 from .marketplace_providers import (
+    CATEGORY_LABELS,
     CURATED_PROVIDER_ID,
     MANUAL_PROVIDER_ID,
+    MCP_MARKETPLACE_CATEGORIES_FALLBACK,
     CuratedBundleProvider,
     bundle_content_hash,
     canonical_json,
@@ -547,6 +549,8 @@ class MarketplaceService:
         self._tasks: set = set()
         self._notifier = None
         self._boot_needs_restart = False
+        self._mkt_categories_cache: Optional[list[dict]] = None
+        self._mkt_categories_fetched_at: float = 0
         if self.mcp is not None and self.vault is not None:
             self.mcp.set_secret_resolver(self._resolve_vault_ref)
 
@@ -761,6 +765,126 @@ class MarketplaceService:
         detail["installed"] = installed
         return detail
 
+    def _mcp_marketplace_item_to_listing(self, item: dict,
+                                          cat_slug: str = "") -> dict:
+        slug = item.get("slug") or ""
+        canonical_id = f"mcp-marketplace:{slug}"
+        installed_state, update = self._installed_state_for(canonical_id)
+        sec_score = item.get("security_score")
+        risk_level = item.get("risk_level")
+        pricing_str = (item.get("pricing") or "Free").lower()
+        cat = cat_slug or item.get("category") or ""
+        return {
+            "canonical_id": canonical_id,
+            "provider_id": "mcp-marketplace",
+            "slug": slug,
+            "name": item.get("name") or slug,
+            "creator_name": item.get("creator") or "",
+            "summary": item.get("tagline") or "",
+            "categories": [cat] if cat else [],
+            "locality": item.get("mode") or "local_process",
+            "transport": "stdio",
+            "pricing": {
+                "model": "free" if pricing_str == "free" else pricing_str,
+                "label": "Miễn phí" if pricing_str == "free" else "Có phí",
+            },
+            "security": {
+                "score": sec_score,
+                "risk_label": risk_level,
+                "critical_findings_count": item.get("critical_findings") or 0,
+            },
+            "tool_count_known": None,
+            "installed_state": installed_state,
+            "update_available": update,
+            "support_state": "supported",
+            "unsupported_reasons": [],
+            "installs": item.get("installs", 0),
+            "github_stars": item.get("github_stars", 0),
+            "source_url": item.get("url") or "",
+        }
+
+    def _mcp_marketplace_to_detail(self, raw: dict) -> dict:
+        slug = raw.get("slug") or ""
+        item_summary = self._mcp_marketplace_item_to_listing(raw)
+        detail = self.listing_summary(item_summary)
+        detail["description"] = (raw.get("description")
+                                 or raw.get("tagline") or "")
+        detail["source_url"] = (raw.get("url")
+                                or raw.get("github_url") or "")
+        detail["homepage_url"] = raw.get("github_url") or ""
+        detail["version"] = raw.get("version") or "1.0.0"
+
+        sec_raw = raw.get("security") or {}
+        detail["security"] = {
+            "score": (sec_raw.get("score")
+                      if sec_raw.get("score") is not None
+                      else raw.get("security_score")),
+            "risk_label": (sec_raw.get("risk_level")
+                           or raw.get("risk_level")),
+            "critical_findings_count": len(
+                sec_raw.get("critical_findings") or []),
+            "findings": sec_raw.get("critical_findings") or [],
+            "scanned_at": sec_raw.get("scanned_at"),
+            "scan_source": "mcp-marketplace.io",
+        }
+        detail["permissions"] = sec_raw.get("permissions") or []
+        detail["tool_names_known"] = raw.get("tool_names") or []
+        detail["manifest_state"] = "ready"
+
+        install_info = raw.get("install") or {}
+        config_local = install_info.get("config_local") or {}
+        mcp_servers = config_local.get("mcpServers") or {}
+        server_cfg = {}
+        if mcp_servers:
+            server_cfg = next(iter(mcp_servers.values()), {})
+
+        if server_cfg and server_cfg.get("command"):
+            command = server_cfg.get("command")
+            args = server_cfg.get("args") or []
+            env = server_cfg.get("env") or {}
+            detail["manifest"] = {
+                "transport": "stdio",
+                "command": command,
+                "args": args,
+                "package": (raw.get("pypi_package")
+                            or raw.get("npm_package")),
+                "public_env": env,
+                "setup_requirements": (raw.get("setup_requirements")
+                                       or []),
+                "warnings": [],
+            }
+            detail["support_state"] = "supported"
+            detail["unsupported_reasons"] = []
+        else:
+            detail["support_state"] = "supported"
+            detail["unsupported_reasons"] = []
+
+        installed = None
+        for record in self.store.all_installed().values():
+            if record.get("canonical_id") == detail["canonical_id"]:
+                installed = self.installed_view(record)
+                break
+        detail["installed"] = installed
+        return detail
+
+    async def get_listing_detail(self, provider_id: str,
+                                 slug: str) -> dict:
+        if provider_id == "mcp-marketplace":
+            if self.mcp is not None:
+                try:
+                    res = await self.mcp.call_tool(
+                        "mcp-marketplace", "get_server", {"slug": slug})
+                    if isinstance(res, dict) and res.get("ok"):
+                        raw = res.get("result") or {}
+                        return self._mcp_marketplace_to_detail(raw)
+                except Exception as exc:
+                    logger.warning("lỗi get_server từ mcp-marketplace: %s",
+                                   exc)
+            raise MarketplaceError(
+                "catalog_unavailable",
+                f"Không thể tải chi tiết server '{slug}' từ MCP Marketplace.")
+        return self.listing_detail(provider_id, slug)
+
     def search_catalog(self, *, query: str = "", category: str = "",
                        pricing: str = "", installed: str = "",
                        cursor: str = "", limit: int = 20) -> dict:
@@ -803,8 +927,123 @@ class MarketplaceService:
         return {"items": page, "next_cursor": next_cursor,
                 "snapshot": self.catalog_meta()}
 
+    async def search_catalog_async(self, *, query: str = "",
+                                  category: str = "",
+                                  pricing: str = "",
+                                  installed: str = "",
+                                  cursor: str = "",
+                                  limit: int = 20) -> dict:
+        res = self.search_catalog(query=query, category=category,
+                                  pricing=pricing, installed=installed,
+                                  cursor=cursor, limit=limit)
+        items = list(res.get("items") or [])
+        curated_slugs = {it["slug"] for it in items}
+
+        if self.mcp is not None:
+            try:
+                args: dict = {"limit": limit}
+                if category:
+                    args["category"] = category
+                if query:
+                    args["query"] = query
+                mkt_res = await self.mcp.call_tool(
+                    "mcp-marketplace", "search_servers", args)
+                if isinstance(mkt_res, dict) and mkt_res.get("ok"):
+                    data = mkt_res.get("result") or {}
+                    raw_results = data.get("results") or []
+                    for raw in raw_results:
+                        if raw.get("slug") not in curated_slugs:
+                            it = self._mcp_marketplace_item_to_listing(
+                                raw, cat_slug=category)
+                            if (pricing and it.get("pricing", {}).get(
+                                    "model") != pricing):
+                                continue
+                            if (installed == "installed"
+                                    and it["installed_state"]
+                                    in ("not_installed", "uninstalled")):
+                                continue
+                            if (installed == "not_installed"
+                                    and it["installed_state"]
+                                    not in ("not_installed", "uninstalled")):
+                                continue
+                            items.append(it)
+            except Exception as exc:
+                logger.debug("lỗi search_servers từ mcp-marketplace: %s",
+                             exc)
+
+        return {"items": items, "next_cursor": None,
+                "snapshot": self.catalog_meta()}
+
+    def _format_categories_list(self, raw_list: list[dict]) -> list[dict]:
+        seen = set()
+        out = []
+        for item in raw_list:
+            slug = item.get("slug") or ""
+            if not slug:
+                continue
+            seen.add(slug)
+            label = CATEGORY_LABELS.get(slug, item.get("name") or slug)
+            desc = item.get("description") or ""
+            count = int(item.get("server_count") or 0)
+            out.append({
+                "id": slug,
+                "label": label,
+                "description": desc,
+                "count": count,
+                "source": "mcp-marketplace",
+            })
+        curated_cats = self.provider.categories()
+        for c in curated_cats:
+            cid = c.get("id")
+            if cid and cid not in seen:
+                out.append({
+                    "id": cid,
+                    "label": c.get("label", cid),
+                    "description": "",
+                    "count": c.get("count", 0),
+                    "source": CURATED_PROVIDER_ID,
+                })
+        return out
+
+    def _merged_fallback_categories(self) -> list[dict]:
+        return self._format_categories_list(
+            MCP_MARKETPLACE_CATEGORIES_FALLBACK)
+
+    async def _fetch_mcp_marketplace_categories(self) -> list[dict]:
+        if self.mcp is None:
+            return []
+        try:
+            res = await self.mcp.call_tool(
+                "mcp-marketplace", "list_categories", {})
+            if isinstance(res, dict) and res.get("ok"):
+                raw_list = res.get("result") or []
+                if raw_list and isinstance(raw_list, list):
+                    return self._format_categories_list(raw_list)
+        except Exception as exc:
+            logger.debug(
+                "không thể lấy categories từ mcp-marketplace: %s", exc)
+        return []
+
+    async def get_categories(self) -> dict:
+        now = time.time()
+        if (self._mkt_categories_cache is not None
+                and now - self._mkt_categories_fetched_at < 300):
+            return {"categories": self._mkt_categories_cache,
+                    "freshness": self.catalog_meta()}
+
+        cats = await self._fetch_mcp_marketplace_categories()
+        if not cats:
+            cats = self._merged_fallback_categories()
+        self._mkt_categories_cache = cats
+        self._mkt_categories_fetched_at = now
+        return {"categories": cats, "freshness": self.catalog_meta()}
+
     def categories(self) -> dict:
-        return {"categories": self.provider.categories(),
+        if self._mkt_categories_cache:
+            cats = self._mkt_categories_cache
+        else:
+            cats = self._merged_fallback_categories()
+        return {"categories": cats,
                 "freshness": self.catalog_meta()}
 
     # ---------- import thủ công ----------
@@ -916,6 +1155,21 @@ class MarketplaceService:
                      "local_base": draft["local_name"],
                      "source_url": None,
                      "revision": "manual"})
+        if source.get("provider_id") == "mcp-marketplace":
+            slug = source.get("slug") or ""
+            install_cfg = source.get("install") or {}
+            manifest = self._substitute_workspace(
+                normalize_server_config(
+                    install_cfg, source="curated",
+                    allowed_cwd_roots=self._allowed_cwd_roots()))
+            return (manifest, source.get("security"),
+                    {"name": source.get("name") or slug,
+                     "canonical_id": f"mcp-marketplace:{slug}",
+                     "provider_id": "mcp-marketplace",
+                     "slug": slug,
+                     "local_base": slug,
+                     "source_url": source.get("source_url"),
+                     "revision": source.get("version") or "1.0.0"})
         slug = source.get("slug") or ""
         listing = self.provider.get_listing(slug)
         if listing is None:
