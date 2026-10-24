@@ -86,13 +86,18 @@ VERIFY_SYSTEM = (
 
 
 class Agent:
-    def __init__(self, cfg, gateway, memory, context_engine, registry, policy):
+    def __init__(self, cfg, gateway, memory, context_engine, registry,
+                 policy, broker=None):
         self.cfg = cfg
         self.gateway = gateway
         self.memory = memory
         self.ctx = context_engine
         self.registry = registry
         self.policy = policy
+        # ApprovalBroker (1.2.0): chỉ agent chính được nối; thiếu
+        # broker thì nấc "ask" của policy degrade thành chặn an
+        # toàn thay vì treo chờ một thẻ duyệt không ai thấy.
+        self.broker = broker
         self._llm_calls = 0
 
     # ---------- tiện ích ----------
@@ -246,7 +251,6 @@ class Agent:
     # ---------- fast path: chat thường ----------
     async def _fast_path(self, session_key: str, messages: list[dict],
                          on_delta: Optional[DeltaFn]) -> TurnResult:
-        text = ""
         try:
             comp = await self.gateway.stream(
                 messages, model=self.cfg.model_brain, purpose="chat",
@@ -254,28 +258,18 @@ class Agent:
             )
             text = comp.text.strip()
         except GatewayError as exc:
-            logger.warning("stream chat lỗi, thử fallback complete: %s", exc)
-
-        if not text:
-            # Fallback 1: non-streaming complete() với model_brain phòng khi rớt stream
+            # LOI-1: mặt user chỉ thấy lời thường; chi tiết kỹ
+            # thuật (URL proxy, JSON lỗi nhà cung cấp) đi vào
+            # log + trajectory, KHÔNG lộ ra chat.
+            logger.warning("fast path lỗi gateway: %s", exc)
             try:
-                comp = await self.gateway.complete(
-                    messages, model=self.cfg.model_brain, purpose="chat_fallback"
-                )
-                text = comp.text.strip()
-            except Exception as exc:
-                logger.warning("fallback complete model_brain lỗi: %s", exc)
-
-        if not text:
-            # Fallback 2: non-streaming với model_cheap
-            try:
-                comp = await self.gateway.complete(
-                    messages, model=self.cfg.model_cheap, purpose="chat_cheap_fallback"
-                )
-                text = comp.text.strip()
-            except Exception as exc:
-                logger.warning("fallback complete model_cheap lỗi: %s", exc)
-
+                await self.memory.log_trajectory(
+                    session_key, "turn_error",
+                    {"where": "fast_path", "error": str(exc)[:500]})
+            except Exception:
+                pass
+            text = ("Mô hình đang không trả lời được — anh thử "
+                    "lại sau ít phút.")
         if not text:
             text = "(Model không trả nội dung — thử lại giúp mình.)"
         return TurnResult(text=text, intent=Intent.CHAT, verified=None)
@@ -426,7 +420,16 @@ class Agent:
                 group = spec.group if spec else ""
                 decision = await self.policy.check(tc.name, group,
                                                    session_key=session_key)
-                if not decision.allowed:
+                if decision.needs_ask:
+                    # Lý do trên thẻ = lời dẫn của chính model ở
+                    # lượt gọi tool này (comp.text) — có thì trình,
+                    # không có thì thẻ không hiện dòng lý do.
+                    ok_run, err = await self._ask_approval(
+                        session_key, task_id, tc.name, group, args,
+                        on_event, reason=comp.text or "")
+                    if not ok_run:
+                        return tc, {"ok": False, "error": err}
+                elif not decision.allowed:
                     return tc, {"ok": False,
                                 "error": f"policy chặn ở lớp {decision.layer}"}
                 await self._emit(on_event, "tool_start", task_id=task_id,
@@ -461,6 +464,69 @@ class Agent:
                     }
                 )
         return final_text
+
+    async def _ask_approval(
+        self, session_key: str, task_id: str, tool_name: str,
+        group: str, args: dict, on_event: Optional[EventFn],
+        reason: str = "",
+    ) -> tuple[bool, str]:
+        """Nấc "ask" của policy: mở thẻ duyệt qua broker và chờ.
+
+        Trả (được chạy?, lỗi cho model nếu không). Payload duyệt
+        chỉ chứa tóm tắt args an toàn — không secret. Cả hai nhánh
+        kết quả đều ghi trajectory (mục 16.8: lịch sử duyệt).
+        ``reason``: lời agent tự giải thích vì sao cần việc này
+        (lời dẫn của model ở lượt gọi tool) — tùy chọn, rỗng thì
+        thẻ không có dòng lý do; KHÔNG bịa lý do mẫu.
+        """
+        if self.broker is None:
+            await self.memory.log_trajectory(
+                session_key, "approval_decision",
+                {"task_id": task_id, "tool": tool_name, "group": group,
+                 "outcome": "no_broker",
+                 "approved": False})
+            return False, (
+                f"policy yêu cầu duyệt trước tool {tool_name} nhưng "
+                "kênh duyệt chưa được nối ở bản chạy này — việc bị "
+                "chặn an toàn.")
+        from .approvals import normalize_reason, summarize_args, \
+            summarize_target
+
+        approval_id = uuid.uuid4().hex[:12]
+        payload = {
+            "approval_id": approval_id,
+            "tool": tool_name,
+            "group": group,
+            "summary": summarize_args(args),
+            "target": summarize_target(args),
+            "reason": normalize_reason(reason),
+            "session_key": session_key,
+            "task_id": task_id,
+        }
+        self.broker.open(approval_id, payload)
+        await self.memory.log_trajectory(
+            session_key, "approval_requested",
+            {"task_id": task_id, "tool": tool_name, "group": group,
+             "approval_id": approval_id})
+        await self._emit(on_event, "approval_requested", **payload)
+        record = await self.broker.wait(approval_id)
+        outcome = record.get("outcome", "denied")
+        await self.memory.log_trajectory(
+            session_key, "approval_decision",
+            {"task_id": task_id, "tool": tool_name, "group": group,
+             "approval_id": approval_id, "outcome": outcome,
+             "approved": bool(record.get("approved")),
+             "remember": bool(record.get("remember"))})
+        if record.get("approved"):
+            return True, ""
+        if outcome == "expired":
+            return False, (
+                f"thẻ duyệt cho tool {tool_name} đã hết hạn "
+                f"({int(self.broker.timeout_s)}s) mà chưa được duyệt "
+                "— việc bị hủy, KHÔNG tự chạy.")
+        return False, (
+            f"người dùng TỪ CHỐI duyệt tool {tool_name} — không "
+            "được chạy việc này, hãy báo lại và hỏi hướng khác.")
 
     async def _verify(self, user_text: str, final_text: str,
                       evidence: list[str]) -> Optional[tuple[bool, str]]:
