@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.3.0-blueviolet">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.4.1-blueviolet">
   <img alt="Python" src="https://img.shields.io/badge/python-3.12-3776AB">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-147%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-343%20passing-brightgreen">
   <img alt="Eval" src="https://img.shields.io/badge/eval%20gate-85%25-orange">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>

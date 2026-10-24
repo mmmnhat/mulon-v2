@@ -94,9 +94,16 @@ class PolicyEngine:
     def decide(self, tool_name: str, group: str = "") -> PolicyDecision:
         host_tools = self.host.get("tools") or {}
         host_groups = self.host.get("groups") or {}
+        # Nhóm có tiền tố (vd "connector:gmail", "mcp:filesystem"):
+        # thử key đầy đủ trước, rồi tới nhóm gốc ("connector",
+        # "mcp") — rule chung vẫn phủ được khi chưa có rule
+        # riêng cho từng connector/server (đợt vá sau 1.4).
+        group_keys = [group]
+        if ":" in group:
+            group_keys.append(group.split(":", 1)[0])
         for layer, table, key in (
             ("host-tool", host_tools, tool_name),
-            ("host-group", host_groups, group),
+            *[("host-group", host_groups, gk) for gk in group_keys],
         ):
             verdict = parse_verdict(table.get(key)) if key else None
             if verdict is not None:
@@ -108,7 +115,8 @@ class PolicyEngine:
                                   verdict=verdict)
         for layer, table, key in (
             ("session-tool", self.session_tools, tool_name),
-            ("session-group", self.session_groups, group),
+            *[("session-group", self.session_groups, gk)
+              for gk in group_keys],
         ):
             verdict = parse_verdict(table.get(key)) if key else None
             if verdict is not None:

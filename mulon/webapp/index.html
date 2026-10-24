@@ -16,6 +16,7 @@
   --ink:#1F1E1D; --ink2:#6E6A61; --ink3:#A39E93;
   --line:#E8E4DC; --accent:#5A5E94; --accent-press:#4C4F80;
   --lav:#9598C4; --lav-deep:#5A5E94;
+  --bc1:#5A5E94; --bc2:#43466E;
   --cream:#EFD8AE; --rose:#D17E78; --ok:#3E9B6C; --warn:#C9932B; --err:#D95F57;
   --tint-err:#FAE7E4;
   --tint-lav:#E9EAF4; --tint-gray:#F0EEE8;
@@ -427,16 +428,18 @@ table.fields tr + tr td.k:before{left:var(--s4)}
   margin-top:var(--s1)}
 .bigcard .bc-date{font-size:var(--fs-cap); opacity:.75;
   margin-top:var(--s1)}
-.bc-dossier{background:#5A5E94}
-.bc-memory{background:#43476F}
+.bc-dossier{background:var(--bc1)}
+.bc-memory{background:var(--bc2)}
 /* Dòng cẩn trọng gộp 1 câu duy nhất dưới cụm thẻ (KT-5) —
    không còn lặp trên từng thẻ. */
 .bc-note{font-size:var(--fs-micro); color:var(--ink3);
   margin:0 0 var(--s3)}
 /* ---------- vòng tròn chọn màu chủ đề ---------- */
-/* Theme chỉ đổi họ hue nhận diện (--lav/--lav-deep/--tint-lav
-   + --accent/--accent-press suy từ hue đó) qua inline style
-   từ JS. Không hue thứ hai nào ngoài hue đang chọn. */
+/* Theme đổi họ hue nhận diện qua inline style từ JS
+   (applyTheme): --lav/--lav-deep/--tint-lav, --accent,
+   cả 3 tầng 60/30/10 (--paper/--surface/--surface2) và thẻ
+   hồ sơ (--bc1/--bc2). Không hue thứ hai nào ngoài hue
+   đang chọn. */
 /* Vòng màu thị giác 28pt trong nút bấm 44 (KT-4): đệm trong
    suốt 8px gánh vùng chạm, vóc dáng không phình theo. Vòng
    chọn ôm đúng vòng màu (qua .sw-in), tick trắng thuần —
@@ -506,10 +509,14 @@ pre.content{
    surface2, active surface + ink đậm, chỉ chữ) nhưng không
    dính — header đã ẩn ở màn con. */
 .segbar.inline{position:static}
-.mkt-search{display:flex; gap:var(--s2); align-items:center;
-  padding:var(--s3) var(--s4)}
 .field-input{
-  flex:1; min-width:0; min-height:44px; padding:0 var(--s3);
+  /* width:100% + block: trước đây chỉ có flex:1 (di sản của
+     ô tìm chợ đã bỏ) nên trong card thường input co về bề
+     rộng mặc định ~60% — màn Kho bị owner bắt "chưa
+     responsive" (vá sau 1.4). Mọi form dùng class này
+     (Kho, Feed) nay đầy bề ngang card như nút. */
+  display:block; width:100%; min-width:0; min-height:44px;
+  padding:0 var(--s3);
   border:1px solid var(--line); border-radius:var(--r-btn);
   background:var(--surface); color:var(--ink);
   font:inherit; font-size:var(--fs-body);
@@ -613,7 +620,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <!-- ================= TAB: VIỆC ================= -->
 <section id="tab-viec">
   <div class="card">
-    <div class="card-title">Lượt việc gần nhất</div>
+    <div class="card-title">Việc gần nhất</div>
     <div id="task-list">
       <div class="skel"><div class="bar w70"></div>
         <div class="bar w40"></div><div class="bar w70"></div></div>
@@ -621,10 +628,10 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   </div>
 </section>
 
-<!-- chi tiết 1 lượt việc -->
+<!-- chi tiết 1 việc -->
 <section id="screen-task" class="hidden">
   <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
-  <h2 class="screen-title" id="task-detail-title">Chi tiết lượt</h2>
+  <h2 class="screen-title" id="task-detail-title">Chi tiết việc</h2>
   <div class="card">
     <div class="card-title">Dòng thời gian</div>
     <div class="timeline" id="task-timeline"></div>
@@ -841,13 +848,9 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     </div></div>
   </div>
   <div id="conn-view-market" class="hidden">
-    <div class="card">
-      <div class="mkt-search">
-        <input id="mkt-q" class="field-input" type="search"
-          placeholder="Tìm MCP…" enterkeyhint="search">
-        <button class="btn btn-soft btn-sm" id="mkt-search-btn">Tìm</button>
-      </div>
-    </div>
+    <!-- Đợt vá sau 1.4 (owner bắt): bỏ ô tìm MCP (danh mục ít,
+         tìm là thừa) và bấm danh mục mở MÀN CON riêng — hết
+         cảnh 2 danh sách chồng nhau phải cuộn xuống. -->
     <div class="card">
       <div class="card-title">Danh mục</div>
       <div id="mkt-cats"></div>
@@ -857,8 +860,14 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       <button class="btn btn-text btn-sm btn-auto" id="mkt-refresh">Làm mới</button>
     </div>
     <div id="mkt-stale"></div>
-    <div class="card"><div id="mkt-list"></div></div>
   </div>
+</section>
+
+<!-- Chợ MCP: server theo danh mục (màn con) -->
+<section id="screen-mktcat" class="hidden">
+  <div class="backrow" id="mktcat-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Kết nối</div>
+  <h2 class="screen-title" id="mktcat-title">Danh mục</h2>
+  <div class="card"><div id="mkt-list"></div></div>
 </section>
 
 <!-- Chợ MCP: Chi tiết listing -->
@@ -926,6 +935,10 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <div class="card">
     <div class="card-title">Nhóm việc</div>
     <div id="policy-groups"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Connector &amp; server MCP</div>
+    <div id="policy-connectors"></div>
   </div>
   <div class="card">
     <div class="card-title">Từng tool</div>
@@ -1008,6 +1021,7 @@ const TAB_OF_SCREEN = {"screen-task":"viec","screen-profile":"hoso",
   "screen-policy":"caidat","screen-system":"caidat",
   "screen-feed":"caidat",
   "screen-listing":"caidat","screen-install":"caidat",
+  "screen-mktcat":"caidat",
   "screen-import":"caidat"};
 function showMain(tab){
   stopOpPoll();
@@ -1043,25 +1057,37 @@ document.querySelectorAll("[data-open]").forEach(el =>
   el.addEventListener("click", () => showSub(el.dataset.open)));
 
 /* ---------------- màu chủ đề (Giao diện) ---------------- */
-/* Mỗi theme = 1 họ hue cho lớp nhận diện 30% (base/deep/tint +
-   tint khi nền tối). Accent hành động chính (10%) là bậc đậm
+/* Mỗi theme = 1 họ hue nhuộm cả 3 tầng 60/30/10: 60% nền
+   giấy + bề mặt (paper/surface, bản tối dpaper/dsurface),
+   30% tint + bề mặt phụ (surface2), 10% accent = bậc đậm
    của CHÍNH hue đó (deep/press; dark thì base/deep) — không
-   hue riêng cho nút. Giấy/trung tính không đổi -> kỷ luật
-   60/30/10 nguyên vẹn. Khóa phải khớp THEME_KEYS ở
-   webapp_server.py. */
+   hue riêng cho nút. Chỉ mực/chữ giữ trung tính. Khóa phải
+   khớp THEME_KEYS ở webapp_server.py. */
 const THEMES = {
   lavender: {label:"Tím Mulon", base:"#9598C4", deep:"#5A5E94",
-    press:"#4C4F80", tint:"#E9EAF4", dtint:"#2E2A4A"},
+    press:"#4C4F80", tint:"#E9EAF4", dtint:"#2E2A4A",
+    deep2:"#43466E", paper:"#EFF0F5", surface2:"#EEEDF0",
+    dpaper:"#212539", dsurface:"#272C41", dsurface2:"#2C3248"},
   blue: {label:"Xanh dương", base:"#86ABD8", deep:"#40639A",
-    press:"#355584", tint:"#E3EBF6", dtint:"#22344E"},
+    press:"#355584", tint:"#E3EBF6", dtint:"#22344E",
+    deep2:"#2F4972", paper:"#ECF0F6", surface2:"#EAEEF2",
+    dpaper:"#1C2A3B", dsurface:"#233043", dsurface2:"#28364A"},
   pink: {label:"Hồng", base:"#DF9FB8", deep:"#A04A6E",
-    press:"#8C3E5E", tint:"#F9E8EF", dtint:"#472733"},
+    press:"#8C3E5E", tint:"#F9E8EF", dtint:"#472733",
+    deep2:"#763751", paper:"#F9EEF2", surface2:"#F6ECEE",
+    dpaper:"#2D242F", dsurface:"#312B39", dsurface2:"#36313F"},
   peach: {label:"Đào", base:"#EDB48C", deep:"#9A5A20",
-    press:"#864D1B", tint:"#FAEEDF", dtint:"#453014"},
+    press:"#864D1B", tint:"#FAEEDF", dtint:"#453014",
+    deep2:"#724318", paper:"#FAF2E8", surface2:"#F7EFE5",
+    dpaper:"#2C2821", dsurface:"#302F2D", dsurface2:"#353434"},
   green: {label:"Xanh lá", base:"#93C39B", deep:"#42704F",
-    press:"#386043", tint:"#E6F2E8", dtint:"#1E3A2C"},
+    press:"#386043", tint:"#E6F2E8", dtint:"#1E3A2C",
+    deep2:"#31533A", paper:"#EEF5EE", surface2:"#ECF2EA",
+    dpaper:"#1A2C2B", dsurface:"#213336", dsurface2:"#26383D"},
   graphite: {label:"Chì", base:"#A8A49C", deep:"#6E6A61",
-    press:"#5D5952", tint:"#EFEEE9", dtint:"#33322E"},
+    press:"#5D5952", tint:"#EFEEE9", dtint:"#33322E",
+    deep2:"#514E48", paper:"#F3F2EE", surface2:"#F1EFEA",
+    dpaper:"#24292C", dsurface:"#293037", dsurface2:"#2E353E"},
 };
 const THEME_LS_KEY = "mulon-theme";
 let curTheme = "lavender";
@@ -1080,6 +1106,18 @@ function applyTheme(key){
      sáng -> deep (nhấn: press); tối -> base (nhấn: deep). */
   root.style.setProperty("--accent", dark ? t.base : t.deep);
   root.style.setProperty("--accent-press", dark ? t.deep : t.press);
+  /* Đợt vá sau 1.4 (owner bắt "đổi màu chưa đổi hết 60/30/10"):
+     nhuộm CẢ BA TẦNG theo hue — 60% nền giấy/bề mặt, 30% bề
+     mặt phụ, 10% accent. Trước đây chỉ accent + tint đổi, nền
+     đứng yên nên nhìn như chưa đổi. Mực/chữ (ink) giữ trung
+     tính để khỏi đục chữ. */
+  root.style.setProperty("--paper", dark ? t.dpaper : t.paper);
+  root.style.setProperty("--surface", dark ? t.dsurface : "#FFFFFF");
+  root.style.setProperty("--surface2", dark ? t.dsurface2 : t.surface2);
+  /* Thẻ hồ sơ lớn: trước gán cứng tím Mulon, đổi theme không
+     ăn — nay theo deep/deep2 của hue đang chọn. */
+  root.style.setProperty("--bc1", t.deep);
+  root.style.setProperty("--bc2", t.deep2);
   curTheme = key;
   try { localStorage.setItem(THEME_LS_KEY, key); } catch (e) {}
   const nameEl = $("theme-name");
@@ -1270,18 +1308,17 @@ function renderTasks(){
   const box = $("task-list");
   const tasks = (S && S.tasks) || [];
   if (!tasks.length){
-    box.innerHTML = '<div class="empty">Chưa có lượt việc nào. ' +
-      'Nhắn việc cho Mulon trong chat là lượt sẽ hiện ở đây.</div>';
+    box.innerHTML = '<div class="empty">Chưa có việc nào. ' +
+      'Việc ở đây là việc nhiều bước Mulon thật sự làm ' +
+      '(có kế hoạch, job hẹn giờ, giao agent con). Hỏi đáp ' +
+      'thường nằm trong chat, không tính là việc.</div>';
     return;
   }
   box.innerHTML = tasks.map(t => {
-    const sub = taskSub(t);
-    /* Lượt chat (kind="turn") không có bản ghi task để mở chi
-       tiết — hàng tĩnh, không gắn data-task. Lượt việc thật
-       (kind="task") mới mở được màn dòng thời gian. */
-    const openable = t.kind === "task";
-    return '<div class="row' + (openable ? "" : " static") + '"' +
-      (openable ? ' data-task="' + esc(t.id) + '"' : "") + '>' +
+    let sub = taskSub(t);
+    if (!sub && t.steps_total)
+      sub = t.steps_done + "/" + t.steps_total + " bước";
+    return '<div class="row" data-task="' + esc(t.id) + '">' +
       '<div class="r-main"><div class="r-title">' + esc(t.title) +
       '</div>' + (sub ? '<div class="r-sub">' + esc(sub) +
       '</div>' : "") + '</div>' +
@@ -1323,11 +1360,23 @@ async function openTask(id){
   try {
     const data = await api("/api/task?id=" + encodeURIComponent(id));
     const t = data.task;
-    $("task-detail-title").textContent = t.title || "Chi tiết lượt";
+    $("task-detail-title").textContent = t.title || "Chi tiết việc";
     const items = [];
     items.push({name:"Đã bắt đầu", meta: todayLabel(t.created_at),
       cls:"done"});
-    (data.events || []).forEach(ev => {
+    /* Timeline chính = CÁC BƯỚC KẾ HOẠCH của task (như thẻ
+       việc của Muse: bắt đầu → từng bước → hoàn tất +
+       tóm tắt). Task cũ không có bước mới rơi về dòng sự
+       kiện tool như trước. */
+    (t.steps || []).forEach(st => {
+      items.push({name: st.title,
+        meta: (st.detail ? st.detail + " · " : "") +
+          (st.updated_at ? hhmm(st.updated_at) : ""),
+        cls: st.status === "done" ? "done"
+          : st.status === "doing" ? "doing"
+          : st.status === "failed" ? "err" : ""});
+    });
+    if (!(t.steps || []).length) (data.events || []).forEach(ev => {
       const tool = ev.payload.tool || "";
       if (ev.kind === "tool_call")
         items.push({name: stepActionLabel(tool, ev.payload.group),
@@ -1498,9 +1547,10 @@ function renderSchedule(){
     (it.next_run_at ? " · tới: " + esc(todayLabel(it.next_run_at)) : "") +
     '</div></div>' +
     /* Toggle chỉ khi có trạng thái THẬT phía sau (đổi qua
-       /api/schedule được). Mục không đổi được tại đây (vd
-       heartbeat qua biến môi trường) hiện TRẠNG THÁI BẰNG CHỮ
-       — cấm công tắc trang trí bất động (gói vá 1.3.0). */
+       /api/schedule được). Mục không đổi được tại đây (job
+       hệ thống Feed) hiện TRẠNG THÁI BẰNG CHỮ — cấm công tắc
+       trang trí bất động (gói vá 1.3.0). Heartbeat có công
+       tắc thật từ đợt vá sau 1.4 (lưu kv, áp dụng ngay). */
     (it.toggleable
       ? '<label class="tgl"><input type="checkbox" data-sched="' +
         esc(it.id) + '"' + (it.enabled ? " checked" : "") +
@@ -1762,6 +1812,9 @@ function renderPolicy(){
   $("policy-groups").innerHTML =
     grow(pol.groups, "group", pol.group_labels) ||
     '<div class="empty">Chưa có nhóm việc nào.</div>';
+  $("policy-connectors").innerHTML =
+    grow(pol.connectors, "group", pol.connector_labels) ||
+    '<div class="empty">Chưa có connector nào.</div>';
   $("policy-tools").innerHTML = grow(pol.tools, "tool") ||
     '<div class="empty">Chưa có tool nào.</div>';
   document.querySelectorAll(".pol-row").forEach(row =>
@@ -1823,6 +1876,7 @@ const MKT = {installed:[], summary:null, cats:[], items:[],
   fresh:null, snapshot:null, q:"", cat:"", marketLoaded:false};
 let connTab = "installed";
 let curListing = null;    // listing đang xem ở screen-listing
+let listingReturn = "screen-connectors";  // back từ chi tiết về đâu
 let curDraftId = null;    // draft_id khi listing từ Nhập thủ công
 let curOp = null;         // operation đang theo dõi ở screen-install
 let curOpId = null;
@@ -1932,13 +1986,15 @@ document.querySelectorAll("#conn-seg button").forEach(b =>
       connTab !== "market");
     if (connTab === "market" && !MKT.marketLoaded){
       MKT.marketLoaded = true;
-      loadMktCategories(); loadMktCatalog();
+      loadMktCategories();
     }
     if (connTab === "installed") loadMktInstalled();
   }));
 $("conn-add-manual").addEventListener("click",
   () => showSub("screen-import"));
 $("listing-back").addEventListener("click",
+  () => showSub(listingReturn));
+$("mktcat-back").addEventListener("click",
   () => showSub("screen-connectors"));
 $("install-back").addEventListener("click",
   () => showSub("screen-connectors"));
@@ -2007,7 +2063,14 @@ function renderMktCats(){
   box.querySelectorAll("[data-cat]").forEach(el =>
     el.addEventListener("click", () => {
       MKT.cat = el.dataset.cat;
-      renderMktCats(); loadMktCatalog();
+      renderMktCats();
+      /* Mở màn con riêng cho danh mục (vá sau 1.4) — danh
+         sách server không còn chồng dưới danh mục nữa. */
+      $("mktcat-title").textContent =
+        MKT.cat ? el.querySelector(".r-title").textContent
+                : "Tất cả";
+      showSub("screen-mktcat");
+      loadMktCatalog();
     }));
 }
 async function loadMktCatalog(){
@@ -2016,7 +2079,6 @@ async function loadMktCatalog(){
     '<div class="bar w40"></div></div>';
   try {
     const qs = new URLSearchParams();
-    if (MKT.q) qs.set("query", MKT.q);
     if (MKT.cat) qs.set("category", MKT.cat);
     qs.set("limit", "50");
     const d = await api("/api/marketplace/catalog?" + qs.toString());
@@ -2033,14 +2095,15 @@ function renderMktList(){
   if (!items.length){
     box.innerHTML = '<div class="empty">' + (MKT.cat
       ? "Danh mục này chưa có mục nào."
-      : "Không có kết quả nào khớp.") + '</div>';
+      : "Chưa có mục nào.") + '</div>';
     return;
   }
   box.innerHTML = items.map(it => {
     const parts = [];
-    // Dòng phụ duy nhất: Local · số tool · bảo mật · giá. Tên
-    // tác giả để ở màn chi tiết — nhét vào đây làm tràn mất
-    // phần bảo mật/giá trên màn 390px (đã kiểm bằng render).
+    // Dòng phụ duy nhất: Local · số tool · bảo mật. Tên tác
+    // giả để ở màn chi tiết — nhét vào đây làm tràn mất
+    // phần bảo mật trên màn 390px (đã kiểm bằng render).
+    // Không hiện giá: chợ chỉ lấy đồ free (luật 1.3).
     parts.push(!it.locality || it.locality === "local" ||
       it.locality === "local_process" ? "Local" : it.locality);
     if (it.tool_count_known != null)
@@ -2048,7 +2111,6 @@ function renderMktList(){
     const sec = it.security || {};
     parts.push(sec.score != null
       ? "Bảo mật " + sec.score : "Bảo mật: chưa có");
-    if (it.pricing && it.pricing.label) parts.push(it.pricing.label);
     let state = "";
     if (it.update_available) state = "Có bản mới";
     else if (it.installed_state === "installed") state = "Đã cài";
@@ -2067,30 +2129,22 @@ function renderMktList(){
   }).join("");
   box.querySelectorAll("[data-pid]").forEach(el =>
     el.addEventListener("click", () =>
-      openListing(el.dataset.pid, el.dataset.slug)));
+      openListing(el.dataset.pid, el.dataset.slug, true)));
 }
-function doMktSearch(){
-  MKT.q = $("mkt-q").value.trim();
-  loadMktCatalog();
-}
-$("mkt-search-btn").addEventListener("click", doMktSearch);
-$("mkt-q").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") doMktSearch();
-});
 $("mkt-refresh").addEventListener("click", async () => {
   try {
     const d = await api("/api/marketplace/refresh", "POST", {});
     if (d.catalog) updateFreshness(d.catalog);
     MKT.marketLoaded = true;
     await loadMktCategories();
-    await loadMktCatalog();
     toast("Đã làm mới dữ kiện chợ.");
   } catch (e) { toast(e.message); }
 });
 
 /* ----- Chi tiết listing ----- */
-async function openListing(providerId, slug){
+async function openListing(providerId, slug, fromCat){
   curDraftId = null; curListing = null;
+  listingReturn = fromCat ? "screen-mktcat" : "screen-connectors";
   showSub("screen-listing");
   $("listing-title").textContent = "Chi tiết";
   $("listing-body").innerHTML = '<div class="card"><div class="skel">' +
@@ -2108,6 +2162,7 @@ async function openListing(providerId, slug){
 }
 function openListingData(listing){
   curListing = listing;
+  listingReturn = "screen-connectors";
   showSub("screen-listing");
   renderListingDetail();
 }
@@ -2118,9 +2173,39 @@ function vaultBound(req){
     String(v.label || "").toLowerCase().includes(name) ||
     String(v.ref || "").toLowerCase().includes(name));
 }
+/* Nhãn tiếng Việt cho mã quyền/capability của chợ — dữ kiện
+   gốc để token thô kiểu download_and_run, không hiện thẳng
+   ra UI (vá sau 1.4). Token lạ: tách _ thành khoảng trắng,
+   viết hoa chữ đầu — vẫn dễ đọc hơn mã thô. */
+const CAP_LABELS = {
+  download_and_run: "Tải về và chạy mã",
+  run_code: "Chạy mã",
+  execute_code: "Chạy mã",
+  shell: "Chạy lệnh hệ thống",
+  shell_access: "Chạy lệnh hệ thống",
+  run_commands: "Chạy lệnh hệ thống",
+  network: "Truy cập mạng",
+  network_access: "Truy cập mạng",
+  internet: "Truy cập mạng",
+  internet_access: "Truy cập mạng",
+  filesystem: "Truy cập file",
+  file_access: "Truy cập file",
+  fs_read: "Đọc file",
+  fs_write: "Ghi file",
+  read_files: "Đọc file",
+  write_files: "Ghi file",
+  env: "Đọc biến môi trường",
+  env_access: "Đọc biến môi trường",
+  environment: "Đọc biến môi trường",
+};
+function capLabel(tok){
+  if (CAP_LABELS[tok]) return CAP_LABELS[tok];
+  const s = String(tok).replace(/_/g, " ").trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+}
 function permText(perm){
   if (perm == null) return "";
-  if (typeof perm === "string") return perm;
+  if (typeof perm === "string") return capLabel(perm);
   if (typeof perm === "object"){
     if (perm.label || perm.name)
       return perm.label || perm.name;
@@ -2245,10 +2330,8 @@ function renderListingDetail(){
       warns.map(w => esc(w)).join("<br>") + '</div>';
   h += '</div>';
 
-  /* Giá */
-  h += '<div class="card"><div class="row static"><div class="r-main">' +
-    '<div class="r-title">Giá</div></div><span class="r-state">' +
-    esc((L.pricing && L.pricing.label) || "—") + '</span></div></div>';
+  /* Không có card Giá: chợ theo luật chỉ lấy đồ free 100%
+     (vá sau 1.4, owner bắt bỏ — hiện là thừa). */
 
   /* Hành động — tối đa 1 nút accent */
   h += '<div class="btn-row" style="padding:0" id="listing-actions">';
@@ -2302,7 +2385,8 @@ function renderListingDetail(){
         (isOn ? "/disable" : "/enable"), "POST", {});
       toast(isOn ? "Đã tắt." : "Đã bật.");
       await loadMktInstalled();
-      await openListing(L.provider_id, L.slug);
+      await openListing(L.provider_id, L.slug,
+        listingReturn === "screen-mktcat");
     } catch (e) { toast(e.message); }
   });
   bind("lst-uninstall", async () => {

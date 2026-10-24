@@ -52,6 +52,17 @@ sinh (sai là bỏ bài), chống trùng 3 lớp, trần bài/ngày +
 trần token/ngày + giờ yên lặng, lỗi 3 lượt liên tiếp thì tự
 tạm dừng và báo owner đúng 1 tin; điều khiển ở Mini App
 (Cài đặt → Feed chủ động) và /feedsources.
+Bản 1.4.1 là đợt vá theo phản ánh thật của owner sau 1.4:
+công tắc heartbeat THẬT trong Mini App (kv thắng env, áp
+dụng ngay, hết cảnh "bị khoá" vì PROACTIVITY_ENABLED); theme
+nhuộm đủ 3 tầng 60/30/10 + thẻ hồ sơ theo hue; Chợ MCP mở
+màn con theo danh mục, bỏ ô tìm kiếm, bỏ card Giá, nhãn
+quyền tiếng Việt; bỏ 2 connector mẫu example/example-http;
+màn Quyền có mục riêng từng connector (connector:<tên>,
+server MCP mcp:<tên> — cài thêm là tự xuất hiện); ô nhập
+.field-input đầy bề ngang (Kho hết "chưa responsive"); tab
+Việc chỉ còn TASK THẬT (timeline các bước kế hoạch + tóm
+tắt), lượt chat trở về đúng chỗ của nó: trong chat.
 """
 
-__version__ = "1.4.0"
+__version__ = "1.4.1"

@@ -1,5 +1,40 @@
 # CHANGELOG
 
+## 1.4.1 — Đợt vá theo phản ánh của owner sau 1.4
+
+- **Công tắc heartbeat THẬT trong Mini App** (tab Lịch): gạt
+  là áp dụng ngay — trạng thái lưu ở kv phía server
+  (`proactivity_enabled_override`, thắng `PROACTIVITY_ENABLED`),
+  vòng quét luôn chạy và engine tự bỏ lượt khi đang tắt;
+  `/status` và màn Hệ thống hiện trạng thái hiệu lực thật.
+  Hết cảnh phải sửa `.env` + restart mới bật được.
+- **Theme nhuộm đủ 3 tầng 60/30/10:** đổi màu chủ đề giờ đổi
+  cả nền giấy/bề mặt (60%), bề mặt phụ (30%) và accent (10%)
+  theo hue; thẻ hồ sơ lớn hết gán cứng tím Mulon (theo
+  `--bc1/--bc2` của theme). Chỉ mực/chữ giữ trung tính.
+- **Chợ MCP:** bấm danh mục mở MÀN CON riêng (server của
+  danh mục đó + nút quay lại) — hết chồng 2 danh sách phải
+  cuộn; **bỏ ô tìm MCP**; **bỏ card "Giá"** ở chi tiết (chợ
+  chỉ lấy đồ free theo luật); nhãn quyền/capability dịch
+  tiếng Việt (`download_and_run` → "Tải về và chạy mã", token
+  lạ được viết lại dễ đọc).
+- **Bỏ connector mẫu** `example` + `example-http` khỏi cấu
+  hình mặc định — hết hiện như connector thật.
+- **Màn Quyền có mục "Connector & server MCP":** quyền 3
+  nấc riêng cho từng connector (`connector:<tên>`) và từng
+  server MCP (`mcp:<tên>`); policy rơi về nhóm gốc khi chưa
+  có rule riêng; cài thêm connector/server là tự xuất hiện.
+  Nhóm `goals` có nhãn "Quản lý mục tiêu" (hết hiện thô).
+- **Kho lưu trữ hết "chưa responsive":** `.field-input`
+  thành block width 100% — ô nhập ở Kho (và Feed) đầy bề
+  ngang card như nút, thay vì co ~60%.
+- **Tab Việc làm lại đúng nghĩa TASK:** `/api/state` không
+  còn gộp lượt chat (trajectory `turn_done`/`turn_error`)
+  vào danh sách việc — chỉ task thật từ bảng tasks (đường
+  plan-act-verify, job, agent con); mỗi việc hiện tiến độ
+  bước x/y, màn chi tiết dựng timeline từ CÁC BƯỚC KẾ HOẠCH
+  + thẻ Tóm tắt như Muse.
+
 ## 1.4.0 — Feed chủ động: Feed tự chạy theo lịch, tự tìm nguồn tin cậy
 
 - **Quyết định owner 0.2b (thắng mọi đề xuất trái ngược trong

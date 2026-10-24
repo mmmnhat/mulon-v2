@@ -143,7 +143,9 @@ async def test_skills_list_and_detail(app):
 
 
 # ---------- C5: tab Việc hiện lượt chat ----------
-async def test_state_includes_chat_turns_not_only_tasks(app):
+async def test_state_excludes_chat_turns_only_real_tasks(app):
+    # Đảo ngược ở vá 1.4.1 (owner bắt): tab Việc chỉ TASK
+    # THẬT — lượt chat (turn_done) KHÔNG được lọt vào nữa.
     _, memory, server = app
     key = "agent:main:telegram:dm:42:topic:0"
     await memory.get_or_create_session(key)
@@ -154,17 +156,20 @@ async def test_state_includes_chat_turns_not_only_tasks(app):
         key, "turn_done",
         {"intent": "chat", "verified": None, "llm_calls": 1,
          "user_msg_id": umid})
+    await memory.create_task(
+        "task-that", key, "Dọn dẹp kho và lập báo cáo",
+        ["Quét kho", "Lập báo cáo"])
+    await memory.update_step("task-that", 0, "done")
     async with ClientSession() as s:
         async with s.get(_url(server, "/api/state"),
                          headers=_headers()) as r:
             assert r.status == 200
             data = await r.json()
-    turns = [t for t in data["tasks"] if t["kind"] == "turn"]
-    assert len(turns) == 1
-    turn = turns[0]
-    assert turn["title"] == "Chào Mulon, hôm nay khỏe không"
-    assert turn["status"] == "done"
-    assert turn["intent"] == "chat"
+    tasks = data["tasks"]
+    assert [t["id"] for t in tasks] == ["task-that"]
+    assert tasks[0]["kind"] == "task"
+    assert tasks[0]["steps_total"] == 2
+    assert tasks[0]["steps_done"] == 1
 
 
 def test_frontend_fix_pack_wired():

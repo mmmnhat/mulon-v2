@@ -41,6 +41,22 @@ logger = logging.getLogger("mulon.proactivity")
 
 HEARTBEAT_OK = "HEARTBEAT_OK"
 
+# Công tắc heartbeat trong Mini App (đợt vá sau 1.4, owner yêu
+# cầu): trạng thái gạt lưu ở kv, thắng biến môi trường; chưa từng
+# gạt thì theo PROACTIVITY_ENABLED như cũ.
+PROACTIVITY_KV_KEY = "proactivity_enabled_override"
+
+
+async def effective_enabled(memory, cfg) -> bool:
+    """Heartbeat đang hiệu lực bật hay tắt: kv thắng env."""
+    try:
+        v = await memory.kv_get(PROACTIVITY_KV_KEY)
+    except Exception:
+        v = None
+    if v in ("1", "0"):
+        return v == "1"
+    return bool(cfg.proactivity_enabled)
+
 _CHECK_SYSTEM = (
     "Bạn là lượt quét chủ động (heartbeat) của một trợ lý cá nhân. "
     "Dưới đây là CHECKLIST cần kiểm tra và NGỮ CẢNH NHẸ (fact gần "
@@ -241,6 +257,12 @@ class ProactivityEngine:
         """
         stats = {"skipped": None, "items": 0, "candidates": 0,
                  "notes": 0, "suppressed": 0, "heartbeat_ok": False}
+        if not await effective_enabled(self.memory, self.cfg):
+            # Công tắc tắt (app hoặc env): im lặng, không ghi
+            # trajectory để khỏi rác mỗi lượt quét.
+            stats["skipped"] = "disabled"
+            stats["heartbeat_ok"] = True
+            return stats
         tz = ZoneInfo(self.cfg.default_timezone)
         now_local = (now or datetime.now(tz)).astimezone(tz)
 

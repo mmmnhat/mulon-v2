@@ -964,18 +964,29 @@ class Memory:
             return None
         d = dict(row)
         cur = await self.db.execute(
-            "SELECT idx, title, status, detail FROM task_steps"
-            " WHERE task_id=? ORDER BY idx",
+            "SELECT idx, title, status, detail, updated_at"
+            " FROM task_steps WHERE task_id=? ORDER BY idx",
             (task_id,),
         )
         d["steps"] = [dict(r) for r in await cur.fetchall()]
         return d
 
     async def list_tasks(self, limit: int = 20) -> list[dict]:
-        """Các task gần nhất (mới nhất trước) — tab Việc của Mini App."""
+        """Các task gần nhất (mới nhất trước) — tab Việc của Mini App.
+
+        Kèm tiến độ bước (tổng/đã xong) để danh sách hiện như
+        thẻ việc của Muse. Chỉ task THẬT (đường plan-act-verify,
+        job, agent con) mới có bản ghi ở đây — lượt chat thường
+        không tạo task (vá sau 1.4)."""
         cur = await self.db.execute(
-            "SELECT id, session_key, title, status, error, created_at,"
-            " updated_at FROM tasks ORDER BY created_at DESC LIMIT ?",
+            "SELECT t.id, t.session_key, t.title, t.status, t.error,"
+            " t.created_at, t.updated_at,"
+            " (SELECT COUNT(*) FROM task_steps s"
+            "   WHERE s.task_id = t.id) AS steps_total,"
+            " (SELECT COUNT(*) FROM task_steps s"
+            "   WHERE s.task_id = t.id AND s.status = 'done')"
+            "   AS steps_done"
+            " FROM tasks t ORDER BY t.created_at DESC LIMIT ?",
             (limit,),
         )
         return [dict(r) for r in await cur.fetchall()]

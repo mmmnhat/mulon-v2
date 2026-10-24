@@ -93,6 +93,7 @@ GROUP_SCOPE_LABELS = {
     "memory": "tra ký ức",
     "schedule": "xử lý lịch hẹn",
     "system": "thông tin hệ thống",
+    "goals": "quản lý mục tiêu",
 }
 
 
@@ -119,6 +120,13 @@ def approval_scope(payload: dict) -> dict:
     group = str(payload.get("group") or "")
     subject = f"công cụ {tool}" if tool else "việc này"
     label = GROUP_SCOPE_LABELS.get(group, "")
+    if not label and ":" in group:
+        # Nhóm có tiền tố (connector:gmail, mcp:filesystem):
+        # nhãn của nhóm gốc + tên riêng trong ngoặc.
+        head, _, tail = group.partition(":")
+        head_label = GROUP_SCOPE_LABELS.get(head, "")
+        if head_label:
+            label = f"{head_label} ({tail})"
     if label:
         subject += f" thuộc nhóm {label}"
     elif group:

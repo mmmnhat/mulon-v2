@@ -34,6 +34,7 @@ from .approvals import GROUP_SCOPE_LABELS
 from .cron import parse_cron
 from .feed_auto import valid_quiet_hours
 from .planning import internal_kind
+from .proactivity import PROACTIVITY_KV_KEY, effective_enabled
 
 logger = logging.getLogger("mulon.webapp")
 
@@ -153,6 +154,7 @@ GROUP_STEP_LABELS = {
     "skills": "Đang tra kỹ năng",
     "memory": "Đang tra ký ức",
     "schedule": "Đang xử lý lịch hẹn",
+    "goals": "Đang xử lý mục tiêu",
 }
 
 EVENT_STEP_LABELS = {
@@ -320,13 +322,7 @@ class WebAppServer:
             return await self._auth_middleware(request, handler)
 
         app = web.Application(middlewares=[_auth])
-        app.router.add_get("/", self._handle_index)
-        app.router.add_get("/a", self._handle_index)
-        app.router.add_get("/a/", self._handle_index)
         app.router.add_get("/app", self._handle_index)
-        app.router.add_get("/app/", self._handle_index)
-        app.router.add_get("/panel", self._handle_index)
-        app.router.add_get("/dashboard", self._handle_index)
         app.router.add_get("/app/avatar", self._handle_avatar)
         app.router.add_get("/app/assets/{name}",
                            self._handle_static_asset)
@@ -521,11 +517,33 @@ class WebAppServer:
             *(desc["groups"].keys()), *(desc["session_groups"].keys()),
             *(spec.group for spec in self.registry.specs() if spec.group),
         })
+        # Nhóm có tiền tố (mcp:<server>, connector:<tên>) không
+        # liệt kê ở mục Nhóm việc nữa — chúng có mục riêng
+        # "Connector & server MCP" ngay dưới, tên đọc được.
+        groups = [g for g in groups
+                  if not g.startswith(("mcp:", "connector:"))]
         tools = sorted({
             *(desc["tools"].keys()),
             *(desc["session_tools"].keys()),
             *self.registry.names(),
         })
+        # Quyền RIÊNG từng connector/server (đợt vá sau 1.4 —
+        # trước đây màn Quyền không có mục nào cho connector).
+        # Danh sách lấy từ trạng thái sống nên cài thêm cái nào
+        # là tự xuất hiện.
+        connectors: dict[str, str] = {}
+        for name in self.connectors.names():
+            key = f"connector:{name}"
+            connectors[key] = self.policy.decide("", key).verdict
+        if self.mcp is not None:
+            try:
+                from .mcp_client import load_server_configs
+                for entry in load_server_configs(self.mcp.config_path):
+                    key = f"mcp:{entry.get('name')}"
+                    connectors[key] = self.policy.decide(
+                        "", key).verdict
+            except Exception:
+                pass
         return {
             "default": desc["default"],
             "groups": {
@@ -533,6 +551,9 @@ class WebAppServer:
             "group_labels": {
                 g: label for g in groups
                 if (label := policy_group_label(g))},
+            "connectors": connectors,
+            "connector_labels": {
+                k: k.split(":", 1)[1] for k in connectors},
             "tools": {
                 t: self.policy.decide(
                     t, (self.registry.get(t).group
@@ -585,11 +606,13 @@ class WebAppServer:
         items.append({
             "id": "heartbeat", "name": "Heartbeat chủ động",
             "cron": f"mỗi {self.cfg.proactivity_interval_s}s",
-            "prompt": "Quét checklist HEARTBEAT.md (mặc định tắt, "
-                      "bật bằng PROACTIVITY_ENABLED trong .env)",
-            "enabled": bool(self.cfg.proactivity_enabled),
+            "prompt": "Quét checklist HEARTBEAT.md — gạt công tắc "
+                      "là áp dụng ngay, không cần sửa .env, "
+                      "không cần khởi động lại.",
+            "enabled": await effective_enabled(self.memory,
+                                               self.cfg),
             "next_run_at": "", "last_run_at": "",
-            "toggleable": False, "kind": "heartbeat",
+            "toggleable": True, "kind": "heartbeat",
         })
         scheduler_on = bool(self.cfg.scheduler_enabled)
         return {"available": available, "scheduler_enabled": scheduler_on,
@@ -695,11 +718,18 @@ class WebAppServer:
             "uptime_s": max(0, int(time.time() - self._started_at)),
             "proxy": await self._probe_proxy(),
             "scheduler_enabled": bool(self.cfg.scheduler_enabled),
-            "heartbeat_enabled": bool(self.cfg.proactivity_enabled),
+            "heartbeat_enabled": await effective_enabled(
+                self.memory, self.cfg),
             "viewer": viewer,
         }
 
     async def _handle_state(self, request):
+        # Tab Việc = TASK THẬT (vá sau 1.4, owner bắt): chỉ
+        # bản ghi từ bảng tasks (đường plan-act-verify, job,
+        # agent con, build ý tưởng). Bản 1.3 từng gộp lượt
+        # chat (trajectory turn_done/turn_error) cho khỏi
+        # trống — owner chê đúng: đó là lịch sử chat, không
+        # phải việc. Lượt chat ở yên trong chat.
         tasks = []
         try:
             for t in await self.memory.list_tasks(limit=20):
@@ -708,69 +738,13 @@ class WebAppServer:
                     "title": t.get("title") or "",
                     "status": t.get("status") or "",
                     "error": t.get("error") or "",
+                    "steps_total": t.get("steps_total") or 0,
+                    "steps_done": t.get("steps_done") or 0,
                     "created_at": t.get("created_at") or "",
                     "updated_at": t.get("updated_at") or "",
                 })
         except Exception:
             pass
-        # Lượt CHAT cũng là lượt việc của agent (1.3.0, gói vá
-        # Mini App): trước đây tab Việc chỉ lấy bảng tasks — mà
-        # task chỉ được tạo ở task path, nên owner chat thường
-        # (fast path) xong vẫn thấy danh sách trống. Nay gộp cả
-        # trajectory turn_done/turn_error: MỌI lượt agent hoàn
-        # thành đều hiện, với trường tối thiểu TRUNG THỰC (tiêu
-        # đề = đúng nội dung tin user mở lượt; trạng thái xong/
-        # lỗi theo đúng bản ghi; lượt chat không có chi tiết
-        # task nên kind="turn" để frontend không mở màn chi
-        # tiết rỗng).
-        try:
-            for r in await self.memory.recent_trajectory(
-                    kind="turn_done", limit=20):
-                p = r.get("payload") or {}
-                title = ""
-                umid = p.get("user_msg_id")
-                if umid:
-                    try:
-                        msg = await self.memory.get_message(
-                            int(umid))
-                    except Exception:
-                        msg = None
-                    if msg:
-                        title = " ".join(
-                            str(msg.get("content") or "").split()
-                        )[:120]
-                tasks.append({
-                    "id": f"turn-{r.get('id')}", "kind": "turn",
-                    "title": title or "(lượt trò chuyện)",
-                    "status": "done", "error": "",
-                    "intent": str(p.get("intent") or ""),
-                    "created_at": r.get("created_at") or "",
-                    "updated_at": r.get("created_at") or "",
-                })
-            for r in await self.memory.recent_trajectory(
-                    kind="turn_error", limit=10):
-                p = r.get("payload") or {}
-                # Chỉ lấy lỗi ở TẦNG BỀ MẶT (agent.handle văng ra
-                # ngoài -> KHÔNG có turn_done đi kèm). Lỗi fast
-                # path đã tự ghi turn_error (có khóa "where") rồi
-                # vẫn chốt turn_done — lấy cả hai sẽ nhân đôi 1
-                # lượt thành 2 hàng.
-                if p.get("where"):
-                    continue
-                tasks.append({
-                    "id": f"turnerr-{r.get('id')}", "kind": "turn",
-                    "title": "(lượt lỗi)",
-                    "status": "failed",
-                    "error": str(p.get("error") or "")[:200],
-                    "intent": "",
-                    "created_at": r.get("created_at") or "",
-                    "updated_at": r.get("created_at") or "",
-                })
-        except Exception:
-            pass
-        tasks.sort(key=lambda x: x.get("created_at") or "",
-                   reverse=True)
-        tasks = tasks[:20]
         history = []
         try:
             rows = await self.memory.recent_trajectory(
@@ -1020,12 +994,20 @@ class WebAppServer:
         body = await self._json_body(request)
         schedule_id = str(body.get("id") or "")
         enabled = bool(body.get("enabled"))
-        if not schedule_id or schedule_id == "heartbeat":
+        if not schedule_id:
             return web.json_response(
-                {"ok": False,
-                 "error": "Heartbeat bật/tắt bằng biến môi trường "
-                          "PROACTIVITY_ENABLED, không đổi ở đây."},
+                {"ok": False, "error": "Thiếu id lịch."},
                 status=400)
+        if schedule_id == "heartbeat":
+            # Công tắc heartbeat thật: lưu kv, engine đọc lại mỗi
+            # lượt quét nên ăn ngay, không restart.
+            await self.memory.kv_set(
+                PROACTIVITY_KV_KEY, "1" if enabled else "0")
+            await self.memory.log_trajectory(
+                "webapp", "heartbeat_toggled",
+                {"enabled": enabled})
+            return web.json_response(
+                {"ok": True, "enabled": enabled})
         row = await self.memory.get_schedule(schedule_id)
         if row is not None and internal_kind(
                 row.get("payload") or "") is not None:

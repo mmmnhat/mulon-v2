@@ -44,6 +44,7 @@ from aiogram.types import (BotCommand, CallbackQuery, FSInputFile,
 
 from . import surfaces as surf
 from .ideas import format_idea_card, parse_do_reply
+from .proactivity import effective_enabled as heartbeat_effective
 from .webapp_server import ActivityTracker, plain_step_label, \
     tool_action_label
 
@@ -1242,7 +1243,7 @@ class TelegramSurface:
                 f"- Việc hẹn giờ (scheduler): "
                 f"{'đang bật' if self.cfg.scheduler_enabled else 'đang tắt'}",
                 f"- Chủ động (heartbeat): "
-                f"{'đang bật' if self.cfg.proactivity_enabled else 'đang tắt'}",
+                f"{'đang bật' if await heartbeat_effective(self.memory, self.cfg) else 'đang tắt'}",
                 f"- Chắt lọc ký ức nền: "
                 f"{'đang bật' if self.cfg.consolidation_enabled else 'đang tắt'}",
                 f"- Bảng điều khiển (Mini App): "

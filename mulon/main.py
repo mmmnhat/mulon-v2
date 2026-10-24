@@ -314,7 +314,8 @@ async def _consolidation_loop(worker: ConsolidationWorker,
 
 async def _proactivity_loop(engine: ProactivityEngine,
                             interval_s: int) -> None:
-    """Vòng lặp heartbeat — CHỈ chạy khi PROACTIVITY_ENABLED=1."""
+    """Vòng lặp heartbeat — luôn chạy; engine tự bỏ lượt khi
+    công tắc hiệu lực đang tắt (xem proactivity.effective_enabled)."""
     while True:
         await asyncio.sleep(interval_s)
         try:
@@ -378,17 +379,20 @@ async def _run(cfg: Config) -> int:
                         "thường vẫn TẮT (SCHEDULER_ENABLED=0)")
     else:
         logger.info("scheduler nền TẮT (bật bằng SCHEDULER_ENABLED=1)")
-    if cfg.proactivity_enabled:
-        asyncio.create_task(
-            _proactivity_loop(services["proactivity"],
-                              cfg.proactivity_interval_s)
-        )
-        logger.info("proactivity nền BẬT (mỗi %ss, giờ %s)",
-                    cfg.proactivity_interval_s,
-                    cfg.proactivity_active_hours)
-    else:
-        logger.info(
-            "proactivity nền TẮT (bật bằng PROACTIVITY_ENABLED=1)")
+    # Vòng heartbeat luôn chạy; lượt quét tự bỏ qua khi công tắc
+    # hiệu lực tắt (Mini App ghi kv, mặc định theo
+    # PROACTIVITY_ENABLED) — gạt trong app là ăn ngay, khỏi
+    # restart, khỏi sửa .env.
+    asyncio.create_task(
+        _proactivity_loop(services["proactivity"],
+                          cfg.proactivity_interval_s)
+    )
+    logger.info("proactivity: vòng quét chạy mỗi %ss (giờ %s); "
+                "trạng thái hiệu lực theo công tắc trong Mini "
+                "App, mặc định PROACTIVITY_ENABLED=%s",
+                cfg.proactivity_interval_s,
+                cfg.proactivity_active_hours,
+                cfg.proactivity_enabled)
     await surface.run()
     return 0
 

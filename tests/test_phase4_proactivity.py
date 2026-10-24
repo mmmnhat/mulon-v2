@@ -4,6 +4,7 @@ HEARTBEAT_OK im lặng; có việc -> xếp hàng proactive_notes (chưa
 gửi); PROACTIVE_PREFERENCES chặn đúng chủ đề."""
 
 import json
+from dataclasses import replace
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -104,6 +105,7 @@ def test_active_hours_window_and_overnight():
 # ------------------------- engine -------------------------
 
 async def test_out_of_hours_skips_without_calling_model(cfg):
+    cfg = replace(cfg, proactivity_enabled=True)  # vá 1.4.1: run_once tôn trọng công tắc
     _write_dossier(cfg)
     memory = await open_memory(cfg)
     gateway = HeartbeatGateway(notes=[{"content": "x"}])
@@ -119,6 +121,7 @@ async def test_out_of_hours_skips_without_calling_model(cfg):
 
 
 async def test_empty_checklist_is_heartbeat_ok_and_silent(cfg):
+    cfg = replace(cfg, proactivity_enabled=True)  # vá 1.4.1: run_once tôn trọng công tắc
     _write_dossier(cfg, checklist="# HEARTBEAT\n\n<!-- trống -->\n")
     memory = await open_memory(cfg)
     gateway = HeartbeatGateway(notes=[{"content": "không được dùng"}])
@@ -134,6 +137,7 @@ async def test_empty_checklist_is_heartbeat_ok_and_silent(cfg):
 
 
 async def test_notes_queued_and_preferences_suppress(cfg):
+    cfg = replace(cfg, proactivity_enabled=True)  # vá 1.4.1: run_once tôn trọng công tắc
     _write_dossier(cfg)
     memory = await open_memory(cfg)
     gateway = HeartbeatGateway(notes=[

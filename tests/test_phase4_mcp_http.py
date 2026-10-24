@@ -136,10 +136,13 @@ async def test_stdio_still_works_alongside_http(cfg, tmp_path):
         await manager.close()
 
 
-def test_repo_mcp_config_has_http_example_disabled():
+def test_repo_mcp_config_has_no_mock_examples():
+    # Vá 1.4.1 (owner bắt): bỏ hẳn 2 server mẫu example /
+    # example-http khỏi config mặc định — chúng hiện lên màn
+    # Công cụ kết nối như connector thật gây nhiễu.
     entries = load_server_configs(
         Path(__file__).resolve().parent.parent
         / "config" / "mcp_servers.json")
-    http_entries = [e for e in entries if _transport_of(e) == "http"]
-    assert http_entries, "thiếu ví dụ server HTTP trong config mẫu"
+    names = [e.get("name") for e in entries]
+    assert "example" not in names and "example-http" not in names
     assert all(not e.get("enabled") for e in entries)
