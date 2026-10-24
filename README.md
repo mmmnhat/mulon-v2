@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.0.1-blueviolet">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.1.0-blueviolet">
   <img alt="Python" src="https://img.shields.io/badge/python-3.12-3776AB">
   <img alt="Tests" src="https://img.shields.io/badge/tests-147%20passing-brightgreen">
   <img alt="Eval" src="https://img.shields.io/badge/eval%20gate-85%25-orange">
@@ -84,7 +84,9 @@ tính cho dịch vụ ngoài.
 Library, Lịch sử & Hệ thống. Feed sinh từ tư liệu nội bộ (không
 aggregator), học gu qua reaction. Thẻ Ideas tự hết hạn sau 14
 ngày, "làm luôn" là thành goal + task. Library có thùng rác khôi
-phục được trong 30 ngày.
+phục được trong 30 ngày. Ngoài các tab cố định, `/chatphu <tên>`
+tạo topic tự do làm đoạn chat phụ: lịch sử tách riêng theo topic,
+ký ức dài hạn vẫn dùng chung, đóng/mở lại được bằng lệnh.
 
 **An toàn theo thiết kế.** Allowlist cứng (chỉ chủ nhân ra lệnh
 được; tin người lạ chỉ là dữ kiện), policy 2 lớp (file host thắng
@@ -191,6 +193,7 @@ thích từng biến. Các biến chính:
 |---|---|
 | Lõi | `/start` `/status` `/new` — chốt phiên hiện tại |
 | Group | `/setup_topics` — tạo các topic-tab · `/topics` — xem map |
+| Chat phụ | `/chatphu <tên>` — tạo đoạn chat phụ · `/chatphu_list` · `/dongchat` · `/chatphu_dong <thread_id>` · `/chatphu_mo <thread_id>` |
 | Feed | `/feed_now` — sinh bài mới · `/feedbrief <nội dung>` — sửa brief |
 | Ideas | `/ideas` · trả lời thẻ "làm luôn" hoặc `/idea_do <id>` · `/idea_bo <id>` |
 | Đề xuất | `/notes` — đề xuất đang chờ · `/note_ok <id>` · `/note_bo <id>` |
