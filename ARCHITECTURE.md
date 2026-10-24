@@ -79,6 +79,9 @@ Phase 6 trình — không tự gửi.
 | `mulon/vault.py` | Secure Vault: VaultStore (file JSON 0600, cửa đọc duy nhất resolve(ref)) + VaultFormServer (stdlib HTTP bind 127.0.0.1, token 1 lần + TTL); giá trị không qua chat/log/trajectory |
 | `mulon/approvals.py` | ApprovalBroker (1.2.0): yêu cầu duyệt của policy nấc ask — open/wait/resolve, timeout = hết hạn, "duyệt và nhớ" ghi rule session, listener cho bề mặt tự gỡ thẻ; payload chỉ có tóm tắt args an toàn |
 | `mulon/webapp_server.py` | Mini App server (1.2.0): aiohttp bind 127.0.0.1 cổng WEBAPP_PORT, phục vụ `mulon/webapp/index.html` (1 file tĩnh) + API JSON (state/task/profile/policy/connector/approve/schedule); mọi /api/* khóa bằng initData HMAC + ALLOWED_USER_ID; ActivityTracker cho trạng thái sống |
+| `mulon/marketplace.py` | Chợ MCP (1.3.0): MarketplaceService — chuẩn hoá cấu hình import (bác shell/remote/bí mật chữ), fingerprint config/tool, state machine operation 2 lần duyệt, probe tách rời qua MCPManager, commit có journal + rollback, boot gate/reconciliation + tự rollback khi áp dụng lỗi, catalog tự cập nhật có checksum (chỉ dữ kiện) |
+| `mulon/marketplace_store.py` | Sổ bền của marketplace (JSON nguyên tử `data/marketplace.json`): installed registry, operation journal, tombstone, idempotency, restart intent + hàng đợi thông báo — không chứa secret value |
+| `mulon/marketplace_providers.py` | Nguồn dữ kiện catalog: bundle tuyển chọn đóng gói + snapshot đã tải (validate cấu trúc + checksum nội dung); provider mcp-marketplace.io dự phòng, mặc định tắt/unverified |
 
 ## Nguyên tắc bất biến (rút từ mục 0 của thiết kế)
 
