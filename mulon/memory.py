@@ -320,6 +320,43 @@ CREATE TABLE IF NOT EXISTS feed_signals (
 CREATE INDEX IF NOT EXISTS idx_feed_signals_post
     ON feed_signals(post_message_id);
 
+-- ===== 1.4.0: Feed chủ động (spec Feed 1.4, mục 10.1) =====
+
+-- URL tư liệu NGOÀI đã trích trong từng bài Feed: nền của chống
+-- trùng URL (7 ngày) và taste-theo-nguồn. content_hash = hash của
+-- tư liệu tại thời điểm trích (để luật "hash đổi thì dùng lại
+-- được 1 lần" kiểm được tất định).
+CREATE TABLE IF NOT EXISTS feed_post_sources (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id      INTEGER NOT NULL,
+    url          TEXT NOT NULL DEFAULT '',
+    source       TEXT NOT NULL DEFAULT '',
+    content_hash TEXT NOT NULL DEFAULT '',
+    fetched_at   TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_feed_post_sources_url
+    ON feed_post_sources(url);
+CREATE INDEX IF NOT EXISTS idx_feed_post_sources_post
+    ON feed_post_sources(post_id);
+
+-- Cache tư liệu ngoài theo URL: hash đổi/mới + bản rút gọn đã cắt.
+-- Chỉ là cache collector — tư liệu ngoài KHÔNG BAO GIỜ vào facts.
+CREATE TABLE IF NOT EXISTS feed_material_cache (
+    url          TEXT PRIMARY KEY,
+    content_hash TEXT NOT NULL DEFAULT '',
+    fetched_at   TEXT NOT NULL DEFAULT '',
+    payload      TEXT NOT NULL DEFAULT ''
+);
+
+-- Cấu hình Feed khi chạy: env chỉ là seed lần đầu, từ lần owner
+-- đổi đầu tiên thì bảng này THẮNG env (spec Feed 1.4 mục 8.1,
+-- điều chỉnh 0.2b: không có khóa 'enabled' — Feed luôn tự động).
+CREATE TABLE IF NOT EXISTS feed_settings (
+    key        TEXT PRIMARY KEY,
+    value      TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT ''
+);
+
 -- Thẻ ý tưởng (mục 16.5): tự hết hạn (mặc định 14 ngày), làm luôn
 -- -> goal + task; trạng thái open/done/dismissed/expired.
 CREATE TABLE IF NOT EXISTS idea_cards (
@@ -358,6 +395,25 @@ CREATE INDEX IF NOT EXISTS idx_library_status
 """
 
 
+async def _migrate_feed_14(db) -> None:
+    """Migration 1.4.0: feed_posts thêm cột origin/topic.
+
+    CREATE TABLE IF NOT EXISTS không thêm cột cho DB đã tồn tại
+    (mọi DB từ 1.3 trở xuống) — kiểm PRAGMA rồi ALTER, idempotent.
+    """
+    cur = await db.execute("PRAGMA table_info(feed_posts)")
+    cols = {row[1] for row in await cur.fetchall()}
+    if "origin" not in cols:
+        await db.execute(
+            "ALTER TABLE feed_posts ADD COLUMN origin"
+            " TEXT DEFAULT 'manual'")
+    if "topic" not in cols:
+        await db.execute(
+            "ALTER TABLE feed_posts ADD COLUMN topic"
+            " TEXT DEFAULT ''")
+    await db.commit()
+
+
 class Memory:
     """Cửa ngõ duy nhất tới DB. Mọi ghi/đọc ký ức đi qua đây."""
 
@@ -383,6 +439,7 @@ class Memory:
         db.row_factory = aiosqlite.Row
         await db.executescript(SCHEMA)
         await db.commit()
+        await _migrate_feed_14(db)
         mem = cls(db)
         mem.vector_enabled = await mem._try_enable_vector()
         return mem
@@ -1320,11 +1377,12 @@ class Memory:
 
     # --- feed ---
     async def add_feed_post(self, chat_id: int, message_id: int,
-                            content: str) -> int:
+                            content: str, origin: str = "manual",
+                            topic: str = "") -> int:
         cur = await self.db.execute(
             "INSERT INTO feed_posts(chat_id, message_id, content,"
-            " created_at) VALUES (?,?,?,?)",
-            (chat_id, message_id, content, now_iso()),
+            " origin, topic, created_at) VALUES (?,?,?,?,?,?)",
+            (chat_id, message_id, content, origin, topic, now_iso()),
         )
         await self.db.commit()
         return int(cur.lastrowid)
@@ -1354,6 +1412,176 @@ class Memory:
             " GROUP BY reaction ORDER BY n DESC, reaction"
         )
         return [dict(r) for r in await cur.fetchall()]
+
+    # --- feed 1.4: bài gần đây / trần ngày / nguồn đã trích ---
+    async def list_recent_feed_posts(self, limit: int = 10) -> list[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM feed_posts ORDER BY id DESC LIMIT ?",
+            (int(limit),),
+        )
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def count_feed_posts(self, origin: str, since_iso: str,
+                               until_iso: str) -> int:
+        """Đếm bài theo origin trong [since, until) — caller tính
+        biên ngày ĐỊA PHƯƠNG rồi đổi sang UTC ISO."""
+        cur = await self.db.execute(
+            "SELECT COUNT(*) AS n FROM feed_posts WHERE origin=?"
+            " AND created_at>=? AND created_at<?",
+            (origin, since_iso, until_iso),
+        )
+        row = await cur.fetchone()
+        return int(row["n"]) if row else 0
+
+    async def add_feed_post_sources(self, post_id: int,
+                                    items: list[dict]) -> None:
+        """Ghi các URL tư liệu ngoài đã trích trong 1 bài (chống
+        trùng + taste-theo-nguồn). items: {url, source,
+        content_hash, fetched_at}."""
+        for it in items or []:
+            await self.db.execute(
+                "INSERT INTO feed_post_sources(post_id, url,"
+                " source, content_hash, fetched_at)"
+                " VALUES (?,?,?,?,?)",
+                (int(post_id), str(it.get("url") or ""),
+                 str(it.get("source") or ""),
+                 str(it.get("content_hash") or ""),
+                 str(it.get("fetched_at") or "")),
+            )
+        await self.db.commit()
+
+    async def recent_feed_source_uses(self, since_iso: str) -> list[dict]:
+        """Mọi lần trích URL kể từ since (kèm ngày đăng bài) —
+        nền của luật chống trùng URL 7 ngày."""
+        cur = await self.db.execute(
+            "SELECT s.url AS url, s.content_hash AS content_hash,"
+            " p.created_at AS post_created_at"
+            " FROM feed_post_sources s"
+            " JOIN feed_posts p ON p.id = s.post_id"
+            " WHERE p.created_at>=? ORDER BY p.id",
+            (since_iso,),
+        )
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def feed_source_signal_stats(self, since_iso: str) -> list[dict]:
+        """Reaction gộp THEO NGUỒN tư liệu (taste v2): join
+        signals -> posts -> post_sources."""
+        cur = await self.db.execute(
+            "SELECT s.source AS source, fs.reaction AS reaction,"
+            " COUNT(*) AS n FROM feed_signals fs"
+            " JOIN feed_posts p ON p.chat_id = fs.chat_id"
+            " AND p.message_id = fs.post_message_id"
+            " JOIN feed_post_sources s ON s.post_id = p.id"
+            " WHERE fs.created_at>=?"
+            " GROUP BY s.source, fs.reaction",
+            (since_iso,),
+        )
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def feed_topic_signal_stats(self, since_iso: str) -> list[dict]:
+        """Reaction gộp THEO CHỦ ĐỀ bài (taste v2)."""
+        cur = await self.db.execute(
+            "SELECT p.topic AS topic, fs.reaction AS reaction,"
+            " COUNT(*) AS n FROM feed_signals fs"
+            " JOIN feed_posts p ON p.chat_id = fs.chat_id"
+            " AND p.message_id = fs.post_message_id"
+            " WHERE fs.created_at>=? AND p.topic != ''"
+            " GROUP BY p.topic, fs.reaction",
+            (since_iso,),
+        )
+        return [dict(r) for r in await cur.fetchall()]
+
+    # --- feed 1.4: cache tư liệu + settings bền ---
+    async def get_feed_material_cache(self, url: str) -> Optional[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM feed_material_cache WHERE url=?", (url,))
+        row = await cur.fetchone()
+        return dict(row) if row else None
+
+    async def upsert_feed_material_cache(self, url: str,
+                                         content_hash: str,
+                                         payload: str) -> None:
+        await self.db.execute(
+            "INSERT INTO feed_material_cache(url, content_hash,"
+            " fetched_at, payload) VALUES (?,?,?,?)"
+            " ON CONFLICT(url) DO UPDATE SET"
+            " content_hash=excluded.content_hash,"
+            " fetched_at=excluded.fetched_at,"
+            " payload=excluded.payload",
+            (url, content_hash, now_iso(), payload),
+        )
+        await self.db.commit()
+
+    async def get_feed_setting(self, key: str,
+                               default: Optional[str] = None
+                               ) -> Optional[str]:
+        cur = await self.db.execute(
+            "SELECT value FROM feed_settings WHERE key=?", (key,))
+        row = await cur.fetchone()
+        return row["value"] if row else default
+
+    async def set_feed_setting(self, key: str, value: str) -> None:
+        await self.db.execute(
+            "INSERT INTO feed_settings(key, value, updated_at)"
+            " VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET"
+            " value=excluded.value, updated_at=excluded.updated_at",
+            (key, str(value), now_iso()),
+        )
+        await self.db.commit()
+
+    async def all_feed_settings(self) -> dict[str, str]:
+        cur = await self.db.execute("SELECT key, value FROM feed_settings")
+        return {r["key"]: r["value"] for r in await cur.fetchall()}
+
+    async def sum_llm_tokens(self, purpose_prefix: str,
+                             since_iso: str) -> int:
+        """Tổng token (prompt+completion) của trajectory llm_call
+        có purpose bắt đầu bằng prefix kể từ since — trần token
+        của Feed đo bằng đường này (gateway không tính tiền)."""
+        cur = await self.db.execute(
+            "SELECT payload FROM trajectory WHERE kind='llm_call'"
+            " AND created_at>=?", (since_iso,))
+        total = 0
+        for r in await cur.fetchall():
+            try:
+                p = json.loads(r["payload"] or "{}")
+            except Exception:
+                continue
+            if str(p.get("purpose") or "").startswith(purpose_prefix):
+                total += int(p.get("prompt_tokens") or 0)
+                total += int(p.get("completion_tokens") or 0)
+        return total
+
+    async def kv_keys(self, prefix: str) -> list[str]:
+        cur = await self.db.execute(
+            "SELECT key FROM kv_state WHERE key LIKE ?",
+            (prefix + "%",),
+        )
+        return [r["key"] for r in await cur.fetchall()]
+
+    async def set_schedule_next_run(self, schedule_id: str,
+                                    next_run_at: str) -> None:
+        """Chỉ dời next_run_at (không đụng last_run_at) — Feed
+        dùng khi hoãn lượt vì giờ yên lặng."""
+        await self.db.execute(
+            "UPDATE schedules SET next_run_at=?, updated_at=?"
+            " WHERE id=?",
+            (next_run_at, now_iso(), schedule_id),
+        )
+        await self.db.commit()
+
+    async def update_schedule(self, schedule_id: str, cron: str,
+                              timezone_name: str,
+                              next_run_at: str) -> bool:
+        """Đổi cron/múi giờ/lần kế tiếp tại chỗ (điều khiển Feed
+        qua Mini App/chat dùng đường này cho job hệ thống)."""
+        cur = await self.db.execute(
+            "UPDATE schedules SET cron=?, timezone=?, next_run_at=?,"
+            " enabled=1, updated_at=? WHERE id=?",
+            (cron, timezone_name, next_run_at, now_iso(), schedule_id),
+        )
+        await self.db.commit()
+        return (cur.rowcount or 0) > 0
 
     # --- ideas ---
     async def add_idea_card(self, title: str, description: str = "",
