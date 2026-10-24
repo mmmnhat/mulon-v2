@@ -26,20 +26,75 @@
 from __future__ import annotations
 
 import asyncio
+import html
 import json
 import logging
 import re
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Awaitable, Callable, Optional
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ChatType
-from aiogram.types import FSInputFile, Message, ReactionTypeEmoji
+from aiogram.types import (BotCommand, CallbackQuery, FSInputFile,
+                           InlineKeyboardButton, InlineKeyboardMarkup,
+                           Message, ReactionTypeEmoji)
 
 from . import surfaces as surf
 from .ideas import format_idea_card, parse_do_reply
+from .webapp_server import ActivityTracker, plain_step_label, \
+    tool_action_label
 
 logger = logging.getLogger("mulon.telegram")
+
+# Danh sách lệnh đăng ký lên Telegram lúc khởi động (set_my_commands)
+# để user gõ "/" là thấy menu — mô tả tiếng Việt ngắn.
+BOT_COMMANDS: list[tuple[str, str]] = [
+    ("start", "Bắt đầu / nghi lễ lần đầu"),
+    ("menu", "Mở bảng điều khiển (Mini App)"),
+    ("status", "Trạng thái hệ thống"),
+    ("new", "Chốt phiên, bắt đầu ngữ cảnh mới"),
+    ("memory", "Xem bộ nhớ + fact kèm nguồn"),
+    ("setup_topics", "Tạo các topic-tab trong group"),
+    ("topics", "Xem map topic"),
+    ("chatphu", "Tạo chat phụ (topic tự do)"),
+    ("chatphu_list", "Liệt kê chat phụ đang mở"),
+    ("dongchat", "Đóng chat phụ hiện tại"),
+    ("chatphu_dong", "Đóng chat phụ theo id"),
+    ("chatphu_mo", "Mở lại chat phụ theo id"),
+    ("feed_now", "Sinh bài Feed mới"),
+    ("feedbrief", "Xem/sửa brief của Feed"),
+    ("ideas", "Sinh thẻ ý tưởng"),
+    ("idea_do", "Làm luôn thẻ ý tưởng"),
+    ("idea_bo", "Bỏ qua thẻ ý tưởng"),
+    ("notes", "Đề xuất chủ động đang chờ"),
+    ("note_ok", "Duyệt đề xuất"),
+    ("note_bo", "Bỏ đề xuất"),
+    ("library", "Xem Library"),
+    ("trash_item", "Cho item vào thùng rác"),
+    ("restore_item", "Khôi phục item"),
+    ("share_item", "Chia sẻ item (chờ host duyệt)"),
+    ("vault", "Nhận link form nhập bí mật"),
+    ("forget", "Quên một chủ đề (có kế hoạch trước)"),
+    ("export_memory", "Xuất bản sao ký ức"),
+    ("quyen", "Quyền của agent bằng lời thường"),
+    ("approvals", "Lịch sử quyết định quyền"),
+    ("voiceon", "Bật trả lời bằng giọng"),
+    ("voiceoff", "Tắt trả lời bằng giọng"),
+]
+
+
+def webapp_direct_link(cfg, bot_username: Optional[str],
+                       start_param: str) -> Optional[str]:
+    """Direct Link Mini App — đường mở app DUY NHẤT dùng cho cả
+    group lẫn DM (nút inline kiểu web_app chỉ chạy trong DM nên
+    không dùng). Thiếu WEBAPP_URL/WEBAPP_APP_NAME/username -> None
+    để nơi gọi degrade về inline callback."""
+    if not (getattr(cfg, "webapp_url", "") and
+            getattr(cfg, "webapp_app_name", "") and bot_username):
+        return None
+    return (f"https://t.me/{bot_username}/{cfg.webapp_app_name}"
+            f"?startapp={start_param}&mode=compact")
 
 FlushFn = Callable[[str, str, list[str]], Awaitable[None]]
 
@@ -158,6 +213,42 @@ def _open_tags(text: str) -> list[tuple[str, str]]:
     return stack
 
 
+_CODE_OR_LINK_RE = re.compile(
+    r"```([\s\S]*?)```|`([^`\n]+)`|\[([^\]]+)\]\((https?://[^\s)]+)\)")
+_BOLD_RE = re.compile(r"\*\*([^*\n]+)\*\*")
+_HEADING_RE = re.compile(r"^#{1,6}\s+(.+)$", flags=re.MULTILINE)
+
+
+def md_to_html(text: str) -> str:
+    """Converter Markdown -> HTML TỐI THIỂU và AN TOÀN cho câu
+    trả lời của model (NC-1): code block/inline + link được trích
+    ra và escape riêng trước, phần còn lại escape toàn bộ rồi mới
+    áp **bold** và heading -> <b>. Nhờ escape trước, HTML thô do
+    model (hoặc nội dung web) chèn vào không bao giờ thành thẻ
+    thật — hết cảnh `**`/`##`/`[chữ](link)` hiện nguyên văn mà
+    cũng không vỡ định dạng vì nội dung lạ."""
+    stash: list[str] = []
+
+    def _keep(m: re.Match) -> str:
+        if m.group(1) is not None:
+            part = "<pre>" + html.escape(m.group(1).strip("\n")) \
+                + "</pre>"
+        elif m.group(2) is not None:
+            part = "<code>" + html.escape(m.group(2)) + "</code>"
+        else:
+            part = ('<a href="' + html.escape(m.group(4), quote=True)
+                    + '">' + html.escape(m.group(3)) + "</a>")
+        stash.append(part)
+        return f"\x00{len(stash) - 1}\x00"
+
+    out = _CODE_OR_LINK_RE.sub(_keep, text or "")
+    out = html.escape(out, quote=False)
+    out = _BOLD_RE.sub(r"<b>\1</b>", out)
+    out = _HEADING_RE.sub(r"<b>\1</b>", out)
+    return re.sub("\x00(\\d+)\x00",
+                  lambda m: stash[int(m.group(1))], out)
+
+
 def chunk_html(text: str, max_chars: int = 3500) -> list[str]:
     """Chia text HTML thành các chunk <= max_chars, đóng/mở lại thẻ cân bằng."""
     if len(text) <= max_chars:
@@ -234,12 +325,22 @@ def extract_bootstrap_questions(boot_text: str) -> str:
 
 class TelegramSurface:
     def __init__(self, cfg, agent, memory, dossier, consolidator=None,
-                 voice=None, policy=None, surfaces=None):
+                 voice=None, policy=None, surfaces=None, broker=None,
+                 activity=None):
         self.cfg = cfg
         self.agent = agent
         self.memory = memory
         self.dossier = dossier
         self.consolidator = consolidator
+        # ApprovalBroker (1.2.0): agent mở yêu cầu ở broker này;
+        # bề mặt trình thẻ + đăng ký listener để TỰ GỠ thẻ và ghi
+        # dòng lịch sử ngay khi có quyết định (kể cả hết hạn).
+        self.broker = broker
+        if broker is not None:
+            broker.on_decided(self._on_approval_decided)
+        # ActivityTracker dùng chung với Mini App server (header
+        # trạng thái "đang xử lý / sẵn sàng").
+        self.activity = activity or ActivityTracker()
         # VoiceService (mulon.voice) — None thì tính năng voice tắt
         # sạch: tin thoại được báo chưa sẵn sàng, /voiceon vô hiệu.
         self.voice = voice
@@ -363,11 +464,63 @@ class TelegramSurface:
                     self.dossier is not None
                     and self.dossier.bootstrap_pending()
                 )
-                result = await self.agent.handle(
-                    key, joined, on_delta=on_delta
-                )
+                # 1.2.0: tiến trình MỘT DÒNG trên placeholder (chi
+                # tiết đầy đủ ở Mini App) + thẻ duyệt khi policy
+                # nấc "ask". Chống flood: tối đa 1 edit/1,2s và
+                # không đè lên text đang stream của fast path.
+                status_state = {"last": 0.0}
+
+                async def _edit_status(label: str) -> None:
+                    if placeholder is None or state["shown"]:
+                        return
+                    now = asyncio.get_event_loop().time()
+                    if now - status_state["last"] < 1.2:
+                        return
+                    status_state["last"] = now
+                    try:
+                        await placeholder.edit_text(label)
+                    except Exception:
+                        pass
+
+                async def on_event(kind: str, payload: dict) -> None:
+                    # Nhãn lời thường DÙNG CHUNG cho chat + Mini
+                    # App (plain_step_label) — mặt chat không lộ
+                    # tên tool thô.
+                    label = plain_step_label(kind, payload)
+                    if label:
+                        self.activity.set_step(label)
+                    if kind == "approval_requested":
+                        thread_id = None
+                        if getattr(anchor, "is_topic_message", False):
+                            thread_id = anchor.message_thread_id
+                        await self.send_approval_card(
+                            anchor.chat.id, thread_id, payload)
+                    elif label:
+                        await _edit_status(label + "…")
+
+                self.activity.start_turn(key, joined)
+                try:
+                    result = await self.agent.handle(
+                        key, joined, on_delta=on_delta,
+                        on_event=on_event)
+                except Exception as exc:
+                    # HT-1: lỗi ở task path (gateway/proxy sập
+                    # giữa lượt) KHÔNG được treo placeholder "…"
+                    # vô hạn — thay bằng tin lỗi lời thường, ghi
+                    # trajectory turn_error, chi tiết ở log.
+                    logger.warning("lượt lỗi (đã báo user): %s", exc)
+                    try:
+                        await self.memory.log_trajectory(
+                            key, "turn_error",
+                            {"error": f"{type(exc).__name__}: "
+                                      f"{exc}"[:500]})
+                    except Exception:
+                        pass
+                    result = SimpleNamespace(
+                        text="Đường gọi model đang lỗi, việc chưa "
+                             "chạy xong — anh thử lại sau ít phút.")
                 final = result.text or "(không có nội dung)"
-                chunks = chunk_html(final)
+                chunks = chunk_html(md_to_html(final))
                 try:
                     if placeholder is not None:
                         await placeholder.edit_text(chunks[0], parse_mode="HTML")
@@ -377,10 +530,11 @@ class TelegramSurface:
                         for chunk in chunks:
                             await anchor.answer(chunk, parse_mode="HTML")
                 except Exception:
-                    # HTML lỗi ở đâu đó -> gửi lại dạng text thuần, không nuốt kết quả.
-                    for chunk in chunk_html(final):
-                        plain = re.sub(r"<[^>]+>", "", chunk)
-                        await anchor.answer(plain)
+                    # HTML lỗi ở đâu đó -> gửi lại bản ESCAPE (NC-1:
+                    # không strip-tag nữa — strip ăn mất cả code
+                    # chứa <div>, "a < b" trong câu trả lời).
+                    for chunk in chunk_html(html.escape(final)):
+                        await anchor.answer(chunk, parse_mode="HTML")
                 await self._maybe_send_voice(key, anchor, final)
                 if was_bootstrap_pending and self.dossier is not None:
                     # Lượt vừa rồi có thể đã gỡ BOOTSTRAP_PENDING khỏi
@@ -397,6 +551,7 @@ class TelegramSurface:
         finally:
             # Luôn nhả bận + kick nhịp debounce cho phần tin bị
             # giữ (nếu còn) — chạy cả khi lượt xử lý ném lỗi.
+            self.activity.end_turn()
             self.batcher.release(key)
 
     # ---- voice (Phase 4, mục 8.1) ----
@@ -496,6 +651,202 @@ class TelegramSurface:
         if getattr(message, "is_topic_message", False):
             return message.message_thread_id
         return None
+
+    # ---- 1.2.0: Mini App + thẻ duyệt tự gỡ ----
+    def _bot_username(self) -> Optional[str]:
+        if self.bot is None:
+            return None
+        return getattr(self.bot, "_me_username", None) \
+            or getattr(self.bot, "username", None)
+
+    def menu_payload(self) -> tuple[str, Optional[InlineKeyboardMarkup]]:
+        """Nội dung /menu: có Direct Link -> tin teaser + nút mở
+        app; thiếu cấu hình -> hướng dẫn 3 dòng + lệnh chính."""
+        link = webapp_direct_link(self.cfg, self._bot_username(),
+                                  "panel")
+        if link:
+            kb = InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="Mở bảng điều khiển",
+                                     url=link)]])
+            return (
+                "🧭 <b>Bảng điều khiển Mulon</b>\n"
+                "Tiến trình, phê duyệt, lịch, hồ sơ, kết nối, vault "
+                "và quyền — tất cả ở trong app. Chạm nút để mở.",
+                kb)
+        return (
+            "🧭 Bảng điều khiển (Mini App) chưa mở được vì thiếu "
+            "cấu hình. Cần 3 bước:\n"
+            "1. Đặt WEBAPP_URL (URL HTTPS, vd tunnel cloudflared / "
+            "tailscale funnel về 127.0.0.1:" +
+            str(getattr(self.cfg, "webapp_port", 8320)) +
+            ") và WEBAPP_APP_NAME trong .env.\n"
+            "2. BotFather: /myapps -> tạo app, short name = "
+            "WEBAPP_APP_NAME, Web App URL = WEBAPP_URL.\n"
+            "3. Khởi động lại bot.\n\n"
+            "Trong lúc chờ, lệnh chính vẫn dùng được: /status "
+            "/memory /quyen /approvals /topics /chatphu",
+            None)
+
+    def approval_keyboard(self,
+                          approval_id: str) -> InlineKeyboardMarkup:
+        """Bàn phím thẻ duyệt: hàng quyết định INLINE là đường
+        chính (Duyệt / Chặn / Duyệt và nhớ — quyết ngay tại thẻ,
+        không cần app). Có WEBAPP_URL thì thêm MỘT nút phụ hàng
+        dưới "Xem chi tiết" (Direct Link vào màn Phê duyệt)."""
+        rows: list[list[InlineKeyboardButton]] = [[
+            InlineKeyboardButton(
+                text="✅ Duyệt",
+                callback_data=f"appr:1:{approval_id}"),
+            InlineKeyboardButton(
+                text="❌ Chặn",
+                callback_data=f"appr:0:{approval_id}"),
+            InlineKeyboardButton(
+                text="📌 Duyệt và nhớ",
+                callback_data=f"appr:2:{approval_id}"),
+        ]]
+        link = webapp_direct_link(self.cfg, self._bot_username(),
+                                  f"approve_{approval_id}")
+        if link:
+            rows.append([InlineKeyboardButton(
+                text="Xem chi tiết", url=link)])
+        return InlineKeyboardMarkup(inline_keyboard=rows)
+
+    async def send_approval_card(self, chat_id: int,
+                                 thread_id: Optional[int],
+                                 payload: dict) -> Optional[int]:
+        """Gửi tin thẻ duyệt vào đúng topic đang chạy + attach
+        định tuyến vào broker để gỡ đúng thẻ khi có quyết định."""
+        if self.bot is None or self.broker is None:
+            return None
+        import html as _html
+
+        from .approvals import approval_scope
+
+        approval_id = str(payload.get("approval_id") or "")
+        tool = str(payload.get("tool") or "")
+        group = str(payload.get("group") or "")
+        action = tool_action_label(tool, group)
+        # Thẻ là UI CARD quyết định ngay trong chat (Mini App chỉ
+        # là phụ): dòng 1 = hành động lời thường, dưới là bảng
+        # trường thu nhỏ Hành động / Đích / Chi tiết, cuối là hạn.
+        lines = [
+            f"🔐 <b>{_html.escape(action)}</b>",
+            f"Hành động: {_html.escape(action)}",
+        ]
+        target = str(payload.get("target") or "")
+        if target:
+            lines.append(f"Đích: <code>{_html.escape(target)}</code>")
+        lines.append(
+            f"Chi tiết: {_html.escape(str(payload.get('summary') or ''))}")
+        lines.append(
+            f"Công cụ: <code>{_html.escape(tool)}</code>"
+            + (f" · nhóm {_html.escape(group)}" if group else ""))
+        # Dòng phạm vi (chuẩn thẻ cấp quyền Muse): nói rõ "duyệt"
+        # áp tới đâu và "duyệt và nhớ" nhớ tới đâu — suy từ tool/
+        # nhóm thật + cơ chế rule session của broker, không ghi
+        # cứng. Cả dòng escape vì chứa tên tool/nhóm.
+        scope = approval_scope(payload)
+        lines.append("Phạm vi: " + _html.escape(
+            scope["once"].removesuffix(".") + " · "
+            + scope["remember"]))
+        # Lý do của agent (nếu lượt gọi tool có lời dẫn): chat chỉ
+        # hiện 1 dòng cắt gọn; bản đầy đủ nằm ở Mini App.
+        reason = " ".join(str(payload.get("reason") or "").split())
+        if reason:
+            if len(reason) > 140:
+                reason = reason[:140].rstrip() + "…"
+            lines.append(f"Lý do: {_html.escape(reason)}")
+        lines.append(
+            f"⏳ Thẻ hết hạn sau "
+            f"{int(getattr(self.cfg, 'approval_timeout_s', 60))}s — "
+            "không chọn coi như Chặn.")
+        text = "\n".join(lines)
+        kwargs: dict = {}
+        if thread_id:
+            kwargs["message_thread_id"] = thread_id
+        try:
+            msg = await self.bot.send_message(
+                chat_id, text, parse_mode="HTML",
+                reply_markup=self.approval_keyboard(approval_id),
+                **kwargs)
+        except Exception as exc:
+            logger.warning("gửi thẻ duyệt lỗi: %s", exc)
+            return None
+        self.broker.attach(approval_id, {
+            "chat_id": chat_id, "message_id": msg.message_id,
+            "thread_id": thread_id})
+        return msg.message_id
+
+    async def handle_approval_callback(self, data: str,
+                                       user_id: int) -> tuple[bool, str]:
+        """Lõi xử lý nút inline của thẻ duyệt (tách khỏi handler
+        aiogram để test được). Chỉ chủ nhân mới resolve được."""
+        parts = (data or "").split(":")
+        if len(parts) != 3 or parts[0] != "appr":
+            return False, "Dữ liệu lạ — bỏ qua."
+        if int(user_id or 0) != int(self.cfg.allowed_user_id or 0):
+            return False, "Chỉ chủ nhân duyệt được."
+        if self.broker is None:
+            return False, "Kênh duyệt chưa được nối."
+        code, approval_id = parts[1], parts[2]
+        approved = code in ("1", "2")
+        ok = self.broker.resolve(approval_id, approved,
+                                 remember=(code == "2"))
+        if not ok:
+            return False, "Thẻ này đã được xử lý hoặc đã hết hạn."
+        return True, "Đã duyệt." if approved else "Đã chặn."
+
+    async def _on_approval_decided(self, record: dict) -> None:
+        """Listener của broker: quyết định xong (duyệt/chặn/HẾT
+        HẠN) -> XÓA tin thẻ khỏi chat + ghi 1 dòng vào topic
+        Lịch sử & Hệ thống nếu topic đó tồn tại."""
+        if self.bot is None:
+            return
+        card = record.get("card") or {}
+        chat_id = card.get("chat_id")
+        message_id = card.get("message_id")
+        if chat_id and message_id:
+            try:
+                await self.bot.delete_message(chat_id, message_id)
+            except Exception:
+                # Không xóa được (quá cũ/thiếu quyền): sửa thành
+                # đã xử lý + gỡ bàn phím để không bấm lại được.
+                try:
+                    await self.bot.edit_message_text(
+                        "Đã xử lý thẻ duyệt này.", chat_id=chat_id,
+                        message_id=message_id)
+                    await self.bot.edit_message_reply_markup(
+                        chat_id=chat_id, message_id=message_id,
+                        reply_markup=None)
+                except Exception:
+                    pass
+        payload = record.get("payload") or {}
+        outcome = record.get("outcome", "")
+        label = {"approved": "✅ Đã duyệt",
+                 "denied": "❌ Đã chặn",
+                 "expired": "⌛ Thẻ duyệt hết hạn"}.get(
+                     outcome, outcome)
+        line = (f"{label}: tool {payload.get('tool', '?')} "
+                f"(nhóm {payload.get('group') or '—'})"
+                + (" — đã nhớ cho phiên này."
+                   if record.get("remember") else ""))
+        if chat_id:
+            await self._post_history_line(chat_id, line)
+
+    async def _post_history_line(self, chat_id: int,
+                                 line: str) -> None:
+        topics = self._svc("topics")
+        if topics is None or self.memory is None:
+            return
+        try:
+            mapping = await topics.get_map(self.memory, chat_id)
+            tid = topics.topic_for(mapping, "history")
+            if not tid:
+                return
+            await self.bot.send_message(
+                chat_id, line, message_thread_id=tid)
+        except Exception as exc:
+            logger.warning("ghi dòng lịch sử duyệt lỗi: %s", exc)
 
     # ---- chat phụ: mỗi topic tự do là một đoạn chat riêng ----
     @staticmethod
@@ -674,23 +1025,80 @@ class TelegramSurface:
                 return
             await message.answer(self.start_message_text())
 
+        @dp.message(F.text.startswith("/menu"))
+        async def cmd_menu(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            text, kb = self.menu_payload()
+            kwargs = {}
+            if kb is not None:
+                kwargs["reply_markup"] = kb
+            await message.answer(text, parse_mode="HTML", **kwargs)
+
+        @dp.callback_query(F.data.startswith("appr:"))
+        async def on_approval_button(query: CallbackQuery) -> None:
+            user_id = query.from_user.id if query.from_user else 0
+            _, note = await self.handle_approval_callback(
+                query.data or "", user_id)
+            try:
+                await query.answer(
+                    note, show_alert=(user_id
+                                      != self.cfg.allowed_user_id))
+            except Exception:
+                pass
+
+        @dp.message(F.web_app_data)
+        async def on_web_app_data(message: Message) -> None:
+            # Dự phòng: Mini App qua Direct Link KHÔNG có sendData
+            # (mọi thao tác đi /api/*) — handler này chỉ phục vụ
+            # nếu sau này có nút WebAppInfo ở DM gửi dữ liệu về.
+            if not self._is_allowed(message):
+                return
+            try:
+                data = json.loads(message.web_app_data.data or "{}")
+            except Exception:
+                data = {}
+            if data.get("type") == "approve" and self.broker \
+                    is not None:
+                ok = self.broker.resolve(
+                    str(data.get("id") or ""),
+                    data.get("decision") != "deny",
+                    remember=data.get("decision") == "approve_remember")
+                await message.answer(
+                    "Đã ghi quyết định duyệt." if ok
+                    else "Thẻ duyệt đã xử lý/hết hạn.")
+                return
+            await message.answer("Đã nhận dữ liệu từ Mini App.")
+
         @dp.message(F.text.startswith("/status"))
         async def cmd_status(message: Message) -> None:
             if not self._is_allowed(message):
                 return
-            summary = self.cfg.masked_summary()
+            # CFIG-1: /status là lời thường cho người dùng —
+            # không dump key cấu hình thô, không Markdown legacy.
+            # Chi tiết kỹ thuật để ở --dry-run phía host.
             facts = await self.memory.active_facts(limit=1000)
-            lines = ["**Trạng thái Mulon**"]
-            for k, v in summary.items():
-                lines.append(f"- {k}: `{v}`")
-            lines.append(f"- fact đang hiệu lực: {len(facts)}")
-            embedder = getattr(self.memory, "embedder", None)
             if getattr(self.memory, "vec_ready", False):
-                recall_mode = f"hybrid (vector 70% + BM25 30%, {embedder.name})"
+                recall_mode = "lai (vector + từ khóa)"
             else:
-                recall_mode = "BM25-only (chưa có embedder)"
-            lines.append(f"- recall: {recall_mode}")
-            await message.answer("\n".join(lines), parse_mode="Markdown")
+                recall_mode = "chỉ từ khóa (chưa có vector)"
+            webapp_on = bool(self.cfg.webapp_url
+                             and self.cfg.webapp_app_name)
+            lines = [
+                "Trạng thái Mulon",
+                f"- Model đang dùng: {self.cfg.model_brain}",
+                f"- Bộ nhớ: {recall_mode} · {len(facts)} fact "
+                "đang hiệu lực",
+                f"- Việc hẹn giờ (scheduler): "
+                f"{'đang bật' if self.cfg.scheduler_enabled else 'đang tắt'}",
+                f"- Chủ động (heartbeat): "
+                f"{'đang bật' if self.cfg.proactivity_enabled else 'đang tắt'}",
+                f"- Chắt lọc ký ức nền: "
+                f"{'đang bật' if self.cfg.consolidation_enabled else 'đang tắt'}",
+                f"- Bảng điều khiển (Mini App): "
+                f"{'đã cấu hình — mở bằng /menu' if webapp_on else 'chưa cấu hình'}",
+            ]
+            await message.answer("\n".join(lines))
 
         @dp.message(F.text.startswith("/new"))
         async def cmd_new(message: Message) -> None:
@@ -710,8 +1118,8 @@ class TelegramSurface:
             if not self._is_allowed(message):
                 return
             facts = await self.memory.active_facts(limit=50)
-            lines = ["**Fact đang hiệu lực (kèm nguồn — hỏi 'sao mày "
-                     "biết' là truy được tới đây):**"]
+            lines = ["Fact đang hiệu lực (kèm nguồn — hỏi 'sao mày "
+                     "biết' là truy được tới đây):"]
             if not facts:
                 lines.append("(chưa có)")
             for f in facts:
@@ -734,8 +1142,11 @@ class TelegramSurface:
                             f"({src['role']}): {excerpt}")
             mem_md = self.dossier.files.get("MEMORY.md", "").strip()
             if mem_md:
-                lines.append("\n**MEMORY.md:**\n" + mem_md[:2500])
-            for chunk in chunk_html("\n".join(lines)):
+                lines.append("\nMEMORY.md:\n" + mem_md[:2500])
+            # Text thuần (NC-1): không chèn **, không parse HTML —
+            # nội dung fact/MEMORY.md chứa gì cũng hiển thị nguyên.
+            text = "\n".join(lines)
+            for chunk in chunk_html(html.escape(text)):
                 await message.answer(chunk, parse_mode="HTML")
 
         # ---------- Phase 6: bề mặt group (mục 16) ----------
@@ -754,7 +1165,10 @@ class TelegramSurface:
             return None
 
         async def _answer_chunks(message: Message, text: str) -> None:
-            for chunk in chunk_html(text):
+            # Formatter bề mặt trả TEXT THUẦN (NC-1: một quy ước
+            # duy nhất) — escape rồi gửi HTML để nội dung lạ
+            # (dấu <, &) không làm vỡ parse, hiển thị y như plain.
+            for chunk in chunk_html(html.escape(text)):
                 await message.answer(chunk, parse_mode="HTML")
 
         @dp.message(F.text.startswith("/setup_topics"))
@@ -832,7 +1246,7 @@ class TelegramSurface:
             brief = _arg_text(message)
             if not brief:
                 await message.answer(
-                    "**Brief Feed hiện tại:**\n" + feed.read_brief()
+                    "Brief Feed hiện tại:\n" + feed.read_brief()
                     + "\n\nSửa bằng: /feedbrief <nội dung mới>")
                 return
             feed.set_brief(brief)
@@ -1160,7 +1574,17 @@ class TelegramSurface:
                 return
             rows = await self.memory.recent_trajectory(
                 kind="policy_decision", limit=10)
-            await message.answer(surf.format_approvals(rows))
+            # 1.2.0: gộp cả quyết định qua thẻ duyệt (nấc ask) —
+            # đổi về cùng khuôn payload để format chung.
+            ask_rows = await self.memory.recent_trajectory(
+                kind="approval_decision", limit=10)
+            for r in ask_rows:
+                p = dict(r.get("payload") or {})
+                p.setdefault("layer", "ask")
+                p["allowed"] = bool(p.get("approved"))
+                rows.append({**r, "payload": p})
+            rows.sort(key=lambda r: r.get("id", 0), reverse=True)
+            await message.answer(surf.format_approvals(rows[:10]))
 
         @dp.message_reaction()
         async def on_reaction(event) -> None:
@@ -1235,4 +1659,14 @@ class TelegramSurface:
         me = await self.bot.get_me()
         self.bot._me_username = me.username  # type: ignore[attr-defined]
         logger.info("bot @%s bắt đầu polling", me.username)
+        # Menu lệnh "/" cho user thấy ngay (Khối 1, 1.2.0). Lỗi
+        # đăng ký chỉ log warning — không được làm sập bot.
+        try:
+            await self.bot.set_my_commands([
+                BotCommand(command=c, description=d)
+                for c, d in BOT_COMMANDS
+            ])
+        except Exception as exc:
+            logger.warning("đăng ký set_my_commands lỗi (bỏ qua): %s",
+                           exc)
         await self.dp.start_polling(self.bot)
