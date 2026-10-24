@@ -15,6 +15,7 @@ import logging
 import sys
 
 from .agent import Agent
+from .approvals import ApprovalBroker
 from .browser_worker import register_browser_tools
 from .config import Config
 from .connectors import build_default_connectors, register_connector_tools
@@ -39,6 +40,7 @@ from .tools import build_default_registry
 from .tracing import build_tracer, traced_gateway
 from .vault import VaultFormServer, VaultStore
 from .voice import VoiceService
+from .webapp_server import ActivityTracker, WebAppServer
 
 logger = logging.getLogger("mulon.main")
 
@@ -88,7 +90,13 @@ async def build_system(cfg: Config):
     if mcp_tools:
         logger.info("MCP đã đăng ký %d tool: %s",
                     len(mcp_tools), mcp_tools)
-    agent = Agent(cfg, gateway, memory, ctx, registry, policy)
+    # 1.2.0: broker duyệt việc (policy nấc "ask") — dùng chung cho
+    # agent (mở yêu cầu), bề mặt Telegram (trình + gỡ thẻ) và Mini
+    # App (/api/approve).
+    broker = ApprovalBroker(policy=policy,
+                            timeout_s=cfg.approval_timeout_s)
+    agent = Agent(cfg, gateway, memory, ctx, registry, policy,
+                  broker=broker)
     # Subagents: agent loop đầy đủ, toolset thu hẹp theo profile.
     runner = SubagentRunner(
         cfg, gateway, memory, ctx, policy,
@@ -134,6 +142,15 @@ async def build_system(cfg: Config):
         "vault_server": VaultFormServer(cfg, vault_store),
         "vault_store": vault_store,
     }
+    # 1.2.0: Mini App server — chỉ DỰNG ở đây; start() trong _run
+    # (như vault server, dry-run không bind cổng). ActivityTracker
+    # dùng chung với bề mặt Telegram.
+    activity = ActivityTracker()
+    webapp = WebAppServer(
+        cfg, memory=memory, policy=policy, broker=broker,
+        connectors=connectors, mcp_manager=mcp_manager,
+        vault_store=vault_store, registry=registry, dossier=dossier,
+        skills=catalog, activity=activity)
     services = {
         "mcp": mcp_manager,
         "connectors": connectors,
@@ -145,6 +162,9 @@ async def build_system(cfg: Config):
         "skills": catalog,
         "policy": policy,
         "phase6": phase6,
+        "broker": broker,
+        "webapp": webapp,
+        "activity": activity,
     }
     return agent, memory, dossier, registry, worker, services
 
@@ -204,6 +224,13 @@ async def _dry_run(cfg: Config) -> int:
                 await memory.list_library_items(status=None)),
             "idea_ttl_days": cfg.idea_ttl_days,
         },
+        "v12": {
+            "webapp_configured": bool(cfg.webapp_url
+                                      and cfg.webapp_app_name),
+            "webapp_port": cfg.webapp_port,
+            "approval_timeout_s": cfg.approval_timeout_s,
+            "commands": 31,
+        },
         "db": str(cfg.db_path),
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -249,10 +276,17 @@ async def _run(cfg: Config) -> int:
                               consolidator=worker,
                               voice=services["voice"],
                               policy=services["policy"],
-                              surfaces=services["phase6"])
+                              surfaces=services["phase6"],
+                              broker=services["broker"],
+                              activity=services["activity"])
     # Vault form server: bind 127.0.0.1, link một lần qua /vault.
     if services["phase6"]["vault_server"].start():
         logger.info("vault form server BẬT (chỉ localhost)")
+    # Mini App server (1.2.0): bind 127.0.0.1; app chỉ mở được khi
+    # host có WEBAPP_URL HTTPS (tunnel) + app name trong BotFather.
+    if await services["webapp"].start():
+        logger.info("Mini App server BẬT (chỉ localhost, port %d)",
+                    services["webapp"].port)
     if cfg.consolidation_enabled:
         asyncio.create_task(
             _consolidation_loop(worker, cfg.consolidation_interval_s)
