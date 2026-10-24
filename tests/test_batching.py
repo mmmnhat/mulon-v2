@@ -118,6 +118,7 @@ class _FakeAnchor:
 
     def __init__(self):
         self.answers = []
+        self.placeholders = []
 
     async def react(self, reactions):
         pass
@@ -130,6 +131,7 @@ class _FakeAnchor:
             placeholder.text = t
 
         placeholder.edit_text = edit_text
+        self.placeholders.append(placeholder)
         return placeholder
 
 
@@ -144,7 +146,7 @@ class _GatedAgent:
         self.gate = asyncio.Event()
         self.fail_first = fail_first
 
-    async def handle(self, key, text, on_delta=None):
+    async def handle(self, key, text, on_delta=None, on_event=None):
         self.calls.append(text)
         if len(self.calls) == 1:
             self.started.set()
@@ -219,15 +221,21 @@ async def test_message_while_waiting_for_lock_is_drained(cfg):
 
 
 async def test_agent_error_does_not_wedge_session_busy(cfg):
-    """agent.handle ném lỗi ở lượt 1 -> try/finally vẫn nhả bận,
-    tin sau được xử lý bình thường."""
+    """HT-1: agent.handle ném lỗi ở lượt 1 -> bề mặt KHÔNG văng
+    lỗi ra ngoài và KHÔNG treo placeholder: user nhận tin lỗi lời
+    thường ngay trên placeholder, session nhả bận, tin sau được
+    xử lý bình thường."""
     agent = _GatedAgent(fail_first=True)
     surface = _fast_surface(cfg, agent)
     key = "agent:main:telegram:dm:42:topic:0"
 
-    with pytest.raises(RuntimeError):
-        await surface._on_batch(key, "tin đầu", ["tin đầu"])
+    await surface._on_batch(key, "tin đầu", ["tin đầu"])  # không raise
     assert not surface.batcher.is_busy(key)
+    anchor = surface._sessions_meta[key]
+    shown = " ".join(
+        [a for a in anchor.answers]
+        + [p.text or "" for p in anchor.placeholders])
+    assert "đang lỗi" in shown and "thử lại" in shown
     await surface.batcher.add(key, "tin sau")
     await _wait_calls(agent, 2)
     assert agent.calls == ["tin đầu", "tin sau"]
