@@ -1,0 +1,1454 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mulon — Bảng điều khiển</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+/* ==================================================================
+   MULON MINI APP — DESIGN TOKENS (xem DESIGN.md)
+   Mọi style đi qua token. Cấm số ma thuật rải rác.
+   ================================================================== */
+:root{
+  /* màu */
+  --paper:#FAF9F7; --surface:#FFFFFF; --surface2:#F3F1EC;
+  --ink:#1F1E1D; --ink2:#6E6A61; --ink3:#A39E93;
+  --line:#E8E4DC; --accent:#5A5E94; --accent-press:#4C4F80;
+  --lav:#9598C4; --lav-deep:#5A5E94;
+  --cream:#EFD8AE; --rose:#D17E78; --ok:#3E9B6C; --warn:#C9932B; --err:#D95F57;
+  --tint-err:#FAE7E4;
+  --tint-lav:#E9EAF4; --tint-gray:#F0EEE8;
+  /* chữ — thang phân vai (vòng 3): 22 điểm neo / 20 tiêu đề
+     màn con / 17 tên định danh (header + thẻ lớn) / 15 thân /
+     13 phụ / 11 micro; weight: 600 tiêu đề + nút, 500 nhãn
+     hàng, 400 nội dung + sub (PH-1) */
+  --fs-title:22px; --fs-screen:20px; --fs-name:17px;
+  --fs-body:15px; --fs-cap:13px; --fs-micro:11px;
+  --fw-n:400; --fw-m:500; --fw-s:600;
+  --lh-title:1.25; --lh-body:1.45;
+  /* khoảng 4pt */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px;
+  --s8:32px; --s12:48px;
+  /* bo góc — thang rút gọn vòng 3: 20 thẻ / 12 control /
+     8 chi tiết nhỏ / full tròn */
+  --r-card:20px; --r-btn:12px; --r-chip:999px; --r-sheet:20px;
+  --shadow-pop:0 8px 24px rgba(31,30,29,.08);
+  /* toggle tắt — token riêng để dark không phát sáng be (TQ-3) */
+  --tgl-off:#D8D3C8;
+  /* chiều cao header gọn (KT-1) — segbar dính ngay dưới nó;
+     HẰNG SỐ DUY NHẤT, không còn cơ chế nhảy khi cuộn (TB-2) */
+  --stick-top:56px;
+  /* chuyển động */
+  --t1:120ms; --t2:200ms; --t3:320ms;
+  --ease:cubic-bezier(.2,0,0,1);
+}
+[data-scheme="dark"]{
+  --paper:#17212B; --surface:#232E3C; --surface2:#2B3747;
+  --ink:#E9EDEF; --ink2:#9DABB9; --ink3:#67788A;
+  --line:#303D4D; --tint-err:#452723; --tint-lav:#2E2A4A;
+  --tint-gray:#2B3747; --shadow-pop:0 8px 24px rgba(0,0,0,.35);
+  --tgl-off:#3A4757;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0; padding:0}
+html{-webkit-text-size-adjust:100%; overscroll-behavior:none}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  font-size:var(--fs-body); line-height:var(--lh-body);
+  -webkit-font-smoothing:antialiased;
+  padding:0 var(--s4) calc(var(--s8) + env(safe-area-inset-bottom));
+}
+/* Cảm giác native (mobile-native): chạm không trễ, không chọn
+   chữ ở control; hover chỉ khi thiết bị thật sự hover được. */
+button, .row, .bigcard, .backrow, .tgl .tr, .swatch, .appr-more{
+  touch-action:manipulation;
+}
+button, .backrow, .tgl, .segbar, .swatch{
+  user-select:none; -webkit-user-select:none;
+  -webkit-touch-callout:none;
+}
+/* ---------- header dính — hàng ngang gọn (KT-1) ---------- */
+/* Màn tab: avatar 40 + tên 17/600 + trạng thái 13 trên cùng
+   một trục ngang, tổng 56pt. Màn con: ẩn hẳn header (chỉ
+   còn nav back + tiêu đề màn) — JS gắn .hidden khi showSub. */
+.app-header{
+  position:sticky; top:0; z-index:20;
+  display:flex; align-items:center; gap:var(--s3);
+  height:var(--stick-top);
+  background:color-mix(in srgb, var(--paper) 84%, transparent);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+}
+.head-meta{min-width:0}
+.avatar{
+  width:40px; height:40px; flex:0 0 40px; border-radius:50%;
+  background:var(--tint-lav); overflow:hidden; position:relative;
+  font-size:var(--fs-body); font-weight:var(--fw-s); color:var(--lav-deep);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);
+  transition:box-shadow 240ms var(--ease);
+}
+[data-scheme="dark"] .avatar{
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);
+}
+/* Chữ cái dự phòng nằm DƯỚI ảnh (tuyệt đối, căn giữa) — vòng 2
+   nó nằm cạnh ảnh trong flex và lòi ra mép phải vòng tròn
+   thành "vết lạ" (TQ-4). Ảnh phủ kín lên trên nó. */
+.avatar #avatar-letter{
+  position:absolute; inset:0; display:flex;
+  align-items:center; justify-content:center;
+}
+.avatar img{position:relative; z-index:1; width:100%; height:100%;
+  object-fit:cover; display:block}
+/* avatar có trạng thái — CSS thuần trên asset sẵn có */
+.avatar.st-idle{animation:av-breathe 4.2s ease-in-out infinite}
+@keyframes av-breathe{
+  0%,100%{transform:translateY(0) scale(1)}
+  50%{transform:translateY(-2px) scale(1.015)}}
+.avatar.st-working{animation:av-work .9s ease-in-out infinite}
+@keyframes av-work{
+  0%,100%{transform:translateY(0) rotate(0deg)}
+  25%{transform:translateY(-1.5px) rotate(-1.6deg)}
+  75%{transform:translateY(-1.5px) rotate(1.6deg)}}
+.avatar.st-working:after{
+  content:""; position:absolute; inset:-8px; border-radius:50%;
+  border:2px solid transparent; border-top-color:var(--lav);
+  border-right-color:var(--lav); animation:av-spin 1.15s linear infinite;
+}
+@keyframes av-spin{to{transform:rotate(360deg)}}
+.avatar.st-waiting{animation:av-wait 1.15s ease-out infinite}
+@keyframes av-wait{
+  0%{box-shadow:0 0 0 0 rgba(149,152,196,.55)}
+  70%{box-shadow:0 0 0 12px rgba(149,152,196,0)}
+  100%{box-shadow:0 0 0 0 rgba(149,152,196,0)}}
+.avatar.st-done{animation:av-done .7s var(--ease)}
+@keyframes av-done{
+  0%{transform:translateY(0)} 40%{transform:translateY(-11px)}
+  70%{transform:translateY(1px)} 100%{transform:translateY(0)}}
+.avatar.st-error{animation:av-err .5s var(--ease)}
+@keyframes av-err{
+  0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)}
+  40%{transform:translateX(6px)} 60%{transform:translateX(-5px)}
+  80%{transform:translateX(4px)}}
+.app-name{font-size:var(--fs-name); font-weight:var(--fw-s);
+  letter-spacing:-0.01em; line-height:var(--lh-title)}
+.app-status{font-size:var(--fs-cap); color:var(--ink2);
+  display:flex; align-items:center; gap:var(--s1);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.dot{width:8px; height:8px; border-radius:50%; background:var(--ink3);
+  display:inline-block}
+.dot.busy{background:var(--lav); animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+/* ---------- segmented tabs — Phương án A (TB-2) ---------- */
+/* Chỉ chữ, đúng mẫu control trong app Muse: track surface2
+   bo 12 đệm 3, nút 32 bo 9 chữ 13. Active = MỘT tín hiệu duy
+   nhất: nền --surface + chữ --ink đậm lên. Không icon, không
+   tint tím, không viền inset (dấu hiệu template). Tổng 38pt.
+   Đệm track 3px là ngoại lệ lưới có chủ đích (mẫu iOS/Muse). */
+.segbar{
+  display:flex; background:var(--surface2); border-radius:12px;
+  padding:3px; gap:var(--s1); margin:0 0 var(--s3);
+  position:sticky; top:var(--stick-top); z-index:15; height:38px;
+}
+.segbar button{
+  flex:1; border:0; background:transparent; color:var(--ink2);
+  border-radius:9px; height:32px; padding:0;
+  cursor:pointer; font-size:var(--fs-cap); font-weight:var(--fw-m);
+  font-family:inherit; transition:background var(--t2) var(--ease),
+  color var(--t2) var(--ease);
+  white-space:nowrap;
+}
+.segbar button.active{
+  background:var(--surface); color:var(--ink);
+  font-weight:var(--fw-s);
+  box-shadow:0 1px 3px rgba(31,30,29,.12);
+}
+.segbar button:not(.active):active{background:var(--tint-gray)}
+/* ---------- chuyển tab ---------- */
+section{animation:tab-in var(--t2) var(--ease)}
+@keyframes tab-in{from{opacity:0; transform:translateY(4px)}
+  to{opacity:1; transform:none}}
+/* ---------- thẻ & hàng ---------- */
+.card{
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--r-card); padding:var(--s1) 0; margin-bottom:var(--s3);
+}
+/* Tiêu đề section: 13/600 --ink2 sentence-case (PH-1) — đọc
+   như đầu mục của Muse, không còn hét viết hoa 11px --ink3. */
+.card-title{
+  font-size:var(--fs-cap); font-weight:var(--fw-s); color:var(--ink2);
+  padding:var(--s2) var(--s4) var(--s1);
+}
+.row{
+  display:flex; align-items:center; gap:var(--s3);
+  padding:var(--s2) var(--s4); min-height:52px; cursor:pointer;
+  position:relative;
+}
+/* Đường chia THỤT theo lề nội dung (TQ-4): bắt đầu ở x=16
+   (lề chữ của hàng), không chạy sát mép thẻ như vòng 2. */
+.row + .row:before{
+  content:""; position:absolute; top:0; left:var(--s4); right:0;
+  height:1px; background:var(--tint-gray);
+}
+.row.static{cursor:default}
+.row:not(.static){transition:background var(--t1) var(--ease)}
+.row:not(.static):active{background:var(--surface2)}
+/* KHÔNG còn ô icon be (KT-3): glyph trần 22pt --ink2, MỘT bộ
+   SVG stroke 1.8 cho mọi loại hàng. Kết nối dùng monogram
+   trên vòng tròn tint-lav 28pt (giữ nhận diện, bỏ be). */
+.glyph{
+  width:22px; height:22px; flex:0 0 22px; color:var(--ink2);
+  display:flex; align-items:center; justify-content:center;
+}
+.glyph svg{width:22px; height:22px}
+.mono{
+  width:28px; height:28px; flex:0 0 28px; border-radius:50%;
+  background:var(--tint-lav); color:var(--lav-deep);
+  font-size:12px; font-weight:var(--fw-s);
+  display:flex; align-items:center; justify-content:center;
+}
+.r-main{flex:1; min-width:0}
+/* Nhãn hàng 500 (PH-1): 600 chỉ còn cho tiêu đề/nút/điểm neo. */
+.r-title{font-size:var(--fs-body); font-weight:var(--fw-m);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.r-sub{font-size:var(--fs-cap); color:var(--ink2); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis}
+.r-time{font-size:var(--fs-cap); color:var(--ink3); flex:0 0 auto}
+/* Chevron hàng = SVG 16 stroke 2 thống nhất (TQ-4), không
+   còn ký tự chữ › lệch baseline. */
+.chev{color:var(--ink3); flex:0 0 auto; display:flex;
+  align-items:center}
+/* Empty state (NT-1): glyph trần 24 --ink3 + 1 câu + đệm dọc
+   20 — hết chữ trần trong thẻ cao. Glyph là SVG nhúng CSS để
+   mọi .empty trong app đều có, không phải sửa từng chuỗi JS. */
+.empty{padding:var(--s5) var(--s4); text-align:center;
+  color:var(--ink2); font-size:var(--fs-cap)}
+.empty:before{
+  content:""; display:block; width:24px; height:24px;
+  margin:0 auto var(--s2);
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A39E93' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 13h4l2 3h5l2-3h4'/%3E%3Cpath d='M5.5 5.5h13L21 13v4.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V13z'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+/* ---------- skeleton / lỗi ---------- */
+.skel{padding:var(--s3) var(--s4)}
+.skel .bar{
+  height:14px; border-radius:7px; background:var(--surface2);
+  margin-bottom:var(--s2); animation:pulse 1.3s ease-in-out infinite;
+}
+.skel .bar.w40{width:40%} .skel .bar.w70{width:70%}
+.errbar{
+  background:var(--tint-err); color:var(--err); border-radius:var(--r-btn);
+  padding:var(--s3) var(--s4); font-size:var(--fs-cap);
+  margin-bottom:var(--s4); display:flex; align-items:center;
+  gap:var(--s3);
+}
+.errbar .btn{margin-left:auto}
+/* ---------- nút ---------- */
+.btn{
+  border:0; border-radius:var(--r-btn); min-height:44px;
+  padding:0 var(--s3); cursor:pointer; font-family:inherit;
+  font-size:var(--fs-body); font-weight:var(--fw-s);
+  display:inline-flex; align-items:center; justify-content:center;
+  transition:background var(--t1) var(--ease),
+    transform var(--t1) var(--ease);
+}
+.btn:active{transform:scale(.98)}
+button:focus-visible{outline:2px solid var(--lav-deep);
+  outline-offset:2px}
+.btn-sm{min-height:44px; font-size:var(--fs-cap)}
+/* Nút hành động chính: accent = bậc đậm nhất của hue nhận
+   diện đang chọn (JS gán --accent theo theme) — đúng 1 điểm
+   nhấn mỗi màn. Dark: nền accent là base sáng nên chữ tối. */
+.btn-accent{background:var(--accent); color:#fff}
+.btn-accent:active{background:var(--accent-press)}
+[data-scheme="dark"] .btn-accent{color:var(--paper)}
+.btn-ghost:active{background:var(--surface2)}
+.btn-soft:active{background:var(--tint-gray)}
+.btn-ghost{background:var(--surface); color:var(--ink);
+  border:1px solid var(--line)}
+.btn-soft{background:var(--surface2); color:var(--ink)}
+.btn-row{display:flex; gap:var(--s2); padding:var(--s2) var(--s4)
+  var(--s3); flex-wrap:wrap}
+.btn-row .btn{flex:1; min-width:100px}
+/* ---------- toggle iOS 51x31 ---------- */
+.tgl{position:relative; width:51px; height:44px; flex:0 0 51px}
+.tgl input{opacity:0; width:0; height:0}
+.tgl .tr{
+  position:absolute; left:0; right:0; top:50%; height:31px;
+  transform:translateY(-50%); border-radius:var(--r-chip);
+  background:var(--tgl-off); transition:background var(--t2) var(--ease);
+  cursor:pointer;
+}
+.tgl .tr:before{
+  content:""; position:absolute; width:27px; height:27px; left:2px;
+  top:2px; border-radius:50%; background:#fff;
+  transition:var(--t2) var(--ease); box-shadow:0 1px 3px rgba(31,30,29,.22);
+}
+.tgl input:checked + .tr{background:var(--lav)}
+.tgl input:checked + .tr:before{transform:translateX(20px)}
+.tgl input:disabled + .tr{opacity:.4; cursor:default}
+.tgl input:focus-visible + .tr{outline:2px solid var(--lav-deep);
+  outline-offset:2px}
+/* ---------- quyền: hàng giá trị chữ + menu nổi (KT-2) --- */
+/* Bỏ hẳn segmented 3 nấc trong hàng (track 52pt ăn 49% bề
+   ngang, cắt cụt nhãn). Hàng = nhãn trọn bề ngang + giá trị
+   hiện tại dạng chữ --ink2 + chevron lên/xuống; bấm hàng mở
+   menu nổi 3 dòng 44pt, tick ở nấc hiện tại — đúng mẫu trang
+   quyền của Muse. Pitch hàng về 52–56pt. */
+.pol-row .r-title{
+  white-space:normal; overflow:hidden;
+  display:-webkit-box; -webkit-line-clamp:2;
+  -webkit-box-orient:vertical; word-break:break-word;
+}
+.pol-val{font-size:var(--fs-cap); color:var(--ink2); flex:0 0 auto}
+.pol-chev{color:var(--ink3); flex:0 0 auto; display:flex;
+  align-items:center}
+.pol-menu{
+  position:fixed; z-index:60; min-width:208px;
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:12px; box-shadow:var(--shadow-pop);
+  padding:var(--s1);
+}
+.pol-menu button{
+  display:flex; align-items:center; width:100%; min-height:44px;
+  border:0; background:transparent; border-radius:8px;
+  padding:0 var(--s3); cursor:pointer; text-align:left;
+  font-family:inherit; font-size:var(--fs-body);
+  font-weight:var(--fw-m); color:var(--ink);
+}
+.pol-menu button:active{background:var(--surface2)}
+.pol-menu .tick{margin-left:auto; padding-left:var(--s4);
+  color:var(--ink); font-weight:var(--fw-s); visibility:hidden}
+.pol-menu button.cur .tick{visibility:visible}
+#pol-scrim{position:fixed; inset:0; z-index:55}
+/* ---------- timeline ---------- */
+/* Đệm đáy thẻ 8 + chấm 8pt (NT-2): hết khoảng chết cuối thẻ,
+   chấm hết nặng so với rail 2px. */
+.timeline{padding:var(--s1) var(--s4) var(--s2)}
+.tl-item{display:flex; gap:var(--s3); position:relative;
+  padding:var(--s2) 0}
+.tl-item:before{
+  content:""; position:absolute; left:3px; top:22px; bottom:-4px;
+  width:2px; background:var(--line);
+}
+.tl-item:last-child:before{display:none}
+.tl-dot{width:8px; height:8px; border-radius:50%;
+  margin-top:var(--s1);
+  flex:0 0 8px; background:var(--ink3); z-index:1}
+.tl-dot.done{background:var(--ink2)}
+.tl-dot.doing{background:var(--lav)}
+.tl-dot.err{background:var(--ink3)}
+.tl-body{flex:1}
+.tl-name{font-weight:var(--fw-s); font-size:var(--fs-body)}
+.tl-meta{font-size:var(--fs-cap); color:var(--ink2)}
+/* ---------- bảng trường + trạng thái dạng chữ ---------- */
+table.fields{width:100%; border-collapse:collapse;
+  font-size:var(--fs-cap)}
+table.fields td{padding:var(--s2) var(--s4); vertical-align:top;
+  position:relative}
+/* Khoá 30% + bỏ nowrap (TQ-4): giá trị hết bị đẩy sang giữa
+   màn, nhãn dài xuống dòng tự nhiên thay vì ép giá trị. */
+table.fields td.k{color:var(--ink2); width:30%}
+/* Đường chia thụt theo lề chữ như hàng danh sách (TQ-4):
+   đoạn ở ô khoá bắt đầu tại x=16, ô giá trị nối tiếp tới mép. */
+table.fields tr + tr td:before{
+  content:""; position:absolute; top:0; left:0; right:0;
+  height:1px; background:var(--tint-gray);
+}
+table.fields tr + tr td.k:before{left:var(--s4)}
+.hist-detail{display:none; padding-bottom:var(--s2)}
+.hist.open .hist-detail{display:block}
+/* KHÔNG pill/tag trạng thái: kết quả/trạng thái là chữ thường
+   theo thang mực + tối đa 1 ký hiệu mảnh (✓/✕/·) đi kèm. */
+.r-state{font-size:var(--fs-cap); color:var(--ink2);
+  flex:0 0 auto; white-space:nowrap}
+.dim{color:var(--ink2)}
+/* ---------- thẻ duyệt ---------- */
+/* Điểm neo của thẻ là TIÊU ĐỀ hành động lớn; rose thu về
+   đúng 1 chấm nhỏ cạnh tiêu đề — không viền rose, không tag. */
+.appr-head{display:flex; align-items:center; gap:var(--s2);
+  padding:var(--s2) var(--s4) 0}
+.appr-dot{width:8px; height:8px; border-radius:50%;
+  background:var(--rose); flex:0 0 8px}
+.appr-title{font-size:var(--fs-title); font-weight:var(--fw-s);
+  line-height:var(--lh-title); letter-spacing:-0.01em}
+.appr-sub{padding:var(--s1) var(--s4) 0;
+  font-size:var(--fs-cap); color:var(--ink2)}
+/* Dòng phạm vi + lý do trên thẻ chờ duyệt (server suy từ
+   tool/nhóm thật — frontend chỉ trình bày). */
+.appr-scope{
+  margin:var(--s2) var(--s4) 0; font-size:var(--fs-cap);
+  color:var(--ink2); line-height:1.45;
+}
+.appr-reason{
+  margin:var(--s2) var(--s4) 0; font-size:var(--fs-cap);
+  color:var(--ink2); background:var(--tint-gray);
+  border-radius:var(--r-btn); padding:var(--s2) var(--s3);
+  line-height:1.45;
+}
+.appr-reason.clamp{
+  display:-webkit-box; -webkit-line-clamp:2;
+  -webkit-box-orient:vertical; overflow:hidden;
+}
+.appr-more{
+  margin:0 var(--s4); font-size:var(--fs-cap);
+  color:var(--lav-deep); font-weight:var(--fw-s); cursor:pointer;
+  display:inline-flex; align-items:center; min-height:44px;
+}
+.appr-more:active{opacity:.55}
+/* Cụm quyết của thẻ duyệt (KT-7): hàng 1 [Chặn soft 1fr]
+   [Duyệt accent 1.3fr] cao 48 — đúng 1 nút đặc; hàng 2
+   "Duyệt và nhớ" là nút chữ ghost không viền, hết bị ép
+   xuống 2 dòng. Cả cụm dính đáy viewport khi thẻ còn trong
+   tầm nhìn, nền giấy mờ blur như header để lúc dính không
+   lộ cạnh thẳng cắt ngang thẻ. */
+.appr-actions{
+  position:sticky;
+  bottom:calc(var(--s2) + env(safe-area-inset-bottom));
+  background:color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border-radius:0 0 var(--r-card) var(--r-card);
+  padding-bottom:var(--s1);
+}
+.appr-actions .btn-row{padding:var(--s2) var(--s4) 0}
+.appr-actions .btn-row .btn{min-height:48px; flex:1}
+.appr-actions .btn-row .btn-accent{flex:1.3}
+.btn-text{
+  background:transparent; color:var(--lav-deep); width:100%;
+}
+.btn-text:active{background:var(--surface2)}
+/* ---------- thẻ hồ sơ lớn ---------- */
+/* Cao 88 cố định, nội dung xếp từ trên (KT-5): nhãn micro +
+   tên 17/600 + meta 13 trên một trục trái — hết mảng trống
+   giữa thẻ vì space-between. Màu về HỌ TÍM (PH-3): bỏ nâu
+   đất #4A3428 + xanh rêu #2F4038 ngoài palette. */
+.bigcard{
+  border-radius:var(--r-card); padding:var(--s3) var(--s4);
+  color:#fff; margin-bottom:var(--s3); cursor:pointer; height:88px;
+  display:flex; flex-direction:column; justify-content:flex-start;
+  transition:transform var(--t1) var(--ease);
+}
+.bigcard:active{transform:scale(.99)}
+.bigcard .bc-top{font-size:var(--fs-micro); font-weight:var(--fw-s);
+  letter-spacing:.14em; opacity:.85}
+.bigcard .bc-name{font-size:var(--fs-name); font-weight:var(--fw-s);
+  margin-top:var(--s1)}
+.bigcard .bc-date{font-size:var(--fs-cap); opacity:.75;
+  margin-top:var(--s1)}
+.bc-dossier{background:#5A5E94}
+.bc-memory{background:#43476F}
+/* Dòng cẩn trọng gộp 1 câu duy nhất dưới cụm thẻ (KT-5) —
+   không còn lặp trên từng thẻ. */
+.bc-note{font-size:var(--fs-micro); color:var(--ink3);
+  margin:0 0 var(--s3)}
+/* ---------- vòng tròn chọn màu chủ đề ---------- */
+/* Theme chỉ đổi họ hue nhận diện (--lav/--lav-deep/--tint-lav
+   + --accent/--accent-press suy từ hue đó) qua inline style
+   từ JS. Không hue thứ hai nào ngoài hue đang chọn. */
+/* Vòng màu thị giác 28pt trong nút bấm 44 (KT-4): đệm trong
+   suốt 8px gánh vùng chạm, vóc dáng không phình theo. Vòng
+   chọn ôm đúng vòng màu (qua .sw-in), tick trắng thuần —
+   bỏ drop-shadow (chi tiết template). Gap nút 4. */
+.swatches{display:flex; gap:var(--s1); flex-wrap:wrap;
+  padding:var(--s2) var(--s4) var(--s4)}
+.swatch{
+  width:44px; height:44px; border-radius:50%; border:0;
+  background:transparent; padding:var(--s2); cursor:pointer;
+  position:relative; flex:0 0 auto; font-family:inherit;
+  transition:transform var(--t1) var(--ease);
+}
+.swatch:active{transform:scale(.92)}
+.swatch .sw-in{
+  display:block; width:100%; height:100%; border-radius:50%;
+  background:var(--sw); box-shadow:inset 0 0 0 1px rgba(31,30,29,.14);
+}
+.swatch.active .sw-in{
+  box-shadow:inset 0 0 0 1px rgba(31,30,29,.14),
+    0 0 0 2px var(--surface), 0 0 0 4px var(--sw-deep);
+}
+.swatch.active:after{
+  content:""; position:absolute; left:50%; top:50%;
+  width:11px; height:6px; border-left:2px solid #fff;
+  border-bottom:2px solid #fff;
+  transform:translate(-50%,-64%) rotate(-45deg);
+}
+/* ---------- màn con ---------- */
+.backrow{
+  display:flex; align-items:center; gap:var(--s1);
+  color:var(--lav-deep);
+  font-weight:var(--fw-s); cursor:pointer; min-height:44px;
+  font-size:var(--fs-body);
+}
+.backrow:active{opacity:.55}
+.screen-title{font-size:var(--fs-screen); font-weight:var(--fw-s);
+  margin:0 0 var(--s2); letter-spacing:-0.01em}
+/* Note = chữ trần 13 --ink2, KHÔNG hộp nền (TQ-2): hộp xám
+   90pt ở đầu màn con ăn chrome và nói điều hiển nhiên. Nội
+   dung dài để ở cuối màn (mẫu .bc-note / chân màn Quyền). */
+.note{
+  color:var(--ink2); font-size:var(--fs-cap);
+  line-height:var(--lh-body);
+  margin:0 0 var(--s3); padding:0 var(--s1);
+}
+pre.content{
+  white-space:pre-wrap; word-break:break-word; margin:0;
+  font-family:ui-monospace, Menlo, monospace;
+  font-size:var(--fs-cap); padding:var(--s4);
+  line-height:var(--lh-body);
+}
+.summary-box{padding:var(--s3) var(--s4) var(--s4);
+  font-size:var(--fs-body)}
+.hidden{display:none !important}
+#toast{
+  position:fixed; left:50%;
+  bottom:calc(var(--s6) + env(safe-area-inset-bottom));
+  transform:translateX(-50%); background:#2B2926; color:#fff;
+  padding:var(--s3) var(--s4); border-radius:var(--r-chip);
+  font-size:var(--fs-cap); opacity:0; pointer-events:none;
+  transition:opacity var(--t2) var(--ease); max-width:88vw;
+  text-align:center; z-index:50; box-shadow:var(--shadow-pop);
+}
+#toast.show{opacity:.96}
+/* ---------- responsive ---------- */
+@media (min-width:640px){
+  body{padding-left:var(--s6); padding-right:var(--s6)}
+  #tab-hoso{display:grid; grid-template-columns:1fr 1fr;
+    gap:0 var(--s4)}
+  #tab-hoso .card, #tab-hoso .bc-note{grid-column:1 / -1}
+  #connector-list{display:grid; grid-template-columns:1fr 1fr}
+  #connector-list .row + .row:before{display:none}
+}
+@media (min-width:769px){
+  html{background:#EFECE5}
+  [data-scheme="dark"] html, html[data-scheme="dark"]{background:#0E1621}
+  body{max-width:600px; margin:0 auto;
+    box-shadow:0 0 0 1px var(--line)}
+}
+@media (min-width:900px){
+  body{max-width:920px}
+  body.split{display:grid; grid-template-columns:340px 1fr;
+    column-gap:var(--s6)}
+  body.split .app-header, body.split .segbar,
+  body.split #global-error{grid-column:1 / -1}
+  body.split #tab-viec{display:block !important}
+  body.split #screen-task{display:block !important}
+}
+@media (prefers-reduced-motion: reduce){
+  *, *:after{animation:none !important; transition:none !important}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= HEADER ================= -->
+<header class="app-header" id="app-header">
+  <div class="avatar st-idle" id="avatar-box"><img src="/app/avatar" alt=""
+    onerror="this.remove()"><span id="avatar-letter">M</span></div>
+  <div class="head-meta">
+    <div class="app-name">Mulon</div>
+    <div class="app-status"><span class="dot" id="status-dot"></span>
+      <span id="status-text">đang tải…</span></div>
+  </div>
+</header>
+
+<div id="global-error"></div>
+
+<!-- ================= TAB BAR ================= -->
+<nav class="segbar" id="segbar">
+  <button data-tab="viec" class="active">Việc</button>
+  <button data-tab="pheduyet">Phê duyệt</button>
+  <button data-tab="lich">Lịch</button>
+  <button data-tab="hoso">Hồ sơ</button>
+  <button data-tab="caidat">Cài đặt</button>
+</nav>
+
+<!-- ================= TAB: VIỆC ================= -->
+<section id="tab-viec">
+  <div class="card">
+    <div class="card-title">Lượt việc gần nhất</div>
+    <div id="task-list">
+      <div class="skel"><div class="bar w70"></div>
+        <div class="bar w40"></div><div class="bar w70"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- chi tiết 1 lượt việc -->
+<section id="screen-task" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
+  <h2 class="screen-title" id="task-detail-title">Chi tiết lượt</h2>
+  <div class="card">
+    <div class="card-title">Dòng thời gian</div>
+    <div class="timeline" id="task-timeline"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Tóm tắt</div>
+    <div class="summary-box" id="task-summary"></div>
+  </div>
+</section>
+
+<!-- ================= TAB: PHÊ DUYỆT ================= -->
+<section id="tab-pheduyet" class="hidden">
+  <div id="pending-wrap"></div>
+  <div class="card">
+    <div class="card-title">Lịch sử phê duyệt</div>
+    <div id="history-list"></div>
+  </div>
+</section>
+
+<!-- ================= TAB: LỊCH ================= -->
+<section id="tab-lich" class="hidden">
+  <div id="schedule-banner"></div>
+  <div class="card">
+    <div class="card-title">Việc hẹn giờ &amp; heartbeat</div>
+    <div id="schedule-list"></div>
+  </div>
+</section>
+
+<!-- ================= TAB: HỒ SƠ ================= -->
+<section id="tab-hoso" class="hidden">
+  <div class="bigcard bc-dossier" id="card-dossier">
+    <div class="bc-top">HỒ SƠ</div>
+    <div class="bc-name">Hồ sơ của agent</div>
+    <div class="bc-date" id="dossier-date">—</div>
+  </div>
+  <div class="bigcard bc-memory" id="card-memory">
+    <div class="bc-top">BỘ NHỚ</div>
+    <div class="bc-name">Bộ nhớ dài hạn</div>
+    <div class="bc-date" id="memory-date">—</div>
+  </div>
+  <div class="bc-note">CẨN TRỌNG KHI TRUY CẬP — đây là dữ liệu
+    riêng của agent, chỉ chủ nhân mới nên mở.</div>
+  <div class="card">
+    <div class="card-title">Kỹ năng</div>
+    <div id="skills-box"></div>
+  </div>
+</section>
+
+<!-- xem nội dung hồ sơ/bộ nhớ -->
+<section id="screen-profile" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
+  <h2 class="screen-title" id="profile-title">Nội dung</h2>
+  <div class="card"><pre class="content" id="profile-content"></pre></div>
+</section>
+
+<!-- ================= TAB: CÀI ĐẶT ================= -->
+<section id="tab-caidat" class="hidden">
+  <div class="card">
+    <div class="row" data-open="screen-connectors">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 7h13M17 3l4 4-4 4M16 17H3M7 13l-4 4 4 4"/></svg></div>
+      <div class="r-main"><div class="r-title">Công cụ kết nối</div></div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div>
+    <div class="row" data-open="screen-vault">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.4"/></svg></div>
+      <div class="r-main"><div class="r-title">Kho lưu trữ an toàn</div></div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div>
+    <div class="row" data-open="screen-policy">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg></div>
+      <div class="r-main"><div class="r-title">Quyền</div></div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div>
+    <div class="row" data-open="screen-system">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6M12 16v4"/></svg></div>
+      <div class="r-main"><div class="r-title">Thiết bị &amp; hệ thống</div></div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Giao diện</div>
+    <div class="row static">
+      <div class="r-main"><div class="r-title">Màu chủ đề</div>
+        <div class="r-sub" id="theme-name">Tím Mulon</div></div>
+    </div>
+    <div class="swatches" id="theme-swatches"></div>
+  </div>
+</section>
+
+<!-- Cài đặt con: Thiết bị & hệ thống -->
+<section id="screen-system" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
+  <h2 class="screen-title">Thiết bị &amp; hệ thống</h2>
+  <div class="card">
+    <div class="card-title">Máy đang chạy Mulon</div>
+    <div id="system-host"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Phiên này</div>
+    <div id="system-viewer"></div>
+  </div>
+  <div class="note">Mulon chạy trên một máy duy nhất,
+    không ghép nối thiết bị nào. Đây là tình trạng thật của
+    máy đó và của phiên đang xem.</div>
+</section>
+
+<!-- Cài đặt con: Kết nối -->
+<section id="screen-connectors" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
+  <h2 class="screen-title">Công cụ kết nối</h2>
+  <div id="connector-note"></div>
+  <div class="card"><div id="connector-list"></div></div>
+</section>
+
+<!-- Cài đặt con: Vault -->
+<section id="screen-vault" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
+  <h2 class="screen-title">Kho lưu trữ an toàn</h2>
+  <div class="note">Chỉ hiện nhãn và mã tham chiếu, không hiện
+    giá trị.</div>
+  <div class="card"><div id="vault-list"></div></div>
+  <div class="btn-row" style="padding:0">
+    <button class="btn btn-accent" id="vault-add">Thêm qua form trong chat</button>
+  </div>
+</section>
+
+<!-- Cài đặt con: Quyền -->
+<section id="screen-policy" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
+  <h2 class="screen-title">Quyền</h2>
+  <div class="note">Đổi là áp dụng ngay.</div>
+  <label class="row static" style="padding-top:0">
+    <div class="r-main"><div class="r-title">Lưu bền vào file policy</div></div>
+    <label class="tgl"><input type="checkbox" id="policy-persist">
+      <span class="tr"></span></label>
+  </label>
+  <div class="card">
+    <div class="card-title">Nhóm việc</div>
+    <div id="policy-groups"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Từng tool</div>
+    <div id="policy-tools"></div>
+  </div>
+  <div class="note">Mặc định chỉ áp cho phiên hiện tại — hết phiên
+    thì mất. Bật “Lưu bền” ở trên để ghi bền: Ghi vào file cấu
+    hình trên máy — áp cho mọi phiên sau, không mất khi hết
+    phiên.</div>
+</section>
+
+<!-- menu nổi chọn nấc quyền (KT-2) — 1 phần tử dùng chung,
+     JS định vị cạnh hàng được bấm -->
+<div id="pol-scrim" class="hidden"></div>
+<div id="pol-menu" class="pol-menu hidden">
+  <button data-verdict="allow">Cho phép<span class="tick">✓</span></button>
+  <button data-verdict="ask">Hỏi<span class="tick">✓</span></button>
+  <button data-verdict="deny">Chặn<span class="tick">✓</span></button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) {
+  tg.ready(); tg.expand();
+  if (tg.colorScheme === "dark")
+    document.documentElement.dataset.scheme = "dark";
+}
+const INIT = tg ? tg.initData : "";
+const START_PARAM = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || "";
+let S = null;           // state gần nhất từ /api/state
+let mainTab = "viec";
+let subScreen = null;   // id màn con đang mở
+
+const $ = (id) => document.getElementById(id);
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2600);
+}
+function haptic(kind){
+  if (!tg || !tg.HapticFeedback) return;
+  try {
+    if (kind === "select") tg.HapticFeedback.selectionChanged();
+    else tg.HapticFeedback.impactOccurred("medium");
+  } catch (e) {}
+}
+async function api(path, method, body){
+  const opt = {method: method || "GET",
+    headers: {"X-Telegram-Init-Data": INIT,
+              "Content-Type": "application/json"}};
+  if (body) opt.body = JSON.stringify(body);
+  const res = await fetch(path, opt);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+  return data;
+}
+function hhmm(iso){
+  if (!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleTimeString("vi-VN",
+    {hour:"2-digit", minute:"2-digit"});
+}
+function todayLabel(iso){
+  if (!iso) return "";
+  const d = new Date(iso), now = new Date();
+  const hm = hhmm(iso);
+  return d.toDateString() === now.toDateString() ? hm
+    : d.toLocaleDateString("vi-VN") + " " + hm;
+}
+
+/* ---------------- điều hướng ---------------- */
+const MAIN_TABS = ["viec","pheduyet","lich","hoso","caidat"];
+const TAB_OF_SCREEN = {"screen-task":"viec","screen-profile":"hoso",
+  "screen-connectors":"caidat","screen-vault":"caidat",
+  "screen-policy":"caidat","screen-system":"caidat"};
+function showMain(tab){
+  mainTab = tab; subScreen = null;
+  document.body.classList.remove("split");
+  MAIN_TABS.forEach(t => $("tab-" + t).classList.toggle("hidden", t !== tab));
+  Object.keys(TAB_OF_SCREEN).forEach(id => $(id).classList.add("hidden"));
+  document.querySelectorAll("#segbar button").forEach(b =>
+    b.classList.toggle("active", b.dataset.tab === tab));
+  $("segbar").classList.remove("hidden");
+  /* KT-1: header gọn chỉ ở màn tab; màn con ẩn hẳn. */
+  $("app-header").classList.remove("hidden");
+  closePolMenu();
+  window.scrollTo(0, 0);
+}
+function showSub(id){
+  subScreen = id;
+  MAIN_TABS.forEach(t => $("tab-" + t).classList.add("hidden"));
+  Object.keys(TAB_OF_SCREEN).forEach(s =>
+    $(s).classList.toggle("hidden", s !== id));
+  $("segbar").classList.add("hidden");
+  $("app-header").classList.add("hidden");
+  closePolMenu();
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll("#segbar button").forEach(b =>
+  b.addEventListener("click", () => { haptic("select"); showMain(b.dataset.tab); }));
+document.querySelectorAll("[data-back]").forEach(el =>
+  el.addEventListener("click", () => showMain(TAB_OF_SCREEN[
+    el.closest("section").id] || "viec")));
+document.querySelectorAll("[data-open]").forEach(el =>
+  el.addEventListener("click", () => showSub(el.dataset.open)));
+
+/* ---------------- màu chủ đề (Giao diện) ---------------- */
+/* Mỗi theme = 1 họ hue cho lớp nhận diện 30% (base/deep/tint +
+   tint khi nền tối). Accent hành động chính (10%) là bậc đậm
+   của CHÍNH hue đó (deep/press; dark thì base/deep) — không
+   hue riêng cho nút. Giấy/trung tính không đổi -> kỷ luật
+   60/30/10 nguyên vẹn. Khóa phải khớp THEME_KEYS ở
+   webapp_server.py. */
+const THEMES = {
+  lavender: {label:"Tím Mulon", base:"#9598C4", deep:"#5A5E94",
+    press:"#4C4F80", tint:"#E9EAF4", dtint:"#2E2A4A"},
+  blue: {label:"Xanh dương", base:"#86ABD8", deep:"#40639A",
+    press:"#355584", tint:"#E3EBF6", dtint:"#22344E"},
+  pink: {label:"Hồng", base:"#DF9FB8", deep:"#A04A6E",
+    press:"#8C3E5E", tint:"#F9E8EF", dtint:"#472733"},
+  peach: {label:"Đào", base:"#EDB48C", deep:"#9A5A20",
+    press:"#864D1B", tint:"#FAEEDF", dtint:"#453014"},
+  green: {label:"Xanh lá", base:"#93C39B", deep:"#42704F",
+    press:"#386043", tint:"#E6F2E8", dtint:"#1E3A2C"},
+  graphite: {label:"Chì", base:"#A8A49C", deep:"#6E6A61",
+    press:"#5D5952", tint:"#EFEEE9", dtint:"#33322E"},
+};
+const THEME_LS_KEY = "mulon-theme";
+let curTheme = "lavender";
+let themeTouched = false;
+function applyTheme(key){
+  if (!THEMES[key]) key = "lavender";
+  const t = THEMES[key];
+  const root = document.documentElement;
+  const dark = root.dataset.scheme === "dark";
+  root.style.setProperty("--lav", t.base);
+  /* Dark: tint tối đi nên chữ tím dùng base (sáng hơn) mới đủ
+     tương phản trên tint tối; sáng thì dùng deep đã nới đậm. */
+  root.style.setProperty("--lav-deep", dark ? t.base : t.deep);
+  root.style.setProperty("--tint-lav", dark ? t.dtint : t.tint);
+  /* Accent hành động chính = bậc đậm của hue đang chọn:
+     sáng -> deep (nhấn: press); tối -> base (nhấn: deep). */
+  root.style.setProperty("--accent", dark ? t.base : t.deep);
+  root.style.setProperty("--accent-press", dark ? t.deep : t.press);
+  curTheme = key;
+  try { localStorage.setItem(THEME_LS_KEY, key); } catch (e) {}
+  const nameEl = $("theme-name");
+  if (nameEl) nameEl.textContent = t.label;
+  document.querySelectorAll(".swatch").forEach(sw =>
+    sw.classList.toggle("active", sw.dataset.theme === key));
+}
+async function pickTheme(key){
+  themeTouched = true;
+  applyTheme(key);
+  haptic("select");
+  try {
+    await api("/api/profile/theme", "POST", {theme: key});
+  } catch (e) { /* thiếu API cũ: theme local vẫn giữ, áp ngay */ }
+}
+(function initThemes(){
+  const box = $("theme-swatches");
+  if (box) box.innerHTML = Object.keys(THEMES).map(k => {
+    const t = THEMES[k];
+    return '<button class="swatch" data-theme="' + k + '"' +
+      ' style="--sw:' + t.base + ';--sw-deep:' + t.deep + '"' +
+      ' aria-label="' + esc(t.label) + '"><span class="sw-in">' +
+      '</span></button>';
+  }).join("");
+  document.querySelectorAll(".swatch").forEach(sw =>
+    sw.addEventListener("click", () => pickTheme(sw.dataset.theme)));
+  /* Áp ngay từ localStorage khi mở app — không chờ API. */
+  let saved = "lavender";
+  try { saved = localStorage.getItem(THEME_LS_KEY) || "lavender"; }
+  catch (e) {}
+  applyTheme(saved);
+})();
+
+/* ---------------- header: trạng thái lời thường + avatar ---------- */
+let lastTaskStatus = null;
+function flashAvatar(cls){
+  const box = $("avatar-box");
+  box.className = "avatar " + cls;
+  setTimeout(renderStatus, cls === "st-done" ? 750 : 550);
+}
+function renderStatus(){
+  const st = (S && S.status) || {busy:false};
+  const pending = (S && S.approvals.pending) || [];
+  $("status-dot").classList.toggle("busy", !!st.busy);
+  /* Dòng trạng thái nói đúng VIỆC HIỆN TẠI bằng lời thường
+     (ánh xạ từ event stream phía backend), rảnh thì "Sẵn sàng". */
+  $("status-text").textContent = st.busy && st.current
+    ? (st.current.step || "Đang xử lý")
+    : "Sẵn sàng";
+  /* Avatar có trạng thái — cùng nguồn với dòng trạng thái:
+     chờ duyệt > đang làm > rảnh. */
+  const box = $("avatar-box");
+  if (!box.className.includes("st-done")
+      && !box.className.includes("st-error"))
+    box.className = "avatar " + (pending.length ? "st-waiting"
+      : st.busy ? "st-working" : "st-idle");
+  /* Chuyển lượt: xong -> nảy 1 nhịp; lỗi -> lắc 2 nhịp. */
+  const latest = (S && S.tasks && S.tasks[0]) || null;
+  if (latest && lastTaskStatus !== null
+      && latest.status !== lastTaskStatus
+      && (latest.status === "done" || latest.status === "failed")){
+    flashAvatar(latest.status === "done" ? "st-done" : "st-error");
+    if (latest.status === "done") toast("Một lượt việc vừa hoàn tất.");
+  }
+  if (latest) lastTaskStatus = latest.status;
+}
+
+/* ---------------- Việc ---------------- */
+function taskStateText(t){
+  /* Trạng thái = chữ ở cuối hàng như pattern .r-state của
+     lịch sử duyệt (KT-3) — không còn glyph ✓/◌/✕ trong ô be. */
+  if (t.status === "done") return "✓ Đã xong";
+  if (t.status === "running") return "◌ Đang chạy";
+  if (t.status === "failed") return "✕ Đã lỗi";
+  return "· Đang chờ";
+}
+function taskSub(t){
+  /* Sub chỉ khi thật cần: chi tiết lỗi dưới tiêu đề. */
+  if (t.status === "failed") return "Lỗi: " + (t.error || "không rõ");
+  return "";
+}
+function renderTasks(){
+  const box = $("task-list");
+  const tasks = (S && S.tasks) || [];
+  if (!tasks.length){
+    box.innerHTML = '<div class="empty">Chưa có lượt việc nào. ' +
+      'Nhắn việc cho Mulon trong chat là lượt sẽ hiện ở đây.</div>';
+    return;
+  }
+  box.innerHTML = tasks.map(t => {
+    const sub = taskSub(t);
+    return '<div class="row" data-task="' + esc(t.id) + '">' +
+      '<div class="r-main"><div class="r-title">' + esc(t.title) +
+      '</div>' + (sub ? '<div class="r-sub">' + esc(sub) +
+      '</div>' : "") + '</div>' +
+      '<span class="r-state">' + taskStateText(t) + '</span>' +
+      '<div class="r-time">' + esc(todayLabel(t.created_at)) +
+      '</div></div>';
+  }).join("");
+  box.querySelectorAll("[data-task]").forEach(el =>
+    el.addEventListener("click", () => openTask(el.dataset.task)));
+}
+/* Ánh xạ nhãn hành động lời thường cho bước timeline (NT-4) —
+   cùng bảng với server (TOOL_ACTION_LABELS/_GROUP_ACTION_LABELS
+   của webapp_server, cũng là nhãn thẻ duyệt): tiêu đề bước nói
+   bằng lời thường, tên tool thô chỉ còn ở dòng meta. */
+const STEP_ACTION_LABELS = {
+  "run_command":"Chạy lệnh hệ thống", "read_file":"Đọc file",
+  "write_file":"Ghi file", "edit_file":"Sửa file",
+  "web_fetch":"Đọc trang web", "web_read":"Đọc trang web",
+  "web_search":"Tìm trên web", "connector_call":"Gọi dịch vụ ngoài",
+  "spawn_subagent":"Giao việc cho agent con",
+  "send_message":"Gửi tin nhắn", "github_push":"Đẩy lên GitHub",
+};
+const STEP_GROUP_LABELS = {
+  "shell":"Chạy lệnh hệ thống", "web":"Đọc trang web",
+  "file":"Thao tác file",
+};
+function stepActionLabel(tool, group){
+  if (STEP_ACTION_LABELS[tool]) return STEP_ACTION_LABELS[tool];
+  if (STEP_GROUP_LABELS[group]) return STEP_GROUP_LABELS[group];
+  return tool ? "Dùng công cụ " + tool : "Dùng công cụ";
+}
+async function openTask(id){
+  showSub("screen-task");
+  /* Desktop ≥900px: danh sách | chi tiết 2 cột như modal Muse. */
+  if (window.innerWidth >= 900) document.body.classList.add("split");
+  $("task-timeline").innerHTML = '<div class="skel">' +
+    '<div class="bar w70"></div><div class="bar w40"></div></div>';
+  $("task-summary").textContent = "";
+  try {
+    const data = await api("/api/task?id=" + encodeURIComponent(id));
+    const t = data.task;
+    $("task-detail-title").textContent = t.title || "Chi tiết lượt";
+    const items = [];
+    items.push({name:"Đã bắt đầu", meta: todayLabel(t.created_at),
+      cls:"done"});
+    (data.events || []).forEach(ev => {
+      const tool = ev.payload.tool || "";
+      if (ev.kind === "tool_call")
+        items.push({name: stepActionLabel(tool, ev.payload.group),
+          meta: (tool ? tool + " · " : "") +
+            (ev.payload.ok ? "thành công" : "lỗi") + " · " +
+            hhmm(ev.at), cls: ev.payload.ok ? "done" : "err"});
+      else if (ev.kind === "approval_requested")
+        items.push({name:"Đã xin duyệt — " +
+            stepActionLabel(tool, ev.payload.group),
+          meta: (tool ? tool + " · " : "") + hhmm(ev.at),
+          cls:"doing"});
+      else if (ev.kind === "approval_decision")
+        items.push({name:"Kết quả duyệt: " +
+            outcomeLabel({outcome: ev.payload.outcome || ""}),
+          meta: hhmm(ev.at),
+          cls: ev.payload.approved ? "done" : "err"});
+    });
+    items.push({name: t.status === "running" ? "Đang hoàn tất…"
+      : "Hoàn tất", meta: todayLabel(t.updated_at),
+      cls: t.status === "failed" ? "err" : "done"});
+    $("task-timeline").innerHTML = items.map(i =>
+      '<div class="tl-item"><div class="tl-dot ' + i.cls + '"></div>' +
+      '<div class="tl-body"><div class="tl-name">' + esc(i.name) +
+      '</div><div class="tl-meta">' + esc(i.meta) +
+      '</div></div></div>').join("");
+    $("task-summary").textContent = t.result || t.error ||
+      "(chưa có tóm tắt)";
+  } catch (e) {
+    $("task-timeline").innerHTML = '<div class="empty">' +
+      esc(e.message) + '</div>';
+  }
+}
+
+/* ---------------- Phê duyệt ---------------- */
+function outcomeText(h){
+  /* Trạng thái = chữ thường + 1 ký hiệu mảnh, không pill màu. */
+  if (h.outcome === "approved") return "✓ Đã duyệt";
+  if (h.outcome === "expired") return "· Hết hạn";
+  return "✕ Đã chặn";
+}
+function outcomeLabel(h){
+  if (h.outcome === "approved") return "Đã duyệt";
+  if (h.outcome === "expired") return "Hết hạn";
+  return "Đã chặn";
+}
+function apprMeta(p){
+  /* Vòng 3 (TQ-1): thẻ chờ duyệt chỉ còn 2 khối chữ dưới tiêu
+     đề — dòng phạm vi rút ĐÚNG 1 dòng tóm tắt (chi tiết phạm
+     vi đầy đủ do server tính vẫn nằm ở thẻ duyệt trong chat),
+     và hộp lý do của agent giữ nguyên như cũ (dài thì thu gọn
+     2 dòng, bấm "Mở rộng" xem hết). Dòng nhóm/công cụ/tóm tắt
+     đã gộp vào .appr-sub ở renderApprovals. */
+  let h = '<div class="appr-scope">Áp cho lần này · “Duyệt và ' +
+    'nhớ” = nhớ cho công cụ này tới hết phiên.</div>';
+  if (p.reason){
+    const long = p.reason.length > 140;
+    h += '<div class="appr-reason' + (long ? " clamp" : "") +
+      '"><b>Lý do:</b> ' + esc(p.reason) + "</div>" +
+      (long ? '<span class="appr-more" data-expand-reason>' +
+        "Mở rộng</span>" : "");
+  }
+  return h;
+}
+function renderApprovals(){
+  const wrap = $("pending-wrap");
+  const pending = (S && S.approvals.pending) || [];
+  if (pending.length){
+    wrap.innerHTML = pending.map(p =>
+      '<div class="card appr-card" id="appr-' + esc(p.approval_id) + '">' +
+      '<div class="appr-head"><span class="appr-dot"></span>' +
+      '<div class="appr-title">' +
+      esc(p.action_label || p.tool) +
+      '</div></div>' +
+      /* TQ-1: sub + "Chi tiết" gộp thành 1 dòng duy nhất:
+         Nhóm · công cụ · tóm tắt — hết nói 1 ý 2 lần. */
+      '<div class="appr-sub">' +
+      esc([p.group_label || p.group || "—", p.tool, p.summary]
+        .filter(Boolean).join(" · ")) + '</div>' +
+      apprMeta(p) +
+      /* KT-7: hàng 1 [Chặn soft] [Duyệt accent]; hàng 2 nút
+         chữ "Duyệt và nhớ" — cụm sticky blur ở .appr-actions. */
+      '<div class="appr-actions"><div class="btn-row">' +
+      '<button class="btn btn-soft" data-appr="deny" data-id="' +
+        esc(p.approval_id) + '">Chặn</button>' +
+      '<button class="btn btn-accent" data-appr="approve" data-id="' +
+        esc(p.approval_id) + '">Duyệt</button>' +
+      '</div>' +
+      '<button class="btn btn-text" data-appr="approve_remember" data-id="' +
+        esc(p.approval_id) + '">Duyệt và nhớ</button>' +
+      '</div></div>').join("");
+    wrap.querySelectorAll("[data-appr]").forEach(b =>
+      b.addEventListener("click", async () => {
+        b.disabled = true; haptic("impact");
+        try {
+          await api("/api/approve", "POST",
+            {id: b.dataset.id, decision: b.dataset.appr});
+          flashAvatar("st-done");
+          toast("Đã ghi quyết định — thẻ trong chat sẽ được gỡ.");
+          await load();
+        } catch (e) { toast(e.message); b.disabled = false; }
+      }));
+    wrap.querySelectorAll("[data-expand-reason]").forEach(el =>
+      el.addEventListener("click", () => {
+        const r = el.previousElementSibling;
+        if (!r) return;
+        const clamped = r.classList.toggle("clamp");
+        el.textContent = clamped ? "Mở rộng" : "Thu gọn";
+      }));
+  } else {
+    wrap.innerHTML = '<div class="card"><div class="empty">' +
+      'Không có yêu cầu nào đang chờ duyệt. Khi Mulon cần anh ' +
+      'quyết, thẻ duyệt sẽ hiện ở đây.</div></div>';
+  }
+  const hist = (S && S.approvals.history) || [];
+  const box = $("history-list");
+  if (!hist.length){
+    box.innerHTML = '<div class="empty">Chưa có quyết định duyệt nào. Các quyết định anh đã bấm sẽ lưu ở đây để xem lại.</div>';
+    return;
+  }
+  box.innerHTML = hist.map((h, i) =>
+    '<div class="hist"><div class="row" data-hist="' + i + '">' +
+    '<div class="r-main"><div class="r-title">' +
+    esc(h.action_label || h.tool) +
+    '</div><div class="r-sub">' +
+    esc(h.group_label || h.group || "—") + '</div></div>' +
+    '<span class="r-state">' + outcomeText(h) + '</span></div>' +
+    '<div class="hist-detail"><table class="fields">' +
+    '<tr><td class="k">Hành động</td><td>' +
+    esc(h.action_label || h.tool) + '</td></tr>' +
+    '<tr><td class="k">Công cụ</td><td>' + esc(h.tool) + '</td></tr>' +
+    '<tr><td class="k">Nhóm việc</td><td>' +
+    esc(h.group_label || h.group || "—") + '</td></tr>' +
+    '<tr><td class="k">Lớp policy</td><td>' + esc(h.layer || "ask") + '</td></tr>' +
+    '<tr><td class="k">Thời gian</td><td>' + esc(todayLabel(h.at)) + '</td></tr>' +
+    '<tr><td class="k">Kết quả</td><td>' + outcomeLabel(h) +
+      (h.remember ? " (đã nhớ cho phiên)" : "") + '</td></tr>' +
+    '</table></div></div>').join("");
+  box.querySelectorAll("[data-hist]").forEach(el =>
+    el.addEventListener("click", () =>
+      el.closest(".hist").classList.toggle("open")));
+}
+
+/* ---------------- Lịch ---------------- */
+function renderSchedule(){
+  const sch = (S && S.schedule) || {available:false, items:[]};
+  const banner = $("schedule-banner");
+  if (!sch.available)
+    banner.innerHTML = '<div class="note">Chưa đọc được danh sách ' +
+      'lịch — nguồn dữ liệu chưa sẵn sàng.</div>';
+  else if (!sch.scheduler_enabled)
+    banner.innerHTML = '<div class="note plain">Vòng lặp hẹn giờ ' +
+      'đang TẮT (SCHEDULER_ENABLED=0 trong .env). Bật/tắt dưới đây ' +
+      'chỉ đổi trạng thái từng job; job chỉ chạy khi vòng lặp bật.</div>';
+  else banner.innerHTML = "";
+  const box = $("schedule-list");
+  if (!sch.items.length){
+    box.innerHTML = '<div class="empty">Chưa có việc hẹn giờ nào. ' +
+      'Nhờ Mulon đặt lịch trong chat (ví dụ: “nhắc anh 9h sáng mai…”).</div>';
+    return;
+  }
+  box.innerHTML = sch.items.map(it =>
+    '<div class="row static">' +
+    '<div class="r-main"><div class="r-title">' + esc(it.name) +
+    '</div><div class="r-sub">' + esc(it.cron) +
+    (it.next_run_at ? " · tới: " + esc(todayLabel(it.next_run_at)) : "") +
+    '</div></div>' +
+    '<label class="tgl"><input type="checkbox" data-sched="' +
+    esc(it.id) + '"' + (it.enabled ? " checked" : "") +
+    (it.toggleable ? "" : " disabled") + '><span class="tr"></span></label>' +
+    '</div>').join("");
+  box.querySelectorAll("[data-sched]").forEach(inp =>
+    inp.addEventListener("change", async () => {
+      try {
+        const r = await api("/api/schedule", "POST",
+          {id: inp.dataset.sched, enabled: inp.checked});
+        if (!r.ok) throw new Error("không đổi được");
+        toast(inp.checked ? "Đã bật job." : "Đã tắt job.");
+      } catch (e) { toast(e.message); inp.checked = !inp.checked; }
+    }));
+}
+
+/* ---------------- Hồ sơ ---------------- */
+function renderProfile(){
+  const p = (S && S.profile) || {dossier_files:[], facts_active:0,
+    skills:{available:false, count:0, names:[]}};
+  const latest = p.dossier_files.reduce((a, f) =>
+    (f.updated_at > a ? f.updated_at : a), "");
+  $("dossier-date").textContent = latest
+    ? "Cập nhật " + todayLabel(latest) + " · " +
+      p.dossier_files.length + " file" : "Chưa có dữ liệu";
+  $("memory-date").textContent = p.facts_active +
+    " fact đang hiệu lực";
+  const sk = p.skills || {};
+  $("skills-box").innerHTML = sk.available
+    ? '<div class="row static"><div class="glyph">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.5l1.9 5.6 5.6 1.9-5.6 1.9L12 18.5l-1.9-5.6L4.5 11l5.6-1.9z"/></svg></div>' +
+      '<div class="r-main"><div class="r-title">' + sk.count +
+      ' kỹ năng đã nạp</div></div></div>'
+    : '<div class="empty">Chưa nạp kỹ năng nào.</div>';
+}
+$("card-dossier").addEventListener("click", async () => {
+  showSub("screen-profile");
+  $("profile-title").textContent = "Hồ sơ";
+  $("profile-content").textContent = "Đang tải…";
+  try {
+    const parts = [];
+    for (const f of (S.profile.dossier_files || [])) {
+      if (f.name === "BOOTSTRAP.md") continue;
+      const d = await api("/api/profile/content?kind=dossier&name=" +
+        encodeURIComponent(f.name));
+      parts.push("===== " + f.name + " =====\n" + d.content);
+    }
+    $("profile-content").textContent = parts.join("\n\n") ||
+      "(hồ sơ trống)";
+  } catch (e) { $("profile-content").textContent = e.message; }
+});
+$("card-memory").addEventListener("click", async () => {
+  showSub("screen-profile");
+  $("profile-title").textContent = "Bộ nhớ";
+  $("profile-content").textContent = "Đang tải…";
+  try {
+    const d = await api("/api/profile/content?kind=memory");
+    $("profile-content").textContent = d.content || "(bộ nhớ trống)";
+  } catch (e) { $("profile-content").textContent = e.message; }
+});
+
+/* ---------------- Cài đặt con ---------------- */
+function renderConnectors(){
+  const list = (S && S.connectors) || [];
+  const box = $("connector-list");
+  if (!list.length){
+    box.innerHTML = '<div class="empty">Chưa có connector nào. Thêm connector hoặc MCP server trong file cấu hình trên máy rồi khởi động lại bot.</div>';
+    return;
+  }
+  box.innerHTML = list.map(c =>
+    '<div class="row static"><div class="mono">' +
+    (c.kind === "mcp" ? "M" : "S") +
+    '</div><div class="r-main"><div class="r-title">' + esc(c.name) +
+    '</div><div class="r-sub">' +
+    (c.ok ? "Đang nối" : "Chưa nối") +
+    (c.detail ? " · " + esc(c.detail) : "") + '</div></div>' +
+    '<label class="tgl"><input type="checkbox" data-conn="' +
+    esc(c.id) + '"' + (c.enabled ? " checked" : "") +
+    (c.toggleable ? "" : " disabled") + '><span class="tr"></span></label>' +
+    '</div>').join("");
+  box.querySelectorAll("[data-conn]").forEach(inp =>
+    inp.addEventListener("change", async () => {
+      try {
+        const r = await api("/api/connector", "POST",
+          {name: inp.dataset.conn, enabled: inp.checked});
+        toast(r.note || "Đã đổi trạng thái connector.");
+        if (r.restart_required)
+          $("connector-note").innerHTML = '<div class="note">' +
+            'Thay đổi cần khởi động lại bot để áp dụng.</div>';
+        await load();
+      } catch (e) { toast(e.message); inp.checked = !inp.checked; }
+    }));
+}
+function renderVault(){
+  const list = (S && S.vault) || [];
+  const box = $("vault-list");
+  if (!list.length){
+    box.innerHTML = '<div class="empty">Chưa có bí mật nào trong kho.</div>';
+    return;
+  }
+  box.innerHTML = list.map(v =>
+    '<div class="row static"><div class="glyph">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>' +
+    '<div class="r-main"><div class="r-title">' + esc(v.label) +
+    '</div><div class="r-sub">' + esc(v.ref) +
+    (v.created_at ? " · " + esc(todayLabel(v.created_at)) : "") +
+    '</div></div></div>').join("");
+}
+$("vault-add").addEventListener("click", () => {
+  toast("Đóng app rồi gõ /vault <nhãn> trong chat để nhận link form.");
+  if (tg) setTimeout(() => tg.close(), 900);
+});
+/* KT-2: hàng quyền = nhãn + giá trị chữ + chevron; đổi nấc
+   qua menu nổi dùng chung (#pol-menu). Payload /api/policy
+   GIỮ NGUYÊN semantics cũ của seg3 (scope/name/verdict/
+   persist) — chỉ đổi cách trình bày + chọn. */
+const VERDICT_LABELS = {allow:"Cho phép", ask:"Hỏi", deny:"Chặn"};
+const CHEV_UD = '<svg viewBox="0 0 24 24" width="12" height="12" ' +
+  'fill="none" stroke="currentColor" stroke-width="2" ' +
+  'stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M8 9.5l4-4 4 4M8 14.5l4 4 4-4"/></svg>';
+let polTarget = null;   // {scope, name} của hàng đang mở menu
+function closePolMenu(){
+  polTarget = null;
+  const m = $("pol-menu"), sc = $("pol-scrim");
+  if (m) m.classList.add("hidden");
+  if (sc) sc.classList.add("hidden");
+}
+function openPolMenu(row){
+  const menu = $("pol-menu");
+  polTarget = {scope: row.dataset.scope, name: row.dataset.name};
+  const cur = row.dataset.verdict;
+  menu.querySelectorAll("button").forEach(b =>
+    b.classList.toggle("cur", b.dataset.verdict === cur));
+  menu.classList.remove("hidden");
+  $("pol-scrim").classList.remove("hidden");
+  /* Định vị: mép phải khớp mép phải hàng, mở xuống dưới;
+     sát đáy thì lật lên trên, chừa lề màn 8. */
+  const r = row.getBoundingClientRect();
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  let left = Math.max(8, Math.min(r.right - mw,
+    window.innerWidth - mw - 8));
+  let top = r.bottom + 4;
+  if (top + mh > window.innerHeight - 8) top = r.top - mh - 4;
+  menu.style.left = left + "px";
+  menu.style.top = Math.max(8, top) + "px";
+}
+$("pol-scrim").addEventListener("click", closePolMenu);
+window.addEventListener("scroll", closePolMenu, {passive:true});
+document.querySelectorAll("#pol-menu button").forEach(b =>
+  b.addEventListener("click", async () => {
+    if (!polTarget) return;
+    const {scope, name} = polTarget;
+    const verdict = b.dataset.verdict;
+    closePolMenu();
+    try {
+      await api("/api/policy", "POST", {
+        scope: scope, name: name, verdict: verdict,
+        persist: $("policy-persist").checked});
+      toast("Đã đặt " + name + " → " + verdict +
+        ($("policy-persist").checked ? " (lưu bền)" : " (phiên)"));
+      await load();
+    } catch (e) { toast(e.message); }
+  }));
+function renderPolicy(){
+  const pol = (S && S.policy) || {groups:{}, tools:{}};
+  /* Tên hiển thị ưu tiên nhãn tiếng Việt (pol.group_labels từ
+     server); key thô chỉ là fallback và vẫn là giá trị gửi về
+     API qua data-name của hàng — không đổi hành vi đổi quyền. */
+  const grow = (obj, scope, labels) => Object.keys(obj).sort().map(name =>
+    '<div class="row pol-row" data-scope="' + scope +
+    '" data-name="' + esc(name) + '" data-verdict="' +
+    esc(obj[name]) + '"><div class="r-main">' +
+    '<div class="r-title">' + esc((labels || {})[name] || name) +
+    '</div></div><span class="pol-val">' +
+    esc(VERDICT_LABELS[obj[name]] || obj[name]) +
+    '</span><span class="pol-chev">' + CHEV_UD + '</span></div>'
+    ).join("");
+  $("policy-groups").innerHTML =
+    grow(pol.groups, "group", pol.group_labels) ||
+    '<div class="empty">Chưa có nhóm việc nào.</div>';
+  $("policy-tools").innerHTML = grow(pol.tools, "tool") ||
+    '<div class="empty">Chưa có tool nào.</div>';
+  document.querySelectorAll(".pol-row").forEach(row =>
+    row.addEventListener("click", () => openPolMenu(row)));
+}
+
+/* ---------------- Thiết bị & hệ thống ---------------- */
+function fv(x){ return (x === undefined || x === null || x === "")
+  ? "—" : esc(x); }
+function fmtUptime(s){
+  s = Math.max(0, Math.floor(Number(s) || 0));
+  const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600),
+    m = Math.floor(s % 3600 / 60);
+  if (d) return d + " ngày " + h + " giờ";
+  if (h) return h + " giờ " + m + " phút";
+  if (m) return m + " phút";
+  return s + " giây";
+}
+function renderSystem(){
+  const sys = (S && S.system) || {};
+  const proxy = sys.proxy || {};
+  const proxyText = proxy.status === "ok" ? "Đang chạy"
+    : proxy.status === "down" ? "Không chạy" : "Không kiểm được";
+  const onoff = (b) => b ? "Đang bật" : "Đang tắt";
+  $("system-host").innerHTML = '<table class="fields">' +
+    '<tr><td class="k">Tên máy</td><td>' + fv(sys.hostname) +
+    '</td></tr>' +
+    '<tr><td class="k">Hệ điều hành</td><td>' +
+    fv([sys.os, sys.arch].filter(Boolean).join(" · ")) + '</td></tr>' +
+    '<tr><td class="k">Phiên bản Mulon</td><td>' + fv(sys.version) +
+    '</td></tr>' +
+    '<tr><td class="k">Đã chạy</td><td>' +
+    (sys.uptime_s === undefined ? "—" : esc(fmtUptime(sys.uptime_s))) +
+    '</td></tr>' +
+    '<tr><td class="k">Proxy model 8317</td><td>' + esc(proxyText) +
+    (proxy.detail ? ' <span class="dim">· ' +
+      esc(proxy.detail) + '</span>' : "") + '</td></tr>' +
+    '<tr><td class="k">Vòng hẹn giờ</td><td>' +
+    (sys.scheduler_enabled === undefined ? "—"
+      : onoff(sys.scheduler_enabled)) + '</td></tr>' +
+    '<tr><td class="k">Heartbeat</td><td>' +
+    (sys.heartbeat_enabled === undefined ? "—"
+      : onoff(sys.heartbeat_enabled)) + '</td></tr>' +
+    '</table>';
+  const v = sys.viewer || {};
+  $("system-viewer").innerHTML = '<table class="fields">' +
+    '<tr><td class="k">Tài khoản Telegram</td><td>' +
+    fv(v.name) + (v.username ? " (@" + esc(v.username) + ")" : "") +
+    '</td></tr>' +
+    '<tr><td class="k">ID</td><td>' + fv(v.id) + '</td></tr>' +
+    '</table>';
+}
+
+/* ---------------- nạp state ---------------- */
+function renderAll(){
+  renderStatus(); renderTasks(); renderApprovals(); renderSchedule();
+  renderProfile(); renderConnectors(); renderVault(); renderPolicy();
+  renderSystem();
+}
+async function load(){
+  try {
+    S = await api("/api/state");
+    $("global-error").innerHTML = "";
+    /* Đồng bộ theme đa thiết bị: server là nguồn chung; nếu
+       phiên này chưa tự chọn thì theo server, localStorage
+       chỉ là bản áp-nhanh lúc mở app. */
+    const srvTheme = S.profile && S.profile.theme;
+    if (!themeTouched && srvTheme && srvTheme !== curTheme
+        && THEMES[srvTheme]) applyTheme(srvTheme);
+    renderAll();
+  } catch (e) {
+    $("status-text").textContent = "lỗi tải dữ liệu";
+    $("global-error").innerHTML = '<div class="errbar">Không tải ' +
+      'được dữ liệu: ' + esc(e.message) +
+      '<button class="btn btn-sm btn-ghost" id="retry-btn">Thử lại</button></div>';
+    const rb = $("retry-btn");
+    if (rb) rb.addEventListener("click", load);
+  }
+}
+/* Vòng 3: header đã gọn cố định 56pt — bỏ cơ chế co header +
+   nhảy --stick-top 132<->92 khi cuộn (nguồn cơn segbar giật
+   vị trí ở vòng 2). --stick-top là hằng số trong :root. */
+/* mở qua thẻ duyệt: startapp=approve_<id> -> thẳng tab Phê duyệt */
+if (START_PARAM.indexOf("approve_") === 0) showMain("pheduyet");
+else showMain("viec");
+load().then(() => {
+  if (START_PARAM.indexOf("approve_") === 0) {
+    const el = $("appr-" + START_PARAM.slice(8));
+    if (el) el.scrollIntoView({behavior:"smooth", block:"center"});
+  }
+});
+/* Polling: tạm dừng khi app bị ẩn (visibilitychange). */
+setInterval(() => {
+  if (document.hidden) return;
+  if (!subScreen && (mainTab === "viec" || mainTab === "pheduyet")) load();
+}, 3000);
+</script>
+</body>
+</html>
