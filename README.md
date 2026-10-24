@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.2.0-blueviolet">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.3.0-blueviolet">
   <img alt="Python" src="https://img.shields.io/badge/python-3.12-3776AB">
   <img alt="Tests" src="https://img.shields.io/badge/tests-147%20passing-brightgreen">
   <img alt="Eval" src="https://img.shields.io/badge/eval%20gate-85%25-orange">
@@ -31,6 +31,8 @@ cứng của thiết kế:
   nào, không khóa vào nhà cung cấp nào — đổi model là đổi cấu hình.
 - **Opt-in tuyệt đối.** Mọi vòng lặp nền (lịch hẹn, consolidation,
   proactivity) mặc định **tắt**; chỉ chạy khi chủ nhân bật đích danh.
+  Ngoại lệ duy nhất đã được chủ nhân duyệt đích danh: kiểm tra
+  cập nhật *dữ kiện* catalog của Chợ MCP (không bao giờ tự cài).
 
 > Tài liệu thiết kế đầy đủ: [`docs/thiet-ke-ky-thuat-muse-clone.md`](docs/thiet-ke-ky-thuat-muse-clone.md) ·
 > Kiến trúc module: [`ARCHITECTURE.md`](ARCHITECTURE.md)
@@ -192,6 +194,10 @@ thích từng biến. Các biến chính:
 | `WEBAPP_APP_NAME` | — | Short name Mini App trong BotFather (`/myapps`) |
 | `WEBAPP_PORT` | `8320` | Cổng Mini App server trên 127.0.0.1 |
 | `APPROVAL_TIMEOUT_S` | `60` | Thẻ duyệt (policy nấc `ask`) hết hạn sau ngần này giây |
+| `MARKETPLACE_ENABLED` | `1` | Chợ MCP trong Mini App (tắt = API trả 503, boot gate bỏ qua) |
+| `MARKETPLACE_CATALOG_AUTO_UPDATE` | `1` | Tự kiểm tra catalog lúc khởi động + hàng tuần (chỉ dữ kiện, kiểm checksum) |
+| `MARKETPLACE_SECURITY_MIN_SCORE` | `7.0` | Điểm bảo mật tối thiểu để được cài nhanh từ listing |
+| `MARKETPLACE_OPERATION_TTL_S` | `900` | Hạn của plan + mỗi thẻ duyệt operation marketplace |
 
 ## Lệnh Telegram
 
@@ -261,6 +267,29 @@ chính nhân vật Mulon, kỷ luật màu 60/30/10, responsive
 > xong / lỗi) chỉ có bên trong Mini App, vẽ bằng CSS trên ảnh
 > tĩnh sẵn có.
 
+## Chợ MCP (Marketplace) — từ 1.3.0
+
+Trong Mini App: **Cài đặt → Công cụ kết nối**, segmented **Đã
+cài | Chợ**. Mulon 1.3 chỉ cài MCP server **miễn phí, chạy
+local (stdio)** — không remote, không trả phí, theo quyết định
+chủ nhân. Nguồn: danh mục tuyển chọn đóng gói
+(`config/marketplace_curated.json` — 6 server tham chiếu chính
+thức, ghim version, đã chạy thử khi rà soát) hoặc **dán cấu
+hình thủ công** (JSON `mcpServers`).
+
+Mỗi lần cài đi qua đủ các cổng: chuẩn hoá cấu hình (bác shell
+string, bác bí mật dạng chữ — bí mật chỉ gắn bằng **Vault
+ref**) → phân tích rủi ro (phát hiện nghiêm trọng = chặn
+cứng; điểm < 7.0 không cài nhanh) → **duyệt lần 1 để chạy
+thử** (probe tách rời, chỉ liệt kê tool) → xem tool + dấu vân
+tay → **duyệt lần 2 để cài**. Tool của server chợ vào group
+policy `mcp:<server>` ở nấc **Hỏi trước**. Bot **tự khởi động
+lại** để áp dụng; lúc boot, tool chỉ được đăng ký khi cấu
+hình + tool khớp đúng bản đã duyệt — áp dụng lỗi thì bot tự
+khôi phục cấu hình trước đó và nhắn báo. Catalog tự cập nhật
+*dữ kiện* từ repo (kiểm tra lúc khởi động + hàng tuần, kiểm
+checksum) — không bao giờ tự cài server.
+
 ## Công cụ dòng lệnh
 
 | Lệnh | Việc |
@@ -310,12 +339,13 @@ thật qua proxy với cùng bộ case. CI (GitHub Actions) chạy pytest
 
 ```
 mulon/          Mã nguồn agent (gateway, core, memory, surfaces…)
-tests/          221 test — mỗi phase một cụm test riêng
+tests/          291 test — mỗi phase một cụm test riêng
 dossier/        SOUL / IDENTITY / USER / MEMORY / FEED / HEARTBEAT…
 docs/           Tài liệu thiết kế kỹ thuật đầy đủ
 evals/          Bộ eval vàng (golden.jsonl) + case sinh từ correction
 skills/         SKILL.md nạp dần, qua vet tĩnh trước khi dùng
-config/         policy.json (policy 2 lớp), mcp_servers.json
+config/         policy.json (policy 2 lớp), mcp_servers.json,
+                marketplace_curated.json (danh mục Chợ MCP)
 assets/         Avatar và tài nguyên tĩnh
 Dockerfile · docker-compose.yml
 ```
