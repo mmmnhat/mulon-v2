@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import nullcontext
 import json
 import logging
 import re
@@ -31,6 +32,7 @@ from typing import Awaitable, Callable, Optional
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ChatType
 from aiogram.types import FSInputFile, Message, ReactionTypeEmoji
+from aiogram.utils.chat_action import ChatActionSender
 
 from . import surfaces as surf
 from .ideas import format_idea_card, parse_do_reply
@@ -264,6 +266,20 @@ class TelegramSurface:
                 await anchor.react([ReactionTypeEmoji(emoji="👀")])
             except Exception:
                 pass
+
+            chat = getattr(anchor, "chat", None)
+            chat_id = getattr(chat, "id", None)
+            thread_id = getattr(anchor, "message_thread_id", None)
+            typing_ctx = (
+                ChatActionSender.typing(
+                    bot=self.bot,
+                    chat_id=chat_id,
+                    message_thread_id=thread_id,
+                )
+                if self.bot is not None and chat_id is not None
+                else nullcontext()
+            )
+
             placeholder = None
             state = {"shown": "", "last_edit": 0.0}
 
@@ -289,9 +305,10 @@ class TelegramSurface:
                 self.dossier is not None
                 and self.dossier.bootstrap_pending()
             )
-            result = await self.agent.handle(
-                key, joined, on_delta=on_delta
-            )
+            async with typing_ctx:
+                result = await self.agent.handle(
+                    key, joined, on_delta=on_delta
+                )
             final = result.text or "(không có nội dung)"
             chunks = chunk_html(final)
             try:
@@ -365,6 +382,15 @@ class TelegramSurface:
             await message.answer(
                 "Tính năng nghe voice chưa sẵn sàng trên bản chạy này.")
             return
+        try:
+            thread_id = getattr(message, "message_thread_id", None)
+            await self.bot.send_chat_action(
+                chat_id=message.chat.id,
+                action="typing",
+                message_thread_id=thread_id,
+            )
+        except Exception:
+            pass
         try:
             tg_file = await self.bot.get_file(message.voice.file_id)
             in_dir = Path(self.cfg.workspace_dir) / "voice_in"
@@ -1027,6 +1053,16 @@ class TelegramSurface:
                 return
             key = session_key_for(message)
             self._sessions_meta[key] = message
+            try:
+                thread_id = getattr(message, "message_thread_id", None)
+                if message.bot:
+                    await message.bot.send_chat_action(
+                        chat_id=message.chat.id,
+                        action="typing",
+                        message_thread_id=thread_id,
+                    )
+            except Exception:
+                pass
             await self.batcher.add(key, message.text or "")
 
     async def _consolidate_closed(self, key: str) -> None:
