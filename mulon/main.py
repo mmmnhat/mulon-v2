@@ -86,8 +86,15 @@ async def build_system(cfg: Config):
     # Feed dùng — agent được TÌM trang, việc đọc vẫn qua
     # web_fetch/web_read như cũ.
     register_search_tool(registry)
-    # Connector framework: adapter ví dụ trung tính 'system'.
-    connectors = build_default_connectors(cfg)
+    # Connector framework: adapter 'system' + (1.5.0) Gmail /
+    # Google Calendar dùng chung 1 GoogleAuth; VaultStore dựng
+    # sớm ở đây để auth đọc credential (marketplace + phase 6
+    # dùng lại đúng instance này).
+    vault_store = VaultStore(cfg.vault_path)
+    from .google_conn import build_google_auth
+
+    google_auth = build_google_auth(cfg, vault_store)
+    connectors = build_default_connectors(cfg, google_auth=google_auth)
     register_connector_tools(registry, connectors)
     # MCP client: nối server đã bật trong config, đăng ký tool của
     # chúng vào registry chung. Server lỗi/vắng -> degrade sạch.
@@ -98,9 +105,6 @@ async def build_system(cfg: Config):
     # App (/api/approve).
     broker = ApprovalBroker(policy=policy,
                             timeout_s=cfg.approval_timeout_s)
-    # 1.3.0: Marketplace cần VaultStore SỚM (secret resolver cho
-    # MCPManager) — phase 6 dùng lại đúng instance này.
-    vault_store = VaultStore(cfg.vault_path)
     # 1.3.0: MCP Marketplace — boot gate chạy giữa start() và
     # register_into(): server managed chỉ được đăng ký tool khi
     # config fingerprint + tool fingerprint khớp bản đã duyệt;
@@ -194,7 +198,7 @@ async def build_system(cfg: Config):
         connectors=connectors, mcp_manager=mcp_manager,
         vault_store=vault_store, registry=registry, dossier=dossier,
         skills=catalog, activity=activity, marketplace=marketplace,
-        feed_auto=feed_auto)
+        feed_auto=feed_auto, google_auth=google_auth)
     services = {
         "mcp": mcp_manager,
         "connectors": connectors,

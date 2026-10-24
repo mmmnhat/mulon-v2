@@ -172,9 +172,20 @@ class SystemConnector(Connector):
                 "error": f"system không hỗ trợ action: {action}"}
 
 
-def build_default_connectors(cfg) -> ConnectorRegistry:
+def build_default_connectors(cfg, google_auth=None) -> ConnectorRegistry:
     registry = ConnectorRegistry()
     registry.register(SystemConnector())
+    if google_auth is not None:
+        # 1.5.0: connector thật Gmail + Google Calendar, dùng
+        # chung 1 GoogleAuth do main dựng (webapp dùng cùng
+        # instance cho luồng OAuth). Không truyền -> không
+        # đăng ký (các bề mặt test tối thiểu không đổi).
+        from .google_conn import GCalendarConnector, GmailConnector
+
+        registry.register(GmailConnector(google_auth))
+        registry.register(GCalendarConnector(
+            google_auth,
+            default_tz=getattr(cfg, "default_timezone", "UTC")))
     return registry
 
 

@@ -211,6 +211,13 @@ class Config:
     webapp_url: str = ""
     webapp_app_name: str = ""
     webapp_port: int = 8320
+    # --- 1.5.0: Google connectors (Gmail + Calendar) ---
+    # Client ID/Secret của OAuth client do owner tạo ở Google
+    # Cloud. Có thể để trống ở đây và nhập vào Vault với label
+    # google:client_id / google:client_secret (env thắng).
+    # Refresh token KHÔNG qua env — chỉ ở Vault.
+    google_client_id: str = ""
+    google_client_secret: str = ""
     # Thẻ duyệt (policy nấc "ask") hết hạn sau ngần này giây.
     approval_timeout_s: float = 60.0
 
@@ -351,6 +358,8 @@ class Config:
             webapp_url=_env("WEBAPP_URL", ""),
             webapp_app_name=_env("WEBAPP_APP_NAME", ""),
             webapp_port=_env_int("WEBAPP_PORT", 8320),
+            google_client_id=_env("GOOGLE_CLIENT_ID", ""),
+            google_client_secret=_env("GOOGLE_CLIENT_SECRET", ""),
             approval_timeout_s=_env_float("APPROVAL_TIMEOUT_S", 60.0),
             marketplace_enabled=_env_bool("MARKETPLACE_ENABLED", True),
             marketplace_curated_path=_resolve(_env(

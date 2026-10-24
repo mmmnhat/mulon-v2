@@ -1661,6 +1661,17 @@ $("card-memory").addEventListener("click", async () => {
 });
 
 /* ---------------- Cài đặt con ---------------- */
+function googleAction(g){
+  /* Nút/trạng thái cho connector Google theo 3 trạng thái
+     thật từ server (google_auth.status()). */
+  if (!g.configured)
+    return '<span class="r-state">Chưa cấu hình</span>';
+  if (!g.connected)
+    return '<button class="btn btn-soft btn-sm" ' +
+      'data-gconnect="1">Kết nối</button>';
+  return '<button class="btn btn-soft btn-sm" ' +
+    'data-gdisconnect="1">Ngắt kết nối</button>';
+}
 function renderConnectors(){
   const list = (S && S.connectors) || [];
   const box = $("connector-list");
@@ -1676,14 +1687,36 @@ function renderConnectors(){
     /* Như màn Lịch: toggle chỉ khi đổi được thật qua
        /api/connector (MCP server); connector built-in không
        tắt/bật nóng được thì hiện trạng thái bằng chữ, không
-       vẽ công tắc chết (gói vá 1.3.0). */
-    (c.toggleable
-      ? '<label class="tgl"><input type="checkbox" data-conn="' +
-        esc(c.id) + '"' + (c.enabled ? " checked" : "") +
-        '><span class="tr"></span></label>'
-      : '<span class="r-state">' +
-        (c.enabled ? "Đang bật" : "Đã tắt") + '</span>') +
+       vẽ công tắc chết (gói vá 1.3.0). Riêng connector
+       Google (1.5.0): nút hành động thật — Kết nối khi đã có
+       client mà chưa ủy quyền, Ngắt kết nối khi đã nối. */
+    (c.google
+      ? googleAction(c.google)
+      : c.toggleable
+        ? '<label class="tgl"><input type="checkbox" data-conn="' +
+          esc(c.id) + '"' + (c.enabled ? " checked" : "") +
+          '><span class="tr"></span></label>'
+        : '<span class="r-state">' +
+          (c.enabled ? "Đang bật" : "Đã tắt") + '</span>') +
     '</div>').join("");
+  box.querySelectorAll("[data-gconnect]").forEach(btn =>
+    btn.addEventListener("click", async () => {
+      try {
+        const r = await api("/api/google/auth-url");
+        if (!r.url) throw new Error(r.error || "không lấy được link");
+        if (tg && tg.openLink) tg.openLink(r.url);
+        else window.open(r.url, "_blank");
+        toast("Đã mở trang ủy quyền Google — xong quay lại đây.");
+      } catch (e) { toast(e.message); }
+    }));
+  box.querySelectorAll("[data-gdisconnect]").forEach(btn =>
+    btn.addEventListener("click", async () => {
+      try {
+        await api("/api/google/disconnect", "POST", {});
+        toast("Đã ngắt kết nối Google.");
+        await load();
+      } catch (e) { toast(e.message); }
+    }));
   box.querySelectorAll("[data-conn]").forEach(inp =>
     inp.addEventListener("change", async () => {
       try {

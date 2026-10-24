@@ -63,6 +63,12 @@ server MCP mcp:<tên> — cài thêm là tự xuất hiện); ô nhập
 .field-input đầy bề ngang (Kho hết "chưa responsive"); tab
 Việc chỉ còn TASK THẬT (timeline các bước kế hoạch + tóm
 tắt), lượt chat trở về đúng chỗ của nó: trong chat.
+
+Bản 1.5.0 (2026-10-24): connector thật đầu tiên — Gmail
+(tìm/đọc/gửi) + Google Calendar (xem/tạo/xoá sự kiện)
+qua OAuth2 ủy quyền 1 lần từ Mini App, refresh token
+ở Vault, client id/secret qua env hoặc Vault. Xem
+docs/google-connector-setup.md.
 """
 
-__version__ = "1.4.1"
+__version__ = "1.5.0"

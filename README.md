@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.4.1-blueviolet">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.5.0-blueviolet">
   <img alt="Python" src="https://img.shields.io/badge/python-3.12-3776AB">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-343%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-350%20passing-brightgreen">
   <img alt="Eval" src="https://img.shields.io/badge/eval%20gate-85%25-orange">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -364,8 +364,8 @@ Ghi trung thực những gì bản 1.0.0 chưa có:
 - Tách fact thành trang `people/*.md` / `groups/*.md`.
 - Thủ tục hóa: việc quen lặp lại ≥3 lần thành plan template/skill
   đóng gói.
-- Adapter connector cho dịch vụ thật (hiện mới có khung + adapter
-  `system`).
+- Thêm connector dịch vụ thật ngoài Gmail + Google Calendar
+  (1.5.0 đã có 2 connector này qua OAuth2 + adapter `system`).
 - MCP OAuth đầy đủ (HTTP hiện ở mức header từ env).
 - Đóng gói dashboard Langfuse self-host chạy kèm.
 - Nạp nóng skill không cần khởi động lại bot.

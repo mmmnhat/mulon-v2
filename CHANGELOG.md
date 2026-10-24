@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 1.5.0 — 2026-10-24 — Connector thật đầu tiên: Gmail + Google Calendar
+
+- Connector `gmail`: tìm thư, đọc thư (bóc text từ cây MIME,
+  cắt 8000 ký tự), gửi thư. Connector `gcalendar`: xem sự
+  kiện 7 ngày tới, tạo sự kiện, xoá sự kiện. Cả hai dùng
+  chung 1 ủy quyền Google OAuth2.
+- Kết nối ngay trong Mini App (Công cụ kết nối → Kết nối
+  Google): server dựng URL consent, callback công khai duy
+  nhất `/google/callback` được bảo vệ bằng state nonce dùng
+  1 lần (hạn 10 phút). Refresh token chỉ ở Vault; client
+  id/secret qua env `GOOGLE_CLIENT_ID/SECRET` hoặc Vault
+  nhãn `google:client_id`/`google:client_secret`.
+- Quyền riêng từng connector (từ 1.4.1) áp dụng ngay:
+  `connector:gmail`, `connector:gcalendar` đặt 3 nấc được
+  ở màn Quyền.
+- Tài liệu cho chủ nhân: `docs/google-connector-setup.md`
+  (tạo Google Cloud project, bật 2 API, khai redirect URI).
+
 ## 1.4.1 — Đợt vá theo phản ánh của owner sau 1.4
 
 - **Công tắc heartbeat THẬT trong Mini App** (tab Lịch): gạt

@@ -276,7 +276,7 @@ class WebAppServer:
     def __init__(self, cfg, *, memory, policy, broker, connectors,
                  mcp_manager, vault_store, registry, dossier=None,
                  skills=None, activity: Optional[ActivityTracker] = None,
-                 marketplace=None, feed_auto=None):
+                 marketplace=None, feed_auto=None, google_auth=None):
         self.cfg = cfg
         self.memory = memory
         self.policy = policy
@@ -294,6 +294,10 @@ class WebAppServer:
         # None thì block state "feed" là None và /api/feed trả 503.
         # KHÔNG có action tắt Feed ở API này (quyết định 0.2b).
         self.feed_auto = feed_auto
+        # Google connectors 1.5.0 (mulon.google_conn.GoogleAuth)
+        # — None thì /api/google/* trả 503 và /google/callback
+        # trả trang báo chưa nối.
+        self.google_auth = google_auth
         self.activity = activity or ActivityTracker()
         self._runner = None
         self._site = None
@@ -322,12 +326,7 @@ class WebAppServer:
             return await self._auth_middleware(request, handler)
 
         app = web.Application(middlewares=[_auth])
-        app.router.add_get("/", self._handle_index)
-        app.router.add_get("/a", self._handle_index)
-        app.router.add_get("/a/", self._handle_index)
         app.router.add_get("/app", self._handle_index)
-        app.router.add_get("/app/", self._handle_index)
-        app.router.add_get("/panel", self._handle_index)
         app.router.add_get("/app/avatar", self._handle_avatar)
         app.router.add_get("/app/assets/{name}",
                            self._handle_static_asset)
@@ -349,6 +348,16 @@ class WebAppServer:
                            self._handle_skill_detail)
         app.router.add_post("/api/vault/capture",
                             self._handle_vault_capture)
+        # 1.5.0: Google OAuth — auth-url + disconnect qua auth
+        # initData như mọi /api/*; callback là route CÔNG KHAI
+        # duy nhất (trình duyệt ngoài quay về từ Google, bảo vệ
+        # bằng state nonce dùng 1 lần, xem _handle_google_callback).
+        app.router.add_get("/api/google/auth-url",
+                           self._handle_google_auth_url)
+        app.router.add_post("/api/google/disconnect",
+                            self._handle_google_disconnect)
+        app.router.add_get("/google/callback",
+                           self._handle_google_callback)
         # 1.3.0: Chợ MCP — mọi route qua cùng middleware auth
         # initData owner-only như các /api/* khác.
         app.router.add_get("/api/marketplace/summary",
@@ -476,12 +485,19 @@ class WebAppServer:
             health = {}
         for name in self.connectors.names():
             h = health.get(name) or {}
-            out.append({
+            item = {
                 "id": name, "name": name, "kind": "builtin",
                 "ok": bool(h.get("ok")), "enabled": True,
                 "toggleable": False,
                 "detail": str(h.get("error") or h.get("detail") or ""),
-            })
+            }
+            if name in ("gmail", "gcalendar") \
+                    and self.google_auth is not None:
+                # 1.5.0: frontend vẽ nút Kết nối/Ngắt kết nối
+                # theo trạng thái này (cả 2 connector dùng
+                # chung 1 ủy quyền Google).
+                item["google"] = self.google_auth.status()
+            out.append(item)
         # MCP servers: trạng thái nối từ manager + enabled từ file
         # cấu hình (đọc tươi để toggle phản ánh đúng).
         if self.mcp is not None:
@@ -1205,6 +1221,103 @@ class WebAppServer:
             except Exception:
                 pass
         return web.json_response({"ok": True, "ref": ref})
+
+    # ---------- 1.5.0: Google OAuth ----------
+
+    _GOOGLE_KV_STATE = "google_oauth_state"
+
+    async def _handle_google_auth_url(self, request):
+        if self.google_auth is None:
+            return web.json_response(
+                {"ok": False, "error": "Google connector chưa "
+                                       "được nối ở bản chạy này."},
+                status=503)
+        if not self.google_auth.configured():
+            return web.json_response(
+                {"ok": False,
+                 "error": "Chưa có client id/secret: nhập 2 bí "
+                          "mật nhãn google:client_id và "
+                          "google:client_secret ở màn Kho lưu "
+                          "trữ, hoặc đặt env GOOGLE_CLIENT_ID / "
+                          "GOOGLE_CLIENT_SECRET."},
+                status=400)
+        import secrets as _secrets
+
+        state = _secrets.token_urlsafe(24)
+        await self.memory.kv_set(
+            self._GOOGLE_KV_STATE,
+            json.dumps({"state": state, "ts": time.time()}))
+        return web.json_response({
+            "ok": True,
+            "url": self.google_auth.build_auth_url(state),
+            "redirect_uri": self.google_auth.redirect_uri(),
+        })
+
+    async def _handle_google_disconnect(self, request):
+        if self.google_auth is None:
+            return web.json_response(
+                {"ok": False, "error": "Google connector chưa "
+                                       "được nối ở bản chạy này."},
+                status=503)
+        self.google_auth.disconnect()
+        await self.memory.log_trajectory(
+            "webapp", "google_disconnected", {})
+        return web.json_response({"ok": True})
+
+    async def _handle_google_callback(self, request):
+        """Route CÔNG KHAI duy nhất của webapp: trình duyệt
+        ngoài quay về từ Google nên không có initData. Bảo vệ
+        bằng state nonce (ngẫu nhiên, lưu kv, hạn 10 phút, dùng
+        1 lần) + code chỉ đổi được token khi kèm client_secret
+        phía server. Trang trả về không chứa dữ liệu nhạy cảm."""
+
+        def page(msg: str, ok: bool):
+            color = "#3E9B6C" if ok else "#D95F57"
+            body = (
+                "<!doctype html><html lang=\"vi\"><head>"
+                "<meta charset=\"utf-8\"><title>Mulon — Google"
+                "</title></head><body style=\"font-family:"
+                "sans-serif;max-width:32rem;margin:3rem auto;"
+                "text-align:center\">"
+                f"<h3 style=\"color:{color}\">{msg}</h3>"
+                "<p>Đóng trang này và quay lại Telegram được "
+                "rồi.</p></body></html>")
+            return web.Response(text=body,
+                                content_type="text/html")
+
+        if self.google_auth is None:
+            return page("Bản chạy này chưa nối Google "
+                        "connector.", False)
+        code = request.query.get("code") or ""
+        state = request.query.get("state") or ""
+        saved = None
+        try:
+            raw = await self.memory.kv_get(self._GOOGLE_KV_STATE)
+            saved = json.loads(raw) if raw else None
+        except Exception:
+            saved = None
+        # Dùng 1 lần: xoá ngay khi có bất kỳ callback nào.
+        try:
+            await self.memory.kv_set(self._GOOGLE_KV_STATE, "")
+        except Exception:
+            pass
+        if (not code or not saved
+                or saved.get("state") != state
+                or time.time() - float(saved.get("ts") or 0) > 600):
+            return page("Liên kết kết nối không hợp lệ hoặc đã "
+                        "hết hạn. Hãy bấm Kết nối lại trong Mini "
+                        "App.", False)
+        result = await self.google_auth.exchange_code(code)
+        if not result.get("ok"):
+            return page("Google từ chối kết nối: " +
+                        str(result.get("error") or "không rõ"),
+                        False)
+        await self.memory.log_trajectory(
+            "webapp", "google_connected",
+            {"email": result.get("email") or ""})
+        return page("Đã kết nối Google" +
+                    (f" ({result['email']})"
+                     if result.get("email") else "") + ".", True)
 
     # ---------- 1.3.0: Chợ MCP ----------
     def _mkt_guard(self):
