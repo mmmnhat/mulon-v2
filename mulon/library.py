@@ -181,7 +181,7 @@ class LibraryService:
 def format_library_list(items: list[dict]) -> str:
     if not items:
         return "Library trống."
-    lines = ["**Library:**"]
+    lines = ["Library:"]
     for it in items:
         extra = ""
         if it.get("share_status") == "pending_host":
