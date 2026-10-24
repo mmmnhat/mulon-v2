@@ -49,7 +49,7 @@ Phase 6 trình — không tự gửi.
 | `mulon/config.py` | Cấu hình qua env, không hardcode giá trị cá nhân |
 | `mulon/gateway.py` | LiteLLM -> proxy; retry, circuit breaker, đo latency/token |
 | `mulon/context.py` | Dossier snapshot, mục bài học, ngân sách token, trim, compaction + memory flush |
-| `mulon/memory.py` | SQLite WAL: messages/FTS5, facts bi-temporal, bảng vec0 + chỉ mục lúc ghi, corrections, turn_digests, tasks, trajectory, ledger, schedules, goals/goal_activity/tracked_items, proactive_notes, feed_posts/feed_signals, idea_cards, library_items |
+| `mulon/memory.py` | SQLite WAL: messages/FTS5, facts bi-temporal, bảng vec0 + chỉ mục lúc ghi, corrections, turn_digests, tasks, trajectory, ledger, schedules, goals/goal_activity/tracked_items, proactive_notes, feed_posts/feed_signals (+ feed_post_sources/feed_material_cache/feed_settings từ 1.4), idea_cards, library_items |
 | `mulon/embeddings.py` | Interface Embedder: FastEmbed bge-m3 (lazy, tuỳ chọn) + stub tất định cho test |
 | `mulon/learning.py` | Phát hiện correction, phân loại taxonomy, rút bài học chống overfit, sinh eval case |
 | `mulon/consolidation.py` | Worker tổng hợp ký ức: trích fact, khử trùng, supersede, backfill embedding; CLI `--once` |
@@ -73,7 +73,8 @@ Phase 6 trình — không tự gửi.
 | `mulon/backup.py` | Backup .zip (DB qua SQLite backup API + dossier + config không secret + manifest SHA-256); restore kiểm checksum trước khi ghi đè; CLI create/list/restore |
 | `mulon/report.py` | Báo cáo sức khỏe chỉ đọc: p50/p95 recall/model/task, đường cong học theo tuần ISO, correction rate 4 tuần, trạng thái ký ức; CLI `python -m mulon.report [--json]` |
 | `mulon/surfaces.py` | Bề mặt group (Phase 6): định nghĩa 6 bề mặt + TopicManager (tạo topic, ghim mục lục, map trong kv_state), presenter/parser thuần cho note/ý tưởng/quyền, kế hoạch quên + export/import ký ức |
-| `mulon/feed.py` | FeedEngine: brief trong dossier/FEED.md (mục đánh dấu), sinh bài từ tư liệu nội bộ bằng model rẻ, đăng + ghi feed_posts; reaction -> feed_signals -> taste summary |
+| `mulon/feed.py` | FeedEngine: brief + nguồn ghim trong dossier/FEED.md (mục đánh dấu), collector ngoài (tự search + chấm tin cậy + cache hash + đối chiếu chéo), writer model rẻ + kiểm trích dẫn/trùng tất định sau sinh, đăng + ghi feed_posts/feed_post_sources; reaction -> feed_signals -> taste v2 (theo nguồn + chủ đề) |
+| `mulon/feed_auto.py` · `mulon/websearch.py` | FeedAutoRunner: job hệ thống nội bộ trên SchedulerService (cô lập tick khỏi lịch thường), cổng trần bài/token/giờ yên lặng, tự tạm dừng sau 3 lượt lỗi + báo owner 1 tin · websearch: DDG/Bing không API key, parser thuần, fetch trang cho collector |
 | `mulon/ideas.py` | IdeaEngine: sinh thẻ ý tưởng (hết hạn theo config), dọn thẻ hết hạn, 'làm luôn' -> goal + task, bỏ qua |
 | `mulon/library.py` | LibraryService: lập chỉ mục workspace, thùng rác 30 ngày (move file thật vào workspace/trash/), chia sẻ <=48h trạng thái chờ host |
 | `mulon/vault.py` | Secure Vault: VaultStore (file JSON 0600, cửa đọc duy nhất resolve(ref)) + VaultFormServer (stdlib HTTP bind 127.0.0.1, token 1 lần + TTL); giá trị không qua chat/log/trajectory |
