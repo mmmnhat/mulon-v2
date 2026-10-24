@@ -31,6 +31,9 @@ from urllib.parse import parse_qsl
 
 from . import __version__ as MULON_VERSION
 from .approvals import GROUP_SCOPE_LABELS
+from .cron import parse_cron
+from .feed_auto import valid_quiet_hours
+from .planning import internal_kind
 
 logger = logging.getLogger("mulon.webapp")
 
@@ -271,7 +274,7 @@ class WebAppServer:
     def __init__(self, cfg, *, memory, policy, broker, connectors,
                  mcp_manager, vault_store, registry, dossier=None,
                  skills=None, activity: Optional[ActivityTracker] = None,
-                 marketplace=None):
+                 marketplace=None, feed_auto=None):
         self.cfg = cfg
         self.memory = memory
         self.policy = policy
@@ -285,6 +288,10 @@ class WebAppServer:
         # Marketplace 1.3.0 (mulon.marketplace) — None thì toàn bộ
         # /api/marketplace/* trả 503 sạch, màn Kết nối giữ hành vi cũ.
         self.marketplace = marketplace
+        # Feed chủ động 1.4.0 (mulon.feed_auto.FeedAutoRunner) —
+        # None thì block state "feed" là None và /api/feed trả 503.
+        # KHÔNG có action tắt Feed ở API này (quyết định 0.2b).
+        self.feed_auto = feed_auto
         self.activity = activity or ActivityTracker()
         self._runner = None
         self._site = None
@@ -313,13 +320,7 @@ class WebAppServer:
             return await self._auth_middleware(request, handler)
 
         app = web.Application(middlewares=[_auth])
-        app.router.add_get("/", self._handle_index)
-        app.router.add_get("/a", self._handle_index)
-        app.router.add_get("/a/", self._handle_index)
         app.router.add_get("/app", self._handle_index)
-        app.router.add_get("/app/", self._handle_index)
-        app.router.add_get("/panel", self._handle_index)
-        app.router.add_get("/dashboard", self._handle_index)
         app.router.add_get("/app/avatar", self._handle_avatar)
         app.router.add_get("/app/assets/{name}",
                            self._handle_static_asset)
@@ -331,6 +332,8 @@ class WebAppServer:
         app.router.add_post("/api/connector", self._handle_connector)
         app.router.add_post("/api/approve", self._handle_approve)
         app.router.add_post("/api/schedule", self._handle_schedule)
+        # 1.4.0: điều khiển Feed chủ động (không có action tắt).
+        app.router.add_post("/api/feed", self._handle_feed)
         app.router.add_post("/api/profile/theme", self._handle_theme)
         # 1.3.0 (gói vá Mini App): kỹ năng đọc được + Vault nhập
         # ngay trong app — cùng middleware auth initData.
@@ -545,6 +548,24 @@ class WebAppServer:
             # Schema thật của schedules: payload (không có
             # title/prompt) — NC-3: tên lịch lấy từ payload.
             payload = str(r.get("payload") or "")
+            internal = internal_kind(payload)
+            if internal is not None:
+                # Job hệ thống nội bộ (1.4): hiển thị minh bạch
+                # nhưng KHÔNG toggle được ở tab Lịch — điều
+                # khiển ở Cài đặt → Feed chủ động.
+                items.append({
+                    "id": str(r.get("id")),
+                    "name": "Feed chủ động (tự động)",
+                    "cron": r.get("cron", ""),
+                    "prompt": "Job hệ thống: tự viết bài Feed "
+                              "theo lịch. Điều khiển ở Cài đặt → "
+                              "Feed chủ động.",
+                    "enabled": bool(r.get("enabled")),
+                    "next_run_at": r.get("next_run_at") or "",
+                    "last_run_at": r.get("last_run_at") or "",
+                    "toggleable": False, "kind": "feed_auto",
+                })
+                continue
             items.append({
                 "id": str(r.get("id")),
                 "name": payload[:60] or str(r.get("id")),
@@ -566,6 +587,10 @@ class WebAppServer:
         })
         scheduler_on = bool(self.cfg.scheduler_enabled)
         return {"available": available, "scheduler_enabled": scheduler_on,
+                # 1.4: tab Lịch cần biết vòng tick vẫn chạy cho job
+                # nội bộ dù scheduler thường tắt (tránh banner
+                # "scheduler đang tắt" gây hiểu nhầm cho Feed).
+                "feed_auto": self.feed_auto is not None,
                 "items": items}
 
     async def _profile_state(self) -> dict:
@@ -798,6 +823,10 @@ class WebAppServer:
             "marketplace_summary": (self.marketplace.summary()
                                     if self.marketplace is not None
                                     else None),
+            # 1.4.0: trạng thái Feed chủ động cho màn Cài đặt →
+            # Feed chủ động. None khi bản chạy chưa nối runner.
+            "feed": (await self.feed_auto.get_state()
+                     if self.feed_auto is not None else None),
         }
         return web.json_response(state)
 
@@ -991,9 +1020,120 @@ class WebAppServer:
                  "error": "Heartbeat bật/tắt bằng biến môi trường "
                           "PROACTIVITY_ENABLED, không đổi ở đây."},
                 status=400)
+        row = await self.memory.get_schedule(schedule_id)
+        if row is not None and internal_kind(
+                row.get("payload") or "") is not None:
+            return web.json_response(
+                {"ok": False,
+                 "error": "Job hệ thống nội bộ — điều khiển ở "
+                          "Cài đặt → Feed chủ động, không bật/tắt "
+                          "ở tab Lịch."},
+                status=400)
         ok = await self.memory.set_schedule_enabled(schedule_id,
                                                     enabled)
         return web.json_response({"ok": ok})
+
+    # ---------- 1.4.0: Feed chủ động ----------
+    async def _handle_feed(self, request):
+        """Điều khiển Feed chủ động từ Mini App (owner-only qua
+        middleware auth như mọi /api/*).
+
+        Cố ý KHÔNG có action tắt/bật tổng (quyết định 0.2b: Feed
+        luôn tự động). Actions: set_cron, set_quiet, set_limits,
+        add_source, remove_source, set_source_enabled,
+        set_denylist, run_now, resume.
+        """
+        if self.feed_auto is None:
+            return web.json_response(
+                {"ok": False, "error": "Feed chủ động chưa được "
+                                       "nối ở bản chạy này."},
+                status=503)
+        body = await self._json_body(request)
+        action = str(body.get("action") or "")
+        runner = self.feed_auto
+        engine = runner.engine
+
+        def _bad(msg: str):
+            return web.json_response(
+                {"ok": False, "error": msg}, status=400)
+
+        if action == "set_cron":
+            cron = str(body.get("cron") or "").strip()
+            try:
+                parse_cron(cron)
+            except Exception:
+                return _bad("cron không hợp lệ (cần 5 trường: "
+                            "phút giờ ngày tháng thứ)")
+            await runner.apply_settings({"cron": cron})
+        elif action == "set_quiet":
+            quiet = str(body.get("quiet_hours") or "").strip()
+            if not valid_quiet_hours(quiet):
+                return _bad("giờ yên lặng phải dạng HH:MM-HH:MM")
+            await runner.apply_settings({"quiet_hours": quiet})
+        elif action == "set_limits":
+            changes = {}
+            for key in ("max_posts_per_day", "daily_token_budget"):
+                if body.get(key) is not None:
+                    try:
+                        value = int(body[key])
+                    except (TypeError, ValueError):
+                        return _bad(f"{key} phải là số nguyên")
+                    if value < 0:
+                        return _bad(f"{key} không được âm")
+                    changes[key] = value
+            if not changes:
+                return _bad("không có giới hạn nào để đặt")
+            await runner.apply_settings(changes)
+        elif action == "add_source":
+            url = str(body.get("url") or "").strip()
+            if not url.startswith(("http://", "https://")):
+                return _bad("URL nguồn phải bắt đầu http:// "
+                            "hoặc https://")
+            trust = str(body.get("trust") or "normal").lower()
+            if trust not in ("high", "normal", "low"):
+                trust = "normal"
+            sources = engine.read_sources()
+            if any(s["url"] == url for s in sources):
+                return _bad("nguồn này đã có trong danh sách")
+            sources.append({"url": url,
+                            "label": str(body.get("label") or "")[:60],
+                            "trust": trust, "enabled": True})
+            engine.set_sources(sources)
+        elif action == "remove_source":
+            url = str(body.get("url") or "").strip()
+            sources = [s for s in engine.read_sources()
+                       if s["url"] != url]
+            engine.set_sources(sources)
+        elif action == "set_source_enabled":
+            url = str(body.get("url") or "").strip()
+            sources = engine.read_sources()
+            for s in sources:
+                if s["url"] == url:
+                    s["enabled"] = bool(body.get("enabled"))
+            engine.set_sources(sources)
+        elif action == "set_denylist":
+            raw = body.get("denylist")
+            if not isinstance(raw, list):
+                return _bad("denylist phải là danh sách domain")
+            await runner.apply_settings(
+                {"denylist": [str(d) for d in raw]})
+        elif action == "run_now":
+            if runner._sender is None:
+                return web.json_response(
+                    {"ok": False,
+                     "error": "bot chưa sẵn sàng gửi (sender "
+                              "chưa được gắn)"},
+                    status=503)
+            result = await runner.run_once(force=True)
+            return web.json_response(
+                {"ok": bool(result.get("ok")), "result": result,
+                 "feed": await runner.get_state()})
+        elif action == "resume":
+            await runner.resume()
+        else:
+            return _bad(f"action không hỗ trợ: {action or '(trống)'}")
+        return web.json_response(
+            {"ok": True, "feed": await runner.get_state()})
 
     # ---------- 1.3.0 (gói vá Mini App): kỹ năng + Vault ----------
     async def _handle_skills(self, request):
