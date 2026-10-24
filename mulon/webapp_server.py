@@ -44,6 +44,14 @@ except Exception:  # pragma: no cover - môi trường thiếu gói
 
 INIT_DATA_MAX_AGE_S = 3600
 INDEX_HTML = Path(__file__).resolve().parent / "webapp" / "index.html"
+WEBAPP_DIR = Path(__file__).resolve().parent / "webapp"
+# Asset tĩnh của Mini App (1.3.0): atlas sprite states của avatar
+# + manifest hình học đi kèm. Chỉ phục vụ đúng 2 file trong danh
+# sách trắng này — không mở đường duyệt thư mục.
+STATIC_ASSETS = {
+    "sprite-sheet-alpha.png": "image/png",
+    "mulon-states-manifest.json": "application/json",
+}
 
 # Màu chủ đề Mini App: chỉ đổi HỌ màu nhận diện (lớp 30% — tím
 # Mulon và các hue thay thế). Accent hành động chính (10%) là
@@ -164,6 +172,7 @@ TOOL_ACTION_LABELS = {
     "spawn_subagent": "Giao việc cho agent con",
     "send_message": "Gửi tin nhắn",
     "github_push": "Đẩy lên GitHub",
+    "the_duyet": "Gửi thẻ phê duyệt thử",
 }
 
 
@@ -261,7 +270,8 @@ class ActivityTracker:
 class WebAppServer:
     def __init__(self, cfg, *, memory, policy, broker, connectors,
                  mcp_manager, vault_store, registry, dossier=None,
-                 skills=None, activity: Optional[ActivityTracker] = None):
+                 skills=None, activity: Optional[ActivityTracker] = None,
+                 marketplace=None):
         self.cfg = cfg
         self.memory = memory
         self.policy = policy
@@ -272,6 +282,9 @@ class WebAppServer:
         self.registry = registry
         self.dossier = dossier
         self.skills = skills
+        # Marketplace 1.3.0 (mulon.marketplace) — None thì toàn bộ
+        # /api/marketplace/* trả 503 sạch, màn Kết nối giữ hành vi cũ.
+        self.marketplace = marketplace
         self.activity = activity or ActivityTracker()
         self._runner = None
         self._site = None
@@ -302,6 +315,8 @@ class WebAppServer:
         app = web.Application(middlewares=[_auth])
         app.router.add_get("/app", self._handle_index)
         app.router.add_get("/app/avatar", self._handle_avatar)
+        app.router.add_get("/app/assets/{name}",
+                           self._handle_static_asset)
         app.router.add_get("/api/state", self._handle_state)
         app.router.add_get("/api/task", self._handle_task)
         app.router.add_get("/api/profile/content",
@@ -311,6 +326,63 @@ class WebAppServer:
         app.router.add_post("/api/approve", self._handle_approve)
         app.router.add_post("/api/schedule", self._handle_schedule)
         app.router.add_post("/api/profile/theme", self._handle_theme)
+        # 1.3.0 (gói vá Mini App): kỹ năng đọc được + Vault nhập
+        # ngay trong app — cùng middleware auth initData.
+        app.router.add_get("/api/skills", self._handle_skills)
+        app.router.add_get("/api/skills/{name}",
+                           self._handle_skill_detail)
+        app.router.add_post("/api/vault/capture",
+                            self._handle_vault_capture)
+        # 1.3.0: Chợ MCP — mọi route qua cùng middleware auth
+        # initData owner-only như các /api/* khác.
+        app.router.add_get("/api/marketplace/summary",
+                           self._mkt_summary)
+        app.router.add_get("/api/marketplace/categories",
+                           self._mkt_categories)
+        app.router.add_get("/api/marketplace/catalog",
+                           self._mkt_catalog)
+        app.router.add_get(
+            "/api/marketplace/listings/{provider}/{slug}",
+            self._mkt_listing)
+        app.router.add_get("/api/marketplace/installed",
+                           self._mkt_installed)
+        app.router.add_get("/api/marketplace/installed/{name}",
+                           self._mkt_installed_detail)
+        app.router.add_get("/api/marketplace/operations/{id}",
+                           self._mkt_operation)
+        app.router.add_post("/api/marketplace/refresh",
+                            self._mkt_refresh)
+        app.router.add_post("/api/marketplace/import/parse",
+                            self._mkt_import_parse)
+        app.router.add_post("/api/marketplace/install/prepare",
+                            self._mkt_prepare)
+        app.router.add_post(
+            "/api/marketplace/operations/{id}/bind-secrets",
+            self._mkt_bind_secrets)
+        app.router.add_post(
+            "/api/marketplace/operations/{id}/request-probe-approval",
+            self._mkt_request_probe)
+        app.router.add_post(
+            "/api/marketplace/operations/{id}/request-commit-approval",
+            self._mkt_request_commit)
+        app.router.add_post("/api/marketplace/operations/{id}/cancel",
+                            self._mkt_cancel)
+        app.router.add_post(
+            "/api/marketplace/installed/{name}/health-check",
+            self._mkt_health_check)
+        app.router.add_post("/api/marketplace/installed/{name}/enable",
+                            self._mkt_enable)
+        app.router.add_post("/api/marketplace/installed/{name}/disable",
+                            self._mkt_disable)
+        app.router.add_post(
+            "/api/marketplace/installed/{name}/update/check",
+            self._mkt_update_check)
+        app.router.add_post(
+            "/api/marketplace/installed/{name}/update/prepare",
+            self._mkt_update_prepare)
+        app.router.add_post(
+            "/api/marketplace/installed/{name}/uninstall/prepare",
+            self._mkt_uninstall_prepare)
         return app
 
     async def start(self) -> bool:
@@ -355,6 +427,23 @@ class WebAppServer:
             return web.Response(status=404, text="thiếu index.html")
         return web.FileResponse(INDEX_HTML)
 
+    async def _handle_static_asset(self, request):
+        """Phục vụ asset tĩnh trong danh sách trắng STATIC_ASSETS
+        (atlas sprite + manifest). Tên ngoài danh sách -> 404."""
+        name = str(request.match_info.get("name") or "")
+        ctype = STATIC_ASSETS.get(name)
+        if ctype is None:
+            return web.Response(status=404, text="asset lạ")
+        path = WEBAPP_DIR / "assets" / name
+        if not path.is_file():
+            return web.Response(status=404, text="thiếu asset")
+        resp = web.FileResponse(path)
+        resp.content_type = ctype
+        # Atlas/manifest bất biến theo bản phát hành — cho trình
+        # duyệt cache để avatar không tải lại 1.2MB mỗi lần mở app.
+        resp.headers["Cache-Control"] = "public, max-age=86400"
+        return resp
+
     async def _handle_avatar(self, request):
         path = Path(self.cfg.dossier_dir).parent / "assets" \
             / "mulon-avatar.webp"
@@ -384,16 +473,31 @@ class WebAppServer:
 
             entries = load_server_configs(self.mcp.config_path)
             status = self.mcp.status()
+            managed = {}
+            if self.marketplace is not None:
+                managed = {r["local_name"]: r for r in
+                           self.marketplace.installed_list()}
             for entry in entries:
                 name = str(entry.get("name"))
                 st = status.get(name) or {}
-                out.append({
+                item = {
                     "id": f"mcp:{name}", "name": name, "kind": "mcp",
                     "ok": bool(st.get("connected")),
                     "enabled": bool(entry.get("enabled", False)),
                     "toggleable": True,
                     "detail": str(st.get("error") or ""),
-                })
+                }
+                record = managed.get(name)
+                if record is not None:
+                    # Server do marketplace quản lý: UI hiện vòng
+                    # đời + sức khoẻ thay cho trạng thái nối thô.
+                    item["managed"] = True
+                    item["lifecycle_state"] = record[
+                        "lifecycle_state"]
+                    item["health_state"] = record["health_state"]
+                    item["pending_restart"] = record[
+                        "pending_restart"]
+                out.append(item)
         return out
 
     def _policy_state(self) -> dict:
@@ -563,7 +667,8 @@ class WebAppServer:
         try:
             for t in await self.memory.list_tasks(limit=20):
                 tasks.append({
-                    "id": t["id"], "title": t.get("title") or "",
+                    "id": t["id"], "kind": "task",
+                    "title": t.get("title") or "",
                     "status": t.get("status") or "",
                     "error": t.get("error") or "",
                     "created_at": t.get("created_at") or "",
@@ -571,6 +676,64 @@ class WebAppServer:
                 })
         except Exception:
             pass
+        # Lượt CHAT cũng là lượt việc của agent (1.3.0, gói vá
+        # Mini App): trước đây tab Việc chỉ lấy bảng tasks — mà
+        # task chỉ được tạo ở task path, nên owner chat thường
+        # (fast path) xong vẫn thấy danh sách trống. Nay gộp cả
+        # trajectory turn_done/turn_error: MỌI lượt agent hoàn
+        # thành đều hiện, với trường tối thiểu TRUNG THỰC (tiêu
+        # đề = đúng nội dung tin user mở lượt; trạng thái xong/
+        # lỗi theo đúng bản ghi; lượt chat không có chi tiết
+        # task nên kind="turn" để frontend không mở màn chi
+        # tiết rỗng).
+        try:
+            for r in await self.memory.recent_trajectory(
+                    kind="turn_done", limit=20):
+                p = r.get("payload") or {}
+                title = ""
+                umid = p.get("user_msg_id")
+                if umid:
+                    try:
+                        msg = await self.memory.get_message(
+                            int(umid))
+                    except Exception:
+                        msg = None
+                    if msg:
+                        title = " ".join(
+                            str(msg.get("content") or "").split()
+                        )[:120]
+                tasks.append({
+                    "id": f"turn-{r.get('id')}", "kind": "turn",
+                    "title": title or "(lượt trò chuyện)",
+                    "status": "done", "error": "",
+                    "intent": str(p.get("intent") or ""),
+                    "created_at": r.get("created_at") or "",
+                    "updated_at": r.get("created_at") or "",
+                })
+            for r in await self.memory.recent_trajectory(
+                    kind="turn_error", limit=10):
+                p = r.get("payload") or {}
+                # Chỉ lấy lỗi ở TẦNG BỀ MẶT (agent.handle văng ra
+                # ngoài -> KHÔNG có turn_done đi kèm). Lỗi fast
+                # path đã tự ghi turn_error (có khóa "where") rồi
+                # vẫn chốt turn_done — lấy cả hai sẽ nhân đôi 1
+                # lượt thành 2 hàng.
+                if p.get("where"):
+                    continue
+                tasks.append({
+                    "id": f"turnerr-{r.get('id')}", "kind": "turn",
+                    "title": "(lượt lỗi)",
+                    "status": "failed",
+                    "error": str(p.get("error") or "")[:200],
+                    "intent": "",
+                    "created_at": r.get("created_at") or "",
+                    "updated_at": r.get("created_at") or "",
+                })
+        except Exception:
+            pass
+        tasks.sort(key=lambda x: x.get("created_at") or "",
+                   reverse=True)
+        tasks = tasks[:20]
         history = []
         try:
             rows = await self.memory.recent_trajectory(
@@ -625,6 +788,10 @@ class WebAppServer:
             "vault": self.vault_store.labels()
                      if self.vault_store is not None else [],
             "policy": self._policy_state(),
+            # 1.3.0: tóm tắt marketplace nhỏ cho badge điều hướng.
+            "marketplace_summary": (self.marketplace.summary()
+                                    if self.marketplace is not None
+                                    else None),
         }
         return web.json_response(state)
 
@@ -719,6 +886,28 @@ class WebAppServer:
         enabled = bool(body.get("enabled"))
         if name.startswith("mcp:") and self.mcp is not None:
             server = name[4:]
+            # 1.3.0: server do marketplace quản lý -> route sang
+            # MarketplaceService (kèm policy deny/restore + journal
+            # + restart) — KHÔNG ghi file trực tiếp, không ghi 2 lần.
+            if self.marketplace is not None and \
+                    self.marketplace.store.get_installed(server) \
+                    is not None:
+                from .marketplace import MarketplaceError
+
+                try:
+                    result = (self.marketplace.enable(server)
+                              if enabled else
+                              self.marketplace.disable(server))
+                except MarketplaceError as exc:
+                    return web.json_response(
+                        {"ok": False, "error": exc.message,
+                         "code": exc.code}, status=400)
+                return web.json_response({
+                    "ok": True, "enabled": enabled,
+                    "operation_id": result.get("operation_id"),
+                    "restart_required": True,
+                    "note": "Đã ghi — bot đang tự khởi động lại "
+                            "để áp dụng."})
             path = Path(self.mcp.config_path)
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
@@ -799,3 +988,345 @@ class WebAppServer:
         ok = await self.memory.set_schedule_enabled(schedule_id,
                                                     enabled)
         return web.json_response({"ok": ok})
+
+    # ---------- 1.3.0 (gói vá Mini App): kỹ năng + Vault ----------
+    async def _handle_skills(self, request):
+        """Danh sách kỹ năng owner ĐỌC được: tên + mô tả + nguồn
+        (đường file SKILL.md) — từ đúng catalog agent đang nạp
+        (đã qua vet + đủ điều kiện), không danh sách bịa."""
+        if self.skills is None:
+            return web.json_response(
+                {"ok": True, "available": False, "skills": []})
+        paths = {}
+        try:
+            paths = {e["name"]: e.get("path", "")
+                     for e in self.skills.entries}
+        except Exception:
+            pass
+        items = [{
+            "name": e["name"],
+            "description": e.get("description", ""),
+            "source": paths.get(e["name"], ""),
+        } for e in self.skills.catalog()]
+        return web.json_response(
+            {"ok": True, "available": True, "skills": items})
+
+    async def _handle_skill_detail(self, request):
+        """Nội dung đầy đủ của 1 SKILL.md để owner mở đọc ngay
+        trong app (trước đây app chỉ có tên + số lượng). Nội dung
+        qua SkillCatalog.read — cùng cửa agent dùng, tôn trọng
+        vet/eligibility."""
+        name = str(request.match_info.get("name") or "")
+        if self.skills is None:
+            return web.json_response(
+                {"ok": False, "error": "chưa nạp catalog kỹ năng"},
+                status=404)
+        result = self.skills.read(name)
+        if not result.get("ok"):
+            return web.json_response(
+                {"ok": False,
+                 "error": result.get("error") or "không đọc được"},
+                status=404)
+        return web.json_response({
+            "ok": True, "name": name,
+            "content": result.get("content", ""),
+            "source": result.get("path", "")})
+
+    async def _handle_vault_capture(self, request):
+        """Nhập bí mật NGAY trong Mini App (1.3.0): owner gõ nhãn
+        + giá trị ở màn Vault -> ghi thẳng VaultStore.put -> chỉ
+        trả ref. Giá trị KHÔNG echo về response, KHÔNG vào
+        trajectory/log (chỉ nhãn + ref được ghi vết) — cùng kỷ
+        luật với form một lần qua link, nhưng không cần link
+        127.0.0.1 (link đó chết trên điện thoại vì trỏ về máy
+        tính của owner)."""
+        body = await self._json_body(request)
+        label = str(body.get("label") or "").strip()
+        value = body.get("value")
+        value = value if isinstance(value, str) else ""
+        if self.vault_store is None:
+            return web.json_response(
+                {"ok": False, "error": "Vault chưa được nối ở "
+                                       "bản chạy này."},
+                status=503)
+        if not label or not value:
+            return web.json_response(
+                {"ok": False, "error": "thiếu nhãn hoặc giá trị"},
+                status=400)
+        if len(label) > 120 or len(value) > 8192:
+            return web.json_response(
+                {"ok": False, "error": "nhãn hoặc giá trị quá dài"},
+                status=400)
+        ref = self.vault_store.put(label, value)
+        if self.memory is not None:
+            try:
+                await self.memory.log_trajectory(
+                    "webapp", "vault_captured",
+                    {"label": label, "ref": ref})
+            except Exception:
+                pass
+        return web.json_response({"ok": True, "ref": ref})
+
+    # ---------- 1.3.0: Chợ MCP ----------
+    def _mkt_guard(self):
+        """None nếu marketplace sẵn sàng; response 503 nếu chưa
+        nối (giữ hành vi sạch như các dịch vụ tuỳ chọn khác)."""
+        if self.marketplace is None:
+            return web.json_response(
+                {"ok": False, "code": "catalog_unavailable",
+                 "error": "Marketplace chưa được nối trong bản "
+                          "chạy này."}, status=503)
+        return None
+
+    def _mkt_error(self, exc):
+        from .marketplace import MarketplaceError
+
+        if isinstance(exc, MarketplaceError):
+            status = 404 if exc.code in (
+                "catalog_unavailable", "invalid_config") else 400
+            if exc.code == "operation_conflict":
+                status = 409
+            return web.json_response(
+                {"ok": False, "error": exc.message,
+                 "code": exc.code}, status=status)
+        logger.exception("marketplace API lỗi")
+        return web.json_response(
+            {"ok": False, "error": "lỗi nội bộ marketplace",
+             "code": "probe_failed"}, status=500)
+
+    def _idem_key(self, request) -> str:
+        return str(request.headers.get("Idempotency-Key") or "")
+
+    async def _mkt_summary(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        return web.json_response(
+            {"ok": True, **self.marketplace.summary()})
+
+    async def _mkt_categories(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        return web.json_response(
+            {"ok": True, **self.marketplace.categories()})
+
+    async def _mkt_catalog(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        q = request.query
+        result = self.marketplace.search_catalog(
+            query=q.get("query", ""), category=q.get("category", ""),
+            pricing=q.get("pricing", ""),
+            installed=q.get("installed", ""),
+            cursor=q.get("cursor", ""),
+            limit=int(q.get("limit", "20") or 20))
+        return web.json_response({"ok": True, **result})
+
+    async def _mkt_listing(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        try:
+            detail = self.marketplace.listing_detail(
+                request.match_info["provider"],
+                request.match_info["slug"])
+        except Exception as exc:
+            return self._mkt_error(exc)
+        return web.json_response({"ok": True, "listing": detail})
+
+    async def _mkt_installed(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        return web.json_response(
+            {"ok": True, "items": self.marketplace.installed_list()})
+
+    async def _mkt_installed_detail(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        try:
+            view = self.marketplace.installed_detail(
+                request.match_info["name"])
+        except Exception as exc:
+            return self._mkt_error(exc)
+        return web.json_response({"ok": True, "installed": view})
+
+    async def _mkt_operation(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        op = self.marketplace.store.get_operation(
+            request.match_info["id"])
+        if op is None:
+            return web.json_response(
+                {"ok": False, "error": "không tìm thấy operation",
+                 "code": "invalid_config"}, status=404)
+        return web.json_response(
+            {"ok": True,
+             "operation": self.marketplace.operation_view(op)})
+
+    async def _mkt_refresh(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        result = await self.marketplace.refresh_catalog()
+        return web.json_response({"ok": True, **result})
+
+    async def _mkt_import_parse(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        body = await self._json_body(request)
+        try:
+            result = self.marketplace.parse_import(
+                text=body.get("text"), url=body.get("url"),
+                name=body.get("name"))
+        except Exception as exc:
+            return self._mkt_error(exc)
+        if not result.get("ok"):
+            return web.json_response(result, status=400)
+        return web.json_response(result)
+
+    async def _mkt_prepare(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        body = await self._json_body(request)
+        source = {}
+        if body.get("draft_id"):
+            source = {"draft_id": str(body["draft_id"])}
+        elif body.get("slug"):
+            source = {"provider_id": str(
+                body.get("provider_id") or "mulon-curated"),
+                "slug": str(body["slug"])}
+        else:
+            return web.json_response(
+                {"ok": False, "code": "invalid_config",
+                 "error": "thiếu slug hoặc draft_id"}, status=400)
+        try:
+            view = self.marketplace.prepare_install(
+                source, alias=body.get("alias"),
+                idempotency_key=self._idem_key(request))
+        except Exception as exc:
+            return self._mkt_error(exc)
+        return web.json_response({"ok": True, "operation": view})
+
+    async def _mkt_bind_secrets(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        body = await self._json_body(request)
+        try:
+            view = self.marketplace.bind_secrets(
+                request.match_info["id"],
+                body.get("bindings") or {})
+        except Exception as exc:
+            return self._mkt_error(exc)
+        return web.json_response({"ok": True, "operation": view})
+
+    async def _mkt_request_probe(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        try:
+            result = self.marketplace.request_stage_approval(
+                request.match_info["id"], "probe")
+        except Exception as exc:
+            return self._mkt_error(exc)
+        return web.json_response({"ok": True, **result})
+
+    async def _mkt_request_commit(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        try:
+            result = self.marketplace.request_stage_approval(
+                request.match_info["id"], "commit")
+        except Exception as exc:
+            return self._mkt_error(exc)
+        return web.json_response({"ok": True, **result})
+
+    async def _mkt_cancel(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        try:
+            view = self.marketplace.cancel_operation(
+                request.match_info["id"])
+        except Exception as exc:
+            return self._mkt_error(exc)
+        return web.json_response({"ok": True, "operation": view})
+
+    async def _mkt_health_check(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        try:
+            result = await self.marketplace.run_health_check(
+                request.match_info["name"])
+        except Exception as exc:
+            return self._mkt_error(exc)
+        return web.json_response({"ok": True, **result})
+
+    async def _mkt_enable(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        try:
+            result = self.marketplace.enable(
+                request.match_info["name"])
+        except Exception as exc:
+            return self._mkt_error(exc)
+        return web.json_response({"ok": True, **result})
+
+    async def _mkt_disable(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        try:
+            result = self.marketplace.disable(
+                request.match_info["name"])
+        except Exception as exc:
+            return self._mkt_error(exc)
+        return web.json_response({"ok": True, **result})
+
+    async def _mkt_update_check(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        try:
+            result = self.marketplace.update_check(
+                request.match_info["name"])
+        except Exception as exc:
+            return self._mkt_error(exc)
+        return web.json_response({"ok": True, **result})
+
+    async def _mkt_update_prepare(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        try:
+            view = self.marketplace.prepare_update(
+                request.match_info["name"],
+                idempotency_key=self._idem_key(request))
+        except Exception as exc:
+            return self._mkt_error(exc)
+        return web.json_response({"ok": True, "operation": view})
+
+    async def _mkt_uninstall_prepare(self, request):
+        guard = self._mkt_guard()
+        if guard is not None:
+            return guard
+        body = await self._json_body(request)
+        try:
+            view = self.marketplace.prepare_uninstall(
+                request.match_info["name"],
+                delete_vault_refs=body.get("delete_vault_refs")
+                or [],
+                idempotency_key=self._idem_key(request))
+        except Exception as exc:
+            return self._mkt_error(exc)
+        return web.json_response({"ok": True, "operation": view})
