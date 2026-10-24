@@ -46,6 +46,7 @@ DOSSIER_CAPS = {
     "alignment.md": 16_000,
     "AGENTS.md": 16_000,
     "HEARTBEAT.md": 4_000,
+    "BOOTSTRAP.md": 8_000,
 }
 
 # Mẫu câu chữ đáng ngờ trong dữ liệu ngoài — chỉ để gắn nhãn, không chặn.
@@ -57,26 +58,60 @@ _INJECTION_HINTS = re.compile(
 
 
 class Dossier:
-    """Snapshot đóng băng của các file dossier. reload() mới cập nhật."""
+    """Snapshot đóng băng của các file dossier. reload() mới cập nhật.
 
-    def __init__(self, files: dict[str, str]):
+    Ngoài DOSSIER_ORDER (khối system cố định), snapshot còn nạp
+    BOOTSTRAP.md: bề mặt /start cần đọc câu hỏi nghi lễ từ đây, và
+    render() chỉ chèn nó vào ngữ cảnh khi nghi lễ đang chờ — hết
+    chờ thì nó biến mất khỏi prompt như chưa từng có.
+    """
+
+    def __init__(self, files: dict[str, str],
+                 dossier_dir: str | Path | None = None):
         self.files = files
+        self.dir: Optional[Path] = (
+            Path(dossier_dir) if dossier_dir is not None else None
+        )
+
+    @staticmethod
+    def _read_one(base: Path, name: str, cap: int = 0) -> str:
+        path = base / name
+        if not path.exists():
+            return ""
+        try:
+            text = path.read_text(encoding="utf-8").strip()
+        except Exception as exc:  # file lỗi không được làm sập boot
+            logger.warning("đọc dossier %s lỗi: %s", name, exc)
+            return ""
+        return text[:cap] if cap else text
+
+    @classmethod
+    def _read_files(cls, base: Path) -> dict[str, str]:
+        files: dict[str, str] = {}
+        for name in DOSSIER_ORDER:
+            files[name] = cls._read_one(base, name)
+        files["BOOTSTRAP.md"] = cls._read_one(
+            base, "BOOTSTRAP.md", cap=DOSSIER_CAPS["BOOTSTRAP.md"])
+        return files
 
     @classmethod
     def load(cls, dossier_dir: str | Path) -> "Dossier":
         base = Path(dossier_dir)
-        files: dict[str, str] = {}
-        for name in DOSSIER_ORDER:
-            path = base / name
-            if path.exists():
-                try:
-                    files[name] = path.read_text(encoding="utf-8").strip()
-                except Exception as exc:  # file lỗi không được làm sập boot
-                    logger.warning("đọc dossier %s lỗi: %s", name, exc)
-                    files[name] = ""
-            else:
-                files[name] = ""
-        return cls(files)
+        return cls(cls._read_files(base), dossier_dir=base)
+
+    def reload(self) -> None:
+        """Nạp lại toàn bộ file từ đĩa vào CHÍNH dict hiện tại.
+
+        Nội dung được thay tại chỗ (không thay object) để mọi nơi
+        đang giữ tham chiếu — TelegramSurface, ContextEngine —
+        cùng thấy bản mới mà không cần restart. Dossier dựng tay
+        không có thư mục nguồn thì bỏ qua.
+        """
+        if self.dir is None:
+            return
+        fresh = self._read_files(self.dir)
+        self.files.clear()
+        self.files.update(fresh)
 
     def render(self) -> str:
         """Ghép dossier thành khối system ổn định (đúng thứ tự, cố định)."""
@@ -85,6 +120,18 @@ class Dossier:
             text = self.files.get(name, "").strip()
             if text:
                 parts.append(f"# [{name}]\n{text}")
+        if self.bootstrap_pending():
+            boot = self.files.get("BOOTSTRAP.md", "").strip()
+            if boot:
+                block = f"# [BOOTSTRAP.md — NGHI LỄ ĐANG CHỜ]\n{boot}"
+                if self.dir is not None:
+                    block += (
+                        f"\n\n(Thư mục dossier: {self.dir} — hoàn tất "
+                        "nghi lễ thì ghi/điền file ngay trong thư mục "
+                        "này bằng file tools, gồm gỡ dòng "
+                        "BOOTSTRAP_PENDING khỏi USER.md.)"
+                    )
+                parts.append(block)
         return "\n\n".join(parts)
 
     def bootstrap_pending(self) -> bool:
