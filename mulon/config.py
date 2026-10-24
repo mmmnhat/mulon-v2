@@ -7,9 +7,13 @@ code. File này chỉ chứa placeholder trung tính.
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlparse
+
+logger = logging.getLogger("mulon.config")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -44,6 +48,66 @@ def _env_float(name: str, default: float) -> float:
         return float(raw)
     except ValueError:
         return default
+
+
+# Sửa 1.6.3: khóa PROXY_BASE_URL về localhost.
+#
+# MuLon chỉ được gọi model qua proxy local duy nhất của owner
+# (127.0.0.1:8317). Nếu PROXY_BASE_URL bị sửa thành host lạ
+# (lỗi .env, copy config máy khác, hoặc injection qua env), API key
+# model + toàn bộ prompt sẽ gửi thẳng tới host đó. Vì vậy:
+# - Mặc định: chỉ chấp nhận host 127.0.0.1 / localhost / ::1
+#   và đúng cổng 8317 (scheme http/https, path nào cũng được,
+#   mặc định là /v1). Sai -> ValueError, fail-fast, bot không
+#   khởi động gateway.
+# - Ngoại lệ tường minh duy nhất: đặt MULON_ALLOW_REMOTE_PROXY=1
+#   (dùng _env_bool, chấp nhận 1/true/yes/on). Khi đó chỉ log
+#   cảnh báo rõ host:port, vẫn khởi động — chỉ dùng khi owner
+#   cố ý dời proxy sang máy khác trong mạng nhà và hiểu rủi ro
+#   (key + prompt đi tới host đó). Env này KHÔNG phải là cờ
+#   "bật tính năng", mà là cờ "tôi chấp nhận rủi ro".
+# - Hàm này được gọi ở Config.load() và ModelGateway.__init__
+#   (gateway.py, import lười để khỏi vòng import), nên cả đường
+#   nạp config lẫn đường dựng gateway trực tiếp đều bị khóa.
+# - Voice TTS (voice.py) cũng dùng cfg.proxy_base_url, nên khi
+#   config đã qua load() thì TTS cũng bị khóa theo; dựng Config
+#   thủ công mà không qua load() thì gateway vẫn chặn ở __init__.
+
+_LOCAL_PROXY_HOSTS = {"127.0.0.1", "localhost", "::1"}
+_LOCAL_PROXY_PORT = 8317
+
+
+def validate_proxy_base_url(url: str) -> None:
+    """Fail-fast nếu PROXY_BASE_URL không phải proxy local.
+
+    Raise ValueError khi host/cổng/scheme không đạt, trừ khi
+    MULON_ALLOW_REMOTE_PROXY=1 (khi đó chỉ log cảnh báo).
+    """
+    raw = (url or "").strip()
+    scheme = ""
+    try:
+        parsed = urlparse(raw)
+        scheme = parsed.scheme
+        host = (parsed.hostname or "").lower()
+        port = parsed.port
+    except ValueError:
+        host, port = "", None
+    if _env_bool("MULON_ALLOW_REMOTE_PROXY", False):
+        logger.warning(
+            "MULON_ALLOW_REMOTE_PROXY=1: cho phép proxy model ngoài "
+            "localhost (%s:%s) — API key và prompt sẽ gửi tới host "
+            "này, chỉ dùng khi owner cố ý dời proxy.", host, port)
+        return
+    if (scheme not in {"http", "https"}
+            or host not in _LOCAL_PROXY_HOSTS
+            or port != _LOCAL_PROXY_PORT):
+        raise ValueError(
+            "PROXY_BASE_URL bị từ chối (fail-fast, sửa 1.6.3): proxy "
+            "model của MuLon phải là 127.0.0.1:8317 hoặc "
+            "localhost:8317, nhận được "
+            f"host={host!r} port={port!r}. Nếu cố ý dùng proxy ngoài, "
+            "đặt MULON_ALLOW_REMOTE_PROXY=1 (chỉ khi hiểu rủi ro: "
+            "API key model sẽ gửi tới host đó).")
 
 
 def _resolve(path_str: str) -> Path:
@@ -196,8 +260,23 @@ class Config:
         default_factory=lambda: PROJECT_ROOT / "data" / "vault.json")
     # Token link form: dùng 1 lần, hết hạn sau ngần này giây (~10 phút).
     vault_token_ttl_s: int = 600
+    # Sửa 1.6.2: key Fernet cho mã hoá Vault at-rest (TUỲ CHỌN).
+    # Tạo bằng: python3 -c "from cryptography.fernet import Fernet;
+    # print(Fernet.generate_key().decode())". Để trống = lưu
+    # plaintext JSON 0600 như cũ. Đặt key nhưng thiếu gói
+    # cryptography hoặc key sai định dạng = vẫn plaintext + cảnh
+    # báo log, KHÔNG tự nhận là đã mã hoá. MẤT KEY = MẤT toàn bộ
+    # entry đã mã hoá: backup key riêng, tách khỏi file vault.
+    # Key này không nằm trong bản dump cấu hình (chỉ có cờ bool).
+    vault_encryption_key: str = ""
     # Thẻ ý tưởng tự hết hạn sau ngần này ngày (thiết kế: ~2 tuần).
     idea_ttl_days: int = 14
+    # sửa 1.6.2 — Ideas tự sinh OPT-IN, mặc định TẮT (bật bằng
+    # IDEAS_AUTO_ENABLED=1 hoặc gạt kv trong Mini App; khi bật,
+    # thẻ sinh ra vẫn chỉ chờ user duyệt/"làm luôn", không tự
+    # nhắn tin, không tự chạy task). Chu kỳ mặc định 1 ngày.
+    ideas_auto_enabled: bool = False
+    ideas_auto_interval_s: int = 86400
     # File trong thùng rác Library khôi phục được trong ngần này ngày.
     library_trash_days: int = 30
 
@@ -265,7 +344,7 @@ class Config:
             load_dotenv(dotenv_path=env_file)  # mặc định: .env ở thư mục chạy
         except Exception:
             pass
-        return cls(
+        cfg = cls(
             proxy_base_url=_env("PROXY_BASE_URL", "http://127.0.0.1:8317/v1"),
             proxy_api_key=_env("PROXY_API_KEY", "local-proxy"),
             model_brain=_env("MODEL_BRAIN", "gemini-3.8-flash"),
@@ -353,7 +432,11 @@ class Config:
             vault_port=_env_int("VAULT_PORT", 8765),
             vault_path=_resolve(_env("VAULT_PATH", "data/vault.json")),
             vault_token_ttl_s=_env_int("VAULT_TOKEN_TTL_S", 600),
+            vault_encryption_key=_env("VAULT_ENCRYPTION_KEY", ""),
             idea_ttl_days=_env_int("IDEA_TTL_DAYS", 14),
+            ideas_auto_enabled=_env_bool("IDEAS_AUTO_ENABLED", False),
+            ideas_auto_interval_s=_env_int("IDEAS_AUTO_INTERVAL_S",
+                                          86400),
             library_trash_days=_env_int("LIBRARY_TRASH_DAYS", 30),
             webapp_url=_env("WEBAPP_URL", ""),
             webapp_app_name=_env("WEBAPP_APP_NAME", ""),
@@ -387,6 +470,9 @@ class Config:
             marketplace_max_input_bytes=_env_int(
                 "MARKETPLACE_MAX_INPUT_BYTES", 65536),
         )
+        # Sửa 1.6.3: khóa proxy về localhost, fail-fast tại load().
+        validate_proxy_base_url(cfg.proxy_base_url)
+        return cfg
 
     def masked_summary(self) -> dict:
         """Tóm tắt cấu hình an toàn để in/log — secret luôn bị che."""
@@ -435,7 +521,12 @@ class Config:
             "backup_dir": str(self.backup_dir),
             "vault_port": self.vault_port,
             "vault_path": str(self.vault_path),
+            # Sửa 1.6.2: chỉ cờ bool — giá trị key KHÔNG BAO GIỜ
+            # xuất hiện trong dump cấu hình.
+            "vault_encryption_configured": bool(self.vault_encryption_key),
             "idea_ttl_days": self.idea_ttl_days,
+            "ideas_auto_enabled": self.ideas_auto_enabled,
+            "ideas_auto_interval_s": self.ideas_auto_interval_s,
             "library_trash_days": self.library_trash_days,
             "webapp_configured": bool(self.webapp_url
                                       and self.webapp_app_name),

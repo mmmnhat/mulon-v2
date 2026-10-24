@@ -906,7 +906,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Công cụ kết nối
   </div>
   <h2 class="screen-title">Cấu hình Google</h2>
-  <div class="note">Dùng chung một ủy quyền OAuth2 cho cả <b>Gmail</b> và <b>Google Calendar</b>. Thông tin xác thực được mã hóa an toàn trong Kho lưu trữ (Vault).</div>
+  <div class="note">Dùng chung một ủy quyền OAuth2 cho cả <b>Gmail</b> và <b>Google Calendar</b>. Thông tin xác thực được lưu trong Kho trên máy của bạn (file JSON quyền 0600, không mã hoá at-rest).</div>
 
   <div class="card">
     <div class="card-title">Trạng thái kết nối</div>
@@ -1709,23 +1709,48 @@ function renderLibrary(){
       'Khi Mulon tạo artifact hoặc tài liệu, kết quả sẽ lưu ở đây.</div>';
     return;
   }
-  box.innerHTML = list.map(it => {
+  box.innerHTML = '<div class="btn-row" style="padding:0 0 8px"><button class="btn btn-ghost btn-sm" id="lib-trash-view">Xem thùng rác</button></div>' + list.map(it => {
+    // sửa 1.6.2: bỏ pill tím "Đã ghim" — trạng thái chỉ còn chữ + chấm nhỏ
+    // trung tính (var(--ink2)/var(--ink3) đã có trong token), không đổi layout.
     const pinBadge = it.pinned
-      ? '<span class="badge" style="background:var(--tint-lav);color:var(--lav-deep);padding:2px 6px;border-radius:4px;font-size:11px;margin-right:6px">Đã ghim</span>'
+      ? '<span style="color:var(--ink2);font-size:11px;margin-right:6px"><span style="color:var(--ink3)">●</span> Đã ghim</span>'
       : '';
     const pinLabel = it.pinned ? "Bỏ ghim" : "Ghim";
     const wc = it.word_count ? (it.word_count + " từ · ") : "";
+    const shared = it.share_status === "active" || it.share_status === "pending_host";
     return '<div class="row static">' +
       '<div class="r-main">' +
       '<div class="r-title">' + pinBadge + esc(it.title) + '</div>' +
-      '<div class="r-sub">' + esc(wc + todayLabel(it.created_at)) + '</div>' +
+      '<div class="r-sub">' + esc(wc + todayLabel(it.created_at)) + (shared ? " · Đang chia sẻ" : "") + '</div>' +
       '</div>' +
       '<div class="btn-row" style="padding:0;gap:4px">' +
       '<button class="btn btn-soft btn-sm" data-lib-share="' + esc(it.id) + '">Chia sẻ</button>' +
+      (shared ? '<button class="btn btn-ghost btn-sm" data-lib-unshare="' + esc(it.id) + '">Hủy chia sẻ</button>' : '') +
       '<button class="btn btn-ghost btn-sm" data-lib-pin="' + esc(it.id) + '" data-pinned="' + (it.pinned ? 1 : 0) + '">' + esc(pinLabel) + '</button>' +
       '<button class="btn btn-ghost btn-sm" data-lib-rename="' + esc(it.id) + '" data-title="' + esc(it.title) + '">Sửa tên</button>' +
+      '<button class="btn btn-ghost btn-sm" data-lib-trash="' + esc(it.id) + '">Xóa</button>' +
       '</div></div>';
   }).join("");
+  const trashBtn = $("lib-trash-view");
+  if (trashBtn) trashBtn.addEventListener("click", async () => {
+    try {
+      const d = await api("/api/library/items?status=trashed");
+      const items = (d && d.items) || [];
+      box.innerHTML = '<div class="btn-row" style="padding:0 0 8px"><button class="btn btn-ghost btn-sm" id="lib-back">Quay lại tài liệu</button></div>' +
+        (items.length ? items.map(it => '<div class="row static"><div class="r-main"><div class="r-title">' + esc(it.name || it.title) + '</div></div>' +
+          '<div class="btn-row" style="padding:0;gap:4px"><button class="btn btn-soft btn-sm" data-lib-restore="' + esc(it.id) + '">Khôi phục</button></div></div>').join("")
+        : '<div class="empty">Thùng rác trống.</div>');
+      const back = $("lib-back");
+      if (back) back.addEventListener("click", async () => { await load(); });
+      box.querySelectorAll("[data-lib-restore]").forEach(btn => btn.addEventListener("click", async () => {
+        try {
+          const r = await api("/api/library/items/" + encodeURIComponent(btn.dataset.libRestore) + "/restore", "POST", {});
+          if (r && r.ok === false) throw new Error(r.error || "không khôi phục được");
+          toast("Đã khôi phục tài liệu."); await load();
+        } catch (e) { toast(e.message); }
+      }));
+    } catch (e) { toast(e.message); }
+  });
 
   box.querySelectorAll("[data-lib-share]").forEach(btn =>
     btn.addEventListener("click", async () => {
@@ -1745,12 +1770,29 @@ function renderLibrary(){
       } catch (e) { toast(e.message); }
     }));
 
+  box.querySelectorAll("[data-lib-unshare]").forEach(btn =>
+    btn.addEventListener("click", async () => {
+      try {
+        const r = await api("/api/library/items/" + encodeURIComponent(btn.dataset.libUnshare) + "/unshare", "POST", {});
+        if (r && r.ok === false) throw new Error(r.error || "không hủy chia sẻ được");
+        toast("Đã hủy link chia sẻ."); await load();
+      } catch (e) { toast(e.message); }
+    }));
+  box.querySelectorAll("[data-lib-trash]").forEach(btn =>
+    btn.addEventListener("click", async () => {
+      try {
+        const r = await api("/api/library/items/" + encodeURIComponent(btn.dataset.libTrash) + "/trash", "POST", {});
+        if (r && r.ok === false) throw new Error(r.error || "không xóa được");
+        toast("Đã cho tài liệu vào thùng rác."); await load();
+      } catch (e) { toast(e.message); }
+    }));
   box.querySelectorAll("[data-lib-pin]").forEach(btn =>
     btn.addEventListener("click", async () => {
       const id = btn.dataset.libPin;
       const curPinned = btn.dataset.pinned === "1";
       try {
-        await api("/api/library/items/" + encodeURIComponent(id) + "/pin", "POST", {pinned: !curPinned});
+        const r = await api("/api/library/items/" + encodeURIComponent(id) + "/pin", "POST", {pinned: !curPinned});
+        if (r && r.ok === false) throw new Error(r.error || "không ghim được");
         toast(!curPinned ? "Đã ghim tài liệu lên đầu." : "Đã bỏ ghim tài liệu.");
         await load();
       } catch (e) { toast(e.message); }
@@ -1763,7 +1805,12 @@ function renderLibrary(){
       const newTitle = window.prompt("Nhập tên mới cho tài liệu:", oldTitle);
       if (newTitle && newTitle.trim() && newTitle.trim() !== oldTitle) {
         try {
-          await api("/api/library/items/" + encodeURIComponent(id) + "/rename", "POST", {title: newTitle.trim()});
+          // Sửa UI: backend đọc {name}, frontend cũ gửi {title}
+          // nên đổi tên luôn fail mà vẫn toast thành công. Gửi
+          // đúng {name} và kiểm tra ok trong body (HTTP vẫn 200
+          // khi backend trả ok:false nên api() không tự throw).
+          const r = await api("/api/library/items/" + encodeURIComponent(id) + "/rename", "POST", {name: newTitle.trim()});
+          if (r && r.ok === false) throw new Error(r.error || "không đổi tên được");
           toast("Đã đổi tên tài liệu.");
           await load();
         } catch (e) { toast(e.message); }
@@ -1953,15 +2000,18 @@ function renderGoogleConfig(cfg){
   const discBtn = $("gconfig-disconnect-btn");
 
   if (cfg.connected){
+    // sửa 1.6.2: 3 trạng thái dưới đây bỏ pill màu (xanh lá #3E9B6C, tím
+    // --lav, xám) — chỉ còn chữ + chấm nhỏ trung tính theo token --ink/
+    // --ink2/--ink3; giữ nguyên flex layout, cỡ chữ 12px và dòng r-sub.
     sb.innerHTML = '<div style="display:flex; align-items:center; gap:8px">' +
-      '<span class="badge" style="background:#3E9B6C; color:#fff; font-weight:600; padding:3px 8px; border-radius:6px; font-size:12px">Đã kết nối</span>' +
+      '<span style="color:var(--ink); font-weight:600; font-size:12px"><span style="color:var(--ink3)">●</span> Đã kết nối</span>' +
       '<span class="r-sub">Tài khoản: <b>' + esc(cfg.email || "Google") + '</b></span></div>';
     desc.textContent = "Đang kết nối với: " + (cfg.email || "tài khoản Google") + ". Cả Gmail và Calendar đang hoạt động.";
     connBtn.classList.add("hidden");
     discBtn.classList.remove("hidden");
   } else if (cfg.configured){
     sb.innerHTML = '<div style="display:flex; align-items:center; gap:8px">' +
-      '<span class="badge" style="background:var(--lav); color:#fff; font-weight:600; padding:3px 8px; border-radius:6px; font-size:12px">Đã có Client ID &amp; Secret</span>' +
+      '<span style="color:var(--ink); font-weight:600; font-size:12px"><span style="color:var(--ink3)">●</span> Đã có Client ID &amp; Secret</span>' +
       '<span class="r-sub">Sẵn sàng kết nối tài khoản</span></div>';
     desc.textContent = "Thông tin xác thực đã sẵn sàng trong Kho. Hãy bấm nút bên dưới để ủy quyền tài khoản.";
     connBtn.classList.remove("hidden");
@@ -1969,7 +2019,7 @@ function renderGoogleConfig(cfg){
     discBtn.classList.add("hidden");
   } else {
     sb.innerHTML = '<div style="display:flex; align-items:center; gap:8px">' +
-      '<span class="badge" style="background:var(--border); color:var(--text); padding:3px 8px; border-radius:6px; font-size:12px">Chưa cấu hình</span>' +
+      '<span style="color:var(--ink2); font-size:12px"><span style="color:var(--ink3)">●</span> Chưa cấu hình</span>' +
       '<span class="r-sub">Cần nhập Client ID và Secret</span></div>';
     desc.textContent = "Vui lòng nhập Client ID và Secret bên trên rồi bấm Lưu cấu hình trước khi kết nối.";
     connBtn.classList.remove("hidden");

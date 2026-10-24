@@ -45,6 +45,56 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+# ---------- redact trajectory (sửa 1.6.3) ----------
+# Trajectory chỉ là trace, không bao giờ vào prompt — nhưng trước
+# 1.6.3 nó vẫn ghi nguyên văn args tool call, kể cả nội dung thư
+# gmail:send, lệnh run_command, nội dung write_file và token lọt
+# qua các payload lồng nhau. Hàm này dùng chung cho mọi đường ghi
+# lẫn đường đọc lại (_handle_task), và đệ quy mọi tầng dict/list.
+# Khác với summarize_args của approvals (chỉ tầng ngoài, chỉ để
+# trình thẻ duyệt): đây là bộ lọc bền cho dữ liệu đã lưu.
+_SENSITIVE_KEY_RE = re.compile(
+    r"(secret|token|password|passwd|api[_-]?key|auth|credential|"
+    r"private|cookie|session|bearer|refresh|client_secret)",
+    re.IGNORECASE)
+
+# Khóa chứa nội dung dài nhạy cảm theo ngữ cảnh (nội dung thư,
+# file, lệnh): không che hoàn toàn để trace vẫn đọc được, nhưng
+# cắt ngắn để không biến trajectory thành kho nội dung riêng tư.
+_LONG_CONTENT_KEYS = {"body", "html", "raw", "content", "text",
+                      "message", "command", "cmd", "script", "args"}
+
+
+def redact_trajectory_payload(value, max_str: int = 300):
+    """Trả bản sao đã redact của value (dict/list/str đệ quy).
+
+    - Khóa khớp _SENSITIVE_KEY_RE -> "***" (giữ tên khóa, mất giá trị).
+    - Chuỗi dài > max_str -> cắt còn max_str ký tự + "… (đã cắt)".
+    - Khóa nội dung dài trong _LONG_CONTENT_KEYS -> cắt còn 120 ký tự.
+    - Các kiểu khác (số, bool, None) giữ nguyên.
+    """
+    if isinstance(value, dict):
+        out = {}
+        for key, item in value.items():
+            k = str(key)
+            if _SENSITIVE_KEY_RE.search(k) and isinstance(item, str):
+                # Chỉ che giá trị chuỗi (secret thật). Số/bool không phải
+                # secret: che chúng làm gãy sum_llm_tokens (prompt_tokens
+                # thành "***" rồi int("***") crash, cổng ngân sách Feed gãy).
+                out[key] = "***"
+            elif k in _LONG_CONTENT_KEYS and isinstance(item, str) \
+                    and len(item) > 120:
+                out[key] = item[:120] + "… (đã cắt)"
+            else:
+                out[key] = redact_trajectory_payload(item, max_str)
+        return out
+    if isinstance(value, (list, tuple)):
+        return [redact_trajectory_payload(v, max_str) for v in value]
+    if isinstance(value, str) and len(value) > max_str:
+        return value[:max_str] + "… (đã cắt)"
+    return value
+
+
 def fold_vi(text: str) -> str:
     """Gấp dấu tiếng Việt để FTS khớp cả bản có dấu lẫn không dấu."""
     text = text.replace("đ", "d").replace("Đ", "D")
@@ -453,6 +503,16 @@ class Memory:
         path = Path(db_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         db = await aiosqlite.connect(str(path))
+        # Sửa 1.6.3: DB chứa trajectory/facts/dossier — chmod 0600
+        # như Vault. Bỏ qua lỗi trên hệ không hỗ trợ chmod (vd một
+        # số filesystem Windows), chỉ log warning, không sập bot.
+        try:
+            import os
+            os.chmod(path, 0o600)
+        except Exception as _exc:  # pragma: no cover - phụ thuộc hệ
+            import logging as _logging
+            _logging.getLogger("mulon.memory").warning(
+                "Không chmod 0600 được cho %s: %s", path, _exc)
         db.row_factory = aiosqlite.Row
         await db.executescript(SCHEMA)
         await db.commit()
@@ -1022,7 +1082,14 @@ class Memory:
     async def log_trajectory(
         self, session_key: str, kind: str, payload: Optional[dict] = None
     ) -> None:
-        """Trace chỉ vào trajectory — KHÔNG BAO GIỜ vào history/prompt."""
+        """Trace chỉ vào trajectory — KHÔNG BAO GIỜ vào history/prompt.
+
+        Sửa 1.6.3: payload được redact_trajectory_payload trước khi
+        ghi — khóa nhạy cảm ở mọi tầng dict/list thành "***", chuỗi
+        dài bị cắt. Hàng cũ đã ghi trước 1.6.3 vẫn còn nguyên văn
+        trong DB (không tự sửa hàng cũ để khỏi ghi đè lịch sử âm
+        thầm); đường đọc _handle_task redact lại khi trả về.
+        """
         try:
             await self.db.execute(
                 "INSERT INTO trajectory(session_key, kind, payload, created_at)"
@@ -1030,7 +1097,8 @@ class Memory:
                 (
                     session_key,
                     kind,
-                    json.dumps(payload or {}, ensure_ascii=False, default=str),
+                    json.dumps(redact_trajectory_payload(payload or {}),
+                               ensure_ascii=False, default=str),
                     now_iso(),
                 ),
             )

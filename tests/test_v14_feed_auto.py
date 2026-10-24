@@ -709,7 +709,9 @@ def test_bot_commands_surface_14():
     from mulon.telegram_bot import BOT_COMMANDS
     names = [c for c, _ in BOT_COMMANDS]
     assert "feed_auto" not in names
-    assert "feed_now" not in names      # rút khỏi bề mặt (0.2b)
+    # Sửa UI 2026-10-24 (user chốt): feed_now là lệnh có handler nhưng
+    # bị ẩn khỏi menu, nay đưa lại vào bề mặt để user gọi được.
+    assert "feed_now" in names
     assert "feedbrief" in names
     assert "feedsources" in names
 

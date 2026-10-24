@@ -280,10 +280,11 @@ async def test_oauth_flow_end_to_end(app):
             await r.json()
         saved = json.loads(
             await memory.kv_get("google_oauth_state"))
+        state_str = saved[-1]["state"] if isinstance(saved, list) else saved["state"]
         async with s.get(_url(
                 server,
                 "/google/callback?code=CODE-9&state="
-                + saved["state"])) as r:
+                + state_str)) as r:
             text = await r.text()
         assert "Đã kết nối Google" in text
         assert _vault_get(vault, LBL_REFRESH) == "RT-FAKE"
@@ -291,7 +292,7 @@ async def test_oauth_flow_end_to_end(app):
         async with s.get(_url(
                 server,
                 "/google/callback?code=CODE-9&state="
-                + saved["state"])) as r:
+                + state_str)) as r:
             text = await r.text()
         assert "không hợp lệ" in text
         # state app: connector gmail có block google + quyền riêng

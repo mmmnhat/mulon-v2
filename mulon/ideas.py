@@ -8,6 +8,16 @@
 - "Làm luôn" (/idea_do hoặc reply vào thẻ) -> thẻ thành goal +
   task thật; /idea_bo -> dismissed. User bỏ qua là thao tác của
   user — hệ thống không tự dismissed thay.
+
+Sửa 1.6.2 — Ideas tự sinh OPT-IN, mặc định TẮT:
+- Công tắc: env IDEAS_AUTO_ENABLED (mặc định 0) hoặc gạt kv
+  "ideas_auto_enabled_override" qua Mini App (gạt kv thắng env,
+  ăn ngay không restart — cùng mẫu với heartbeat). Chưa bật thì
+  vòng lặp nền trong main.py vẫn chạy nhưng mọi lượt đều bỏ qua.
+- Khi bật, generate_auto() chỉ gọi generate() như lệnh /ideas:
+  thẻ mới chỉ nằm trong DB chờ user duyệt/"làm luôn". KHÔNG gửi
+  tin nhắn nào cho user, KHÔNG tự chạy task, KHÔNG tự tạo goal.
+  "Làm luôn" vẫn chỉ xảy ra khi user bấm/gõ rõ ràng.
 """
 
 from __future__ import annotations
@@ -20,6 +30,24 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 logger = logging.getLogger("mulon.ideas")
+
+# sửa 1.6.2: công tắc Ideas tự sinh trong Mini App (kv thắng env).
+IDEAS_AUTO_KV_KEY = "ideas_auto_enabled_override"
+
+
+async def effective_auto_enabled(memory, cfg) -> bool:
+    """Ideas tự sinh đang hiệu lực bật hay tắt: kv thắng env.
+
+    Mặc định TẮT (env IDEAS_AUTO_ENABLED=0 và chưa từng gạt kv).
+    """
+    try:
+        v = await memory.kv_get(IDEAS_AUTO_KV_KEY)
+    except Exception:
+        v = None
+    if v in ("1", "0"):
+        return v == "1"
+    return bool(getattr(cfg, "ideas_auto_enabled", False))
+
 
 
 def _expiry(ttl_days: int) -> str:
@@ -122,6 +150,30 @@ class IdeaEngine:
                 "", "ideas_generated",
                 {"ids": [c["id"] for c in cards]})
         return cards
+
+    async def generate_auto(self) -> dict:
+        """1 lượt Ideas tự sinh cho vòng lặp nền (sửa 1.6.2).
+
+        Công tắc tắt -> bỏ lượt, không gọi model, không ghi thẻ.
+        Công tắc bật -> đúng generate() của /ideas: thẻ mới chỉ
+        nằm trong DB chờ user duyệt/"làm luôn". Hàm này KHÔNG có
+        đường gửi tin nhắn và KHÔNG tạo goal/task — 2 việc đó vẫn
+        chỉ xảy ra khi user bấm "làm luôn" rõ ràng.
+        """
+        if not await effective_auto_enabled(self.memory, self.cfg):
+            return {"skipped": "disabled", "cards": 0, "ids": []}
+        try:
+            cards = await self.generate()
+        except Exception as exc:
+            logger.warning("ideas tự sinh lỗi (bỏ qua lượt này): %s",
+                           exc)
+            return {"skipped": "error", "cards": 0, "ids": [],
+                    "error": f"{type(exc).__name__}"}
+        await self.memory.log_trajectory(
+            "", "ideas_auto_generated",
+            {"ids": [c["id"] for c in cards]})
+        return {"skipped": None, "cards": len(cards),
+                "ids": [c["id"] for c in cards]}
 
     async def do_card(self, card_id: int,
                       session_key: str = "") -> dict:

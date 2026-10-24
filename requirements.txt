@@ -6,6 +6,12 @@ aiogram>=3.31,<3.32
 # báo tường minh vì webapp_server dùng trực tiếp).
 aiohttp>=3.9,<3.15
 aiosqlite>=0.22,<0.23
+# Tuỳ chọn (sửa 1.6.2): mã hoá Vault at-rest bằng Fernet.
+# Chưa cài thì VAULT_ENCRYPTION_KEY bị bỏ qua có cảnh báo log và
+# Vault vẫn lưu plaintext JSON 0600 như cũ — KHÔNG thêm vào đây
+# để khỏi bắt mọi máy cài thêm dependency chỉ vì một tính năng
+# tuỳ chọn. Bật mã hoá thì cài bằng:
+#   pip install cryptography
 pydantic>=2.13,<2.14
 httpx>=0.28,<0.29
 python-dotenv>=1.2,<1.3

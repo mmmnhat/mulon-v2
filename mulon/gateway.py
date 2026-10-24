@@ -92,6 +92,14 @@ class Completion:
 
 class ModelGateway:
     def __init__(self, cfg, memory=None):
+        # Sửa 1.6.3: khóa proxy về localhost ngay khi dựng gateway
+        # (fail-fast), kể cả khi Config được dựng thủ công không qua
+        # Config.load(). Import lười để khỏi vòng import config <->
+        # gateway. Env cho phép tường minh duy nhất:
+        # MULON_ALLOW_REMOTE_PROXY=1 (xem config.validate_...).
+        from .config import validate_proxy_base_url
+
+        validate_proxy_base_url(getattr(cfg, "proxy_base_url", ""))
         self.cfg = cfg
         self.memory = memory
         self._consec_failures = 0

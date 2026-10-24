@@ -1,14 +1,120 @@
 # CHANGELOG
 
+## 1.6.3 — 2026-10-24 — Sửa P0 của audit toàn dự án (injection, SSRF, privacy, auto_watch, CI)
+
+- **Injection (sửa 1.6.3):** vòng evidence của agent loop đóng khung
+  mọi kết quả tool bằng `frame_external`, không chỉ web_fetch/
+  read_file và gmail/gcalendar đã có — gồm web_read, web_search,
+  mọi connector_call, mọi tool MCP, memory/session_search, digest
+  subagent, transcript media/STT, output run_command. Chỉ thêm nhãn
+  dữ liệu ngoài, không chặn tool, không sửa nội dung.
+- **SSRF (sửa 1.6.3):** `web_fetch`, websearch và browser chặn URL
+  localhost/private/link-local/multicast/reserved/CGNAT và
+  IPv4-mapped, kiểm tra DNS và từng hop redirect (tối đa 3 lần,
+  DNS lỗi thì chặn fail-closed); browser redirect trong `goto`
+  vẫn có thể đã xảy ra 1 GET trước khi URL cuối bị chặn, và DNS
+  rebinding TOCTOU chưa chặn tuyệt đối — xem báo cáo mảng này.
+- **Proxy (sửa 1.6.3):** `PROXY_BASE_URL` chỉ chấp nhận
+  127.0.0.1/localhost/::1 đúng cổng 8317, sai thì fail-fast ở cả
+  `Config.load()` và `ModelGateway.__init__`; chỉ mở host khác
+  khi có env tường minh `MULON_ALLOW_REMOTE_PROXY=1`.
+- **Privacy (sửa 1.6.3):** trajectory redact đệ quy trước khi ghi
+  và trước khi trả qua `_handle_task`; `mulon.db` chmod 0600;
+  scan bỏ qua symlink, file ngoài workspace và denylist
+  (.env/.pem/secret/.db/vault.json), share kiểm tra lại path lúc
+  share; share token lưu SHA-256 trong DB, token cũ plaintext tự
+  chuyển sang hash ở lần mở đầu tiên. Hàng trajectory cũ vẫn còn
+  nguyên văn trong DB, chưa ghi đè.
+- **Auto_watch + CI (sửa 1.6.3):** auto_watch backup local changes
+  ra patch trước khi stash, pop trả lại sau pull thành công/thất
+  bại, pop xung đột thì dừng bot và báo rõ stash + patch, không
+  tự `reset --hard` vứt đi; auto_watch mặc định tắt, chỉ bật bằng
+  `--enable` hoặc `AUTO_WATCH_ENABLED=1`. Thêm CI thật
+  `.github/workflows/ci.yml` (pytest, Python 3.12); README sửa số
+  test về đếm tĩnh duy nhất 395 và sửa câu CI cho đúng là chỉ chạy
+  pytest, chưa có dry-run/eval stub làm cổng merge.
+
+## 1.6.2 — 2026-10-24 — Sửa đợt 2 sau audit (policy, Vault, share, UI, tính năng)
+
+- **Policy (sửa 1.6.2):** fail-closed riêng cho Google — action
+  gmail/gcalendar chưa liệt kê hoặc call thiếu action thì hỏi trước,
+  không rơi về allow; đóng khung nội dung Gmail/Calendar như dữ liệu
+  ngoài cho model; `web_click`/`web_fill` luôn ở nấc ask; fallback
+  action-level cho mọi connector chưa liệt kê (token ghi/xoá → ask,
+  token đọc → allow), đặt sau fail-closed Google để không mở lại
+  cửa cho action Google chưa liệt kê.
+- **OAuth Google (sửa 1.6.2):** state lưu dạng danh sách đang chờ
+  kèm ts, hết hạn 10 phút, chỉ đốt đúng state đã khớp, bấm Kết nối
+  lần 2 không ghi đè lần 1; format cũ 1 state vẫn đọc được.
+- **Vault (sửa 1.6.2):** mã hoá at-rest tuỳ chọn bằng Fernet khi
+  có env `VAULT_ENCRYPTION_KEY` hợp lệ và gói `cryptography` đã
+  cài; thiếu 1 trong 2 thì vẫn plaintext JSON 0600 + cảnh báo log,
+  không tự nhận là đã mã hoá; entry cũ vẫn đọc được, mất key =
+  mất entry đã mã hoá.
+- **Share (sửa 1.6.2):** trang share render markdown thật (tập con
+  heading/bold/italic/code/link/list/quote, escape HTML trước);
+  avatar fallback 4 đường dẫn thay vì chỉ 1.
+- **UI (sửa 1.6.2):** bỏ pill màu còn sót — màn Google connector
+  ("Đã kết nối" xanh lá, "Đã có Client ID & Secret" tím, "Chưa cấu
+  hình" xám), badge "Đã ghim" tím nhạt trong Library, tiêu đề trang
+  lỗi share đỏ `#e11d48` — tất cả về chữ + chấm nhỏ trung tính theo
+  token `--ink`/`--ink2`/`--ink3`. Không đổi layout, cỡ chữ hay kích
+  thước nút.
+- **Tính năng (sửa 1.6.2):** browser thêm `web_click`/`web_fill`
+  (luôn ask, không tự đăng nhập); Ideas tự sinh opt-in, mặc định
+  tắt (`IDEAS_AUTO_ENABLED=0`, gạt kv trong Mini App thắng env),
+  khi bật chỉ ghi thẻ chờ duyệt, không tự nhắn, không tự chạy task.
+- **Docs (sửa 1.6.2):** thêm `docs/1.6.2-fixes.md` ghi đúng giới hạn
+  thực tế (xem file đó, đã cập nhật theo từng đợt gộp: Vault mã hoá
+  tuỳ chọn và OAuth đa phiên nay đã có). Sửa README ("ngoại lệ
+  duy nhất" → 2 ngoại lệ) và chú thích 2 câu sai trong mục 1.6.0
+  dưới đây.
+
+## 1.6.1 — 2026-10-24 — Sửa 3 lỗi audit trước 1.6 (không thêm tính năng mới)
+
+- **"Duyệt và nhớ" ghi theo group, không theo tool:** trước đây nhớ theo
+  `connector_call` nên 1 lần duyệt cho `gmail:send` mở cửa cho mọi
+  connector/action khác trong phiên, phá bảng quyền action-level 1.6.0.
+  Từ nay nhớ theo đúng group trong payload (vd `connector:gmail:send`),
+  chỉ khi không có group mới rơi về nhớ theo tool; thẻ cũng hiển thị
+  đúng phạm vi nhóm thay vì nói "không áp cho nhóm khác" trong khi
+  hành vi cũ áp cho cả tool.
+- **Vault — sửa claim mã hoá + khử trùng label + card_sent trung thực:**
+  Vault là file JSON quyền 0600, KHÔNG mã hoá at-rest — toàn bộ văn bản
+  trong code, thẻ Telegram và Mini App đã sửa từ "mã hoá" thành diễn đạt
+  đúng này. `VaultStore.put` khử trùng theo label (1 label chỉ còn 1 entry
+  mới nhất, khỏi cảnh bot dùng mãi bản client_secret cũ theo thứ tự UUID).
+  `request_vault_secret` tôn trọng kết quả thật của notifier và trả
+  `ok=False` khi không có notifier nào (không còn "đã gửi thẻ" giả).
+- **Share — thêm thu hồi + không log token + chỉ link active mới mở được:**
+  thêm `LibraryService.unshare_item`, API Mini App
+  `POST /api/library/items/{id}/unshare` (chưa thêm lệnh chat, để đợt sau
+  nếu cần); `get_item_by_token` từ chối item không ở `share_status=active`
+  (kể cả pending_host và revoked); trajectory `library_share_requested`
+  không còn ghi `share_token`.
+- **OAuth Google — state không còn bị đốt bởi callback sai:** callback chỉ
+  xoá state khi state khớp hoặc đã hết hạn; state sai hoàn toàn thì giữ
+  nguyên để owner bấm lại vẫn dùng được.
+- **Giấy tờ:** badge README 1.5.0 → 1.6.1; ảnh đầu README trỏ
+  `mulon-avatar.webp` ở root (trước đây trỏ `assets/mulon-avatar.webp`
+  nhưng `assets/` không có file đó); ghi rõ phạm vi bảng action-level
+  chỉ đúng cho 6 action gmail/gcalendar.
+
 ## 1.6.0 — 2026-10-24 — Artifacts + Library Share Link + Vault Cards + Action-Level Policy + One-Click MCP Install
 
 - **Thư viện Artifacts & Link chia sẻ thật công khai:**
   - Tạo link chia sẻ công khai (`/share/{token}`) thật qua tunnel/domain hiện tại có thời hạn tối đa 48h.
   - Trang đọc tài liệu trực tiếp, hiển thị markdown, styling responsive, kèm nút "Sao chép" (Copy) tiện lợi.
+    (Sửa 1.6.2 — chú thích: câu "hiển thị markdown" nói quá, thực tế
+    trang share render nội dung text đã escape trong `<pre>`, chưa
+    render markdown thật; xem `docs/1.6.2-fixes.md` §4.)
   - Hỗ trợ Ghim (pin) tài liệu lên đầu danh sách và Đổi tên (rename) tài liệu trực tiếp trong Mini App hoặc qua lệnh chat `/share_item`, `/pin_item`, `/rename_item`.
 - **Thẻ nhập bí mật Vault an toàn tương tác trong chat:**
   - Agent được trang bị tool `request_vault_secret(label, description)`: gửi thẻ hành động trực tiếp vào chat với nút mở thẳng màn Kho trong Mini App.
   - Nhãn bí mật được điền sẵn và khóa (read-only), tự động focus vào ô nhập giá trị. Bí mật đi thẳng từ giao diện vào kho mã hóa, không bao giờ lộ ra tin nhắn chat plain text.
+    (Sửa 1.6.2 — chú thích: "kho mã hóa" là diễn đạt cũ, sai; Vault
+    là file JSON quyền 0600, không mã hoá at-rest; xem
+    `docs/1.6.2-fixes.md` §3.)
 - **Phân quyền chi tiết từng hành động (Action-Level Connector Policy):**
   - Quản lý quyền theo hành động cụ thể cho từng connector: Gmail (`gmail:search`, `gmail:read`, `gmail:send`) và Google Calendar (`gcalendar:list_events`, `gcalendar:create_event`, `gcalendar:delete_event`).
   - Phân cấp chính xác: `connector:<name>:<action>` -> `connector:<name>` -> `connector` -> `default`.

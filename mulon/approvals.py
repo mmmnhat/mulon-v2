@@ -112,13 +112,15 @@ def normalize_reason(text, max_len: int = 280) -> str:
 def approval_scope(payload: dict) -> dict:
     """Dòng phạm vi của 1 yêu cầu duyệt, suy từ dữ liệu THẬT:
     "duyệt" luôn chỉ áp cho lần này; "duyệt và nhớ" ghi rule lớp
-    SESSION cho đúng CÔNG CỤ đó (xem broker.wait) tới hết phiên
-    — không áp cho công cụ hay nhóm khác. Nhóm chỉ là ngữ cảnh
-    để user nhận diện việc, không phải phạm vi được nhớ."""
+    SESSION cho đúng NHÓM đó (xem broker.wait) tới hết phiên
+    — không áp cho nhóm khác. Sửa 1.6.1: trước đây nhớ theo
+    CÔNG CỤ (vd connector_call), nên 1 lần nhớ cho gmail:send
+    đã mở cửa cho mọi connector_call khác, kể cả gcalendar:delete_event.
+    Từ nay phạm vi nhớ = group trong payload (vd connector:gmail:send);
+    chỉ khi payload không có group mới rơi về nhớ theo tool."""
     payload = payload or {}
     tool = str(payload.get("tool") or "")
     group = str(payload.get("group") or "")
-    subject = f"công cụ {tool}" if tool else "việc này"
     label = GROUP_SCOPE_LABELS.get(group, "")
     if not label and ":" in group:
         # Nhóm có tiền tố (connector:gmail, mcp:filesystem):
@@ -127,10 +129,18 @@ def approval_scope(payload: dict) -> dict:
         head_label = GROUP_SCOPE_LABELS.get(head, "")
         if head_label:
             label = f"{head_label} ({tail})"
-    if label:
-        subject += f" thuộc nhóm {label}"
+    if group and tool and tool != group:
+        # Giữ cả nhãn đọc được, tên nhóm đầy đủ và tên công cụ gốc:
+        # thẻ duyệt phải cho user thấy chính xác phạm vi sẽ được nhớ,
+        # không chỉ nhãn chung chung (lỗi 1.6.1: nhãn thay mất tên gốc).
+        base = f"nhóm {label}" if label else f"nhóm {group}"
+        subject = f"{base} ({group}) — công cụ {tool}"
     elif group:
-        subject += f" thuộc nhóm {group}"
+        subject = f"nhóm {label} ({group})" if label else f"nhóm {group}"
+    elif tool:
+        subject = f"công cụ {tool}"
+    else:
+        subject = "việc này"
     return {
         "once": "“Duyệt” chỉ áp cho lần này.",
         "remember": (
@@ -234,9 +244,18 @@ class ApprovalBroker:
             "decided_at": time.time(),
         }
         if record["remember"] and approved and self.policy is not None:
-            tool = str(entry["payload"].get("tool") or "")
-            if tool:
-                self.policy.set_session_rule("tool", tool, "allow")
+            # Sửa 1.6.1: nhớ theo NHÓM (group) trước, không nhớ theo tool.
+            # Nhớ theo tool "connector_call" đã từng mở cửa cho mọi
+            # connector/action khác trong phiên, phá bảng quyền
+            # action-level của 1.6.0. Chỉ khi không có group mới
+            # rơi về nhớ theo tool (hành vi cũ, cho tool không nhóm).
+            group = str(entry["payload"].get("group") or "")
+            if group:
+                self.policy.set_session_rule("group", group, "allow")
+            else:
+                tool = str(entry["payload"].get("tool") or "")
+                if tool:
+                    self.policy.set_session_rule("tool", tool, "allow")
         self._recent.insert(0, record)
         del self._recent[20:]
         await self._notify(record)

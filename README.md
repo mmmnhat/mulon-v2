@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/mulon-avatar.webp" alt="Mulon" width="150">
+  <img src="mulon-avatar.webp" alt="Mulon" width="150">
 </p>
 
 <h1 align="center">Mulon</h1>
@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.5.0-blueviolet">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.6.3-blueviolet">
   <img alt="Python" src="https://img.shields.io/badge/python-3.12-3776AB">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-350%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-395%20counted-lightgrey">
   <img alt="Eval" src="https://img.shields.io/badge/eval%20gate-85%25-orange">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -31,8 +31,9 @@ cứng của thiết kế:
   nào, không khóa vào nhà cung cấp nào — đổi model là đổi cấu hình.
 - **Opt-in tuyệt đối.** Mọi vòng lặp nền (lịch hẹn, consolidation,
   proactivity) mặc định **tắt**; chỉ chạy khi chủ nhân bật đích danh.
-  Ngoại lệ duy nhất đã được chủ nhân duyệt đích danh: kiểm tra
-  cập nhật *dữ kiện* catalog của Chợ MCP (không bao giờ tự cài).
+  Ngoại lệ đã được chủ nhân duyệt đích danh (2 ngoại lệ, sửa 1.6.2 —
+  xem `docs/1.6.2-fixes.md`): Feed chủ động tự đăng theo lịch, và kiểm
+  tra cập nhật *dữ kiện* catalog của Chợ MCP (không bao giờ tự cài).
 
 > Tài liệu thiết kế đầy đủ: [`docs/thiet-ke-ky-thuat-muse-clone.md`](docs/thiet-ke-ky-thuat-muse-clone.md) ·
 > Kiến trúc module: [`ARCHITECTURE.md`](ARCHITECTURE.md)
@@ -310,15 +311,23 @@ checksum) — không bao giờ tự cài server.
 
 ```bash
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/python -m pytest tests/ -q     # 221 test
+.venv/bin/python -m pytest tests/ -q     # 395 test (đếm tĩnh, xem ghi chú dưới)
 .venv/bin/python -m mulon.evals          # stub offline: 30/30, cổng 85%
 ```
+
+Con số 395 là **đếm tĩnh** số hàm `def test_` trong `tests/`
+(sửa 1.6.3, gồm 4 test mới cho auto_watch và 5 test mới cho
+injection/SSRF/proxy; không có test nào dùng
+parametrize nên đếm tĩnh bằng số hàm), **chưa phải số test chạy
+xanh trên CI** — không được ghi "passing" cho tới khi CI chạy xanh
+lần đầu sau khi `.github/workflows/ci.yml` được merge.
 
 Bộ eval vàng (`evals/golden.jsonl`) gồm 30 case thuộc 5 họ: trí
 nhớ, correction, dùng tool, trung thực khi thiếu dữ kiện, giọng.
 Chấm hoàn toàn bằng máy — không LLM-judge. `--live` đo cả model
-thật qua proxy với cùng bộ case. CI (GitHub Actions) chạy pytest
-+ dry-run và dùng eval stub làm cổng merge.
+thật qua proxy với cùng bộ case. CI (GitHub Actions, sửa 1.6.3)
+hiện chỉ chạy pytest; dry-run và eval stub chưa có trong CI, nên
+chưa dùng làm cổng merge.
 
 ## Nguyên tắc thiết kế
 
@@ -332,9 +341,11 @@ thật qua proxy với cùng bộ case. CI (GitHub Actions) chạy pytest
    số liệu vận hành thật, không phải khẩu hiệu.
 3. **Không có gì tự chạy khi chưa được bật đích danh.** Mọi
    vòng lặp nền đều opt-in; heartbeat có việc cũng chỉ xếp hàng
-   chờ duyệt, không tự gửi.
+   chờ duyệt, không tự gửi — trừ 2 ngoại lệ đã duyệt đích danh
+   (Feed chủ động + cập nhật dữ kiện catalog, xem mục luật cứng
+   và `docs/1.6.2-fixes.md`).
 4. **Bí mật không đi qua agent.** Vault giữ giá trị ở file quyền
-   0600; agent chỉ cầm tham chiếu. Log và trajectory không chứa
+   0600 (không mã hoá at-rest — sửa 1.6.2); agent chỉ cầm tham chiếu. Log và trajectory không chứa
    nội dung bí mật, kể cả trong trace.
 5. **Trung thực về giới hạn.** Tính năng chưa có nằm ở backlog,
    trạng thái chưa chắc chắn được nói là chưa chắc chắn — trong
@@ -344,7 +355,7 @@ thật qua proxy với cùng bộ case. CI (GitHub Actions) chạy pytest
 
 ```
 mulon/          Mã nguồn agent (gateway, core, memory, surfaces…)
-tests/          291 test — mỗi phase một cụm test riêng
+tests/          395 test — mỗi phase một cụm test riêng (đếm tĩnh)
 dossier/        SOUL / IDENTITY / USER / MEMORY / FEED / HEARTBEAT…
 docs/           Tài liệu thiết kế kỹ thuật đầy đủ
 evals/          Bộ eval vàng (golden.jsonl) + case sinh từ correction

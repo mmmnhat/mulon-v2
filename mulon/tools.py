@@ -13,12 +13,15 @@ from __future__ import annotations
 
 import asyncio
 import html
+import ipaddress
 import json
 import re
+import socket
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
+from urllib.parse import urljoin, urlparse
 
 Handler = Callable[..., Awaitable[Any]]
 
@@ -129,6 +132,119 @@ def _resolve_for_file_tool(cfg, raw: str) -> Path:
         f"đường dẫn ngoài workspace/dossier bị chặn: {raw} "
         "(bật ALLOW_OUTSIDE_WORKSPACE=1 nếu thật sự cần)"
     )
+
+
+# ---------------------------------------------------------------------------
+# Sửa 1.6.3: chặn SSRF cho các đường đọc web (web_fetch, websearch,
+# browser web_read). KHÔNG áp cho proxy model 127.0.0.1:8317 vì các
+# đường này KHÔNG đi qua proxy đó: httpx client ở đây không truyền
+# proxy (trust_env mặc định của httpx vẫn có thể đọc HTTP_PROXY của
+# môi trường — xem lưu ý ở http_get_public), còn proxy chỉ được dùng
+# ở gateway.py (LiteLLM api_base) và voice.py (TTS POST). Vì vậy
+# chặn localhost ở đây không làm gãy proxy, và ngược lại proxy vẫn
+# bị khóa riêng ở config.validate_proxy_base_url.
+# ---------------------------------------------------------------------------
+
+def _ip_is_private_or_reserved(ip) -> bool:
+    """True nếu IP không phải địa chỉ công cộng (loopback, private,
+    link-local, multicast, reserved, unspecified, IPv4-mapped về
+    các nhóm đó). is_global=False là điều kiện đủ cho mọi nhóm này
+    trên Python 3.12, kể cả CGNAT 100.64/10 (is_private=True)."""
+    try:
+        mapped = getattr(ip, "ipv4_mapped", None)
+        if mapped is not None:
+            ip = mapped
+    except Exception:
+        pass
+    return not ip.is_global
+
+
+def ssrf_error_for_url(url: str) -> Optional[str]:
+    """Kiểm tra tĩnh (không DNS): trả chuỗi lỗi nếu URL rõ ràng là
+    nội bộ, None nếu qua được vòng này. Hostname chưa phân giải
+    được thì phải qua assert_url_public (DNS) mới kết luận."""
+    raw = (url or "").strip()
+    if not raw:
+        return "URL trống — từ chối để khỏi đọc nhầm đích nội bộ"
+    try:
+        parsed = urlparse(raw)
+    except Exception:
+        return "URL không phân tích được — từ chối (fail-closed)"
+    if parsed.scheme not in {"http", "https"}:
+        return (f"scheme {parsed.scheme!r} không phải http/https "
+                "— từ chối (SSRF guard)")
+    host = (parsed.hostname or "").lower()
+    if not host or host == "localhost" or host.endswith(".localhost"):
+        return "host localhost — từ chối (SSRF guard)"
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return None  # hostname: chờ kiểm tra DNS ở assert_url_public
+    if _ip_is_private_or_reserved(ip):
+        return "địa chỉ IP nội bộ/loopback/link-local — từ chối (SSRF guard)"
+    return None
+
+
+async def assert_url_public(url: str) -> Optional[str]:
+    """Kiểm tra đầy đủ cho 1 URL: vòng tĩnh + phân giải DNS của
+    hostname, mọi địa chỉ phân giải ra đều phải là công cộng.
+    Trả chuỗi lỗi nếu bị chặn, None nếu đạt. DNS lỗi -> chặn
+    (fail-closed): fetch thật cũng sẽ lỗi DNS, nên chặn sớm không
+    làm mất trang hợp lệ nào ngoài trang đã không đọc được."""
+    err = ssrf_error_for_url(url)
+    if err:
+        return err
+    host = (urlparse(url).hostname or "").lower()
+    try:
+        ipaddress.ip_address(host)
+        return None  # IP literal đã qua vòng tĩnh
+    except ValueError:
+        pass
+    try:
+        loop = asyncio.get_running_loop()
+        infos = await loop.getaddrinfo(host, 443,
+                                       proto=socket.IPPROTO_TCP)
+    except Exception:
+        return f"không phân giải được host {host!r} — từ chối (fail-closed)"
+    if not infos:
+        return f"không phân giải được host {host!r} — từ chối (fail-closed)"
+    for info in infos:
+        sockaddr = info[4] if len(info) > 4 else None
+        if not sockaddr:
+            continue
+        try:
+            ip = ipaddress.ip_address(sockaddr[0])
+        except ValueError:
+            return "địa chỉ phân giải không hợp lệ — từ chối (SSRF guard)"
+        if _ip_is_private_or_reserved(ip):
+            return (f"host {host!r} phân giải ra địa chỉ nội bộ "
+                    "— từ chối (SSRF guard)")
+    return None
+
+
+async def http_get_public(client, url: str, max_redirects: int = 3):
+    """GET qua httpx client (phải đặt follow_redirects=False) với
+    kiểm tra SSRF ở MỖI hop redirect, tối đa max_redirects lần.
+    Trả response cuối (không phải redirect). Raise ValueError khi
+    URL/hop bị chặn hoặc vượt trần redirect — caller bọc thành
+    {ok: False, error} theo quy ước của từng đường (registry đã
+    bọc mọi exception của web_fetch; websearch tự bọc)."""
+    current = (url or "").strip()
+    for hop in range(max_redirects + 1):
+        err = await assert_url_public(current)
+        if err:
+            raise ValueError(err)
+        resp = await client.get(current)
+        location = resp.headers.get("location") or ""
+        if resp.status_code in {301, 302, 303, 307, 308} and location:
+            if hop >= max_redirects:
+                raise ValueError(
+                    f"vượt quá {max_redirects} redirect — từ chối "
+                    "(SSRF guard: không theo redirect vô hạn)")
+            current = urljoin(current, location)
+            continue
+        return resp
+    raise ValueError("không tới được response cuối sau các redirect")
 
 
 def build_default_registry(cfg, memory, dossier=None) -> ToolRegistry:
@@ -308,12 +424,20 @@ def build_default_registry(cfg, memory, dossier=None) -> ToolRegistry:
     async def web_fetch(url: str):
         import httpx
 
+        # Sửa 1.6.3: SSRF guard + follow redirect thủ công có kiểm
+        # tra mỗi hop (xem http_get_public). trust_env=False để
+        # biến HTTP_PROXY của môi trường không âm thầm chuyển
+        # hướng request này qua 1 proxy khác với URL đã kiểm tra.
         async with httpx.AsyncClient(
-            follow_redirects=True,
+            follow_redirects=False,
             timeout=20.0,
+            trust_env=False,
             headers={"User-Agent": "MulonAgent/0.1 (+personal agent)"},
         ) as client:
-            resp = await client.get(url)
+            try:
+                resp = await http_get_public(client, url)
+            except ValueError as exc:
+                return {"ok": False, "error": str(exc)}
         raw = resp.text or ""
         text = re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>", " ", raw)
         text = re.sub(r"<[^>]+>", " ", text)

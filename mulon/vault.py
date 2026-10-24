@@ -33,11 +33,105 @@ logger = logging.getLogger("mulon.vault")
 
 
 class VaultStore:
-    """File vault JSON {ref: {label, value, created_at}}, quyền 0600."""
+    """File vault JSON {ref: {label, value|value_enc, created_at}}, quyền 0600.
 
-    def __init__(self, path: str | Path):
+    LƯU Ý AN TOÀN (sửa 1.6.1): mặc định file này KHÔNG mã hoá
+    at-rest. Quyền 0600 chỉ chống user khác trên cùng máy đọc file;
+    bất kỳ tiến trình nào chạy cùng user, hoặc bản sao file, đều
+    đọc được giá trị rõ. Đừng diễn đạt Kho này là "kho mã hoá" ở
+    bất kỳ bề mặt nào khi mã hoá chưa bật — xem các docstring/card
+    đã sửa theo cùng đợt này.
+
+    MÃ HOÁ AT-REST TUỲ CHỌN (sửa 1.6.2): nếu có key Fernet
+    (tham số ``encryption_key`` hoặc env ``VAULT_ENCRYPTION_KEY``)
+    VÀ gói ``cryptography`` đã cài thì giá trị mới được mã hoá
+    bằng Fernet và lưu ở trường ``value_enc`` (kèm ``enc="fernet"``).
+    Không có key, thiếu gói, hoặc key sai định dạng -> vẫn lưu
+    plaintext ở trường ``value`` (``enc="none"``) và ghi cảnh báo
+    vào log — KHÔNG BAO GIỜ tự nhận là đã mã hoá khi chưa mã hoá.
+    Không dùng crypto tự chế: chỉ dùng Fernet của ``cryptography``;
+    gói này CHƯA có trong requirements.txt nên muốn bật mã hoá
+    phải cài thêm (xem ghi chú trong requirements.txt).
+    Migration: entry plaintext cũ vẫn đọc được nguyên vẹn; entry
+    cũ chỉ thành mã hoá khi được put/update lại cùng label/ref
+    trong lúc key đang bật — KHÔNG ghi đè hàng loạt âm thầm.
+    MẤT KEY = MẤT TOÀN BỘ entry đã mã hoá: backup key riêng,
+    tách khỏi file vault.
+    """
+
+    def __init__(self, path: str | Path, encryption_key: str = None):
         self.path = Path(path)
         self._lock = threading.Lock()
+        # Sửa 1.6.2: key lấy từ tham số (config đã đọc env) trước,
+        # rồi mới tới env trực tiếp — để VaultStore vẫn bật mã hoá
+        # khi được dựng từ cfg test thiếu trường mới.
+        if encryption_key is None:
+            encryption_key = os.environ.get("VAULT_ENCRYPTION_KEY", "")
+        self._encryption_key = str(encryption_key or "").strip()
+        self._cipher = None
+        self._cipher_checked = False
+        self._cipher_warned = False
+
+    @property
+    def encryption_active(self) -> bool:
+        """True chỉ khi có key hợp lệ VÀ gói cryptography đã cài."""
+        return self._get_cipher() is not None
+
+    def _get_cipher(self):
+        # Lazy: lỗi key/gói không được làm gãy khởi động bot, chỉ
+        # ảnh hưởng đúng các thao tác Vault (put/resolve).
+        if self._cipher_checked:
+            return self._cipher
+        self._cipher_checked = True
+        if not self._encryption_key:
+            return None
+        try:
+            from cryptography.fernet import Fernet
+        except ImportError:
+            if not self._cipher_warned:
+                self._cipher_warned = True
+                logger.warning(
+                    "VAULT_ENCRYPTION_KEY đã đặt nhưng gói "
+                    "'cryptography' chưa cài — Vault vẫn lưu plaintext "
+                    "JSON 0600, KHÔNG mã hoá. Cài bằng: "
+                    "pip install cryptography")
+            return None
+        try:
+            self._cipher = Fernet(self._encryption_key.encode("utf-8"))
+        except Exception:
+            if not self._cipher_warned:
+                self._cipher_warned = True
+                logger.warning(
+                    "VAULT_ENCRYPTION_KEY không phải Fernet key hợp lệ "
+                    "— Vault vẫn lưu plaintext, KHÔNG mã hoá. Tạo key "
+                    "bằng: python3 -c \"from cryptography.fernet import "
+                    "Fernet; print(Fernet.generate_key().decode())\"")
+            self._cipher = None
+        return self._cipher
+
+    def _encrypt_value(self, value: str) -> Optional[str]:
+        cipher = self._get_cipher()
+        if cipher is None:
+            return None
+        return cipher.encrypt(value.encode("utf-8")).decode("ascii")
+
+    def _decrypt_entry(self, entry: dict) -> Optional[str]:
+        token = entry.get("value_enc")
+        if not isinstance(token, str) or not token:
+            return None
+        cipher = self._get_cipher()
+        if cipher is None:
+            logger.warning(
+                "vault entry đã mã hoá nhưng không giải mã được "
+                "(thiếu key hoặc thiếu gói cryptography)")
+            return None
+        try:
+            return cipher.decrypt(token.encode("ascii")).decode("utf-8")
+        except Exception:
+            logger.warning(
+                "vault entry mã hoá giải mã lỗi — có thể sai key "
+                "hoặc file đã bị sửa")
+            return None
 
     def _load(self) -> dict:
         if not self.path.exists():
@@ -69,8 +163,26 @@ class VaultStore:
         ref = f"vault:{uuid.uuid4()}"
         with self._lock:
             data = self._load()
-            data[ref] = {"label": label, "value": value,
-                         "created_at": now_iso()}
+            # Sửa 1.6.1: khử trùng theo label. Trước đây mỗi lần nhập
+            # là 1 ref mới cùng label, còn _vault_get chỉ lấy entry
+            # đầu tiên theo thứ tự UUID nên bot có thể dùng mãi bản
+            # cũ/sai mà owner không biết bản nào đang hiệu lực.
+            # Từ nay 1 label chỉ còn đúng 1 entry: entry mới nhất.
+            lbl = str(label or "").strip()
+            for old_ref in [r for r, e in data.items()
+                            if isinstance(e, dict) and e.get("label") == lbl]:
+                del data[old_ref]
+            # Sửa 1.6.2: entry mới mã hoá khi cipher bật, ngược lại
+            # plaintext như cũ — entry cũ khác label không bị đụng tới.
+            entry = {"label": lbl, "created_at": now_iso()}
+            enc = self._encrypt_value(value)
+            if enc is not None:
+                entry["value_enc"] = enc
+                entry["enc"] = "fernet"
+            else:
+                entry["value"] = value
+                entry["enc"] = "none"
+            data[ref] = entry
             self._save(data)
         return ref
 
@@ -79,7 +191,13 @@ class VaultStore:
         gọi hàm này; mọi bề mặt hiển thị chỉ được thấy ref + label."""
         with self._lock:
             entry = self._load().get(ref)
-        return entry.get("value") if isinstance(entry, dict) else None
+        if not isinstance(entry, dict):
+            return None
+        # Sửa 1.6.2: entry mã hoá đọc qua giải mã; entry plaintext
+        # cũ (kể cả file từ trước khi bật mã hoá) vẫn đọc như cũ.
+        if entry.get("value_enc") is not None:
+            return self._decrypt_entry(entry)
+        return entry.get("value")
 
     def exists(self, ref: str) -> bool:
         with self._lock:
@@ -91,7 +209,9 @@ class VaultStore:
             data = self._load()
         return [
             {"ref": ref, "label": e.get("label", ""),
-             "created_at": e.get("created_at", "")}
+             "created_at": e.get("created_at", ""),
+             # Sửa 1.6.2: chỉ báo trạng thái mã hoá, không kèm giá trị.
+             "encrypted": e.get("enc") == "fernet"}
             for ref, e in sorted(data.items())
             if isinstance(e, dict)
         ]
@@ -130,7 +250,21 @@ class VaultStore:
             if label is not None and str(label).strip():
                 data[ref_str]["label"] = str(label).strip()
             if value is not None and str(value) != "":
-                data[ref_str]["value"] = str(value)
+                # Sửa 1.6.2: entry đang mã hoá mà cipher không bật
+                # (mất key / thiếu gói) thì TỪ CHỐI ghi đè giá trị
+                # thay vì hạ cấp âm thầm xuống plaintext.
+                if (data[ref_str].get("value_enc") is not None
+                        and self._get_cipher() is None):
+                    return False
+                enc = self._encrypt_value(str(value))
+                if enc is not None:
+                    data[ref_str]["value_enc"] = enc
+                    data[ref_str]["enc"] = "fernet"
+                    data[ref_str].pop("value", None)
+                else:
+                    data[ref_str]["value"] = str(value)
+                    data[ref_str]["enc"] = "none"
+                    data[ref_str].pop("value_enc", None)
             data[ref_str]["updated_at"] = now_iso()
             self._save(data)
             return True
@@ -313,7 +447,9 @@ def register_vault_tools(registry, cfg, notifier=None) -> None:
     Khi agent thiếu bí mật (API key, OAuth credentials, tokens...),
     thay vì bắt người dùng gõ lệnh thủ công trong chat, agent gọi tool này
     để gửi thẻ hành động có nút mở Mini App điền sẵn nhãn và khóa nhãn.
-    Giá trị người dùng dán vào sẽ đi thẳng vào Kho mã hóa an toàn.
+    Giá trị người dùng dán vào sẽ đi thẳng vào Kho trên máy
+    (file JSON quyền 0600; chỉ mã hoá at-rest khi bật
+    VAULT_ENCRYPTION_KEY + gói cryptography — xem VaultStore).
     """
     from .tools import ToolSpec
 
@@ -339,27 +475,44 @@ def register_vault_tools(registry, cfg, notifier=None) -> None:
             try:
                 res = notifier(info)
                 if hasattr(res, "__await__"):
-                    await res
-                sent = True
+                    res = await res
+                # Sửa 1.6.1: tôn trọng kết quả thật của notifier.
+                # Trước đây sent=True ngay cả khi notifier trả False,
+                # và ok=True ngay cả khi không có notifier nào —
+                # agent có thể báo "đã gửi thẻ" trong khi không có thẻ nào.
+                if res is False:
+                    sent = False
+                elif isinstance(res, dict) and not res.get("ok", True):
+                    sent = False
+                else:
+                    sent = True
             except Exception as exc:
                 logger.warning("Gửi thẻ Vault qua notifier thất bại: %s", exc)
+                sent = False
 
+        # Không có notifier = không có thẻ nào được gửi: ok=False
+        # để agent không diễn giải thành "đã gửi", mà phải hướng
+        # user vào Mini App thủ công theo message bên dưới.
+        ok = sent if notifier is not None else False
         return {
-            "ok": True,
+            "ok": ok,
             "label": lbl,
             "card_sent": sent,
             "direct_url": app_url,
             "message": (f"Đã gửi thẻ yêu cầu nhập bí mật cho '{lbl}' vào chat."
-                        if sent else f"Vui lòng nhập bí mật cho '{lbl}' trong Mini App."),
+                        if sent else f"Chưa gửi được thẻ cho '{lbl}'. "
+                        "Vui lòng nhập bí mật cho nhãn này trong Mini App."),
         }
 
     registry.register(ToolSpec(
         name="request_vault_secret",
         description=(
             "Gửi thẻ tương tác vào chat để yêu cầu chủ nhân nhập bí mật "
-            "(như API key, Client ID/Secret...) vào Kho lưu trữ an toàn. "
-            "Nhãn được điền sẵn, giá trị bảo mật được mã hóa lưu thẳng "
-            "vào Kho, không đi qua nội dung chat."
+            "(như API key, Client ID/Secret...) vào Kho lưu trữ trên máy. "
+            "Nhãn được điền sẵn, giá trị bảo mật được lưu thẳng "
+            "vào Kho (file JSON quyền 0600; mã hoá at-rest chỉ khi "
+            "bật VAULT_ENCRYPTION_KEY + gói cryptography), "
+            "không đi qua nội dung chat."
         ),
         parameters={
             "type": "object",
@@ -380,7 +533,11 @@ def register_vault_tools(registry, cfg, notifier=None) -> None:
         handler=request_vault_secret,
     ), overwrite=True)
 
-    store = VaultStore(cfg.vault_path)
+    # Sửa 1.6.2: truyền key mã hoá (nếu cfg có) để store này cũng
+    # mã hoá như store dựng ở main.py; thiếu trường thì VaultStore
+    # tự đọc env VAULT_ENCRYPTION_KEY.
+    store = VaultStore(cfg.vault_path,
+                       getattr(cfg, "vault_encryption_key", ""))
 
     async def list_vault_secrets() -> dict:
         items = store.labels()

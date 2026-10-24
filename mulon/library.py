@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import secrets
 import shutil
@@ -34,6 +35,62 @@ KIND_BY_EXT = {
 
 def kind_of(path: Path) -> str:
     return KIND_BY_EXT.get(path.suffix.lower(), "other")
+
+
+# ---------- chặn scan/share file nhạy cảm (sửa 1.6.3) ----------
+def _share_token_hash(token: str) -> str:
+    """Hash SHA-256 của share token để lưu DB, thay vì token gốc.
+
+    Trước 1.6.3 DB lưu token plaintext nên ai đọc được DB là có
+    ngay link chia sẻ. Token gốc vẫn trả về cho caller đúng 1 lần
+    để dựng URL; DB chỉ giữ hash, tra cứu bằng hash(token đầu vào).
+    """
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _denied_reason(path: Path) -> str:
+    """Lý do từ chối scan/share, "" nếu được phép.
+
+    Denylist theo tên: chứa .env, hậu tố .pem, chứa "secret",
+    hậu tố .db, đúng tên vault.json. Đây là lớp phòng vệ cho file
+    nhạy cảm, không thay thế việc user tự không đưa secret vào
+    workspace.
+    """
+    name = path.name.lower()
+    if name == "vault.json":
+        return "file vault.json"
+    if ".env" in name:
+        return "tên chứa .env"
+    if name.endswith(".pem"):
+        return "tên có hậu tố .pem"
+    if "secret" in name:
+        return "tên chứa secret"
+    if name.endswith(".db"):
+        return "tên có hậu tố .db"
+    return ""
+
+
+def _share_blocked_reason(path: Path, workspace: Path) -> str:
+    """Kiểm tra lại path lúc share (không chỉ lúc scan): symlink,
+    resolve ra ngoài workspace, hoặc thuộc denylist đều bị chặn.
+    Item cũ đã index trước 1.6.3 vẫn bị chặn ở đây.
+    """
+    try:
+        if path.is_symlink():
+            return "đường dẫn là symlink"
+    except Exception:
+        pass
+    reason = _denied_reason(path)
+    if reason:
+        return reason
+    try:
+        resolved = path.resolve()
+        base = workspace.resolve()
+        if not resolved.is_relative_to(base):
+            return "file nằm ngoài workspace"
+    except Exception:
+        return "không resolve được đường dẫn"
+    return ""
 
 
 def _now() -> datetime:
@@ -63,18 +120,41 @@ class LibraryService:
 
     async def scan(self) -> dict:
         """Quét workspace, lập chỉ mục file chưa có trong catalog.
-        Bỏ qua: thư mục trash, thành phần ẩn (bắt đầu bằng '.')."""
+        Bỏ qua: thư mục trash, thành phần ẩn (bắt đầu bằng '.').
+        Sửa 1.6.3: bỏ qua symlink, file resolve ra ngoài workspace,
+        và file thuộc denylist nhạy cảm (.env/.pem/*secret*/.db/
+        vault.json) — trước đây scan index mọi file nên item nào
+        cũng share được, kể cả secret lọt vào workspace."""
         base = Path(self.cfg.workspace_dir)
         indexed = 0
         seen = 0
+        skipped_sensitive = 0
         if base.exists():
+            base_resolved = base.resolve()
             for p in sorted(base.rglob("*")):
+                if p.is_symlink():
+                    skipped_sensitive += 1
+                    continue
                 if not p.is_file():
                     continue
-                rel = p.relative_to(base)
+                try:
+                    rel = p.relative_to(base)
+                except ValueError:
+                    skipped_sensitive += 1
+                    continue
                 if any(part.startswith(".") for part in rel.parts):
                     continue
                 if rel.parts and rel.parts[0] == "trash":
+                    continue
+                try:
+                    if not p.resolve().is_relative_to(base_resolved):
+                        skipped_sensitive += 1
+                        continue
+                except Exception:
+                    skipped_sensitive += 1
+                    continue
+                if _denied_reason(p):
+                    skipped_sensitive += 1
                     continue
                 seen += 1
                 before = await self.memory.get_library_item_by_path(
@@ -83,7 +163,8 @@ class LibraryService:
                     await self.memory.add_library_item(
                         p.name, kind_of(p), str(p), source="scan")
                     indexed += 1
-        return {"ok": True, "files_seen": seen, "indexed": indexed}
+        return {"ok": True, "files_seen": seen, "indexed": indexed,
+                "skipped_sensitive": skipped_sensitive}
 
     async def list_items(self, status: Optional[str] = "active",
                          limit: int = 100) -> list[dict]:
@@ -160,6 +241,14 @@ class LibraryService:
         if item["status"] != "active":
             return {"ok": False,
                     "error": f"item #{item_id} không ở trạng thái active"}
+        # Sửa 1.6.3: kiểm tra lại path lúc share, không chỉ lúc scan
+        # — item cũ đã index trước 1.6.3 (symlink, file nhạy cảm,
+        # file ngoài workspace) vẫn bị chặn ở đây.
+        blocked = _share_blocked_reason(
+            Path(item["path"]), Path(self.cfg.workspace_dir))
+        if blocked:
+            return {"ok": False,
+                    "error": f"không chia sẻ được file này ({blocked})"}
         hours = max(0.1, min(float(hours), 48.0))
         expires = (_now() + timedelta(hours=hours)).isoformat(
             timespec="seconds")
@@ -175,14 +264,19 @@ class LibraryService:
             note = ("Bản này chưa có host công khai — yêu cầu chia sẻ "
                     "đã ghi với hạn <=48h ở trạng thái chờ host, "
                     "chưa có link để gửi.")
+        # Sửa 1.6.3: DB chỉ lưu hash của token, không lưu token gốc.
+        # Token gốc vẫn trả về cho caller 1 lần để dựng URL.
         await self.memory.update_library_item(
             item_id, share_status=share_status,
             share_expires_at=expires,
-            share_token=token)
+            share_token=_share_token_hash(token))
+        # Sửa 1.6.1: KHÔNG log share_token vào trajectory. Token
+        # chỉ trả về cho caller (để dựng URL) trong cùng lượt này;
+        # ghi token vào DB trajectory biến log thành kho token.
         await self.memory.log_trajectory(
             "", "library_share_requested",
             {"item_id": item_id, "share_expires_at": expires,
-             "share_token": token, "share_status": share_status})
+             "share_status": share_status})
         return {
             "ok": True,
             "item_id": item_id,
@@ -194,6 +288,27 @@ class LibraryService:
             "share_expires_at": expires,
             "note": note,
         }
+
+    # ---------- thu hồi chia sẻ (sửa 1.6.1) ----------
+    async def unshare_item(self, item_id: int) -> dict:
+        """Thu hồi link chia sẻ của 1 item: xoá token, trạng thái
+        về revoked. Trước 1.6.1 không có cách nào giết link sớm —
+        link đã phát chỉ chết khi hết hạn (tối đa 48h)."""
+        item = await self.memory.get_library_item(item_id)
+        if item is None:
+            return {"ok": False, "error": f"không thấy item #{item_id}"}
+        if item.get("share_status") not in ("active", "pending_host"):
+            return {"ok": True, "item_id": item_id,
+                    "share_status": item.get("share_status") or "revoked",
+                    "note": "Item này hiện không có link chia sẻ đang hiệu lực."}
+        await self.memory.update_library_item(
+            item_id, share_status="revoked",
+            share_expires_at="", share_token="")
+        await self.memory.log_trajectory(
+            "", "library_share_revoked",
+            {"item_id": item_id, "share_status": "revoked"})
+        return {"ok": True, "item_id": item_id, "share_status": "revoked",
+                "note": "Đã thu hồi link chia sẻ. Link cũ không còn mở được."}
 
     # ---------- ghim & đổi tên (1.6.0) ----------
     async def pin_item(self, item_id: int, pinned: bool = True) -> dict:
@@ -217,11 +332,37 @@ class LibraryService:
     async def get_item_by_token(self, token: str) -> dict:
         if not token:
             return {"ok": False, "error": "thiếu token chia sẻ"}
-        item = await self.memory.get_library_item_by_token(token)
+        # Sửa 1.6.3: tra bằng hash trước (token mới), rồi mới tra
+        # plaintext cũ (migration 1 lần). Token cũ gặp lần đầu được
+        # tự chuyển sang hash ngay trong lượt đó, để lần sau chỉ
+        # còn hash trong DB. Token mới share sau 1.6.3 không bao
+        # giờ có bản plaintext trong DB nên không cần bước này.
+        item = await self.memory.get_library_item_by_token(
+            _share_token_hash(token))
+        if item is None:
+            legacy = await self.memory.get_library_item_by_token(token)
+            if legacy is not None:
+                item = legacy
+                try:
+                    await self.memory.update_library_item(
+                        legacy["id"],
+                        share_token=_share_token_hash(token))
+                except Exception:
+                    pass
         if item is None:
             return {"ok": False, "error": "link chia sẻ không tồn tại hoặc đã thu hồi"}
+        # Không trả token (kể cả bản legacy vừa migrate) ra ngoài
+        # qua dict item — caller chỉ cần path/kind để đọc file.
+        item = dict(item)
+        item["share_token"] = ""
         if item.get("status") != "active":
             return {"ok": False, "error": "tài liệu không còn khả dụng"}
+        # Sửa 1.6.1: chỉ link ở trạng thái active mới mở được.
+        # Trước đây item pending_host (chưa có host, chưa phát link
+        # thật) hoặc đã revoked nhưng token chưa xoá vẫn đọc được
+        # nếu route tới được qua tunnel.
+        if item.get("share_status") != "active":
+            return {"ok": False, "error": "link chia sẻ không còn hiệu lực"}
         expires_at = item.get("share_expires_at") or ""
         if expires_at:
             try:

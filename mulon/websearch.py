@@ -164,13 +164,25 @@ def parse_bing_html(raw: str, limit: int = 5) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 async def _get_text(url: str, timeout: float, params=None) -> str:
+    # Sửa 1.6.3: cùng SSRF guard như web_fetch (tools.http_get_public:
+    # kiểm tra mỗi hop redirect, trust_env=False để HTTP_PROXY của
+    # môi trường không chuyển hướng request qua nơi khác).
+    # Lưu ý: params (query của máy tìm kiếm) chỉ dùng ở hop đầu;
+    # redirect sau đó theo Location thuần, không mang theo params.
+    from .tools import http_get_public
+
     import httpx
 
     async with httpx.AsyncClient(
-        follow_redirects=True, timeout=timeout,
+        follow_redirects=False, timeout=timeout, trust_env=False,
         headers={"User-Agent": _UA},
     ) as client:
-        resp = await client.get(url, params=params)
+        if params:
+            from urllib.parse import urlencode
+
+            sep = "&" if "?" in url else "?"
+            url = f"{url}{sep}{urlencode(params)}"
+        resp = await http_get_public(client, url)
         resp.raise_for_status()
         return resp.text or ""
 
@@ -309,14 +321,17 @@ async def fetch_page_text(url: str, timeout: float = 12.0,
     """Đọc 1 URL cho collector. Trả {ok, url (sau redirect),
     status, content (text đã gọt), raw_head, content_type}.
     Lỗi -> {ok: False, error} — không bao giờ raise."""
+    # Sửa 1.6.3: SSRF guard như web_fetch (xem _get_text).
+    from .tools import http_get_public
+
     import httpx
 
     try:
         async with httpx.AsyncClient(
-            follow_redirects=True, timeout=timeout,
+            follow_redirects=False, timeout=timeout, trust_env=False,
             headers={"User-Agent": _UA},
         ) as client:
-            resp = await client.get(url)
+            resp = await http_get_public(client, url)
         raw = resp.text or ""
         return {
             "ok": True,

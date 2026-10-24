@@ -24,6 +24,7 @@ import html
 import json
 import logging
 import platform
+import re
 import socket
 import time
 from pathlib import Path
@@ -32,10 +33,12 @@ from urllib.parse import parse_qsl
 
 from . import __version__ as MULON_VERSION
 from .approvals import GROUP_SCOPE_LABELS
+from .memory import redact_trajectory_payload
 from .cron import parse_cron
 from .feed_auto import SCHEDULE_ID as FEED_SCHEDULE_ID, valid_quiet_hours
 from .planning import internal_kind
 from .proactivity import PROACTIVITY_KV_KEY, effective_enabled
+from .ideas import IDEAS_AUTO_KV_KEY, effective_auto_enabled
 
 logger = logging.getLogger("mulon.webapp")
 
@@ -134,6 +137,8 @@ TOOL_STEP_LABELS = {
     "web_fetch": "Đang đọc web",
     "web_read": "Đang đọc web",
     "web_search": "Đang tìm trên web",
+    "web_click": "Đang bấm trên trang web",
+    "web_fill": "Đang điền trên trang web",
     "web_screenshot": "Đang chụp trang web",
     "now": "Đang xem giờ",
     "connector_health": "Đang kiểm tra kết nối",
@@ -267,6 +272,131 @@ class ActivityTracker:
         return {"busy": True,
                 "label": self.current.get("step") or "Đang xử lý",
                 "current": dict(self.current)}
+
+
+# ---------------------------------------------------------------------------
+# Render markdown tối giản cho trang share (sửa 1.6.2)
+# ---------------------------------------------------------------------------
+# Không dùng gói markdown ngoài (chưa có trong requirements): tự
+# render tập con heading/bold/italic/code/link/list/quote. NGUYÊN
+# TẮC AN TOÀN: escape toàn bộ HTML của nội dung TRƯỚC, rồi mới
+# chèn thẻ do chính hàm này sinh ra — HTML thô trong file (kể cả
+# <script>) không bao giờ chui qua được. Link chỉ nhận scheme
+# http/https hoặc đường dẫn tương đối; scheme khác (javascript:,
+# data:, ...) được render thành chữ thường, không thành <a>.
+
+_MD_LINK_RE = re.compile(
+    # Nhóm URL cho phép 1 cặp ngoặc trong (vd javascript:alert(1))
+    # để link scheme lạ bị loại cũng không để sót dấu ")" lẻ.
+    r"\[([^\]]+)\]\(([^)\s]+(?:\)[^\s)]*)?)(?:\s+\"[^\"]*\")?\)")
+
+
+def _render_share_inline(text: str) -> str:
+    """Inline trong 1 dòng đã escape: code, bold, italic, link."""
+    # Code inline trước để ** hay * bên trong code không bị parse.
+    parts = re.split(r"(`[^`]+`)", text)
+    for i, part in enumerate(parts):
+        if part.startswith("`") and part.endswith("`") and len(part) > 2:
+            parts[i] = "<code>" + part[1:-1] + "</code>"
+        else:
+            part = _MD_LINK_RE.sub(_md_link_sub, part)
+            part = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", part)
+            part = re.sub(r"(?<!\w)\*([^*]+)\*(?!\w)",
+                          r"<em>\1</em>", part)
+            part = re.sub(r"(?<!\w)_([^_]+)_(?!\w)",
+                          r"<em>\1</em>", part)
+            parts[i] = part
+    return "".join(parts)
+
+
+def _md_link_sub(match: "re.Match[str]") -> str:
+    label, url = match.group(1), match.group(2)
+    lowered = url.lower()
+    if (lowered.startswith(("http://", "https://", "/", "#"))
+            or lowered.startswith("mailto:")):
+        href = html.escape(url, quote=True)
+        return f'<a href="{href}">{label}</a>'
+    return label  # Scheme lạ: chỉ giữ chữ, không tạo link.
+
+
+def _render_share_markdown(content: str) -> str:
+    """Render markdown tối giản, an toàn (xem ghi chú ở đầu mục)."""
+    escaped = html.escape(content)
+    lines = escaped.split("\n")
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        # Khối code ``` ... ```
+        if stripped.startswith("```"):
+            block = []
+            i += 1
+            while i < len(lines) and not lines[i].strip().startswith("```"):
+                block.append(lines[i])
+                i += 1
+            i += 1  # Bỏ dòng ``` đóng (hoặc hết file).
+            out.append("<pre><code>" + "\n".join(block) + "</code></pre>")
+            continue
+        # Heading # .. ######
+        m = re.match(r"^(#{1,6})\s+(.*)$", stripped)
+        if m:
+            level = len(m.group(1))
+            out.append(f"<h{level}>" + _render_share_inline(m.group(2))
+                       + f"</h{level}>")
+            i += 1
+            continue
+        # Đường kẻ ngang
+        if stripped in ("---", "***", "___"):
+            out.append("<hr>")
+            i += 1
+            continue
+        # Trích dẫn > ...
+        if stripped.startswith("&gt;"):
+            quote = []
+            while i < len(lines) and lines[i].strip().startswith("&gt;"):
+                quote.append(lines[i].strip()[4:].strip())
+                i += 1
+            out.append("<blockquote>"
+                       + "<br>".join(_render_share_inline(q) for q in quote)
+                       + "</blockquote>")
+            continue
+        # Danh sách - / * / 1.
+        if re.match(r"^[-*]\s+\S", stripped) or \
+                re.match(r"^\d+\.\s+\S", stripped):
+            ordered = bool(re.match(r"^\d+\.\s+", stripped))
+            tag = "ol" if ordered else "ul"
+            items = []
+            while i < len(lines):
+                s = lines[i].strip()
+                im = re.match(r"^[-*]\s+(.*)$", s) or \
+                    re.match(r"^\d+\.\s+(.*)$", s)
+                if not im:
+                    break
+                items.append("<li>" + _render_share_inline(im.group(1))
+                             + "</li>")
+                i += 1
+            out.append(f"<{tag}>" + "".join(items) + f"</{tag}>")
+            continue
+        # Đoạn văn: gom các dòng liên tiếp thành 1 <p>.
+        if stripped:
+            para = []
+            while i < len(lines) and lines[i].strip() and \
+                    not lines[i].strip().startswith(("```", "#", "&gt;")) \
+                    and not re.match(r"^[-*]\s+\S", lines[i].strip()) \
+                    and not re.match(r"^\d+\.\s+\S", lines[i].strip()):
+                para.append(lines[i].strip())
+                i += 1
+            out.append("<p>" + "<br>".join(_render_share_inline(p)
+                                           for p in para) + "</p>")
+            continue
+        i += 1  # Dòng trống.
+    return "\n".join(out)
+
+
+# ---------------------------------------------------------------------------
+# Server
+# ---------------------------------------------------------------------------
 
 
 # ---------------------------------------------------------------------------
@@ -429,8 +559,11 @@ class WebAppServer:
         # 1.6.0: Library management API cho Mini App
         app.router.add_get("/api/library/items", self._handle_library_items)
         app.router.add_post("/api/library/items/{id}/pin", self._handle_library_pin)
+        app.router.add_post("/api/library/items/{id}/trash", self._handle_library_trash)
+        app.router.add_post("/api/library/items/{id}/restore", self._handle_library_restore)
         app.router.add_post("/api/library/items/{id}/rename", self._handle_library_rename)
         app.router.add_post("/api/library/items/{id}/share", self._handle_library_share)
+        app.router.add_post("/api/library/items/{id}/unshare", self._handle_library_unshare)
         # 1.6.0: One-click MCP Install
         app.router.add_post(
             "/api/marketplace/operations/{id}/install-now",
@@ -497,10 +630,27 @@ class WebAppServer:
         return resp
 
     async def _handle_avatar(self, request):
-        path = Path(self.cfg.dossier_dir).parent / "assets" \
-            / "mulon-avatar.webp"
-        if path.exists():
-            return web.FileResponse(path)
+        # Sửa 1.6.2: thử lần lượt nhiều đường dẫn thay vì chỉ 1.
+        # Trước đây chỉ có dossier_dir.parent/assets/... trong khi
+        # file thật nằm ở repo root và mulon/webapp/assets/ nên
+        # handler luôn 404 dù file có tồn tại. Thứ tự giữ đường
+        # cũ đầu tiên để không đổi hành vi khi file cũ có mặt.
+        repo_root = Path(__file__).resolve().parent.parent
+        candidates = [
+            Path(self.cfg.dossier_dir).parent / "assets"
+            / "mulon-avatar.webp",
+            repo_root / "mulon-avatar.webp",
+            repo_root / "mulon" / "webapp" / "assets"
+            / "mulon-avatar.webp",
+            repo_root / "assets" / "mulon-avatar.webp",
+        ]
+        seen: set[Path] = set()
+        for path in candidates:
+            if path in seen:
+                continue
+            seen.add(path)
+            if path.is_file():
+                return web.FileResponse(path)
         return web.Response(status=404, text="no avatar")
 
     # ---------- state ----------
@@ -611,6 +761,28 @@ class WebAppServer:
             "connector_specs": desc.get("connector_specs", {}),
         }
 
+    async def _library_state(self) -> list[dict]:
+        """Danh sách Library active cho /api/state (sửa UI)."""
+        if self.library is None:
+            return []
+        try:
+            items = await self.library.list_items(status="active",
+                                                  limit=100)
+        except Exception:
+            return []
+        out = []
+        for it in items:
+            out.append({
+                "id": it.get("id"),
+                "title": it.get("name") or "",
+                "name": it.get("name") or "",
+                "status": it.get("status") or "active",
+                "share_status": it.get("share_status") or "",
+                "pinned": bool(it.get("pinned")),
+                "created_at": it.get("created_at") or "",
+            })
+        return out
+
     async def _schedule_state(self) -> dict:
         items: list[dict] = []
         try:
@@ -650,6 +822,20 @@ class WebAppServer:
                 "last_run_at": r.get("last_run_at") or "",
                 "toggleable": True, "kind": "schedule",
             })
+        # Sửa UI: công tắc Ideas tự sinh phải có mặt trong danh sách
+        # thì frontend mới vẽ được nút gạt; trước đây backend chỉ
+        # nhận id "ideas_auto" ở _handle_schedule nhưng _schedule_state
+        # không trả mục này nên không bật/tắt được từ Mini App.
+        items.append({
+            "id": "ideas_auto", "name": "Ideas tự sinh (chờ duyệt)",
+            "cron": "theo vòng nền",
+            "prompt": "Chỉ sinh thẻ chờ duyệt, không tự nhắn, "
+                      "không tự chạy, không tự tạo goal.",
+            "enabled": await effective_auto_enabled(self.memory,
+                                                    self.cfg),
+            "next_run_at": "", "last_run_at": "",
+            "toggleable": True, "kind": "ideas_auto",
+        })
         items.append({
             "id": "heartbeat", "name": "Heartbeat chủ động",
             "cron": f"mỗi {self.cfg.proactivity_interval_s}s",
@@ -854,6 +1040,12 @@ class WebAppServer:
             # Feed chủ động. None khi bản chạy chưa nối runner.
             "feed": (await self.feed_auto.get_state()
                      if self.feed_auto is not None else None),
+            # Sửa UI: trước đây /api/state không có "library" và
+            # frontend cũng không fetch /api/library/items để hiển
+            # thị, nên màn Thư viện trong Mini App luôn trống dù
+            # backend có đủ route share/pin/rename. Đưa danh sách
+            # active vào state để renderLibrary() có dữ liệu vẽ.
+            "library": await self._library_state(),
         }
         return web.json_response(state)
 
@@ -869,8 +1061,12 @@ class WebAppServer:
             for r in rows:
                 p = r.get("payload") or {}
                 if p.get("task_id") == task_id:
+                    # Sửa 1.6.3: chỉ trả payload đã redact (cùng hàm
+                    # với log_trajectory) — hàng trajectory cũ ghi
+                    # trước 1.6.3 còn nguyên văn trong DB, nhưng
+                    # đường API này không bao giờ trả nguyên văn.
                     events.append({"kind": r.get("kind"),
-                                   "payload": p,
+                                   "payload": redact_trajectory_payload(p),
                                    "at": r.get("created_at", "")})
         except Exception:
             pass
@@ -1052,6 +1248,18 @@ class WebAppServer:
                 PROACTIVITY_KV_KEY, "1" if enabled else "0")
             await self.memory.log_trajectory(
                 "webapp", "heartbeat_toggled",
+                {"enabled": enabled})
+            return web.json_response(
+                {"ok": True, "enabled": enabled})
+        if schedule_id == "ideas_auto":
+            # sửa 1.6.2: công tắc Ideas tự sinh (mặc định tắt) —
+            # cùng cơ chế kv như heartbeat: vòng nền đọc lại mỗi
+            # lượt nên ăn ngay, không restart. Bật chỉ cho phép
+            # sinh thẻ chờ duyệt, không tự nhắn, không tự chạy.
+            await self.memory.kv_set(
+                IDEAS_AUTO_KV_KEY, "1" if enabled else "0")
+            await self.memory.log_trajectory(
+                "webapp", "ideas_auto_toggled",
                 {"enabled": enabled})
             return web.json_response(
                 {"ok": True, "enabled": enabled})
@@ -1330,6 +1538,55 @@ class WebAppServer:
     # ---------- 1.5.0: Google OAuth ----------
 
     _GOOGLE_KV_STATE = "google_oauth_state"
+    _GOOGLE_OAUTH_TTL = 600  # giây, khớp doc + hành vi 1.6.1
+
+    # Sửa 1.6.2: state OAuth lưu dạng DANH SÁCH các state đang chờ
+    # thay vì 1 key đơn — bấm Kết nối 2 lần (2 tab/thiết bị) không
+    # còn ghi đè lẫn nhau. Mỗi state kèm ts, hết hạn 10 phút,
+    # dùng 1 lần: chỉ xoá state đã khớp hoặc đã hết hạn, các state
+    # chờ khác giữ nguyên. Tương thích đọc format cũ 1.6.1
+    # {"state": ..., "ts": ...}: gặp thì coi như danh sách 1 state.
+    async def _google_states_load(self):
+        try:
+            raw = await self.memory.kv_get(self._GOOGLE_KV_STATE)
+        except Exception:
+            return []
+        if not raw:
+            return []
+        try:
+            data = json.loads(raw)
+        except Exception:
+            return []
+        if isinstance(data, dict):  # format cũ 1 state
+            data = [data]
+        if not isinstance(data, list):
+            return []
+        now = time.time()
+        states = []
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            st = str(item.get("state") or "")
+            try:
+                ts = float(item.get("ts") or 0)
+            except (TypeError, ValueError):
+                ts = 0
+            if st and now - ts <= self._GOOGLE_OAUTH_TTL:
+                states.append({"state": st, "ts": ts})
+        return states
+
+    async def _google_states_save(self, states):
+        # Lưu danh sách đã prune hết hạn; rỗng thì ghi "" như hành
+        # vi xoá cũ (kv_get("") -> load ra []).
+        pruned = [s for s in states
+                  if time.time() - float(s.get("ts") or 0)
+                  <= self._GOOGLE_OAUTH_TTL]
+        try:
+            await self.memory.kv_set(
+                self._GOOGLE_KV_STATE,
+                json.dumps(pruned) if pruned else "")
+        except Exception:
+            pass
 
     async def _handle_google_config(self, request):
         if self.google_auth is None:
@@ -1389,9 +1646,9 @@ class WebAppServer:
         import secrets as _secrets
 
         state = _secrets.token_urlsafe(24)
-        await self.memory.kv_set(
-            self._GOOGLE_KV_STATE,
-            json.dumps({"state": state, "ts": time.time()}))
+        states = await self._google_states_load()
+        states.append({"state": state, "ts": time.time()})
+        await self._google_states_save(states)
         return web.json_response({
             "ok": True,
             "url": self.google_auth.build_auth_url(state),
@@ -1404,9 +1661,17 @@ class WebAppServer:
                 {"ok": False, "error": "Google connector chưa "
                                        "được nối ở bản chạy này."},
                 status=503)
+        # Sửa UI/flow: thu hồi token ở phía Google trước khi xóa
+        # local; revoke lỗi thì vẫn ngắt local để user không bị kẹt,
+        # nhưng ghi rõ revoked=False để biết token có thể còn sống.
+        revoked = False
+        try:
+            revoked = await self.google_auth.revoke()
+        except Exception:
+            revoked = False
         self.google_auth.disconnect()
         await self.memory.log_trajectory(
-            "webapp", "google_disconnected", {})
+            "webapp", "google_disconnected", {"revoked": revoked})
         return web.json_response({"ok": True})
 
     async def _handle_google_callback(self, request):
@@ -1417,7 +1682,10 @@ class WebAppServer:
         phía server. Trang trả về không chứa dữ liệu nhạy cảm."""
 
         def page(msg: str, ok: bool):
-            color = "#3E9B6C" if ok else "#D95F57"
+            # sửa 1.6.2: tiêu đề trang kết quả OAuth dùng màu chữ trung tính
+            # cho cả thành công lẫn thất bại; trạng thái phân biệt bằng
+            # chính nội dung msg. Tham số ok giữ lại để khỏi đổi chữ ký hàm.
+            color = "#1e293b"
             body = (
                 "<!doctype html><html lang=\"vi\"><head>"
                 "<meta charset=\"utf-8\"><title>Mulon — Google"
@@ -1435,23 +1703,24 @@ class WebAppServer:
                         "connector.", False)
         code = request.query.get("code") or ""
         state = request.query.get("state") or ""
-        saved = None
-        try:
-            raw = await self.memory.kv_get(self._GOOGLE_KV_STATE)
-            saved = json.loads(raw) if raw else None
-        except Exception:
-            saved = None
-        # Dùng 1 lần: xoá ngay khi có bất kỳ callback nào.
-        try:
-            await self.memory.kv_set(self._GOOGLE_KV_STATE, "")
-        except Exception:
-            pass
-        if (not code or not saved
-                or saved.get("state") != state
-                or time.time() - float(saved.get("ts") or 0) > 600):
+        # Sửa 1.6.2: đối chiếu trong danh sách state đang chờ.
+        # State sai hoàn toàn thì giữ nguyên mọi state chờ (hành vi
+        # 1.6.1 giữ lại), chỉ prune state đã hết hạn. State khớp và
+        # còn hạn thì đốt đúng state đó, dùng đúng 1 lần, các state
+        # chờ khác vẫn dùng được. KHÔNG đổi redirect URI, KHÔNG đổi
+        # scope Google.
+        states = await self._google_states_load()
+        matched = next((s for s in states if s.get("state") == state),
+                       None)
+        if not code or not matched:
+            # Callback lạ: chỉ dọn state hết hạn, không đốt state chờ.
+            await self._google_states_save(states)
             return page("Liên kết kết nối không hợp lệ hoặc đã "
                         "hết hạn. Hãy bấm Kết nối lại trong Mini "
                         "App.", False)
+        # State khớp: đốt riêng state này, giữ các state chờ khác.
+        await self._google_states_save(
+            [s for s in states if s.get("state") != state])
         result = await self.google_auth.exchange_code(code)
         if not result.get("ok"):
             return page("Google từ chối kết nối: " +
@@ -1776,7 +2045,7 @@ class WebAppServer:
 <title>Mulon Share · Lỗi</title>
 <style>
 body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; color: #1e293b; max-width: 600px; margin: 80px auto; padding: 20px; text-align: center; }}
-h2 {{ font-size: 20px; font-weight: 600; color: #e11d48; margin-bottom: 8px; }}
+h2 {{ font-size: 20px; font-weight: 600; color: #1e293b; margin-bottom: 8px; }}
 p {{ color: #64748b; font-size: 15px; }}
 </style></head>
 <body><h2>Liên kết không khả dụng</h2><p>{err}</p></body></html>"""
@@ -1794,7 +2063,9 @@ p {{ color: #64748b; font-size: 15px; }}
                 return web.FileResponse(p)
             return web.Response(text="File không tồn tại", status=404)
 
-        escaped_content = html.escape(content)
+        # Sửa 1.6.2: render markdown thật thay cho <pre> escaped.
+        # File nhị phân vẫn trả FileResponse ở nhánh trên như cũ.
+        rendered_content = _render_share_markdown(content)
         html_page = f"""<!doctype html>
 <html lang="vi"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1839,6 +2110,20 @@ pre {{
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
 }}
+/* Sửa 1.6.2: kiểu cho nội dung markdown đã render. */
+#artifact-content h1 {{ font-size: 22px; }}
+#artifact-content h2 {{ font-size: 19px; }}
+#artifact-content h3 {{ font-size: 17px; }}
+#artifact-content a {{ color: var(--accent); }}
+#artifact-content a:hover {{ color: var(--accent-hover); }}
+#artifact-content code:not(pre code) {{
+  background: var(--card-bg); border: 1px solid var(--border);
+  padding: 1px 5px; border-radius: 5px; font-size: 13px;
+}}
+#artifact-content blockquote {{
+  border-left: 3px solid var(--border); margin: 16px 0;
+  padding-left: 16px; color: var(--muted);
+}}
 footer {{ margin-top: 40px; text-align: center; font-size: 12px; color: var(--muted); }}
 </style></head>
 <body>
@@ -1855,7 +2140,7 @@ footer {{ margin-top: 40px; text-align: center; font-size: 12px; color: var(--mu
   </div>
 </header>
 <main>
-  <pre id="artifact-content">{escaped_content}</pre>
+  <div id="artifact-content">{rendered_content}</div>
 </main>
 <footer>Mulon Personal Agent · Chia sẻ bảo mật</footer>
 <script>
@@ -1875,7 +2160,10 @@ function copyContent() {{
         if self.library is None:
             return web.json_response(
                 {"ok": False, "error": "Library chưa được kết nối"}, status=503)
-        items = await self.library.list_items(status="active", limit=100)
+        status = str(request.query.get("status") or "active")
+        if status not in ("active", "trashed"):
+            status = "active"
+        items = await self.library.list_items(status=status, limit=100)
         return web.json_response({"ok": True, "items": items})
 
     async def _handle_library_pin(self, request):
@@ -1894,8 +2182,34 @@ function copyContent() {{
                 {"ok": False, "error": "Library chưa được kết nối"}, status=503)
         body = await self._json_body(request)
         item_id = int(request.match_info["id"])
-        name = str(body.get("name") or "").strip()
+        # Sửa UI: frontend cũ gửi {title}, backend chỉ đọc {name}
+        # nên đổi tên luôn fail. Chấp nhận cả hai, ưu tiên {name}.
+        name = str(body.get("name") or body.get("title") or "").strip()
         res = await self.library.rename_item(item_id, name)
+        return web.json_response(res)
+
+    async def _handle_library_trash(self, request):
+        if self.library is None:
+            return web.json_response(
+                {"ok": False, "error": "Library chưa được kết nối"}, status=503)
+        item_id = int(request.match_info["id"])
+        res = await self.library.trash_item(item_id)
+        return web.json_response(res)
+
+    async def _handle_library_restore(self, request):
+        if self.library is None:
+            return web.json_response(
+                {"ok": False, "error": "Library chưa được kết nối"}, status=503)
+        item_id = int(request.match_info["id"])
+        res = await self.library.restore_item(item_id)
+        return web.json_response(res)
+
+    async def _handle_library_unshare(self, request):
+        if self.library is None:
+            return web.json_response(
+                {"ok": False, "error": "Library chưa được kết nối"}, status=503)
+        item_id = int(request.match_info["id"])
+        res = await self.library.unshare_item(item_id)
         return web.json_response(res)
 
     async def _handle_library_share(self, request):

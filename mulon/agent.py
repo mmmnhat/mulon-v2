@@ -596,7 +596,24 @@ class Agent:
             )
             for tc, result in pairs:
                 raw = result_to_text(result)
-                if tc.name in {"web_fetch", "read_file"}:
+                # Sửa 1.6.3: đóng khung MỌI kết quả tool như dữ liệu
+                # ngoài, không chỉ web_fetch/read_file và gmail/
+                # gcalendar (1.6.2). Lý do: bất kỳ tool nào cũng có
+                # thể trả nội dung không phải do user gõ — web_read,
+                # web_search, mọi connector_call, mọi tool MCP
+                # (mcp_*), memory_search/session_search (trích nguyên
+                # văn phiên cũ), spawn_subagent (digest của agent con),
+                # media_transcribe (lời chép từ file media/STT), file
+                # đọc từ workspace, output run_command... — tất cả
+                # đều có thể chứa chỉ thị lạ. Chỉ thêm nhãn, không
+                # chặn tool, không sửa nội dung, không đổi result
+                # dict/trajectory (chỉ đổi text evidence đưa cho
+                # model). Đã bọc sẵn thì không bọc lại để khỏi lồng
+                # nhãn nhiều lớp. Vòng này là điểm duy nhất đưa kết
+                # quả tool vào model (agent loop + subagent con dùng
+                # chung class này), nên khung ở đây bao hết các
+                # nguồn trên mà không cần liệt kê tên tool.
+                if not raw.startswith("<external_data"):
                     raw = frame_external(raw)
                 trimmed = trim_tool_result(
                     raw, self.cfg.tool_result_max_chars,

@@ -91,7 +91,10 @@ async def build_system(cfg: Config):
     # Google Calendar dùng chung 1 GoogleAuth; VaultStore dựng
     # sớm ở đây để auth đọc credential (marketplace + phase 6
     # dùng lại đúng instance này).
-    vault_store = VaultStore(cfg.vault_path)
+    # Sửa 1.6.2: truyền key mã hoá Vault (nếu cfg có) để luồng
+    # Google auth dùng cùng store đã mã hoá.
+    vault_store = VaultStore(cfg.vault_path,
+                             getattr(cfg, "vault_encryption_key", ""))
     register_vault_tools(registry, cfg)
     from .google_conn import build_google_auth
 
@@ -334,6 +337,24 @@ async def _proactivity_loop(engine: ProactivityEngine,
             logger.warning("heartbeat nền lỗi (bỏ qua vòng này): %s", exc)
 
 
+async def _ideas_auto_loop(engine, interval_s: int) -> None:
+    """Vòng lặp Ideas tự sinh (sửa 1.6.2) — luôn chạy; engine tự
+    bỏ lượt khi công tắc hiệu lực đang tắt (xem
+    ideas.effective_auto_enabled). Khi bật, lượt sinh chỉ ghi thẻ
+    vào DB chờ user duyệt — vòng này không gửi tin, không chạy
+    task. Không dính tới scheduler thường hay Feed auto."""
+    while True:
+        await asyncio.sleep(interval_s)
+        try:
+            stats = await engine.generate_auto()
+            if stats.get("cards"):
+                logger.info("ideas tự sinh: %d thẻ mới: %s",
+                            stats["cards"], stats)
+        except Exception as exc:
+            logger.warning("ideas tự sinh nền lỗi (bỏ qua vòng này): "
+                           "%s", exc)
+
+
 async def _run(cfg: Config) -> int:
     from .telegram_bot import TelegramSurface
 
@@ -400,6 +421,19 @@ async def _run(cfg: Config) -> int:
                 cfg.proactivity_interval_s,
                 cfg.proactivity_active_hours,
                 cfg.proactivity_enabled)
+    # sửa 1.6.2: vòng Ideas tự sinh luôn chạy; lượt sinh tự bỏ qua
+    # khi công tắc hiệu lực tắt (gạt kv trong Mini App là ăn ngay,
+    # khỏi restart, khỏi sửa .env; mặc định IDEAS_AUTO_ENABLED=0).
+    asyncio.create_task(
+        _ideas_auto_loop(services["phase6"]["ideas"],
+                         cfg.ideas_auto_interval_s)
+    )
+    logger.info("ideas tự sinh: vòng chạy mỗi %ss; trạng thái hiệu "
+                "lực theo công tắc trong Mini App, mặc định "
+                "IDEAS_AUTO_ENABLED=%s (khi bật chỉ ghi thẻ chờ "
+                "duyệt, không tự nhắn, không tự chạy task)",
+                cfg.ideas_auto_interval_s,
+                cfg.ideas_auto_enabled)
     await surface.run()
     return 0
 

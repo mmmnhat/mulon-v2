@@ -85,6 +85,11 @@ BOT_COMMANDS: list[tuple[str, str]] = [
     ("the_duyet", "Gửi thẻ phê duyệt thử (thật, vô hại)"),
     ("voiceon", "Bật trả lời bằng giọng"),
     ("voiceoff", "Tắt trả lời bằng giọng"),
+    # Sửa UI: 3 lệnh này đã có handler nhưng trước đây không có
+    # trong menu lệnh nên người dùng không biết để gọi.
+    ("feed_now", "Chạy Feed ngay một lượt"),
+    ("pin_item", "Ghim item Library theo id"),
+    ("rename_item", "Đổi tên item Library theo id"),
 ]
 
 
@@ -939,7 +944,7 @@ class TelegramSurface:
         if desc:
             lines.append(f"Mục đích: {desc}")
         lines.append("")
-        lines.append("Bí mật được mã hoá lưu thẳng vào Kho trên máy của bạn, không gửi qua chat.")
+        lines.append("Bí mật được lưu vào Kho trên máy của bạn (file JSON quyền 0600, không mã hoá at-rest), không gửi qua chat.")
         kb = None
         if direct_url:
             kb = InlineKeyboardMarkup(inline_keyboard=[[

@@ -36,6 +36,15 @@ _DENY_WORDS = {"deny", "block", "false", "0", "no"}
 _ASK_WORDS = {"ask", "prompt", "confirm"}
 
 # Mặc định theo hành động (1.6.0): đọc = Cho phép (allow), ghi/xoá = Hỏi (ask)
+# PHẠM VI (sửa 1.6.1, ghi rõ để khỏi hiểu lầm): bảng này chỉ đúng cho
+# đúng 6 action gmail/gcalendar liệt kê dưới đây. Action chưa liệt kê,
+# call thiếu action, và mọi connector khác ngoài Google vẫn rơi về
+# builtin allow theo triết lý full-auto của user — đó là thiết kế có
+# chủ ý, không phải "quyền từng hành động cho mọi connector".
+# Sửa 1.6.2: ngoại lệ duy nhất cho Google — action gmail/gcalendar
+# CHƯA liệt kê (kể cả call thiếu action) thì rơi về ASK, không rơi
+# về builtin allow nữa (xem cuối decide()). Connector khác và tool
+# khác vẫn giữ nguyên builtin allow theo ý user.
 CONNECTOR_ACTION_DEFAULTS = {
     # Gmail
     "connector:gmail:search": VERDICT_ALLOW,
@@ -49,6 +58,48 @@ CONNECTOR_ACTION_DEFAULTS = {
     "connector:gcalendar:delete_event": VERDICT_ASK,
     "connector:gcalendar:delete": VERDICT_ASK,
 }
+
+# Mặc định theo tên tool (sửa 1.6.2): tool tương tác web LUÔN ở
+# nấc ask trừ khi host/session đã đặt rule rõ ràng (rule đó thắng,
+# vì các lớp host/session được xét trước bảng này).
+TOOL_DEFAULTS = {
+    "web_click": VERDICT_ASK,
+    "web_fill": VERDICT_ASK,
+}
+
+# Fallback có điều kiện cho mọi connector (sửa 1.6.2, gộp sau
+# fail-closed Google): chỉ áp khi group dạng "connector:<tên>:<action>"
+# mà action KHÔNG có trong CONNECTOR_ACTION_DEFAULTS (bảng đó thắng
+# fallback này) và KHÔNG phải gmail/gcalendar (fail-closed Google ở
+# decide() đã hỏi trước cho mọi action Google chưa liệt kê, kể cả
+# token đọc — đặt fallback sau fail-closed để không mở lại cửa đó).
+# So theo token đầu của action (vd "list_events" -> "list"):
+# nhóm ghi/xoá -> ask, nhóm đọc -> allow. Token khác, group chỉ có
+# "connector:<tên>" (call thiếu action), và mọi tool không phải
+# connector vẫn rơi về builtin allow như cũ — KHÔNG đổi.
+_CONNECTOR_WRITE_TOKENS = {
+    "send", "create", "delete", "update", "remove", "trash", "edit",
+    "write",
+}
+_CONNECTOR_READ_TOKENS = {"search", "read", "list", "get", "view"}
+
+
+def connector_fallback_verdict(group: str) -> Optional[str]:
+    """Verdict fallback cho group connector chưa liệt kê.
+
+    Trả None khi không áp được (không phải group connector 3 cấp,
+    hoặc token đầu không thuộc 2 nhóm trên) để caller rơi tiếp về
+    builtin như cũ.
+    """
+    parts = (group or "").split(":")
+    if len(parts) != 3 or parts[0] != "connector":
+        return None
+    token = parts[2].strip().lower().split("_", 1)[0]
+    if token in _CONNECTOR_WRITE_TOKENS:
+        return VERDICT_ASK
+    if token in _CONNECTOR_READ_TOKENS:
+        return VERDICT_ALLOW
+    return None
 
 CONNECTOR_SPECS = {
     "gmail": {
@@ -168,6 +219,14 @@ class PolicyEngine:
             if verdict is not None:
                 return PolicyDecision(verdict == VERDICT_ALLOW, layer,
                                       verdict=verdict)
+        # sửa 1.6.2: mặc định theo tên tool (web_click/web_fill = ask).
+        # Host/session ở trên vẫn thắng bảng này.
+        if tool_name in TOOL_DEFAULTS:
+            td = TOOL_DEFAULTS[tool_name]
+            return PolicyDecision(td == VERDICT_ALLOW, "tool-default",
+                                  reason="mặc định tool tương tác web "
+                                         "(hỏi trước khi chạy)",
+                                  verdict=td)
         # 1.6.0: Mặc định nấc riêng theo hành động connector (đọc=allow, ghi/xoá=ask)
         if group and group in CONNECTOR_ACTION_DEFAULTS:
             act_default = CONNECTOR_ACTION_DEFAULTS[group]
@@ -175,6 +234,34 @@ class PolicyEngine:
                                   "connector-action-default",
                                   reason="mặc định hành động connector (đọc=cho phép, ghi/xoá=hỏi)",
                                   verdict=act_default)
+        # Sửa 1.6.2: fail-closed RIÊNG cho Google. Group gmail/gcalendar
+        # mà action không có trong CONNECTOR_ACTION_DEFAULTS (action mới
+        # chưa liệt kê, hoặc call thiếu action) thì HỎI trước, không
+        # rơi về builtin allow. Rule host/session do owner đặt rõ vẫn
+        # thắng như mọi lớp trên (thứ tự phân giải không đổi). Mọi
+        # connector khác và tool khác vẫn rơi về builtin allow bên
+        # dưới, giữ nguyên triết lý full-auto của user cho phần còn lại.
+        if group in ("connector:gmail", "connector:gcalendar") or \
+                group.startswith(("connector:gmail:",
+                                  "connector:gcalendar:")):
+            return PolicyDecision(False, "connector-action-default",
+                                  reason="hành động Google chưa liệt kê "
+                                         "trong bảng action-level: hỏi "
+                                         "trước thay vì tự cho phép",
+                                  verdict=VERDICT_ASK)
+        # sửa 1.6.2: fallback có điều kiện cho connector chưa liệt kê
+        # (đặt SAU fail-closed Google để không mở lại cửa cho action
+        # Google chưa liệt kê). Bảng 6 action Google ở trên đã thắng
+        # nhánh này; group không phải connector, call thiếu action,
+        # và token lạ vẫn về builtin allow như cũ.
+        fallback = connector_fallback_verdict(group or "")
+        if fallback is not None:
+            return PolicyDecision(fallback == VERDICT_ALLOW,
+                                  "connector-action-fallback",
+                                  reason="fallback action-level cho "
+                                         "connector chưa liệt kê "
+                                         "(ghi/xoá=hỏi, đọc=cho phép)",
+                                  verdict=fallback)
         return PolicyDecision(True, "builtin",
                               "mặc định full-auto theo lệnh user",
                               verdict=VERDICT_ALLOW)

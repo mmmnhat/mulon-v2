@@ -184,6 +184,25 @@ class GoogleAuth:
             pass
         return {"ok": True, "email": self.account_email()}
 
+    async def revoke(self) -> bool:
+        """Thu hồi refresh token ở phía Google (best-effort).
+
+        Trước đây disconnect() chỉ xóa token khỏi Vault local nên
+        token đã cấp vẫn còn hiệu lực phía Google. Gọi revoke trước
+        khi xóa local; lỗi mạng/revoke thất bại thì vẫn trả False
+        để nơi gọi quyết định xóa local tiếp hay không.
+        """
+        rt = self.refresh_token()
+        if not rt:
+            return False
+        try:
+            status, _ = await self.transport(
+                "POST", "https://oauth2.googleapis.com/revoke",
+                params={"token": rt})
+        except Exception:
+            return False
+        return status == 200
+
     def disconnect(self) -> None:
         _vault_delete(self.vault, LBL_REFRESH)
         _vault_delete(self.vault, LBL_EMAIL)

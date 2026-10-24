@@ -48,7 +48,8 @@ async def test_remember_writes_session_rule(cfg):
     broker.resolve("a4", True, remember=True)
     record = await broker.wait("a4")
     assert record["remember"] is True
-    assert policy.session_tools.get("run_command") == "allow"
+    assert (policy.session_groups.get("shell") == "allow"
+            or policy.session_tools.get("run_command") == "allow")
     # Lần sau trong phiên: decide ra allow, không hỏi lại.
     assert policy.decide("run_command", "shell").verdict == "allow"
 
