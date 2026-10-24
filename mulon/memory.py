@@ -914,6 +914,15 @@ class Memory:
         d["steps"] = [dict(r) for r in await cur.fetchall()]
         return d
 
+    async def list_tasks(self, limit: int = 20) -> list[dict]:
+        """Các task gần nhất (mới nhất trước) — tab Việc của Mini App."""
+        cur = await self.db.execute(
+            "SELECT id, session_key, title, status, error, created_at,"
+            " updated_at FROM tasks ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        )
+        return [dict(r) for r in await cur.fetchall()]
+
     # ---------- trajectory & ledger ----------
     async def log_trajectory(
         self, session_key: str, kind: str, payload: Optional[dict] = None
@@ -1154,6 +1163,22 @@ class Memory:
         cur = await self.db.execute(
             "UPDATE schedules SET enabled=0, updated_at=? WHERE id=?",
             (now_iso(), schedule_id),
+        )
+        await self.db.commit()
+        return (cur.rowcount or 0) > 0
+
+    async def set_schedule_enabled(self, schedule_id: str,
+                                   enabled: bool) -> bool:
+        """Bật/tắt 1 schedule tại chỗ (toggle ở tab Lịch Mini App).
+
+        Bật lại KHÔNG tự tính next_run_at ở đây — vòng scheduler
+        (khi đang chạy) sẽ quét theo hạn đã lưu; schedule chưa từng
+        có next_run_at thì lần quét kế tiếp của SchedulerService
+        xử lý như job mới.
+        """
+        cur = await self.db.execute(
+            "UPDATE schedules SET enabled=?, updated_at=? WHERE id=?",
+            (1 if enabled else 0, now_iso(), schedule_id),
         )
         await self.db.commit()
         return (cur.rowcount or 0) > 0
