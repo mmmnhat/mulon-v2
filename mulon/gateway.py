@@ -19,6 +19,20 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Callable, Optional
 
+# Shim cho LiteLLM 1.106+ khi dùng với thư viện mcp:
+# LiteLLM kiểm tra experimental proxy MCP và import CacheableResult từ mcp.types,
+# nhưng mcp 1.30 không xuất class này gây APIConnectionError.
+try:
+    import mcp.types as _mcp_types
+
+    if not hasattr(_mcp_types, "CacheableResult"):
+        class _CacheableResult:
+            pass
+
+        _mcp_types.CacheableResult = _CacheableResult  # type: ignore[attr-defined]
+except Exception:
+    pass
+
 logger = logging.getLogger("mulon.gateway")
 
 
@@ -175,6 +189,7 @@ class ModelGateway:
                     "api_key": self.cfg.proxy_api_key,
                     "temperature": temperature,
                     "timeout": timeout,
+                    "_skip_mcp_handler": True,
                 }
                 if tools:
                     kwargs["tools"] = tools
@@ -243,6 +258,7 @@ class ModelGateway:
                 temperature=temperature,
                 timeout=timeout,
                 stream=True,
+                _skip_mcp_handler=True,
             )
             text_parts: list[str] = []
             async for chunk in resp:  # type: AsyncIterator[Any]

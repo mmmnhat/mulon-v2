@@ -78,3 +78,15 @@ Connector Policy); Cài đặt MCP 1-Click từ Mini App.
 """
 
 __version__ = "1.6.0"
+
+# Shim cho LiteLLM 1.106+ khi dùng với thư viện mcp
+try:
+    import mcp.types as _mcp_types
+
+    if not hasattr(_mcp_types, "CacheableResult"):
+        class _CacheableResult:
+            pass
+
+        _mcp_types.CacheableResult = _CacheableResult  # type: ignore[attr-defined]
+except Exception:
+    pass
