@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/mulon-avatar.webp" alt="Mulon" width="150">
+  <img src="mulon-avatar.webp" alt="Mulon" width="150">
 </p>
 
 <h1 align="center">Mulon</h1>
