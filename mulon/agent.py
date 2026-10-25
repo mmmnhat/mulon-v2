@@ -612,15 +612,26 @@ class Agent:
             task_id, "Đã bắt đầu", "done",
             detail=json.dumps({"description": f"Bắt đầu thực hiện: {task_title}"}, ensure_ascii=False)
         )
-        m_img = re.search(r"\[Người dùng gửi (?:kèm ảnh|một tấm ảnh|ảnh): ([^\]]+)\]", user_text)
-        if m_img:
-            img_ref = m_img.group(1).strip()
+        m_imgs = re.findall(r"\[Người dùng gửi (?:kèm ảnh|một tấm ảnh|ảnh): ([^\]]+)\]", user_text)
+        if len(m_imgs) > 1:
+            await self.memory.add_task_step(
+                task_id, f"Đã tiếp nhận {len(m_imgs)} hình ảnh gửi kèm", "done",
+                detail=json.dumps({
+                    "tool": "read_image",
+                    "reference_images": [img.strip() for img in m_imgs],
+                    "reference_image": m_imgs[0].strip(),
+                    "description": f"Đã tiếp nhận và phân tích {len(m_imgs)} hình ảnh gửi kèm",
+                    "status": "ok"
+                }, ensure_ascii=False)
+            )
+        elif len(m_imgs) == 1:
+            img_ref = m_imgs[0].strip()
             await self.memory.add_task_step(
                 task_id, "Đã đọc hình ảnh mẫu gửi kèm", "done",
                 detail=json.dumps({
                     "tool": "read_image",
                     "reference_image": img_ref,
-                    "description": f"Đã tiếp nhận và phân tích hình ảnh mẫu: {img_ref}",
+                    "description": f"Đã tiếp nhận và phân tích hình ảnh mẫu: {Path(img_ref).name}",
                     "status": "ok"
                 }, ensure_ascii=False)
             )

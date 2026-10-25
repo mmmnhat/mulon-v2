@@ -700,7 +700,10 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <div class="bc-note">CẨN TRỌNG KHI TRUY CẬP — đây là dữ liệu
     riêng của agent, chỉ chủ nhân mới nên mở.</div>
   <div class="card">
-    <div class="card-title">Kỹ năng</div>
+    <div class="card-title" id="skills-card-title">Kỹ năng</div>
+    <div style="margin-bottom:8px">
+      <input id="skills-search" class="field-input" type="text" placeholder="Tìm kiếm kỹ năng..." style="margin:0">
+    </div>
     <div id="skills-box"></div>
   </div>
   <div class="card">
@@ -1922,15 +1925,38 @@ function renderLibrary(){
    mô tả + nguồn), bấm 1 kỹ năng mở màn chi tiết đọc toàn văn
    SKILL.md — thay cảnh cũ chỉ thấy tên + số lượng. */
 let SKILLS = null;
+let SKILL_FILTER = "";
 function renderSkills(){
   const box = $("skills-box");
   if (!box || !SKILLS) return;
   const items = SKILLS.skills || [];
+  const titleEl = $("skills-card-title");
+  if (titleEl) {
+    titleEl.textContent = "Kỹ năng (" + items.length + ")";
+  }
+  const searchInput = $("skills-search");
+  if (searchInput && !searchInput._bound) {
+    searchInput._bound = true;
+    searchInput.addEventListener("input", (e) => {
+      SKILL_FILTER = e.target.value;
+      renderSkills();
+    });
+  }
   if (!SKILLS.available || !items.length){
     box.innerHTML = '<div class="empty">Chưa nạp kỹ năng nào.</div>';
     return;
   }
-  box.innerHTML = items.map(s =>
+  const q = (SKILL_FILTER || "").trim().toLowerCase();
+  const filtered = q ? items.filter(s =>
+    (s.name && s.name.toLowerCase().includes(q)) ||
+    (s.description && s.description.toLowerCase().includes(q))
+  ) : items;
+
+  if (!filtered.length) {
+    box.innerHTML = '<div class="empty">Không tìm thấy kỹ năng phù hợp.</div>';
+    return;
+  }
+  box.innerHTML = filtered.map(s =>
     '<div class="row" data-skill="' + esc(s.name) + '">' +
     '<div class="r-main"><div class="r-title">' + esc(s.name) +
     '</div>' + (s.description ? '<div class="r-sub">' +

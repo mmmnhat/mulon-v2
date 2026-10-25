@@ -174,36 +174,33 @@ class ModelGateway:
             )
 
     def _prepare_multimodal_messages(self, messages: list[dict]) -> list[dict]:
-        """Tự động đóng gói hình ảnh đính kèm (nếu có) thành định dạng Multimodal (OpenAI/LiteLLM vision)."""
+        """Tự động đóng gói tất cả hình ảnh đính kèm (hỗ trợ nhiều ảnh cùng lúc) thành định dạng Multimodal (OpenAI/LiteLLM vision)."""
         out: list[dict] = []
         for m in messages:
             content = m.get("content")
             if m.get("role") == "user" and isinstance(content, str):
-                match = re.search(r"\[Người dùng gửi (?:kèm )?ảnh: ([^\]]+)\]", content)
-                if match:
-                    raw_path = match.group(1).strip()
-                    p = Path(raw_path)
-                    if p.is_file() and p.stat().st_size <= 15 * 1024 * 1024:
-                        try:
-                            ext = p.suffix.lower().lstrip(".") or "jpeg"
-                            if ext == "jpg":
-                                ext = "jpeg"
-                            data_b64 = base64.b64encode(p.read_bytes()).decode("utf-8")
-                            out.append({
-                                **m,
-                                "content": [
-                                    {"type": "text", "text": content},
-                                    {
-                                        "type": "image_url",
-                                        "image_url": {
-                                            "url": f"data:image/{ext};base64,{data_b64}"
-                                        },
+                matches = re.findall(r"\[Người dùng gửi (?:kèm )?(?:ảnh|một tấm ảnh): ([^\]]+)\]", content)
+                if matches:
+                    parts: list[dict[str, Any]] = [{"type": "text", "text": content}]
+                    for raw_path in matches:
+                        p = Path(raw_path.strip())
+                        if p.is_file() and p.stat().st_size <= 15 * 1024 * 1024:
+                            try:
+                                ext = p.suffix.lower().lstrip(".") or "jpeg"
+                                if ext == "jpg":
+                                    ext = "jpeg"
+                                data_b64 = base64.b64encode(p.read_bytes()).decode("utf-8")
+                                parts.append({
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/{ext};base64,{data_b64}"
                                     },
-                                ],
-                            })
-                            continue
-                        except Exception as exc:
-                            logger.warning("không thể đóng gói ảnh multimodal: %s", exc)
+                                })
+                            except Exception as exc:
+                                logger.warning("không thể đóng gói ảnh multimodal (%s): %s", p, exc)
+                    if len(parts) > 1:
+                        out.append({**m, "content": parts})
+                        continue
             out.append(m)
         return out
 

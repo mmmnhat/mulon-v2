@@ -24,6 +24,8 @@ from typing import Optional
 
 from .tools import ToolSpec
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 logger = logging.getLogger("mulon.skills")
 
 # Pattern lệnh/hướng dẫn nguy hiểm bị vet bắt. Chỉ kiểm tra tĩnh
@@ -140,12 +142,28 @@ class SkillCatalog:
     @classmethod
     def load(cls, skills_dir, tool_names=None,
              environ=None) -> "SkillCatalog":
-        """Quét <skills_dir>/*/SKILL.md. Thư mục vắng -> catalog rỗng."""
+        """Quét <skills_dir>/*/SKILL.md và các kho kỹ năng OpenClaw/Hermes/Agents. Thư mục vắng -> catalog rỗng."""
         base = Path(skills_dir)
         env = os.environ if environ is None else environ
         entries: list[dict] = []
-        if base.is_dir():
-            for sub in sorted(base.iterdir()):
+        seen_names: set[str] = set()
+
+        candidate_dirs = [base]
+        try:
+            is_project_skills = (base.resolve() == (PROJECT_ROOT / "skills").resolve())
+        except Exception:
+            is_project_skills = False
+
+        if is_project_skills:
+            home = Path.home()
+            for extra in (home / ".openclaw" / "skills", home / ".hermes" / "skills", home / ".agents" / "skills"):
+                if extra.is_dir() and extra.resolve() not in [c.resolve() for c in candidate_dirs]:
+                    candidate_dirs.append(extra)
+
+        for b in candidate_dirs:
+            if not b.is_dir():
+                continue
+            for sub in sorted(b.iterdir()):
                 skill_file = sub / "SKILL.md"
                 if not sub.is_dir() or not skill_file.is_file():
                     continue
@@ -155,8 +173,12 @@ class SkillCatalog:
                     logger.warning("đọc skill %s lỗi: %s", skill_file, exc)
                     continue
                 meta, body = parse_skill_md(text)
-                vet = vet_skill(text)
                 name = (meta or {}).get("name") or sub.name
+                if name in seen_names:
+                    continue
+                seen_names.add(name)
+
+                vet = vet_skill(text)
                 requires = (meta or {}).get(
                     "requires", {"env": [], "tools": []})
                 hidden_reason = ""
@@ -173,7 +195,7 @@ class SkillCatalog:
                 entries.append({
                     "name": name,
                     "description": (meta or {}).get("description", ""),
-                    "path": str(skill_file),
+                    "path": str(skill_file.resolve()),
                     "requires": requires,
                     "vet_ok": vet["ok"],
                     "vet_issues": vet["issues"],
@@ -181,6 +203,7 @@ class SkillCatalog:
                     "hidden_reason": hidden_reason,
                     "body": body,
                 })
+        return cls(entries)
         return cls(entries)
 
     # ---------- bề mặt progressive disclosure ----------

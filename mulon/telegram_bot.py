@@ -117,7 +117,7 @@ OPENERS = {
 
 
 def _is_short_opener(text: str) -> bool:
-    """True nếu tin nhắn là từ mở đầu/chào hỏi ngắn hoặc câu cụt (< 3 từ),
+    """True nếu tin nhắn là từ mở đầu/chào hỏi ngắn hoặc câu cụt (<= 2 từ),
     cần cửa sổ gom dài hơn một chút để người dùng kịp gõ tiếp câu sau."""
     stripped = (text or "").strip().lower()
     if not stripped:
@@ -228,7 +228,12 @@ class MessageBatcher:
             # Lượt chờ lock sẽ drain, hoặc release() của lượt
             # đang chạy sẽ kick nhịp debounce khi nó xong.
             return
-        delay = (self.debounce_s * 1.6) if _is_short_opener(text) else self.debounce_s
+        is_burst = (
+            _is_short_opener(text)
+            or (text or "").strip().lower().startswith("[người dùng gửi")
+            or len(self._buffers.get(key, [])) > 1
+        )
+        delay = (self.debounce_s * 1.5) if is_burst else self.debounce_s
         self._schedule(key, delay)
 
     async def _delayed_flush(self, key: str, wait_s: Optional[float] = None) -> None:
@@ -482,6 +487,38 @@ class TelegramSurface:
             return False  # chưa cấu hình allowlist -> không phục vụ ai
         return bool(message.from_user and message.from_user.id == self.cfg.allowed_user_id)
 
+    async def _send_typing(self, message: Any) -> None:
+        """Gửi ngay tín hiệu 'đang nhập...' tới Telegram khi vừa nhận tin."""
+        chat = getattr(message, "chat", None)
+        if self.bot is None or chat is None:
+            return
+        chat_id = getattr(chat, "id", None)
+        if chat_id is None:
+            return
+        try:
+            kwargs: dict[str, Any] = {"chat_id": chat_id, "action": "typing"}
+            if getattr(message, "is_topic_message", False) and getattr(message, "message_thread_id", None):
+                kwargs["message_thread_id"] = message.message_thread_id
+            await self.bot.send_chat_action(**kwargs)
+        except Exception:
+            pass
+
+    async def _typing_loop(self, chat_id: int, thread_id: Optional[int], stop_ev: asyncio.Event) -> None:
+        """Duy trì trạng thái 'đang nhập...' (typing) liên tục trong suốt lượt xử lý."""
+        while not stop_ev.is_set():
+            if self.bot is not None:
+                try:
+                    kwargs: dict[str, Any] = {"chat_id": chat_id, "action": "typing"}
+                    if thread_id:
+                        kwargs["message_thread_id"] = thread_id
+                    await self.bot.send_chat_action(**kwargs)
+                except Exception:
+                    pass
+            try:
+                await asyncio.wait_for(stop_ev.wait(), timeout=4.0)
+            except asyncio.TimeoutError:
+                pass
+
     # ---- luồng xử lý 1 lượt ----
     async def _on_batch(self, key: str, joined: str, parts: list[str]) -> None:
         anchor = self._sessions_meta.get(key)
@@ -493,6 +530,18 @@ class TelegramSurface:
         # 16.1). try/finally bảo đảm luôn nhả bận kể cả khi
         # agent.handle ném lỗi — session không kẹt bận vĩnh viễn.
         self.batcher.mark_busy(key)
+        chat = getattr(anchor, "chat", None)
+        chat_id = getattr(chat, "id", None)
+        thread_id = None
+        if getattr(anchor, "is_topic_message", False):
+            thread_id = getattr(anchor, "message_thread_id", None)
+
+        typing_stop = asyncio.Event()
+        typing_task = None
+        if chat_id is not None and self.bot is not None:
+            typing_task = asyncio.create_task(
+                self._typing_loop(chat_id, thread_id, typing_stop)
+            )
         try:
             lock = self._locks.setdefault(key, asyncio.Lock())
             async with lock:  # mỗi session tối đa 1 lượt active (mục 3.3)
@@ -618,6 +667,9 @@ class TelegramSurface:
                             "nạp lại dossier sau lượt bootstrap lỗi: %s",
                             exc)
         finally:
+            typing_stop.set()
+            if typing_task is not None:
+                typing_task.cancel()
             # Luôn nhả bận + kick nhịp debounce cho phần tin bị
             # giữ (nếu còn) — chạy cả khi lượt xử lý ném lỗi.
             self.activity.end_turn()
@@ -2152,6 +2204,7 @@ class TelegramSurface:
                 return
             if not self._should_respond_voice(message):
                 return
+            await self._send_typing(message)
             await self._process_voice_message(message)
 
         @dp.message(F.text)
@@ -2168,6 +2221,7 @@ class TelegramSurface:
                 return
             if not self._should_respond(message):
                 return
+            await self._send_typing(message)
             key = session_key_for(message)
             self._sessions_meta[key] = message
 
@@ -2180,6 +2234,7 @@ class TelegramSurface:
                 return
             if not self._should_respond(message):
                 return
+            await self._send_typing(message)
             key = session_key_for(message)
             self._sessions_meta[key] = message
 
