@@ -1622,6 +1622,31 @@ class TelegramSurface:
                     if main_tid:
                         send_kwargs["message_thread_id"] = main_tid
                     await self.bot.send_message(**send_kwargs)
+
+                    # ĐỒNG BỘ NGAY VÀO LỊCH SỬ CHAT CHÍNH (Context cho Agent hiểu khi thảo luận)
+                    if self.memory is not None:
+                        feed_content = (msg.text or msg.caption or "").strip()
+                        main_session = (
+                            f"agent:main:telegram:group:{chat_id}:topic:0"
+                            if chat_id < 0
+                            else f"agent:main:telegram:dm:{chat_id}:topic:0"
+                        )
+                        if main_tid and main_tid != 1:
+                            main_session = f"agent:main:telegram:group:{chat_id}:topic:{main_tid}"
+                        
+                        await self.memory.get_or_create_session(main_session)
+                        discuss_context = (
+                            f"📌 [BÀI VIẾT FEED VỪA CHUYỂN TIẾP ĐỂ THẢO LUẬN]:\n"
+                            f"{feed_content}\n\n"
+                            f"💬 Thảo luận bài Feed: Ní muốn đào sâu góc nhìn nào, phân tích thêm số liệu, hay biến đề tài này thành kế hoạch hành động?"
+                        )
+                        await self.memory.append_message(
+                            main_session,
+                            "assistant",
+                            discuss_context,
+                            meta={"type": "feed_discuss", "feed_message_id": msg.message_id}
+                        )
+
                     await query.answer("Đã chuyển tiếp bài sang Chat chính để thảo luận!", show_alert=False)
                 except Exception as exc:
                     logger.warning("forward bài feed sang main lỗi: %s", exc)
