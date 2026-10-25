@@ -1500,7 +1500,7 @@ class TelegramSurface:
             return None
         tool_name = None
         for t in target_tools:
-            if self.agent.registry.has(t):
+            if self.agent.registry.get(t) is not None:
                 tool_name = t
                 break
         if not tool_name:

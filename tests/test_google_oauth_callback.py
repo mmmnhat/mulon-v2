@@ -82,7 +82,7 @@ async def test_handle_oauth_callback_expired(dummy_surface):
 
 @pytest.mark.asyncio
 async def test_get_google_auth_url(dummy_surface):
-    dummy_surface.agent.registry.has.return_value = True
+    dummy_surface.agent.registry.get.return_value = MagicMock()
     dummy_surface.agent.registry.execute = AsyncMock(return_value={
         "result": "Action required: Authorization URL: https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=123&state=abc Please open."
     })
