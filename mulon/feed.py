@@ -569,6 +569,20 @@ class FeedEngine:
         topics += [t["title"] for t in tracked[:2]]
         profile = await self.taste_profile()
         topics += sorted(profile["liked_topics"])[:2]
+        # Bổ sung chủ đề từ Main Chat gần nhất (bỏ qua side chat) theo chuẩn Muse
+        try:
+            cur = await self.memory.db.execute(
+                "SELECT content FROM messages WHERE role='user'"
+                " AND session_key NOT LIKE '%sidechat%'"
+                " ORDER BY id DESC LIMIT 15"
+            )
+            chat_rows = await cur.fetchall()
+            for r in chat_rows:
+                txt = (r["content"] or "").strip()
+                if 10 < len(txt) <= 60 and not txt.startswith("/"):
+                    topics.append(txt)
+        except Exception:
+            pass
         seen, out = set(), []
         for t in topics:
             t = " ".join(str(t or "").split())

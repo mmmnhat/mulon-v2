@@ -286,13 +286,17 @@ CREATE TABLE IF NOT EXISTS schedules (
 -- Mục tiêu dài hạn: chỉ 2 trạng thái theo thiết kế mục 16.6.
 -- Goal KHÔNG bao giờ tự đóng chỉ vì 1 bước xong.
 CREATE TABLE IF NOT EXISTS goals (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    title       TEXT NOT NULL,
-    description TEXT NOT NULL DEFAULT '',
-    status      TEXT NOT NULL DEFAULT 'active',
-    created_at  TEXT NOT NULL,
-    updated_at  TEXT NOT NULL,
-    closed_at   TEXT DEFAULT ''
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    title         TEXT NOT NULL,
+    description   TEXT NOT NULL DEFAULT '',
+    current_state TEXT NOT NULL DEFAULT '',
+    category      TEXT NOT NULL DEFAULT 'productivity',
+    goal_kind     TEXT NOT NULL DEFAULT 'outcome',
+    parent_id     INTEGER DEFAULT NULL REFERENCES goals(id),
+    status        TEXT NOT NULL DEFAULT 'active',
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL,
+    closed_at     TEXT DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS goal_activity (
@@ -481,6 +485,21 @@ async def _migrate_library_16(db) -> None:
     await db.commit()
 
 
+async def _migrate_goals_muse(db) -> None:
+    """Migration Goals theo chuẩn Muse: current_state, category, goal_kind, parent_id."""
+    cur = await db.execute("PRAGMA table_info(goals)")
+    cols = {row[1] for row in await cur.fetchall()}
+    if "current_state" not in cols:
+        await db.execute("ALTER TABLE goals ADD COLUMN current_state TEXT NOT NULL DEFAULT ''")
+    if "category" not in cols:
+        await db.execute("ALTER TABLE goals ADD COLUMN category TEXT NOT NULL DEFAULT 'productivity'")
+    if "goal_kind" not in cols:
+        await db.execute("ALTER TABLE goals ADD COLUMN goal_kind TEXT NOT NULL DEFAULT 'outcome'")
+    if "parent_id" not in cols:
+        await db.execute("ALTER TABLE goals ADD COLUMN parent_id INTEGER DEFAULT NULL REFERENCES goals(id)")
+    await db.commit()
+
+
 class Memory:
     """Cửa ngõ duy nhất tới DB. Mọi ghi/đọc ký ức đi qua đây."""
 
@@ -518,6 +537,7 @@ class Memory:
         await db.commit()
         await _migrate_feed_14(db)
         await _migrate_library_16(db)
+        await _migrate_goals_muse(db)
         mem = cls(db)
         mem.vector_enabled = await mem._try_enable_vector()
         return mem
@@ -1375,12 +1395,16 @@ class Memory:
         return (cur.rowcount or 0) > 0
 
     # ---------- goals & tracked items (Phase 3, mục 7 + 16.6) ----------
-    async def create_goal(self, title: str, description: str = "") -> dict:
+    async def create_goal(self, title: str, description: str = "",
+                          current_state: str = "",
+                          category: str = "productivity",
+                          goal_kind: str = "outcome",
+                          parent_id: Optional[int] = None) -> dict:
         ts = now_iso()
         cur = await self.db.execute(
-            "INSERT INTO goals(title, description, status, created_at,"
-            " updated_at) VALUES (?,?, 'active', ?, ?)",
-            (title, description, ts, ts),
+            "INSERT INTO goals(title, description, current_state, category, goal_kind, parent_id, status, created_at,"
+            " updated_at) VALUES (?,?,?,?,?,?, 'active', ?, ?)",
+            (title, description, current_state, category, goal_kind, parent_id, ts, ts),
         )
         await self.db.commit()
         return await self.get_goal(int(cur.lastrowid))  # type: ignore[return-value]
@@ -1401,19 +1425,70 @@ class Memory:
             cur = await self.db.execute("SELECT * FROM goals ORDER BY id")
         return [dict(r) for r in await cur.fetchall()]
 
-    async def log_goal_activity(self, goal_id: int, note: str) -> dict:
+    async def update_goal_state(self, goal_id: int, current_state: str) -> None:
+        """Cập nhật trực tiếp dòng current_state của Goal theo chuẩn state machine."""
+        ts = now_iso()
+        await self.db.execute(
+            "UPDATE goals SET current_state=?, updated_at=? WHERE id=?",
+            (current_state.strip(), ts, goal_id)
+        )
+        await self.db.commit()
+
+    async def log_goal_activity(self, goal_id: int, note: str, update_state: bool = True) -> dict:
         ts = now_iso()
         cur = await self.db.execute(
             "INSERT INTO goal_activity(goal_id, note, created_at)"
             " VALUES (?,?,?)",
             (goal_id, note, ts),
         )
-        await self.db.execute(
-            "UPDATE goals SET updated_at=? WHERE id=?", (ts, goal_id)
-        )
+        if update_state and note.strip():
+            await self.db.execute(
+                "UPDATE goals SET current_state=?, updated_at=? WHERE id=?",
+                (note.strip(), ts, goal_id)
+            )
+        else:
+            await self.db.execute(
+                "UPDATE goals SET updated_at=? WHERE id=?", (ts, goal_id)
+            )
         await self.db.commit()
+
+        # Subgoal roll up lên goal cha nếu có (chuẩn Muse)
+        goal = await self.get_goal(goal_id)
+        if goal and goal.get("parent_id"):
+            parent_id = goal["parent_id"]
+            rollup_note = f"[{goal['title']}]: {note}"
+            await self.db.execute(
+                "INSERT INTO goal_activity(goal_id, note, created_at) VALUES (?,?,?)",
+                (parent_id, rollup_note, ts)
+            )
+            if update_state:
+                await self.db.execute(
+                    "UPDATE goals SET current_state=?, updated_at=? WHERE id=?",
+                    (rollup_note, ts, parent_id)
+                )
+            await self.db.commit()
+
         return {"id": int(cur.lastrowid), "goal_id": goal_id, "note": note,
                 "created_at": ts}
+
+    async def search_goals(self, query: str, status: Optional[str] = "active") -> list[dict]:
+        """Thuật toán tìm kiếm Goal chuẩn Muse: xếp theo số từ khóa khớp trước,
+        sau đó xếp theo thời gian cập nhật gần nhất."""
+        goals = await self.list_goals(status=status)
+        if not query or not query.strip():
+            return goals
+        q_words = [w.lower() for w in query.strip().split() if len(w) > 1]
+        if not q_words:
+            return goals
+        scored = []
+        for g in goals:
+            target_text = f"{g.get('title', '')} {g.get('description', '')} {g.get('current_state', '')}".lower()
+            matches = sum(1 for w in q_words if w in target_text)
+            if matches > 0:
+                scored.append((matches, g.get("updated_at", ""), g))
+        # Xếp số từ khóa khớp DESC, sau đó updated_at DESC
+        scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        return [item[2] for item in scored]
 
     async def list_goal_activity(self, goal_id: int,
                                  limit: int = 20) -> list[dict]:
@@ -1764,12 +1839,17 @@ class Memory:
         return cur.rowcount > 0
 
     async def expire_idea_cards(self, now: Optional[str] = None) -> list[dict]:
-        """Thẻ open đã quá hạn -> expired. Trả các thẻ vừa hết hạn để
-        bề mặt trả lời được "sao thẻ biến mất" (mục 16.5)."""
+        """Thẻ open đã quá hạn hoặc cũ hơn 14 ngày -> expired (chuẩn Muse).
+        Trả các thẻ vừa hết hạn để bề mặt trả lời được "sao thẻ biến mất" (mục 16.5)."""
         now = now or now_iso()
+        try:
+            from datetime import datetime, timezone, timedelta
+            fourteen_days_ago = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat(timespec="seconds")
+        except Exception:
+            fourteen_days_ago = now
         cur = await self.db.execute(
             "SELECT * FROM idea_cards WHERE status='open'"
-            " AND expires_at<=?", (now,),
+            " AND (expires_at<=? OR created_at<=?)", (now, fourteen_days_ago),
         )
         expired = [dict(r) for r in await cur.fetchall()]
         for card in expired:

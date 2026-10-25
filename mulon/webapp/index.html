@@ -680,8 +680,12 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <section id="tab-lich" class="hidden">
   <div id="schedule-banner"></div>
   <div class="card">
-    <div class="card-title">Việc hẹn giờ &amp; heartbeat</div>
+    <div class="card-title">Lịch hẹn &amp; Nhắc việc cá nhân</div>
     <div id="schedule-list"></div>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title">Vòng lặp hệ thống (Muse Background Loops)</div>
+    <div id="system-loops-list"></div>
   </div>
 </section>
 
@@ -1745,39 +1749,59 @@ function renderSchedule(){
   else if (!sch.scheduler_enabled)
     banner.innerHTML = '<div class="note plain">Vòng lặp hẹn giờ ' +
       'đang TẮT (SCHEDULER_ENABLED=0 trong .env) — các lịch cá nhân đặt qua chat sẽ không tự chạy. ' +
-      'Riêng Heartbeat và Feed chủ động vẫn chạy độc lập theo công tắc riêng.</div>';
+      'Riêng Heartbeat và Feed chủ động vẫn chạy độc lập theo tiến trình hệ thống.</div>';
   else banner.innerHTML = "";
-  const box = $("schedule-list");
-  if (!sch.items.length){
-    box.innerHTML = '<div class="empty">Chưa có việc hẹn giờ nào. ' +
-      'Nhờ Mulon đặt lịch trong chat (ví dụ: “nhắc anh 9h sáng mai…”).</div>';
-    return;
+
+  const userItems = sch.items.filter(it => it.kind === "schedule");
+  const sysItems = sch.items.filter(it => it.kind !== "schedule");
+
+  // Danh sách lịch hẹn người dùng
+  const boxUser = $("schedule-list");
+  if (!userItems.length){
+    boxUser.innerHTML = '<div class="empty">Chưa có lịch hẹn cá nhân nào.<br>' +
+      'Nhờ Mulon đặt lịch trong chat (ví dụ: “nhắc tui 9h sáng mai…”).</div>';
+  } else {
+    boxUser.innerHTML = userItems.map(it =>
+      '<div class="row static">' +
+      '<div class="r-main"><div class="r-title">' + esc(it.name) +
+      '</div><div class="r-sub">' + esc(it.cron) +
+      (it.next_run_at ? " · tới: " + esc(todayLabel(it.next_run_at)) : "") +
+      '</div></div>' +
+      (it.toggleable
+        ? '<label class="tgl"><input type="checkbox" data-sched="' +
+          esc(it.id) + '"' + (it.enabled ? " checked" : "") +
+          '><span class="tr"></span></label>'
+        : '<span class="r-state">' + (it.enabled ? "Đang bật" : "Đang tắt") + '</span>') +
+      '</div>').join("");
   }
-  box.innerHTML = sch.items.map(it =>
-    '<div class="row static">' +
-    '<div class="r-main"><div class="r-title">' + esc(it.name) +
-    '</div><div class="r-sub">' + esc(it.cron) +
-    (it.next_run_at ? " · tới: " + esc(todayLabel(it.next_run_at)) : "") +
-    '</div></div>' +
-    /* Toggle chỉ khi có trạng thái THẬT phía sau (đổi qua
-       /api/schedule được). Mục không đổi được tại đây (job
-       hệ thống Feed) hiện TRẠNG THÁI BẰNG CHỮ — cấm công tắc
-       trang trí bất động (gói vá 1.3.0). Heartbeat có công
-       tắc thật từ đợt vá sau 1.4 (lưu kv, áp dụng ngay). */
-    (it.toggleable
-      ? '<label class="tgl"><input type="checkbox" data-sched="' +
-        esc(it.id) + '"' + (it.enabled ? " checked" : "") +
-        '><span class="tr"></span></label>'
-      : '<span class="r-state">' +
-        (it.enabled ? "Đang bật" : "Đang tắt") + '</span>') +
-    '</div>').join("");
-  box.querySelectorAll("[data-sched]").forEach(inp =>
+
+  // Danh sách vòng lặp hệ thống (Muse Background Loops)
+  const boxSys = $("system-loops-list");
+  if (boxSys) {
+    boxSys.innerHTML = sysItems.map(it =>
+      '<div class="row static">' +
+      '<div class="r-main"><div class="r-title">' + esc(it.name) +
+      '</div><div class="r-sub">' +
+      (it.enabled ? "🟢 Đang hoạt động ngầm · " : "⚪ Tạm dừng · ") +
+      esc(it.cron) +
+      (it.next_run_at ? " · tới: " + esc(todayLabel(it.next_run_at)) : "") +
+      '</div></div>' +
+      (it.toggleable
+        ? '<label class="tgl"><input type="checkbox" data-sched="' +
+          esc(it.id) + '"' + (it.enabled ? " checked" : "") +
+          '><span class="tr"></span></label>'
+        : '<span class="r-state">' + (it.enabled ? "Đang bật" : "Đang tắt") + '</span>') +
+      '</div>').join("");
+  }
+
+  // Gắn event listener cho tất cả toggle
+  document.querySelectorAll("[data-sched]").forEach(inp =>
     inp.addEventListener("change", async () => {
       try {
         const r = await api("/api/schedule", "POST",
           {id: inp.dataset.sched, enabled: inp.checked});
         if (!r.ok) throw new Error("không đổi được");
-        toast(inp.checked ? "Đã bật job." : "Đã tắt job.");
+        toast(inp.checked ? "Đã bật tiến trình." : "Đã tạm dừng tiến trình.");
       } catch (e) { toast(e.message); inp.checked = !inp.checked; }
     }));
 }

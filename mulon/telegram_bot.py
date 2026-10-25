@@ -411,6 +411,28 @@ def idea_card_keyboard(card_id: int) -> InlineKeyboardMarkup:
     ]])
 
 
+def pick_chat_reaction(text: str) -> str:
+    """Chọn đúng 1 emoji reaction theo sắc thái tin nhắn (chuẩn Muse Tầng 1).
+    - Tách khỏi nội dung trả lời, không thay thế câu trả lời, không đổi task state.
+    - Sắc thái nhạy cảm/khó khăn -> phản ứng quan tâm (🤝/🙏), không đùa giỡn/ăn mừng.
+    """
+    t = text.lower().strip()
+    # Nhạy cảm, khó khăn, tâm sự buồn -> quan tâm, đồng hành
+    if any(w in t for w in ["buồn", "mệt", "áp lực", "stress", "nản", "chán", "thất bại", "khó quá", "bế tắc", "đau"]):
+        return "🤝"
+    # Cảm ơn, trân trọng
+    if any(w in t for w in ["cảm ơn", "thank", "tks", "tuyệt", "hay quá", "quá đỉnh", "yêu", "mến"]):
+        return "🙏"
+    # Đồng ý, chốt việc, tán thành
+    if any(w in t for w in ["ok", "oke", "được", "chốt", "duyệt", "triển", "nhất trí", "chuẩn"]):
+        return "👌"
+    # Thắc mắc, băn khoăn, tìm lỗi
+    if any(w in t for w in ["sao ", "sao lại", "tại sao", "chưa được", "lỗi", "bug", "kỳ vậy", "đâu rồi"]):
+        return "🤔"
+    # Mặc định: tiếp nhận, đang xem
+    return "👀"
+
+
 class TelegramSurface:
     def __init__(self, cfg, agent, memory, dossier, consolidator=None,
                  voice=None, policy=None, surfaces=None, broker=None,
@@ -574,7 +596,8 @@ class TelegramSurface:
                     parts = parts + extra
                     joined = "\n".join(parts)
                 try:
-                    await anchor.react([ReactionTypeEmoji(emoji="👀")])
+                    chosen_emoji = pick_chat_reaction(joined)
+                    await anchor.react([ReactionTypeEmoji(emoji=chosen_emoji)])
                 except Exception:
                     pass
                 placeholder = None
@@ -1890,10 +1913,18 @@ class TelegramSurface:
             thread = await self._topic_thread(message, "goals")
             lines = ["🎯 <b>Mục tiêu đang theo dõi (Goals)</b>\n"]
             for g in goals:
-                acts = await self.memory.list_goal_activity(g["id"], limit=1)
-                recent = acts[0]["note"] if acts else "Đang theo dõi"
-                lines.append(f"▫️ <b>{g['title']}</b> (#{g['id']})\n   {g.get('description', '')}\n   <i>Tiến độ: {recent}</i>\n")
-            lines.append("💡 <i>Tạo mục tiêu mới bằng cách nhắn việc cho bot hoặc bấm 'Làm luôn' trên Thẻ ý tưởng.</i>")
+                cat = g.get("category") or "productivity"
+                kind = g.get("goal_kind") or "outcome"
+                curr = g.get("current_state") or ""
+                if not curr:
+                    acts = await self.memory.list_goal_activity(g["id"], limit=1)
+                    curr = acts[0]["note"] if acts else "Đang theo dõi"
+                lines.append(
+                    f"▫️ <b>{g['title']}</b> (#{g['id']} · <i>{cat} / {kind}</i>)\n"
+                    f"   {g.get('description', '')}\n"
+                    f"   📍 <b>Trạng thái:</b> <i>{curr}</i>\n"
+                )
+            lines.append("💡 <i>Tiến trình tự cập nhật khi bạn báo kết quả trong chat. Bấm 'Làm luôn' trên Thẻ ý tưởng để sinh task.</i>")
             text = "\n".join(lines)
             kwargs = {}
             if thread:
