@@ -127,8 +127,20 @@ class ModelGateway:
             logger.warning("circuit breaker mở %ss", self._breaker_cooldown_s)
 
     # ---------- chuẩn hoá ----------
+    _MODEL_ALIASES = {
+        "gemini-3.8-flash": "gemini-3.8-flash-high",
+        "gemini-3.8": "gemini-3.8-flash-high",
+        "gemini-3.5-flash": "gemini-3.5-flash-lite",
+        "gemini-3-flash": "gemini-3.1-flash-lite",
+        "claude-3-7-sonnet": "claude-sonnet-4-6",
+        "claude-sonnet": "claude-sonnet-4-6",
+        "muse-wonder-1.0": "muse-wonder-full-1.0",
+        "muse-wonder": "muse-wonder-full-1.0",
+    }
+
     def _litellm_model(self, model: Optional[str]) -> str:
         name = model or self.cfg.model_brain
+        name = self._MODEL_ALIASES.get(name, name)
         return name if "/" in name else f"openai/{name}"
 
     @staticmethod
