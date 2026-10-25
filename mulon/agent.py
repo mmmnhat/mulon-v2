@@ -22,6 +22,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
 
 from .context import frame_external, trim_tool_result
