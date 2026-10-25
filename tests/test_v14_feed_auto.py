@@ -88,9 +88,10 @@ class FakeSender:
     def __init__(self):
         self.sent = []
 
-    async def __call__(self, chat_id, text, thread_id=None):
-        self.sent.append({"chat_id": chat_id, "text": text,
-                          "thread_id": thread_id})
+    async def __call__(self, chat_id, text, thread_id=None, **kwargs):
+        payload = {"chat_id": chat_id, "text": text, "thread_id": thread_id}
+        payload.update(kwargs)
+        self.sent.append(payload)
         return 9000 + len(self.sent)
 
 
@@ -857,3 +858,36 @@ async def test_webapp_feed_state_and_actions(app14):
         assert body["result"]["ok"] is True
         assert len(sender.sent) == 1
         assert sender.sent[0]["thread_id"] == FEED_THREAD
+        assert sender.sent[0].get("reply_markup") is not None
+
+
+@pytest.mark.asyncio
+async def test_bot_shim_forwards_reply_markup():
+    from mulon.feed_auto import _BotShim
+
+    received = {}
+
+    async def sender(chat_id, text, thread_id=None, reply_markup=None, **extra):
+        received["chat_id"] = chat_id
+        received["text"] = text
+        received["thread_id"] = thread_id
+        received["reply_markup"] = reply_markup
+        received["extra"] = extra
+        return 12345
+
+    shim = _BotShim(sender)
+    msg = await shim.send_message(100, "hello", message_thread_id=5, reply_markup="kb_mock", custom=42)
+    assert msg.message_id == 12345
+    assert received["chat_id"] == 100
+    assert received["text"] == "hello"
+    assert received["thread_id"] == 5
+    assert received["reply_markup"] == "kb_mock"
+    assert received["extra"] == {"custom": 42}
+
+    # Backward compatibility: sender chỉ nhận (chat_id, text, thread_id)
+    async def legacy_sender(chat_id, text, thread_id=None):
+        return 999
+
+    legacy_shim = _BotShim(legacy_sender)
+    msg2 = await legacy_shim.send_message(100, "hello", message_thread_id=5, reply_markup="kb_mock")
+    assert msg2.message_id == 999

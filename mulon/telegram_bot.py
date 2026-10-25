@@ -2650,10 +2650,16 @@ class TelegramSurface:
         feed_auto = self._svc("feed_auto")
         if feed_auto is not None and self.bot is not None:
             async def _feed_send(chat_id: int, text: str,
-                                 thread_id=None) -> int:
-                kwargs = {}
-                if thread_id:
-                    kwargs["message_thread_id"] = thread_id
+                                 thread_id=None,
+                                 reply_markup=None,
+                                 message_thread_id=None,
+                                 **extra) -> int:
+                kwargs = dict(extra)
+                tid = thread_id if thread_id is not None else message_thread_id
+                if tid:
+                    kwargs["message_thread_id"] = tid
+                if reply_markup is not None:
+                    kwargs["reply_markup"] = reply_markup
                 msg = await self.bot.send_message(
                     chat_id, text, **kwargs)
                 return int(getattr(msg, "message_id", 0) or 0)

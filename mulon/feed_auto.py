@@ -27,7 +27,7 @@ import json
 import logging
 import re
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional
 from zoneinfo import ZoneInfo
 
 from .cron import next_run_iso, parse_cron
@@ -45,7 +45,7 @@ DEFAULT_MAX_POSTS = 3
 DEFAULT_TOKEN_BUDGET = 60000
 FAIL_LIMIT = 3
 
-Sender = Callable[[int, str, Optional[int]], Awaitable[int]]
+Sender = Callable[..., Awaitable[int]]
 
 _QUIET_RE = re.compile(
     r"^([01]?\d|2[0-3]):[0-5]\d-([01]?\d|2[0-3]):[0-5]\d$")
@@ -58,7 +58,7 @@ def valid_quiet_hours(spec: object) -> bool:
 
 
 class _BotShim:
-    """Đưa sender (chat_id, text, thread_id) -> message_id vào
+    """Đưa sender (chat_id, text, thread_id, ...) -> message_id vào
     đúng duck-type send_message mà FeedEngine.publish_composed
     kỳ vọng."""
 
@@ -66,8 +66,21 @@ class _BotShim:
         self._sender = sender
 
     async def send_message(self, chat_id: int, text: str,
-                           message_thread_id: Optional[int] = None):
-        mid = await self._sender(chat_id, text, message_thread_id)
+                           message_thread_id: Optional[int] = None,
+                           reply_markup: Optional[Any] = None,
+                           **kwargs):
+        call_kwargs = dict(kwargs)
+        if reply_markup is not None:
+            call_kwargs["reply_markup"] = reply_markup
+        try:
+            mid = await self._sender(chat_id, text,
+                                     thread_id=message_thread_id,
+                                     **call_kwargs)
+        except TypeError:
+            try:
+                mid = await self._sender(chat_id, text, message_thread_id)
+            except TypeError:
+                mid = await self._sender(chat_id, text)
 
         class _Msg:
             pass

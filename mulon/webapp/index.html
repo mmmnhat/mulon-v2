@@ -1288,12 +1288,17 @@ function updateTgInsets() {
 }
 if (tg) {
   tg.ready(); tg.expand();
+  if (tg.requestFullscreen) {
+    try { tg.requestFullscreen(); } catch (e) {}
+  }
   updateTgInsets();
   if (tg.onEvent) {
     try {
       tg.onEvent("safeAreaChanged", updateTgInsets);
       tg.onEvent("contentSafeAreaChanged", updateTgInsets);
       tg.onEvent("viewportChanged", updateTgInsets);
+      tg.onEvent("fullscreenChanged", updateTgInsets);
+      tg.onEvent("fullscreenFailed", updateTgInsets);
     } catch (e) {}
   }
   window.addEventListener("resize", updateTgInsets);
