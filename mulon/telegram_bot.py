@@ -2278,12 +2278,22 @@ class TelegramSurface:
             if not self._is_allowed(message):
                 return
             await message.answer("🔄 <b>Đang khởi động lại bot Mulon...</b>", parse_mode="HTML")
+            if self.memory is not None:
+                try:
+                    import json
+                    await self.memory.kv_set("system:restart_notify", json.dumps({
+                        "chat_id": message.chat.id,
+                        "thread_id": getattr(message, "message_thread_id", None),
+                        "reason": "Yêu cầu từ lệnh /restart",
+                    }))
+                except Exception:
+                    pass
             import sys, os, threading, time
             def _reexec():
                 time.sleep(1.0)
                 logger.warning("cmd_restart: re-exec bot process theo yêu cầu user")
                 python = sys.executable
-                os.execv(python, [python] + sys.argv)
+                os.execv(python, [python, "-m", "mulon.main"])
             threading.Thread(target=_reexec, daemon=True, name="bot-restart").start()
 
         @dp.message(F.text.startswith("/model"))
@@ -2301,16 +2311,32 @@ class TelegramSurface:
                     "• <code>/model claude-3-5-haiku-20241022</code>\n"
                     "• <code>/model gemini-3.8-flash</code>\n"
                     "• <code>/model gemini-3.5-flash-lite</code>\n"
-                    "• <code>/model grok-4.20-0309-reasoning</code>",
+                    "• <code>/model grok-4.20-0309-reasoning</code>\n"
+                    "• <code>/model muse-spark-1.3</code>\n"
+                    "• <code>/model muse-wonder-1.0</code>",
                     parse_mode="HTML"
                 )
                 return
 
             new_model = parts[1].strip()
-            old_model = self.cfg.model_brain
-            self.cfg.model_brain = new_model
+            old_model = getattr(self.cfg, "model_brain", "gemini-3.8-flash")
+            object.__setattr__(self.cfg, "model_brain", new_model)
             if hasattr(self, "agent") and hasattr(self.agent, "cfg"):
-                self.agent.cfg.model_brain = new_model
+                object.__setattr__(self.agent.cfg, "model_brain", new_model)
+            if self.memory is not None:
+                try:
+                    await self.memory.kv_set("config:model_brain", new_model)
+                except Exception:
+                    pass
+            # Cập nhật file .env nếu có để lưu cấu hình qua các lần restart
+            try:
+                from dotenv import set_key
+                from .config import PROJECT_ROOT
+                env_path = Path(getattr(self.cfg, "project_root", None) or PROJECT_ROOT) / ".env"
+                if env_path.is_file():
+                    set_key(str(env_path), "MODEL_BRAIN", new_model)
+            except Exception:
+                pass
             await message.answer(
                 f"✅ Đã chuyển model sang: <code>{new_model}</code> (trước đó: <code>{old_model}</code>)",
                 parse_mode="HTML"
@@ -2687,4 +2713,37 @@ class TelegramSurface:
             await ensure_seed_goals(self.memory)
         except Exception as exc:
             logger.warning("ensure_seed_goals lỗi (bỏ qua): %s", exc)
+
+        # Khôi phục model_brain đã lưu trước đó nếu có
+        try:
+            saved_model = await self.memory.kv_get("config:model_brain")
+            if saved_model:
+                object.__setattr__(self.cfg, "model_brain", saved_model)
+                if hasattr(self, "agent") and hasattr(self.agent, "cfg"):
+                    object.__setattr__(self.agent.cfg, "model_brain", saved_model)
+        except Exception:
+            pass
+
+        # Báo khởi động lại thành công nếu vừa restart
+        try:
+            raw_notify = await self.memory.kv_get("system:restart_notify")
+            if raw_notify and self.bot is not None:
+                await self.memory.kv_del("system:restart_notify")
+                import json
+                info = json.loads(raw_notify)
+                cid = info.get("chat_id") or self.cfg.allowed_user_id
+                tid = info.get("thread_id")
+                reason = info.get("reason") or "Khởi động lại theo yêu cầu"
+                if cid:
+                    kws = {
+                        "chat_id": cid,
+                        "text": f"✅ <b>Bot Mulon đã khởi động lại thành công và sẵn sàng phục vụ!</b>\n<i>({reason})</i>",
+                        "parse_mode": "HTML",
+                    }
+                    if tid:
+                        kws["message_thread_id"] = tid
+                    await self.bot.send_message(**kws)
+        except Exception as exc:
+            logger.warning("Lỗi gửi thông báo restart: %s", exc)
+
         await self.dp.start_polling(self.bot)

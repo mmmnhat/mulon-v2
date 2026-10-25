@@ -97,12 +97,28 @@ class ToolRegistry:
 # ---------------------------------------------------------------------------
 
 def _resolve_in_workspace(cfg, raw: str) -> Path:
-    """Đường dẫn tool luôn neo vào workspace; ra ngoài phải được bật cờ."""
+    """Đường dẫn tool neo vào workspace HOẶC codebase (nếu trỏ tới dự án); ra ngoài phải được bật cờ."""
     base = Path(cfg.workspace_dir).resolve()
+    project_root = (getattr(cfg, "project_root", None) or Path(__file__).resolve().parent.parent).resolve()
     p = Path(raw or ".").expanduser()
-    resolved = p.resolve() if p.is_absolute() else (base / p).resolve()
+    if p.is_absolute():
+        resolved = p.resolve()
+    else:
+        first = p.parts[0] if p.parts else ""
+        if first in {"mulon", "tests", "scripts", "docs", "config"} or (first != ".." and (project_root / p).exists()):
+            resolved = (project_root / p).resolve()
+        else:
+            resolved = (base / p).resolve()
+
     if not cfg.allow_outside_workspace:
-        if resolved != base and base not in resolved.parents:
+        allowed = False
+        if resolved == base or base in resolved.parents:
+            allowed = True
+        elif resolved == project_root or project_root in resolved.parents:
+            first = p.parts[0] if p.parts else ""
+            if p.is_absolute() or first in {"mulon", "tests", "scripts", "docs", "config"} or (first != ".." and (project_root / p).exists()):
+                allowed = True
+        if not allowed:
             raise PermissionError(
                 f"đường dẫn ngoài workspace bị chặn: {raw} "
                 "(bật ALLOW_OUTSIDE_WORKSPACE=1 nếu thật sự cần)"
@@ -111,27 +127,46 @@ def _resolve_in_workspace(cfg, raw: str) -> Path:
 
 
 def _resolve_for_file_tool(cfg, raw: str) -> Path:
-    """Neo của các file tool: workspace HOẶC thư mục dossier.
+    """Neo của các file tool: workspace HOẶC thư mục dossier HOẶC codebase dự án.
 
-    Đường tương đối vẫn neo vào workspace như cũ. Kết quả resolve
-    chỉ được chấp nhận khi rơi vào đúng 1 trong 2 vùng — thư mục
-    dossier được mở thêm để agent điền IDENTITY.md/USER.md hoàn
-    tất nghi lễ BOOTSTRAP (mục 16.10). Ngoài cả hai vùng vẫn chặn
-    như cũ. run_command KHÔNG dùng resolver này (chỉ workspace).
+    Đường tương đối trỏ vào mulon/, tests/, scripts/ hoặc tồn tại trong
+    project_root sẽ tự động neo vào project_root để bot có thể tự đọc và
+    sửa chính mình. Ra ngoài cả 3 vùng vẫn bị chặn.
     """
     base = Path(cfg.workspace_dir).resolve()
+    dossier_base = Path(cfg.dossier_dir).resolve()
+    project_root = (getattr(cfg, "project_root", None) or Path(__file__).resolve().parent.parent).resolve()
     p = Path(raw or ".").expanduser()
-    resolved = p.resolve() if p.is_absolute() else (base / p).resolve()
+    if p.is_absolute():
+        resolved = p.resolve()
+    else:
+        first = p.parts[0] if p.parts else ""
+        if first in {"mulon", "tests", "scripts", "docs", "config"} or (first != ".." and (project_root / p).exists()):
+            resolved = (project_root / p).resolve()
+        elif first == "dossier" or (first != ".." and (dossier_base / p).exists()):
+            resolved = (dossier_base / p).resolve()
+        else:
+            resolved = (base / p).resolve()
+
     if cfg.allow_outside_workspace:
         return resolved
-    dossier_base = Path(cfg.dossier_dir).resolve()
+
+    allowed = False
     for root in (base, dossier_base):
         if resolved == root or root in resolved.parents:
-            return resolved
-    raise PermissionError(
-        f"đường dẫn ngoài workspace/dossier bị chặn: {raw} "
-        "(bật ALLOW_OUTSIDE_WORKSPACE=1 nếu thật sự cần)"
-    )
+            allowed = True
+            break
+    if not allowed and (resolved == project_root or project_root in resolved.parents):
+        first = p.parts[0] if p.parts else ""
+        if p.is_absolute() or first in {"mulon", "tests", "scripts", "docs", "config"} or (first != ".." and (project_root / p).exists()):
+            allowed = True
+
+    if not allowed:
+        raise PermissionError(
+            f"đường dẫn ngoài workspace/dossier/codebase bị chặn: {raw} "
+            "(bật ALLOW_OUTSIDE_WORKSPACE=1 nếu thật sự cần)"
+        )
+    return resolved
 
 
 # ---------------------------------------------------------------------------
@@ -386,9 +421,15 @@ def build_default_registry(cfg, memory, dossier=None, vault_store=None) -> ToolR
         "shell", 130,
     )
     async def run_command(command: str, cwd: str = "", timeout: int = 60):
-        workdir = _resolve_in_workspace(cfg, cwd) if cwd else Path(
-            cfg.workspace_dir
-        ).resolve()
+        project_root = (getattr(cfg, "project_root", None) or Path(__file__).resolve().parent.parent).resolve()
+        if cwd:
+            workdir = _resolve_in_workspace(cfg, cwd)
+        else:
+            cmd_lower = command.lower().strip()
+            if any(cmd_lower.startswith(pfx) for pfx in ("git ", "pytest", "python3 -m pytest", "python -m pytest", "python3 -m mulon", "python -m mulon", "python3 scripts/", "python scripts/", "ruff ")):
+                workdir = project_root
+            else:
+                workdir = Path(cfg.workspace_dir).resolve()
         workdir.mkdir(parents=True, exist_ok=True)
         # Tự động thay thế tham chiếu vault:<uuid> thành giá trị thật trước khi chạy
         exec_cmd = command

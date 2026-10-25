@@ -152,6 +152,8 @@ async def build_system(cfg: Config):
     catalog = SkillCatalog.load(cfg.skills_dir,
                                 tool_names=set(registry.names()))
     register_skill_tools(registry, catalog)
+    from .evolution import register_evolution_tools
+    register_evolution_tools(registry, cfg, memory)
     await catalog.log_vet_results(memory)
     if catalog.entries:
         logger.info("skills: mục lục %s (tổng %d file)",
