@@ -51,45 +51,30 @@ from .webapp_server import ActivityTracker, plain_step_label, \
 
 logger = logging.getLogger("mulon.telegram")
 
-# Danh sách lệnh đăng ký lên Telegram lúc khởi động (set_my_commands)
-# để user gõ "/" là thấy menu — mô tả tiếng Việt ngắn.
-BOT_COMMANDS: list[tuple[str, str]] = [
+# ----------------- Danh sách lệnh cho Telegram UI menu -------------
+# Menu lệnh "/" tinh gọn hiển thị cho user (14 lệnh thiết yếu nhất)
+MENU_COMMANDS: list[tuple[str, str]] = [
     ("start", "Bắt đầu / nghi lễ lần đầu"),
     ("menu", "Mở bảng điều khiển (Mini App)"),
     ("status", "Trạng thái hệ thống"),
+    ("goals", "Xem mục tiêu đang theo dõi (Goals)"),
+    ("ideas", "Sinh thẻ ý tưởng mới"),
+    ("feed_now", "Đăng bài Feed công nghệ & AI"),
+    ("library", "Xem Thư viện & kho ảnh visual"),
     ("new", "Chốt phiên, bắt đầu ngữ cảnh mới"),
     ("memory", "Xem bộ nhớ + fact kèm nguồn"),
-    ("setup_topics", "Tạo các topic-tab trong group"),
-    ("topics", "Xem map topic"),
-    ("chatphu", "Tạo chat phụ (topic tự do)"),
-    ("chatphu_list", "Liệt kê chat phụ đang mở"),
-    ("dongchat", "Đóng chat phụ hiện tại"),
-    ("chatphu_dong", "Đóng chat phụ theo id"),
-    ("chatphu_mo", "Mở lại chat phụ theo id"),
-    ("feedbrief", "Xem/sửa brief của Feed"),
-    ("feedsources", "Nguồn bổ sung của Feed"),
-    ("goals", "Xem mục tiêu đang theo dõi"),
-    ("ideas", "Sinh thẻ ý tưởng"),
-    ("idea_do", "Làm luôn thẻ ý tưởng"),
-    ("idea_bo", "Bỏ qua thẻ ý tưởng"),
-    ("notes", "Đề xuất chủ động đang chờ"),
-    ("note_ok", "Duyệt đề xuất"),
-    ("note_bo", "Bỏ đề xuất"),
-    ("library", "Xem Library"),
-    ("trash_item", "Cho item vào thùng rác"),
-    ("restore_item", "Khôi phục item"),
-    ("share_item", "Chia sẻ item (chờ host duyệt)"),
     ("vault", "Nhận link form nhập bí mật"),
-    ("forget", "Quên một chủ đề (có kế hoạch trước)"),
-    ("export_memory", "Xuất bản sao ký ức"),
+    ("chatphu", "Tạo chat phụ (topic tự do)"),
+    ("setup_topics", "Thiết lập Topic-tab cho group"),
     ("quyen", "Quyền của agent bằng lời thường"),
     ("approvals", "Lịch sử quyết định quyền"),
+]
+
+# Danh sách mở rộng giữ lại tương thích ngược & công cụ kiểm thử
+BOT_COMMANDS: list[tuple[str, str]] = MENU_COMMANDS + [
+    ("feedbrief", "Xem/sửa brief của Feed"),
+    ("feedsources", "Nguồn bổ sung của Feed"),
     ("the_duyet", "Gửi thẻ phê duyệt thử (thật, vô hại)"),
-    ("voiceon", "Bật trả lời bằng giọng"),
-    ("voiceoff", "Tắt trả lời bằng giọng"),
-    # Sửa UI: 3 lệnh này đã có handler nhưng trước đây không có
-    # trong menu lệnh nên người dùng không biết để gọi.
-    ("feed_now", "Chạy Feed ngay một lượt"),
     ("pin_item", "Ghim item Library theo id"),
     ("rename_item", "Đổi tên item Library theo id"),
 ]
@@ -2505,7 +2490,7 @@ class TelegramSurface:
         try:
             await self.bot.set_my_commands([
                 BotCommand(command=c, description=d)
-                for c, d in BOT_COMMANDS
+                for c, d in MENU_COMMANDS
             ])
         except Exception as exc:
             logger.warning("đăng ký set_my_commands lỗi (bỏ qua): %s",
