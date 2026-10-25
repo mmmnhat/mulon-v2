@@ -744,7 +744,8 @@ class TelegramSurface:
                         await anchor.answer_photo(FSInputFile(str(cand)))
                         sent = True
                         await self._post_photo_to_library(
-                            FSInputFile(str(cand)), f"🖼️ [Thư viện] {cand.name}"
+                            FSInputFile(str(cand)), f"🖼️ [Thư viện] {cand.name}",
+                            chat_id=anchor.chat.id,
                         )
                         break
                     except Exception as exc:
@@ -766,7 +767,8 @@ class TelegramSurface:
                         await anchor.answer_photo(clean_u)
                         sent = True
                         await self._post_photo_to_library(
-                            clean_u, "🖼️ [Thư viện] Ảnh mới từ AI / Web"
+                            clean_u, "🖼️ [Thư viện] Ảnh mới từ AI / Web",
+                            chat_id=anchor.chat.id,
                         )
                         break
                     except Exception as exc:
@@ -937,11 +939,29 @@ class TelegramSurface:
                 text="Xem chi tiết", url=link)])
         return InlineKeyboardMarkup(inline_keyboard=rows)
 
+    async def _resolve_group_chat_id(self, preferred: Optional[int] = None) -> int:
+        """Tìm group chat forum đích để gửi vào các topic bề mặt."""
+        if preferred:
+            return preferred
+        if self.memory is not None:
+            try:
+                raw = await self.memory.kv_get("feed:group_chat_id")
+                if raw:
+                    return int(raw)
+                for k in await self.memory.kv_keys("topics:"):
+                    try:
+                        return int(k.split(":", 1)[1])
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+        return self.cfg.allowed_user_id
+
     async def publish_ideas(self, cards: list[dict], chat_id: Optional[int] = None) -> None:
         """Tự động đăng các thẻ ý tưởng mới vào topic Ideas kèm nút tương tác."""
         if not cards or self.bot is None:
             return
-        cid = chat_id or self.cfg.allowed_user_id
+        cid = await self._resolve_group_chat_id(chat_id)
         if not cid:
             return
         from .ideas import format_idea_card
@@ -967,11 +987,12 @@ class TelegramSurface:
             except Exception as exc:
                 logger.warning("gửi thẻ ý tưởng tự động lỗi: %s", exc)
 
-    async def _post_photo_to_library(self, photo_input: Any, caption: str) -> None:
+    async def _post_photo_to_library(self, photo_input: Any, caption: str,
+                                     chat_id: Optional[int] = None) -> None:
         """Tự động gửi ảnh mới vào topic Library để xây dựng kho ảnh visual."""
         if self.bot is None:
             return
-        cid = self.cfg.allowed_user_id
+        cid = await self._resolve_group_chat_id(chat_id)
         if not cid:
             return
         topics = self._svc("topics")
@@ -1549,10 +1570,62 @@ class TelegramSurface:
                 await query.answer()
                 return
             data = query.data or ""
+            msg = query.message
             if data == "feed:like":
+                if self.memory is not None and msg:
+                    try:
+                        await self.memory.add_feed_signal(msg.chat.id, msg.message_id, "❤️")
+                    except Exception:
+                        pass
                 await query.answer("❤️ Đã ghi nhận quan tâm đề tài này!", show_alert=False)
             elif data == "feed:discuss":
-                await query.answer("💬 Hãy nhắn trực tiếp yêu cầu đào sâu đề tài này!", show_alert=True)
+                if not msg or not self.bot:
+                    await query.answer()
+                    return
+                if self.memory is not None:
+                    try:
+                        await self.memory.add_feed_signal(msg.chat.id, msg.message_id, "💬")
+                    except Exception:
+                        pass
+                chat_id = msg.chat.id
+                main_tid = None
+                topics = self._svc("topics")
+                if topics is not None and self.memory is not None:
+                    try:
+                        mapping = await topics.get_map(self.memory, chat_id)
+                        tid = topics.topic_for(mapping, "main")
+                        # Topic General (Chung) của Forum có tid=1 nhưng Bot API không nhận thread_id=1
+                        if tid and tid != 1:
+                            main_tid = tid
+                    except Exception:
+                        pass
+
+                try:
+                    fwd_kwargs: dict[str, Any] = {
+                        "chat_id": chat_id,
+                        "from_chat_id": chat_id,
+                        "message_id": msg.message_id,
+                    }
+                    if main_tid:
+                        fwd_kwargs["message_thread_id"] = main_tid
+                    await self.bot.forward_message(**fwd_kwargs)
+
+                    guide_text = (
+                        "💬 <b>Thảo luận bài Feed:</b>\n"
+                        "Ní muốn đào sâu góc nhìn nào, phân tích thêm số liệu, hay biến đề tài này thành kế hoạch hành động?"
+                    )
+                    send_kwargs: dict[str, Any] = {
+                        "chat_id": chat_id,
+                        "text": guide_text,
+                        "parse_mode": "HTML",
+                    }
+                    if main_tid:
+                        send_kwargs["message_thread_id"] = main_tid
+                    await self.bot.send_message(**send_kwargs)
+                    await query.answer("Đã chuyển tiếp bài sang Chat chính để thảo luận!", show_alert=False)
+                except Exception as exc:
+                    logger.warning("forward bài feed sang main lỗi: %s", exc)
+                    await query.answer("💬 Hãy qua Chat chính để cùng thảo luận nhé!", show_alert=True)
 
         @dp.message(F.web_app_data)
         async def on_web_app_data(message: Message) -> None:
@@ -2456,6 +2529,7 @@ class TelegramSurface:
                 await self._post_photo_to_library(
                     FSInputFile(str(local_path)),
                     f"📥 [Thư viện] {local_path.name}" + (f"\n{caption}" if caption else ""),
+                    chat_id=message.chat.id,
                 )
                 if caption:
                     text = f"[Người dùng gửi kèm ảnh: {local_path}]\n{caption}"
