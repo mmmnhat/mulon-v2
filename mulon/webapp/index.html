@@ -608,6 +608,33 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   body.split #tab-viec{display:block !important}
   body.split #screen-task{display:block !important}
 }
+/* ---------- Task Muse Layout & Markdown Rich Styling ---------- */
+.task-head-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--s2)}
+.task-badge{font-size:var(--fs-micro); font-weight:var(--fw-s); padding:3px 10px; border-radius:12px; text-transform:uppercase; letter-spacing:0.04em}
+.task-badge.running{background:rgba(90,75,210,0.15); color:var(--lav-deep)}
+.task-badge.done{background:rgba(46,125,50,0.15); color:#2E7D32}
+.task-badge.failed{background:rgba(211,47,47,0.15); color:#D32F2F}
+
+.task-muse-layout{display:flex; flex-direction:column; gap:var(--s3); margin-bottom:var(--s3)}
+@media (min-width:640px){
+  .task-muse-layout{display:grid; grid-template-columns:1fr 1fr; gap:var(--s4); align-items:start}
+}
+.tl-item.clickable{cursor:pointer; border-radius:6px; padding:var(--s2) var(--s2); margin:0 calc(-1 * var(--s2)); transition:background 0.15s ease}
+.tl-item.clickable:hover{background:var(--surface2)}
+.tl-item.clickable.active{background:color-mix(in srgb, var(--lav) 18%, transparent)}
+.tl-item.clickable.active .tl-name{color:var(--lav-deep); font-weight:var(--fw-b)}
+
+.inspect-body{padding:var(--s3) var(--s4) var(--s4); font-size:var(--fs-cap); line-height:var(--lh-body)}
+.code-block{background:#1E1E1E; color:#D4D4D4; padding:var(--s3); border-radius:8px; overflow-x:auto; font-family:ui-monospace, Menlo, monospace; font-size:12px; line-height:1.45; margin:var(--s2) 0}
+.code-block code{font-family:inherit}
+.inline-code{background:var(--tint-gray); padding:2px 6px; border-radius:4px; font-family:ui-monospace, Menlo, monospace; font-size:12px}
+.md-link{color:var(--lav-deep); font-weight:var(--fw-m); text-decoration:none}
+.md-link:hover{text-decoration:underline}
+.img-preview-wrap{margin:var(--s3) 0; border-radius:10px; overflow:hidden; background:var(--surface2); max-width:320px; box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+.img-preview{display:block; width:100%; height:auto; cursor:pointer; transition:transform 0.2s}
+.img-preview:hover{transform:scale(1.02)}
+.img-sublink{display:block; font-size:11px; color:var(--ink3); word-break:break-all; margin-top:2px}
+
 @media (prefers-reduced-motion: reduce){
   *, *:after{animation:none !important; transition:none !important}
 }
@@ -649,16 +676,31 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   </div>
 </section>
 
-<!-- chi tiết 1 việc -->
+<!-- chi tiết 1 việc (chuẩn thẻ việc Muse) -->
 <section id="screen-task" class="hidden">
   <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
-  <h2 class="screen-title" id="task-detail-title">Chi tiết việc</h2>
-  <div class="card">
-    <div class="card-title">Dòng thời gian</div>
-    <div class="timeline" id="task-timeline"></div>
+  <div class="task-head-row">
+    <h2 class="screen-title" id="task-detail-title" style="margin-bottom:0">Chi tiết việc</h2>
+    <span id="task-detail-badge" class="task-badge"></span>
   </div>
-  <div class="card">
-    <div class="card-title">Tóm tắt</div>
+
+  <!-- Layout 2 cột: Danh sách bước & Chi tiết bước đã chọn -->
+  <div class="task-muse-layout">
+    <div class="card" style="margin-bottom:0">
+      <div class="card-title">Các bước thực hiện</div>
+      <div class="timeline" id="task-timeline"></div>
+    </div>
+    <div class="card" style="margin-bottom:0" id="task-inspect-card">
+      <div class="card-title" id="inspect-title">Chi tiết bước</div>
+      <div class="inspect-body" id="inspect-content">
+        <div class="dim">Chạm vào một bước bên cạnh để xem lệnh và kết quả chi tiết.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kết quả công việc hoàn thành -->
+  <div class="card" style="margin-top:var(--s3)">
+    <div class="card-title">Kết quả công việc</div>
     <div class="summary-box" id="task-summary"></div>
   </div>
 </section>
@@ -1461,6 +1503,74 @@ function stepActionLabel(tool, group){
   if (STEP_GROUP_LABELS[group]) return STEP_GROUP_LABELS[group];
   return tool ? "Dùng công cụ " + tool : "Dùng công cụ";
 }
+function renderMd(text){
+  if (!text) return "";
+  let s = esc(text);
+  // Code block ```lang\ncode\n```
+  s = s.replace(/```(?:[a-zA-Z0-9_\-]+)?\n([\s\S]*?)```/g, '<div class="code-block"><code>$1</code></div>');
+  // Inline code `code`
+  s = s.replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>');
+  // Bold **text**
+  s = s.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+  // Markdown links [text](url)
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="md-link">$1</a>');
+  // Image links or URLs ending in .png/.jpg/.webp/etc or agnes cdn
+  s = s.replace(/(https?:\/\/[^\s"<>]+?\.(?:png|jpg|jpeg|webp)(?:\?[^\s"<>]*)?|https:\/\/platform-outputs\.agnes-ai\.space\/images\/[^\s"<>]+)/gi,
+    '<div class="img-preview-wrap"><img src="$1" class="img-preview" alt="Ảnh kết quả" loading="lazy" onclick="window.open(this.src)"/></div><a href="$1" target="_blank" rel="noopener" class="img-sublink">$1</a>');
+  // Dòng mới thành <br>
+  s = s.replace(/\n/g, '<br>');
+  return s;
+}
+
+function renderStepInspect(item){
+  const box = $("inspect-content");
+  $("inspect-title").textContent = item.name || "Chi tiết bước";
+  let h = '';
+  let parsed = null;
+  if (item.raw && item.raw.detail){
+    try { parsed = JSON.parse(item.raw.detail); } catch(e){}
+  }
+
+  if (parsed){
+    if (parsed.command){
+      h += '<div class="dim" style="margin-bottom:4px">Lệnh đã chạy trong terminal:</div>';
+      h += '<div class="code-block" style="position:relative"><code id="code-exec">' + esc(parsed.command) + '</code></div>';
+    }
+    if (parsed.stdout){
+      h += '<div class="dim" style="margin:8px 0 4px">Đầu ra (stdout):</div>';
+      h += '<div class="code-block"><code>' + esc(parsed.stdout) + '</code></div>';
+    }
+    if (parsed.stderr){
+      h += '<div class="dim" style="margin:8px 0 4px; color:#D32F2F">Lỗi (stderr):</div>';
+      h += '<div class="code-block" style="border-left:3px solid #D32F2F"><code>' + esc(parsed.stderr) + '</code></div>';
+    }
+    if (parsed.url){
+      h += '<div class="dim" style="margin-bottom:4px">Ảnh sinh ra từ dịch vụ:</div>';
+      h += '<div class="img-preview-wrap"><img src="' + esc(parsed.url) + '" class="img-preview" alt="Ảnh" onclick="window.open(this.src)"/></div>';
+      h += '<a href="' + esc(parsed.url) + '" target="_blank" rel="noopener" class="img-sublink">' + esc(parsed.url) + '</a>';
+    }
+    if (parsed.local_path){
+      h += '<div class="dim" style="margin-top:6px">File lưu tại: <code class="inline-code">' + esc(parsed.local_path) + '</code></div>';
+    }
+    if (parsed.args && !parsed.command){
+      h += '<div class="dim" style="margin-bottom:4px">Tham số thực thi:</div>';
+      h += '<div class="code-block"><code>' + esc(JSON.stringify(parsed.args, null, 2)) + '</code></div>';
+    }
+    if (parsed.content){
+      h += '<div class="dim" style="margin:8px 0 4px">Nội dung đọc được:</div>';
+      h += '<div class="code-block"><code>' + esc(parsed.content) + '</code></div>';
+    }
+    if (parsed.error){
+      h += '<div style="color:#D32F2F; margin-top:8px"><b>Lỗi:</b> ' + esc(parsed.error) + '</div>';
+    }
+  } else if (item.meta) {
+    h += '<div style="line-height:1.6">' + esc(item.meta) + '</div>';
+  } else {
+    h += '<div class="dim">Bước này không có tham số mở rộng.</div>';
+  }
+  box.innerHTML = h;
+}
+
 async function openTask(id){
   showSub("screen-task");
   /* Desktop ≥900px: danh sách | chi tiết 2 cột như modal Muse. */
@@ -1468,56 +1578,94 @@ async function openTask(id){
   $("task-timeline").innerHTML = '<div class="skel">' +
     '<div class="bar w70"></div><div class="bar w40"></div></div>';
   $("task-summary").textContent = "";
+  $("inspect-content").innerHTML = '<div class="dim">Đang tải chi tiết việc...</div>';
   try {
     const data = await api("/api/task?id=" + encodeURIComponent(id));
     const t = data.task;
     $("task-detail-title").textContent = t.title || "Chi tiết việc";
+    const badge = $("task-detail-badge");
+    if (badge){
+      badge.textContent = t.status === "running" ? "Đang tiến hành"
+        : t.status === "done" ? "Đã hoàn tất" : "Thất bại";
+      badge.className = "task-badge " + (t.status || "done");
+    }
+
     const items = [];
-    items.push({name:"Đã bắt đầu", meta: todayLabel(t.created_at),
-      cls:"done"});
-    /* Timeline chính = CÁC BƯỚC KẾ HOẠCH của task (như thẻ
-       việc của Muse: bắt đầu → từng bước → hoàn tất +
-       tóm tắt). Task cũ không có bước mới rơi về dòng sự
-       kiện tool như trước. */
+    items.push({name:"Đã bắt đầu", meta: "Bắt đầu lúc " + todayLabel(t.created_at),
+      cls:"done", raw: {title:"Đã bắt đầu", detail: JSON.stringify({created_at: t.created_at})}});
+
     (t.steps || []).forEach(st => {
       items.push({name: st.title,
-        meta: (st.detail ? st.detail + " · " : "") +
-          (st.updated_at ? hhmm(st.updated_at) : ""),
+        meta: (st.status === "done" ? "✓ Đã xong" : st.status === "doing" ? "⏳ Đang chạy" : "✕ Lỗi") +
+          (st.updated_at ? " · " + hhmm(st.updated_at) : ""),
         cls: st.status === "done" ? "done"
           : st.status === "doing" ? "doing"
-          : st.status === "failed" ? "err" : ""});
+          : st.status === "failed" ? "err" : "",
+        raw: st});
     });
+
     if (!(t.steps || []).length) (data.events || []).forEach(ev => {
       const tool = ev.payload.tool || "";
       if (ev.kind === "tool_call")
         items.push({name: stepActionLabel(tool, ev.payload.group),
           meta: (tool ? tool + " · " : "") +
             (ev.payload.ok ? "thành công" : "lỗi") + " · " +
-            hhmm(ev.at), cls: ev.payload.ok ? "done" : "err"});
+            hhmm(ev.at), cls: ev.payload.ok ? "done" : "err",
+          raw: {title: tool, detail: JSON.stringify(ev.payload)}});
       else if (ev.kind === "approval_requested")
         items.push({name:"Đã xin duyệt — " +
             stepActionLabel(tool, ev.payload.group),
           meta: (tool ? tool + " · " : "") + hhmm(ev.at),
-          cls:"doing"});
+          cls:"doing", raw: {title: "Xin duyệt", detail: JSON.stringify(ev.payload)}});
       else if (ev.kind === "approval_decision")
         items.push({name:"Kết quả duyệt: " +
             outcomeLabel({outcome: ev.payload.outcome || ""}),
           meta: hhmm(ev.at),
-          cls: ev.payload.approved ? "done" : "err"});
+          cls: ev.payload.approved ? "done" : "err",
+          raw: {title: "Quyết định duyệt", detail: JSON.stringify(ev.payload)}});
     });
+
     items.push({name: t.status === "running" ? "Đang hoàn tất…"
-      : "Hoàn tất", meta: todayLabel(t.updated_at),
-      cls: t.status === "failed" ? "err" : "done"});
-    $("task-timeline").innerHTML = items.map(i =>
-      '<div class="tl-item"><div class="tl-dot ' + i.cls + '"></div>' +
+      : "Hoàn tất", meta: "Chốt lúc " + todayLabel(t.updated_at),
+      cls: t.status === "failed" ? "err" : "done",
+      raw: {title:"Hoàn tất", detail: JSON.stringify({updated_at: t.updated_at, status: t.status})}});
+
+    $("task-timeline").innerHTML = items.map((i, idx) =>
+      '<div class="tl-item clickable" data-step-idx="' + idx + '"><div class="tl-dot ' + i.cls + '"></div>' +
       '<div class="tl-body"><div class="tl-name">' + esc(i.name) +
       '</div><div class="tl-meta">' + esc(i.meta) +
       '</div></div></div>').join("");
-    $("task-summary").textContent = t.result || t.error ||
-      "(chưa có tóm tắt)";
+
+    // Xử lý click vào từng step để xem chi tiết
+    const stepEls = $("task-timeline").querySelectorAll(".tl-item.clickable");
+    stepEls.forEach(el => {
+      el.addEventListener("click", () => {
+        stepEls.forEach(s => s.classList.remove("active"));
+        el.classList.add("active");
+        const idx = parseInt(el.dataset.stepIdx, 10);
+        if (items[idx]) renderStepInspect(items[idx]);
+      });
+    });
+
+    // Tự động inspect bước hành động quan trọng nhất hoặc bước cuối cùng
+    let activeIdx = items.length - 1;
+    for (let j = items.length - 2; j >= 1; j--){
+      if (items[j].raw && items[j].raw.detail){
+        activeIdx = j;
+        break;
+      }
+    }
+    if (stepEls[activeIdx]){
+      stepEls[activeIdx].classList.add("active");
+      renderStepInspect(items[activeIdx]);
+    }
+
+    // Render kết quả công việc bằng rich Markdown
+    $("task-summary").innerHTML = renderMd(t.result || t.error || "(chưa có kết quả phản hồi)");
   } catch (e) {
     $("task-timeline").innerHTML = '<div class="empty">' +
       esc(e.message) + '</div>';
+    $("inspect-content").innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
   }
 }
 

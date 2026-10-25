@@ -1027,6 +1027,33 @@ class Memory:
         )
         await self.db.commit()
 
+    async def add_task_step(
+        self, task_id: str, title: str, status: str = "doing", detail: str = ""
+    ) -> int:
+        """Ghi nhận thêm một bước thực thi thật (tool call / verification) vào task."""
+        cur = await self.db.execute(
+            "SELECT COALESCE(MAX(idx), -1) + 1 FROM task_steps WHERE task_id=?",
+            (task_id,),
+        )
+        row = await cur.fetchone()
+        idx = int(row[0]) if row else 0
+        ts = now_iso()
+        await self.db.execute(
+            "INSERT INTO task_steps(task_id, idx, title, status, detail, updated_at)"
+            " VALUES (?,?,?,?,?,?)",
+            (task_id, idx, title, status, detail, ts),
+        )
+        await self.db.commit()
+        return idx
+
+    async def clear_placeholder_steps(self, task_id: str) -> None:
+        """Xóa bước chung chung 'Hoàn thành yêu cầu của user' khi đã có các tool steps cụ thể."""
+        await self.db.execute(
+            "DELETE FROM task_steps WHERE task_id=? AND title='Hoàn thành yêu cầu của user'",
+            (task_id,),
+        )
+        await self.db.commit()
+
     async def finish_task(
         self, task_id: str, status: str, result: str = "", error: str = ""
     ) -> None:

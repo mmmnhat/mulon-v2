@@ -122,6 +122,56 @@ def classify_intent(text: str, messages: Optional[list[dict]] = None) -> Intent:
     return Intent.CHAT
 
 
+def format_step_title(tool_name: str, args: dict) -> str:
+    """Tiêu đề lời thường trực quan cho từng bước thực thi tool (chuẩn thẻ việc Muse)."""
+    if tool_name == "generate_image":
+        prompt = args.get("prompt", "")
+        return f"Sinh ảnh AI: {prompt[:60]}" if prompt else "Sinh ảnh bằng AI"
+    if tool_name == "run_command":
+        cmd = args.get("command", "")
+        return f"Chạy lệnh: {cmd[:60]}" if cmd else "Chạy lệnh hệ thống"
+    if tool_name == "read_file":
+        return f"Đọc file: {args.get('path', '')}"
+    if tool_name == "write_file":
+        return f"Ghi file: {args.get('path', '')}"
+    if tool_name == "edit_file":
+        return f"Sửa file: {args.get('path', '')}"
+    if tool_name in ("web_fetch", "web_read"):
+        return f"Đọc trang web: {args.get('url', '')[:60]}"
+    if tool_name == "web_search":
+        return f"Tìm trên web: {args.get('query', '')[:60]}"
+    if tool_name == "connector_call":
+        name = args.get("name", "")
+        act = args.get("action", "")
+        return f"Dịch vụ {name}: {act}" if name else "Gọi dịch vụ ngoài"
+    if tool_name == "request_vault_secret":
+        return f"Yêu cầu cất bí mật vào Kho: {args.get('label', '')}"
+    if tool_name == "add_memory_fact":
+        return f"Ghi nhớ fact: {args.get('fact', '')[:50]}"
+    if tool_name == "now":
+        return "Xem thời gian hệ thống"
+    return f"Dùng công cụ {tool_name}"
+
+
+def format_step_detail(tool_name: str, args: dict, result: dict) -> str:
+    """Dữ liệu chi tiết của bước thực thi để hiển thị chi tiết khi xem task."""
+    info: dict[str, Any] = {"tool": tool_name, "args": args, "ok": result.get("ok", True)}
+    if not result.get("ok"):
+        info["error"] = result.get("error", "")
+    if tool_name == "run_command":
+        info["command"] = args.get("command", "")
+        info["stdout"] = (result.get("stdout") or "")[:2000]
+        info["stderr"] = (result.get("stderr") or "")[:1000]
+        info["exit_code"] = result.get("exit_code", 0)
+    elif tool_name == "generate_image":
+        info["prompt"] = args.get("prompt", "")
+        info["url"] = result.get("url", "")
+        info["local_path"] = result.get("local_path", "")
+    elif "content" in result:
+        info["content"] = str(result.get("content", ""))[:1500]
+    return json.dumps(info, ensure_ascii=False)
+
+
 @dataclass
 class TurnResult:
     text: str
@@ -540,6 +590,9 @@ class Agent:
                     verified = None
                     break
                 verified, diagnosis = verdict
+                v_title = "Kiểm chứng: Đạt yêu cầu" if verified else f"Kiểm chứng: {diagnosis[:50]}"
+                v_status = "done" if verified else "failed"
+                await self.memory.add_task_step(task_id, v_title, v_status, detail=diagnosis)
                 if verified:
                     break
                 attempt += 1
@@ -646,7 +699,16 @@ class Agent:
                                 "error": f"policy chặn ở lớp {decision.layer}"}
                 await self._emit(on_event, "tool_start", task_id=task_id,
                                  tool=tc.name)
+                # Ghi nhận bước thực thi thật vào task timeline (chuẩn Muse)
+                step_title = format_step_title(tc.name, args)
+                step_idx = await self.memory.add_task_step(task_id, step_title, "doing")
+                await self.memory.clear_placeholder_steps(task_id)
+
                 result = await self.registry.execute(tc.name, args)
+                step_status = "done" if result.get("ok") else "failed"
+                step_detail = format_step_detail(tc.name, args, result)
+                await self.memory.update_step(task_id, step_idx, step_status, detail=step_detail)
+
                 await self.memory.log_trajectory(
                     session_key, "tool_call",
                     {"task_id": task_id, "tool": tc.name, "args": args,
