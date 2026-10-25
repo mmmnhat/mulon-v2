@@ -43,6 +43,7 @@ from aiogram.types import (BotCommand, CallbackQuery, FSInputFile,
                            Message, ReactionTypeEmoji)
 
 from . import surfaces as surf
+from .agent import clean_task_title
 from .ideas import format_idea_card, parse_do_reply
 from .proactivity import effective_enabled as heartbeat_effective
 from .webapp_server import ActivityTracker, plain_step_label, \
@@ -562,7 +563,7 @@ class TelegramSurface:
                     elif label:
                         await _edit_status(label + "…")
 
-                self.activity.start_turn(key, joined)
+                self.activity.start_turn(key, clean_task_title(joined))
                 try:
                     result = await self.agent.handle(
                         key, joined, on_delta=on_delta,

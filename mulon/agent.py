@@ -52,6 +52,13 @@ _TOOL_HINTS = (
     # Vault / secrets
     "vault", "két", "secret", "bí mật", "sk-", "api key", "apikey", "token",
     "lưu key", "cất key", "lưu vào vault", "cất vào vault",
+    "cất rồi", "đã cất", "lưu rồi", "đã lưu", "xong rồi", "đã xong", "rồi nè",
+    "làm đi", "chạy đi", "triển đi", "tiến hành", "làm luôn", "ok làm đi",
+    # Media, creative & APIs
+    "tạo ảnh", "sinh ảnh", "vẽ ảnh", "làm ảnh", "chỉnh ảnh", "sửa ảnh", "ảnh",
+    "hình ảnh", "picture", "image", "photo", "tạo video", "sinh video", "làm video",
+    "video", "clip", "audio", "nhạc", "âm thanh", "voice", "thu âm", "lồng tiếng",
+    "agnes", "agnes ai", "api", "gọi api", "call api", "endpoint", "webhook",
     # Folder / file / directory / project / dossier
     "folder", "thư mục", "tập tin", "tệp tin", "dự án", "codebase", "dossier",
     "cập nhật", "cap nhat", "vô file", "vao file", "vào file", "hồ sơ", "ho so",
@@ -70,8 +77,18 @@ _LONG_HINTS = (
 )
 
 
-def classify_intent(text: str) -> Intent:
-    """Phân loại ý định Phase 1: heuristic minh bạch.
+def clean_task_title(text: str) -> str:
+    """Loại bỏ tiền tố trích dẫn reply nếu có để tiêu đề task trong Mini App gọn gàng."""
+    m = re.match(r"^\[Đang trả lời tin của [^\]]+\]\s*(.*)$", text or "", flags=re.DOTALL)
+    if m:
+        sub = m.group(1).strip()
+        if sub:
+            return sub[:120]
+    return (text or "")[:120]
+
+
+def classify_intent(text: str, messages: Optional[list[dict]] = None) -> Intent:
+    """Phân loại ý định Phase 1: heuristic minh bạch + ngữ cảnh hội thoại.
 
     Sau này thay bằng semantic-router / model rẻ (Phụ lục 15.3) sau
     cùng interface này. Nguyên tắc fail upward: mơ hồ + dài -> LONG.
@@ -83,6 +100,14 @@ def classify_intent(text: str) -> Intent:
         return Intent.TOOL
     if len(text) > 400:
         return Intent.LONG
+    # Ngữ cảnh nối tiếp: nếu tin nhắn trước đó của bot đang hỏi hoặc chờ hành động
+    # (vd: hỏi cất key Vault, hỏi tạo ảnh, gọi api, làm việc...) và user trả lời ngắn xác nhận
+    if messages:
+        last_asst = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "assistant"), "")
+        last_low = last_asst.lower() if isinstance(last_asst, str) else ""
+        if any(w in last_low for w in ("vault", "kho an toàn", "cất key", "lưu key", "api key", "thẻ", "gọi api", "sinh ảnh", "tạo ảnh", "triển")):
+            if len(text.strip().split()) <= 6:
+                return Intent.TOOL
     return Intent.CHAT
 
 
@@ -192,7 +217,12 @@ def build_self_knowledge(cfg, registry) -> str:
         "dossier/IDENTITY.md...) bằng tool file, TUYỆT ĐỐI không hứa "
         "suông rồi bỏ đó, và TUYỆT ĐỐI không đem cấu trúc kỹ thuật "
         "nội bộ ra hỏi vặn lại chủ nhân (ví dụ: cấm hỏi 'cập nhật "
-        "vào file dossier hay memory hả')."
+        "vào file dossier hay memory hả').\n"
+        "5. TUYỆT ĐỐI không bao giờ nói suông 'Chờ tui chút', "
+        "'Để tui gọi API sinh ảnh', 'Đang thực hiện...' mà không "
+        "gọi tool thật. Nếu chủ nhân yêu cầu tạo ảnh, gọi API, "
+        "chạy tác vụ, PHẢI dùng tool (run_command, connector_call, "
+        "web_fetch...) để thực hiện thật sự và trả kết quả thật."
     )
 
 
@@ -266,7 +296,7 @@ class Agent:
         # (tool thật, bề mặt thật, quy tắc không bịa khả năng).
         built.messages.insert(
             1, {"role": "system", "content": self.self_knowledge()})
-        intent = classify_intent(user_text)
+        intent = classify_intent(user_text, built.messages)
 
         if intent is Intent.CHAT:
             result = await self._fast_path(session_key, built.messages, on_delta)
@@ -446,9 +476,10 @@ class Agent:
     ) -> TurnResult:
         task_id = uuid.uuid4().hex[:12]
         steps = await self._plan(user_text, intent)
-        await self.memory.create_task(task_id, session_key, user_text[:120], steps)
+        task_title = clean_task_title(user_text)
+        await self.memory.create_task(task_id, session_key, task_title, steps)
         await self._emit(on_event, "task_start",
-                         task_id=task_id, steps=steps)
+                         task_id=task_id, steps=steps, title=task_title)
 
         schemas = self.registry.schemas()
         convo: list[dict] = list(messages)

@@ -79,7 +79,7 @@ async def test_chat_fast_path_streams(cfg):
 
 
 async def test_classify_intent_user_addressing_and_file_updates():
-    from mulon.agent import Intent, classify_intent
+    from mulon.agent import Intent, classify_intent, clean_task_title
 
     assert classify_intent("Kêu tôi là ní, không cần kêu tên") is Intent.TOOL
     assert classify_intent("Ủa không cập nhật vô file hả") is Intent.TOOL
@@ -87,6 +87,10 @@ async def test_classify_intent_user_addressing_and_file_updates():
     assert classify_intent("Đọc docs này trước") is Intent.TOOL
     assert classify_intent("https://www.agnes-ai.com/en/docs/overview") is Intent.TOOL
     assert classify_intent("sk-R248ZIPdKKMatMYeiCAc6bfajseaktrbMiHV11") is Intent.TOOL
+    assert classify_intent("Dùng agnes tạo ảnh thử") is Intent.TOOL
+    assert classify_intent("Cất rồi", [{"role": "assistant", "content": "Ní đã bấm thẻ Vault lưu key chưa?"}]) is Intent.TOOL
+    assert clean_task_title('[Đang trả lời tin của Minh Nhật: "https://docs"]\nĐọc docs này') == "Đọc docs này"
+    assert clean_task_title("Việc thông thường") == "Việc thông thường"
 
 
 async def test_tools_reload_dossier_on_write(cfg):

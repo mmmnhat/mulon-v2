@@ -73,7 +73,9 @@ async def build_system(cfg: Config):
     # traced_gateway trả lại gateway nguyên bản, hành vi không đổi.
     gateway = traced_gateway(ModelGateway(cfg, memory=memory), cfg)
     ctx = ContextEngine(cfg, dossier, memory, gateway)
-    registry = build_default_registry(cfg, memory, dossier=dossier)
+    vault_store = VaultStore(cfg.vault_path,
+                             getattr(cfg, "vault_encryption_key", ""))
+    registry = build_default_registry(cfg, memory, dossier=dossier, vault_store=vault_store)
     policy = PolicyEngine(cfg.policy_path, memory=memory)
 
     # --- Phase 3: tay chân ---
@@ -91,10 +93,6 @@ async def build_system(cfg: Config):
     # Google Calendar dùng chung 1 GoogleAuth; VaultStore dựng
     # sớm ở đây để auth đọc credential (marketplace + phase 6
     # dùng lại đúng instance này).
-    # Sửa 1.6.2: truyền key mã hoá Vault (nếu cfg có) để luồng
-    # Google auth dùng cùng store đã mã hoá.
-    vault_store = VaultStore(cfg.vault_path,
-                             getattr(cfg, "vault_encryption_key", ""))
     register_vault_tools(registry, cfg)
     from .google_conn import build_google_auth
 

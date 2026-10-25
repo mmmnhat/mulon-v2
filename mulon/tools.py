@@ -247,7 +247,7 @@ async def http_get_public(client, url: str, max_redirects: int = 3):
     raise ValueError("không tới được response cuối sau các redirect")
 
 
-def build_default_registry(cfg, memory, dossier=None) -> ToolRegistry:
+def build_default_registry(cfg, memory, dossier=None, vault_store=None) -> ToolRegistry:
     reg = ToolRegistry()
 
     def spec(name, desc, params, group, timeout):
@@ -373,7 +373,7 @@ def build_default_registry(cfg, memory, dossier=None) -> ToolRegistry:
     # --- shell ---
     @spec(
         "run_command",
-        "Chạy lệnh shell trong workspace. cwd tường minh, có timeout.",
+        "Chạy lệnh shell trong workspace. cwd tường minh, có timeout. Tự động giải mã tham chiếu vault:<uuid> khi chạy và giấu key khỏi kết quả.",
         {
             "type": "object",
             "properties": {
@@ -390,8 +390,19 @@ def build_default_registry(cfg, memory, dossier=None) -> ToolRegistry:
             cfg.workspace_dir
         ).resolve()
         workdir.mkdir(parents=True, exist_ok=True)
+        # Tự động thay thế tham chiếu vault:<uuid> thành giá trị thật trước khi chạy
+        exec_cmd = command
+        secret_map = {}
+        if vault_store is not None:
+            refs = re.findall(r"vault:[A-Za-z0-9\-_]+", command)
+            for ref in refs:
+                val = vault_store.resolve(ref)
+                if val:
+                    secret_map[val] = ref
+                    exec_cmd = exec_cmd.replace(ref, val)
+
         proc = await asyncio.create_subprocess_shell(
-            command,
+            exec_cmd,
             cwd=str(workdir),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -403,11 +414,19 @@ def build_default_registry(cfg, memory, dossier=None) -> ToolRegistry:
         except asyncio.TimeoutError:
             proc.kill()
             return {"ok": False, "error": f"lệnh timeout sau {timeout}s"}
+
+        stdout_str = out.decode("utf-8", "replace")[-8000:]
+        stderr_str = err.decode("utf-8", "replace")[-2000:]
+        # Redaction: bảo đảm giá trị bí mật không bao giờ lộ ra kết quả
+        for val, ref in secret_map.items():
+            stdout_str = stdout_str.replace(val, ref)
+            stderr_str = stderr_str.replace(val, ref)
+
         return {
             "ok": proc.returncode == 0,
             "exit_code": proc.returncode,
-            "stdout": out.decode("utf-8", "replace")[-8000:],
-            "stderr": err.decode("utf-8", "replace")[-2000:],
+            "stdout": stdout_str,
+            "stderr": stderr_str,
         }
 
     # --- web ---
