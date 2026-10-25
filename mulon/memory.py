@@ -1211,6 +1211,12 @@ class Memory:
         )
         await self.db.commit()
 
+    async def kv_del(self, key: str) -> None:
+        await self.db.execute(
+            "DELETE FROM kv_state WHERE key=?", (key,)
+        )
+        await self.db.commit()
+
     # ---------- corrections (mục 4.4 tầng 2) ----------
     async def add_correction(
         self,
