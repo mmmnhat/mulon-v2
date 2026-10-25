@@ -52,6 +52,7 @@
   --tint-gray:#2B3747; --shadow-pop:0 8px 24px rgba(0,0,0,.35);
   --tgl-off:#3A4757;
   --border:var(--line); --card-tint:var(--surface2); --fs-caption:var(--fs-cap);
+  --tg-top-inset:0px;
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
 html,body{margin:0; padding:0; overflow-x:hidden; max-width:100vw}
@@ -84,7 +85,7 @@ button, .backrow, .tgl, .segbar, .swatch{
   position:sticky; top:0; z-index:30;
   background:color-mix(in srgb, var(--paper) 92%, transparent);
   backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
-  padding-top:max(var(--s2), env(safe-area-inset-top, 0px));
+  padding-top:calc(max(var(--s2), var(--tg-content-safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px), var(--tg-top-inset, 0px), env(safe-area-inset-top, 0px)) + var(--s1));
   margin:0 calc(-1 * var(--s4)) var(--s2);
   padding-left:var(--s4); padding-right:var(--s4);
   padding-bottom:2px;
@@ -548,7 +549,7 @@ table.fields tr + tr td.k:before{left:var(--s4)}
 .has-tg-back .backrow{display:none !important}
 .screen-title{font-size:var(--fs-screen); font-weight:var(--fw-s);
   margin:0 0 var(--s2); letter-spacing:-0.01em; overflow-wrap:anywhere; word-break:break-word}
-.has-tg-back section > .screen-title{padding-top:max(var(--s3), env(safe-area-inset-top, 0px))}
+.has-tg-back section > .screen-title{padding-top:var(--s2)}
 /* Note = chữ trần 13 --ink2, KHÔNG hộp nền (TQ-2): hộp xám
    90pt ở đầu màn con ăn chrome và nói điều hiển nhiên. Nội
    dung dài để ở cuối màn (mẫu .bc-note / chân màn Quyền). */
@@ -1264,8 +1265,38 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <script>
 "use strict";
 const tg = window.Telegram && window.Telegram.WebApp;
+function updateTgInsets() {
+  if (!tg) return;
+  let top = 0;
+  if (tg.contentSafeAreaInset && typeof tg.contentSafeAreaInset.top === "number" && tg.contentSafeAreaInset.top > 0) {
+    top = tg.contentSafeAreaInset.top;
+  } else if (tg.safeAreaInset && typeof tg.safeAreaInset.top === "number" && tg.safeAreaInset.top > 0) {
+    top = tg.safeAreaInset.top;
+  }
+  if (top <= 0) {
+    const isIos = tg.platform === "ios" || /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isAndroid = tg.platform === "android" || /Android/i.test(navigator.userAgent);
+    if (isIos && (!!tg.initData || tg.platform === "ios")) {
+      top = 75; // Khung header Telegram sheet trên iOS
+    } else if (isAndroid && (!!tg.initData || tg.platform === "android")) {
+      top = 56;
+    }
+  }
+  if (top > 0) {
+    document.documentElement.style.setProperty("--tg-top-inset", top + "px");
+  }
+}
 if (tg) {
   tg.ready(); tg.expand();
+  updateTgInsets();
+  if (tg.onEvent) {
+    try {
+      tg.onEvent("safeAreaChanged", updateTgInsets);
+      tg.onEvent("contentSafeAreaChanged", updateTgInsets);
+      tg.onEvent("viewportChanged", updateTgInsets);
+    } catch (e) {}
+  }
+  window.addEventListener("resize", updateTgInsets);
   if (tg.disableVerticalSwipes) {
     try { tg.disableVerticalSwipes(); } catch (e) {}
   }
