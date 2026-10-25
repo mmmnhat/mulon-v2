@@ -52,14 +52,15 @@ from .webapp_server import ActivityTracker, plain_step_label, \
 logger = logging.getLogger("mulon.telegram")
 
 # ----------------- Danh sách lệnh cho Telegram UI menu -------------
-# Menu lệnh "/" siêu tinh gọn cho user — mọi tính năng Feed, Ideas, Goals, Library
-# đều đã chạy hoàn toàn tự động ngầm theo chuẩn Muse, không cần gõ lệnh thủ công.
+# Menu lệnh "/" tinh gọn cho user
 MENU_COMMANDS: list[tuple[str, str]] = [
     ("start", "Bắt đầu / Chào Mulon"),
     ("menu", "Mở bảng điều khiển (Mini App)"),
-    ("new", "Chốt phiên, bắt đầu ngữ cảnh mới"),
-    ("vault", "Nhập API Key & Khóa bảo mật"),
+    ("restart", "Khởi động lại bot tiến trình"),
+    ("model", "Xem hoặc đổi model AI đang chạy (/model <tên>)"),
     ("status", "Trạng thái hệ thống"),
+    ("vault", "Nhập API Key & Khóa bảo mật"),
+    ("new", "Chốt phiên, bắt đầu ngữ cảnh mới"),
 ]
 
 # Danh sách đầy đủ cho tương thích ngược & các công cụ kiểm thử
@@ -2271,6 +2272,50 @@ class TelegramSurface:
                 return
             await _library_action(message, "rename_item")
 
+
+        @dp.message(F.text.startswith("/restart"))
+        async def cmd_restart(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            await message.answer("🔄 <b>Đang khởi động lại bot Mulon...</b>", parse_mode="HTML")
+            import sys, os, threading, time
+            def _reexec():
+                time.sleep(1.0)
+                logger.warning("cmd_restart: re-exec bot process theo yêu cầu user")
+                python = sys.executable
+                os.execv(python, [python] + sys.argv)
+            threading.Thread(target=_reexec, daemon=True, name="bot-restart").start()
+
+        @dp.message(F.text.startswith("/model"))
+        async def cmd_model(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            parts = (message.text or "").strip().split(maxsplit=1)
+            if len(parts) == 1:
+                cur_model = getattr(self.agent.cfg, "model_brain", self.cfg.model_brain) if hasattr(self, "agent") and hasattr(self.agent, "cfg") else self.cfg.model_brain
+                await message.answer(
+                    f"🤖 <b>Model đang dùng:</b> <code>{cur_model}</code>\n\n"
+                    "👉 <b>Đổi model:</b> <code>/model &lt;tên_model&gt;</code>\n"
+                    "<b>Gợi ý các model phổ biến:</b>\n"
+                    "• <code>/model claude-3-7-sonnet-20250219</code>\n"
+                    "• <code>/model claude-3-5-haiku-20241022</code>\n"
+                    "• <code>/model gemini-3.8-flash</code>\n"
+                    "• <code>/model gemini-3.5-flash-lite</code>\n"
+                    "• <code>/model grok-4.20-0309-reasoning</code>",
+                    parse_mode="HTML"
+                )
+                return
+
+            new_model = parts[1].strip()
+            old_model = self.cfg.model_brain
+            self.cfg.model_brain = new_model
+            if hasattr(self, "agent") and hasattr(self.agent, "cfg"):
+                self.agent.cfg.model_brain = new_model
+            await message.answer(
+                f"✅ Đã chuyển model sang: <code>{new_model}</code> (trước đó: <code>{old_model}</code>)",
+                parse_mode="HTML"
+            )
+
         @dp.message(F.text.startswith("/the_duyet"))
         async def cmd_the_duyet(message: Message) -> None:
             if not self._is_allowed(message):
@@ -2508,6 +2553,10 @@ class TelegramSurface:
         @dp.message(F.text)
         async def on_text(message: Message) -> None:
             if not self._is_allowed(message):
+                return
+            clean_txt = (message.text or "").strip().lower()
+            if clean_txt in ("restart", "restart bot", "restart bot lại đi", "khởi động lại", "khởi động lại bot", "/restart"):
+                await cmd_restart(message)
                 return
             # Phase 6: các phản hồi dạng lệnh ngắn được xử lý ngay,
             # không vào agent: xác nhận 'quên thật', reply

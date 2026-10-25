@@ -13,8 +13,8 @@ Mỗi bài Feed là một bản tin cô đọng, sắc sảo về công nghệ, 
 ## Taste (tự động — hệ thống cập nhật từ reaction, đừng sửa tay)
 
 <!-- TASTE:BEGIN -->
-Tín hiệu taste đã ghi: ❤️ ×1, 💬 ×1 (tổng 2 trên 5 bài).
+Tín hiệu taste đã ghi: ❤️ ×1, 💬 ×1 (tổng 2 trên 6 bài).
 Tích cực 1 · tiêu cực 0.
 Writer: tiếp tục ưu tiên dạng bài/nội dung được reaction tích cực; né dạng từng bị reaction tiêu cực.
-Cập nhật: 2026-10-25T10:00:39+00:00
+Cập nhật: 2026-10-25T13:00:26+00:00
 <!-- TASTE:END -->
