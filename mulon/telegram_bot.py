@@ -68,6 +68,7 @@ BOT_COMMANDS: list[tuple[str, str]] = [
     ("chatphu_mo", "Mở lại chat phụ theo id"),
     ("feedbrief", "Xem/sửa brief của Feed"),
     ("feedsources", "Nguồn bổ sung của Feed"),
+    ("goals", "Xem mục tiêu đang theo dõi"),
     ("ideas", "Sinh thẻ ý tưởng"),
     ("idea_do", "Làm luôn thẻ ý tưởng"),
     ("idea_bo", "Bỏ qua thẻ ý tưởng"),
@@ -417,6 +418,14 @@ def extract_bootstrap_questions(boot_text: str) -> str:
 
 # ------------------------------- bot -------------------------------
 
+def idea_card_keyboard(card_id: int) -> InlineKeyboardMarkup:
+    """Bàn phím tương tác trực tiếp trên Thẻ ý tưởng: Làm luôn / Bỏ qua."""
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="🚀 Làm luôn", callback_data=f"idea:do:{card_id}"),
+        InlineKeyboardButton(text="🗑 Bỏ qua", callback_data=f"idea:bo:{card_id}"),
+    ]])
+
+
 class TelegramSurface:
     def __init__(self, cfg, agent, memory, dossier, consolidator=None,
                  voice=None, policy=None, surfaces=None, broker=None,
@@ -725,6 +734,9 @@ class TelegramSurface:
                     try:
                         await anchor.answer_photo(FSInputFile(str(cand)))
                         sent = True
+                        await self._post_photo_to_library(
+                            FSInputFile(str(cand)), f"🖼️ [Thư viện] {cand.name}"
+                        )
                         break
                     except Exception as exc:
                         logger.warning("gửi ảnh local qua telegram lỗi: %s", exc)
@@ -744,6 +756,9 @@ class TelegramSurface:
                     try:
                         await anchor.answer_photo(clean_u)
                         sent = True
+                        await self._post_photo_to_library(
+                            clean_u, "🖼️ [Thư viện] Ảnh mới từ AI / Web"
+                        )
                         break
                     except Exception as exc:
                         logger.warning("gửi ảnh url qua telegram lỗi: %s", exc)
@@ -912,6 +927,63 @@ class TelegramSurface:
             rows.append([InlineKeyboardButton(
                 text="Xem chi tiết", url=link)])
         return InlineKeyboardMarkup(inline_keyboard=rows)
+
+    async def publish_ideas(self, cards: list[dict], chat_id: Optional[int] = None) -> None:
+        """Tự động đăng các thẻ ý tưởng mới vào topic Ideas kèm nút tương tác."""
+        if not cards or self.bot is None:
+            return
+        cid = chat_id or self.cfg.allowed_user_id
+        if not cid:
+            return
+        from .ideas import format_idea_card
+        topics = self._svc("topics")
+        thread_id = None
+        if topics is not None and self.memory is not None:
+            try:
+                mapping = await topics.get_map(self.memory, cid)
+                thread_id = topics.topic_for(mapping, "ideas")
+            except Exception:
+                pass
+        kwargs: dict[str, Any] = {}
+        if thread_id:
+            kwargs["message_thread_id"] = thread_id
+        for card in cards:
+            try:
+                await self.bot.send_message(
+                    cid,
+                    format_idea_card(card),
+                    reply_markup=idea_card_keyboard(card["id"]),
+                    **kwargs,
+                )
+            except Exception as exc:
+                logger.warning("gửi thẻ ý tưởng tự động lỗi: %s", exc)
+
+    async def _post_photo_to_library(self, photo_input: Any, caption: str) -> None:
+        """Tự động gửi ảnh mới vào topic Library để xây dựng kho ảnh visual."""
+        if self.bot is None:
+            return
+        cid = self.cfg.allowed_user_id
+        if not cid:
+            return
+        topics = self._svc("topics")
+        lib_thread = None
+        if topics is not None and self.memory is not None:
+            try:
+                mapping = await topics.get_map(self.memory, cid)
+                lib_thread = topics.topic_for(mapping, "library")
+            except Exception:
+                pass
+        if not lib_thread:
+            return
+        try:
+            await self.bot.send_photo(
+                chat_id=cid,
+                photo=photo_input,
+                caption=caption,
+                message_thread_id=lib_thread,
+            )
+        except Exception as exc:
+            logger.warning("tự động gửi ảnh vào topic library lỗi: %s", exc)
 
     async def send_approval_card(self, chat_id: int,
                                  thread_id: Optional[int],
@@ -1416,6 +1488,63 @@ class TelegramSurface:
             except Exception:
                 pass
 
+        @dp.callback_query(F.data.startswith("idea:"))
+        async def on_idea_button(query: CallbackQuery) -> None:
+            if not self.cfg.allowed_user_id or (query.from_user and query.from_user.id != self.cfg.allowed_user_id):
+                await query.answer("Bạn không có quyền thao tác thẻ này.", show_alert=True)
+                return
+            parts = (query.data or "").split(":")
+            if len(parts) != 3:
+                await query.answer()
+                return
+            action, card_id_s = parts[1], parts[2]
+            try:
+                card_id = int(card_id_s)
+            except ValueError:
+                await query.answer()
+                return
+            ideas = self._svc("ideas")
+            if ideas is None:
+                await query.answer("Ideas chưa sẵn sàng.", show_alert=True)
+                return
+            if action == "do":
+                res = await ideas.do_card(
+                    card_id, session_key=f"agent:main:telegram:dm:{query.from_user.id}:topic:0"
+                )
+                if res.get("ok"):
+                    await query.answer("Đã nhận làm luôn!")
+                    try:
+                        orig = query.message.text or ""
+                        new_text = orig + f"\n\n🚀 <b>Đã nhận làm luôn!</b>\n• Goal #{res['goal_id']}\n• Task: <code>{res['task_id']}</code>"
+                        await query.message.edit_text(new_text, parse_mode="HTML")
+                    except Exception:
+                        pass
+                else:
+                    await query.answer(res.get("error", "Lỗi"), show_alert=True)
+            elif action == "bo":
+                res = await ideas.dismiss(card_id)
+                if res.get("ok"):
+                    await query.answer("Đã bỏ qua thẻ này.")
+                    try:
+                        orig = query.message.text or ""
+                        new_text = orig + "\n\n🗑 <i>Đã bỏ qua thẻ ý tưởng này.</i>"
+                        await query.message.edit_text(new_text, parse_mode="HTML")
+                    except Exception:
+                        pass
+                else:
+                    await query.answer(res.get("error", "Lỗi"), show_alert=True)
+
+        @dp.callback_query(F.data.startswith("feed:"))
+        async def on_feed_button(query: CallbackQuery) -> None:
+            if not self.cfg.allowed_user_id or (query.from_user and query.from_user.id != self.cfg.allowed_user_id):
+                await query.answer()
+                return
+            data = query.data or ""
+            if data == "feed:like":
+                await query.answer("❤️ Đã ghi nhận quan tâm đề tài này!", show_alert=False)
+            elif data == "feed:discuss":
+                await query.answer("💬 Hãy nhắn trực tiếp yêu cầu đào sâu đề tài này!", show_alert=True)
+
         @dp.message(F.web_app_data)
         async def on_web_app_data(message: Message) -> None:
             # Dự phòng: Mini App qua Direct Link KHÔNG có sendData
@@ -1755,11 +1884,38 @@ class TelegramSurface:
                 kwargs["message_thread_id"] = thread
             for card in cards:
                 await self.bot.send_message(
-                    message.chat.id, format_idea_card(card), **kwargs)
+                    message.chat.id,
+                    format_idea_card(card),
+                    reply_markup=idea_card_keyboard(card["id"]),
+                    **kwargs,
+                )
             if thread != getattr(message, "message_thread_id", None):
                 await message.answer(
                     f"Đã đăng {len(cards)} thẻ ý tưởng vào topic "
                     "Ideas.")
+
+        @dp.message(F.text.startswith("/goals"))
+        async def cmd_goals(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            if self.memory is None or self.bot is None:
+                return
+            from .planning import ensure_seed_goals
+            goals = await ensure_seed_goals(self.memory)
+            thread = await self._topic_thread(message, "goals")
+            lines = ["🎯 <b>Mục tiêu đang theo dõi (Goals)</b>\n"]
+            for g in goals:
+                acts = await self.memory.list_goal_activity(g["id"], limit=1)
+                recent = acts[0]["note"] if acts else "Đang theo dõi"
+                lines.append(f"▫️ <b>{g['title']}</b> (#{g['id']})\n   {g.get('description', '')}\n   <i>Tiến độ: {recent}</i>\n")
+            lines.append("💡 <i>Tạo mục tiêu mới bằng cách nhắn việc cho bot hoặc bấm 'Làm luôn' trên Thẻ ý tưởng.</i>")
+            text = "\n".join(lines)
+            kwargs = {}
+            if thread:
+                kwargs["message_thread_id"] = thread
+            await self.bot.send_message(message.chat.id, text, parse_mode="HTML", **kwargs)
+            if thread != getattr(message, "message_thread_id", None):
+                await message.answer("Đã gửi danh sách mục tiêu vào topic Goals.")
 
         @dp.message(F.text.startswith("/idea_do"))
         async def cmd_idea_do(message: Message) -> None:
@@ -2280,6 +2436,10 @@ class TelegramSurface:
 
             caption = (message.caption or "").strip()
             if local_path and local_path.is_file():
+                await self._post_photo_to_library(
+                    FSInputFile(str(local_path)),
+                    f"📥 [Thư viện] {local_path.name}" + (f"\n{caption}" if caption else ""),
+                )
                 if caption:
                     text = f"[Người dùng gửi kèm ảnh: {local_path}]\n{caption}"
                 else:
@@ -2350,4 +2510,10 @@ class TelegramSurface:
         except Exception as exc:
             logger.warning("đăng ký set_my_commands lỗi (bỏ qua): %s",
                            exc)
+        # Seed goals nếu DB chưa có
+        try:
+            from .planning import ensure_seed_goals
+            await ensure_seed_goals(self.memory)
+        except Exception as exc:
+            logger.warning("ensure_seed_goals lỗi (bỏ qua): %s", exc)
         await self.dp.start_polling(self.bot)

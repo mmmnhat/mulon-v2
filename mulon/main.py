@@ -335,19 +335,19 @@ async def _proactivity_loop(engine: ProactivityEngine,
             logger.warning("heartbeat nền lỗi (bỏ qua vòng này): %s", exc)
 
 
-async def _ideas_auto_loop(engine, interval_s: int) -> None:
-    """Vòng lặp Ideas tự sinh (sửa 1.6.2) — luôn chạy; engine tự
-    bỏ lượt khi công tắc hiệu lực đang tắt (xem
-    ideas.effective_auto_enabled). Khi bật, lượt sinh chỉ ghi thẻ
-    vào DB chờ user duyệt — vòng này không gửi tin, không chạy
-    task. Không dính tới scheduler thường hay Feed auto."""
+async def _ideas_auto_loop(engine, interval_s: int, surface=None) -> None:
+    """Vòng lặp Ideas tự sinh — luôn chạy; khi sinh được thẻ mới,
+    tự động gửi thẻ vào topic Ideas kèm nút bấm trực tiếp."""
     while True:
         await asyncio.sleep(interval_s)
         try:
             stats = await engine.generate_auto()
-            if stats.get("cards"):
+            cards = stats.get("card_objs", [])
+            if cards:
                 logger.info("ideas tự sinh: %d thẻ mới: %s",
-                            stats["cards"], stats)
+                            len(cards), stats)
+                if surface is not None:
+                    await surface.publish_ideas(cards)
         except Exception as exc:
             logger.warning("ideas tự sinh nền lỗi (bỏ qua vòng này): "
                            "%s", exc)
@@ -424,7 +424,8 @@ async def _run(cfg: Config) -> int:
     # khỏi restart, khỏi sửa .env; mặc định IDEAS_AUTO_ENABLED=0).
     asyncio.create_task(
         _ideas_auto_loop(services["phase6"]["ideas"],
-                         cfg.ideas_auto_interval_s)
+                         cfg.ideas_auto_interval_s,
+                         surface=surface)
     )
     logger.info("ideas tự sinh: vòng chạy mỗi %ss; trạng thái hiệu "
                 "lực theo công tắc trong Mini App, mặc định "

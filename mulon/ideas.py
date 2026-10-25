@@ -172,7 +172,7 @@ class IdeaEngine:
         await self.memory.log_trajectory(
             "", "ideas_auto_generated",
             {"ids": [c["id"] for c in cards]})
-        return {"skipped": None, "cards": len(cards),
+        return {"skipped": None, "cards": len(cards), "card_objs": cards,
                 "ids": [c["id"] for c in cards]}
 
     async def do_card(self, card_id: int,
@@ -226,10 +226,8 @@ def format_idea_card(card: dict) -> str:
     if card.get("description"):
         lines.append(card["description"])
     if expires:
-        lines.append(f"(hết hạn {expires} — trả lời 'làm luôn' vào thẻ "
-                     f"này hoặc /idea_do {card['id']}; bỏ qua: "
-                     f"/idea_bo {card['id']})")
-    return "\n".join(lines)
+        lines.append(f"(hết hạn {expires})")
+    return "\n\n".join(lines)
 
 
 def parse_do_reply(text: str, replied_text: Optional[str]) -> Optional[int]:

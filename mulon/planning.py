@@ -326,3 +326,44 @@ def register_planning_tools(registry, cfg, memory) -> None:
             return {"ok": False,
                     "error": f"goal {goal_id} không tồn tại hoặc đã đóng"}
         return {"ok": True, "goal": goal}
+
+
+async def ensure_seed_goals(memory) -> list[dict]:
+    """Khởi tạo 5 mục tiêu nền tảng từ ngữ cảnh thật của người dùng nếu DB đang trống."""
+    existing = await memory.list_goals(status="active")
+    if existing:
+        return existing
+    seeds = [
+        (
+            "MuLon AI & Mini App",
+            "Phát triển và hoàn thiện trợ lý AI Mulon, Mini App và đồng bộ đầy đủ trải nghiệm với Muse AI.",
+            "Đang hoàn thiện tính năng Feed, Thẻ ý tưởng và kho ảnh visual Library",
+        ),
+        (
+            "Chiến dịch Affiliate Marketing (Shopee & Lazada)",
+            "Khai thác API Accesstrade và đăng ký tiếp thị liên kết đa sàn, tạo link và tối ưu hoa hồng.",
+            "Đã kết nối API Accesstrade, sẵn sàng tạo link affiliate tự động",
+        ),
+        (
+            "Sản xuất nội dung đa kênh (TikTok, Threads, Instagram)",
+            "Xây dựng kịch bản video ngắn cho @vesomlamgi, bài viết Threads cho @supbomacket và Reels/Page Mmmnhat.",
+            "Lên lịch và kịch bản thử nghiệm theo định hướng viral",
+        ),
+        (
+            "Sáng tạo hình ảnh & Avatar AI (Agnes AI)",
+            "Thử nghiệm tạo ảnh, thiết kế concept nhân vật, hình đại diện và poster bán hàng bằng Agnes AI.",
+            "Đã cất API key vào Vault, sẵn sàng gọi sinh ảnh và đồng bộ vào Library",
+        ),
+        (
+            "Hệ sinh thái Multi-agent Telegram",
+            "Nghiên cứu kiến trúc đa bot chạy song song, phân công vai trò chuyên biệt cho từng bot phụ.",
+            "Đang thử nghiệm kiến trúc Subagent và kết nối BotFather",
+        ),
+    ]
+    created = []
+    for title, desc, note in seeds:
+        g = await memory.create_goal(title, desc)
+        if note:
+            await memory.log_goal_activity(g["id"], note)
+        created.append(g)
+    return created
