@@ -52,26 +52,27 @@ from .webapp_server import ActivityTracker, plain_step_label, \
 logger = logging.getLogger("mulon.telegram")
 
 # ----------------- Danh sách lệnh cho Telegram UI menu -------------
-# Menu lệnh "/" tinh gọn hiển thị cho user (14 lệnh thiết yếu nhất)
+# Menu lệnh "/" siêu tinh gọn cho user — mọi tính năng Feed, Ideas, Goals, Library
+# đều đã chạy hoàn toàn tự động ngầm theo chuẩn Muse, không cần gõ lệnh thủ công.
 MENU_COMMANDS: list[tuple[str, str]] = [
-    ("start", "Bắt đầu / nghi lễ lần đầu"),
+    ("start", "Bắt đầu / Chào Mulon"),
     ("menu", "Mở bảng điều khiển (Mini App)"),
-    ("status", "Trạng thái hệ thống"),
-    ("goals", "Xem mục tiêu đang theo dõi (Goals)"),
-    ("ideas", "Sinh thẻ ý tưởng mới"),
-    ("feed_now", "Đăng bài Feed công nghệ & AI"),
-    ("library", "Xem Thư viện & kho ảnh visual"),
     ("new", "Chốt phiên, bắt đầu ngữ cảnh mới"),
+    ("vault", "Nhập API Key & Khóa bảo mật"),
+    ("status", "Trạng thái hệ thống"),
+]
+
+# Danh sách đầy đủ cho tương thích ngược & các công cụ kiểm thử
+BOT_COMMANDS: list[tuple[str, str]] = MENU_COMMANDS + [
     ("memory", "Xem bộ nhớ + fact kèm nguồn"),
-    ("vault", "Nhận link form nhập bí mật"),
     ("chatphu", "Tạo chat phụ (topic tự do)"),
     ("setup_topics", "Thiết lập Topic-tab cho group"),
     ("quyen", "Quyền của agent bằng lời thường"),
     ("approvals", "Lịch sử quyết định quyền"),
-]
-
-# Danh sách mở rộng giữ lại tương thích ngược & công cụ kiểm thử
-BOT_COMMANDS: list[tuple[str, str]] = MENU_COMMANDS + [
+    ("goals", "Xem mục tiêu đang theo dõi (Goals)"),
+    ("ideas", "Sinh thẻ ý tưởng mới"),
+    ("feed_now", "Đăng bài Feed công nghệ & AI"),
+    ("library", "Xem Thư viện & kho ảnh visual"),
     ("feedbrief", "Xem/sửa brief của Feed"),
     ("feedsources", "Nguồn bổ sung của Feed"),
     ("the_duyet", "Gửi thẻ phê duyệt thử (thật, vô hại)"),
