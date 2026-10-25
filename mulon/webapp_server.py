@@ -469,6 +469,7 @@ class WebAppServer:
         app.router.add_get("/app/assets/{name}",
                            self._handle_static_asset)
         app.router.add_get("/api/state", self._handle_state)
+        app.router.add_get("/api/heartbeat/history", self._handle_heartbeat_history)
         app.router.add_get("/api/task", self._handle_task)
         app.router.add_get("/api/profile/content",
                            self._handle_profile_content)
@@ -1076,6 +1077,16 @@ class WebAppServer:
                                   if self.memory is not None else []),
         }
         return web.json_response(state)
+
+    async def _handle_heartbeat_history(self, request):
+        limit = 20
+        try:
+            limit = int(request.query.get("limit", 20))
+        except Exception:
+            pass
+        history = (await self.memory.get_heartbeat_history(limit=limit)
+                   if self.memory is not None else [])
+        return web.json_response({"ok": True, "history": history})
 
     async def _handle_task(self, request):
         task_id = request.query.get("id", "")

@@ -37,6 +37,7 @@
   --shadow-pop:0 8px 24px rgba(31,30,29,.08);
   /* toggle tắt — token riêng để dark không phát sáng be (TQ-3) */
   --tgl-off:#D8D3C8;
+  --border:var(--line); --card-tint:var(--surface2); --fs-caption:var(--fs-cap);
   /* chiều cao header gọn (KT-1) — segbar dính ngay dưới nó;
      HẰNG SỐ DUY NHẤT, không còn cơ chế nhảy khi cuộn (TB-2) */
   --stick-top:56px;
@@ -50,6 +51,7 @@
   --line:#303D4D; --tint-err:#452723; --tint-lav:#2E2A4A;
   --tint-gray:#2B3747; --shadow-pop:0 8px 24px rgba(0,0,0,.35);
   --tgl-off:#3A4757;
+  --border:var(--line); --card-tint:var(--surface2); --fs-caption:var(--fs-cap);
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
 html,body{margin:0; padding:0; overflow-x:hidden; max-width:100vw}
@@ -72,13 +74,16 @@ button, .backrow, .tgl, .segbar, .swatch{
   user-select:none; -webkit-user-select:none;
   -webkit-touch-callout:none;
 }
-/* ---------- header dính — căn giữa, to hơn chuẩn Muse ---------- */
+@media (pointer: coarse) {
+  input, textarea, select, .field-input, .mkt-select {
+    font-size: 16px;
+  }
+}
+/* ---------- header — căn giữa chuẩn Muse, cuộn tự nhiên ---------- */
 .app-header{
-  position:sticky; top:0; z-index:25;
+  position:relative; z-index:10;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
-  padding:16px 0 10px; margin-bottom:12px;
-  background:color-mix(in srgb, var(--paper) 88%, transparent);
-  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  padding:calc(var(--s3) + env(safe-area-inset-top, 0px)) 0 var(--s2); margin-bottom:var(--s2);
   text-align:center;
 }
 .avatar-wrap{
@@ -97,8 +102,8 @@ button, .backrow, .tgl, .segbar, .swatch{
 }
 .avatar-edit-badge{
   position:absolute; bottom:2px; right:2px; width:26px; height:26px;
-  border-radius:50%; background:#2B3747; border:2px solid var(--paper);
-  display:flex; align-items:center; justify-content:center; color:#fff;
+  border-radius:50%; background:var(--surface2); border:2px solid var(--paper);
+  display:flex; align-items:center; justify-content:center; color:var(--ink);
   cursor:pointer; z-index:5; box-shadow:0 2px 6px rgba(0,0,0,.25);
   transition:transform 180ms var(--ease);
 }
@@ -121,28 +126,47 @@ button, .backrow, .tgl, .segbar, .swatch{
 .avatar.sprite-on #avatar-letter{visibility:hidden}
 .app-name{font-size:22px; font-weight:700;
   letter-spacing:-0.02em; line-height:1.2; margin-bottom:4px; text-align:center;}
-.app-status{font-size:13px; font-weight:500; color:#3E9B6C;
+.app-status{font-size:var(--fs-cap); font-weight:var(--fw-m); color:var(--ok);
   display:inline-flex; align-items:center; justify-content:center; gap:6px;
   margin:0 auto; white-space:nowrap;}
-.dot{width:8px; height:8px; border-radius:50%; background:#3E9B6C;
+.dot{width:8px; height:8px; border-radius:50%; background:var(--ok);
   display:inline-block}
 .dot.busy{background:var(--lav); animation:pulse 1.2s infinite}
 
 /* ---------- modal chi tiết Heartbeat chuẩn Muse ---------- */
 .modal-overlay{
   position:fixed; inset:0; z-index:100;
-  background:rgba(0,0,0,0.65); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  background:rgba(0,0,0,0.65); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
   display:flex; align-items:center; justify-content:center; padding:16px;
+  overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
 }
 .modal-overlay.hidden{display:none !important;}
 .modal-card{
   background:var(--surface); color:var(--ink); border-radius:24px;
-  width:100%; max-width:440px; padding:24px; box-shadow:0 12px 36px rgba(0,0,0,0.45);
+  width:100%; max-width:440px; padding:24px; box-shadow:var(--shadow-pop);
   position:relative; animation:modalPop 0.25s cubic-bezier(0.2,0,0,1);
   border:1px solid var(--line);
+  max-height:calc(100dvh - 48px);
+  overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
 }
-[data-scheme="dark"] .modal-card{
-  background:#232E3C; color:#E9EDEF; border-color:#303D4D;
+@media (max-width: 600px) {
+  .modal-overlay{
+    align-items:flex-end; padding:0;
+  }
+  .modal-card{
+    border-radius:24px 24px 0 0;
+    max-height:min(90dvh, 90vh);
+    padding:12px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    border-bottom:0;
+    animation:sheetSlideUp 0.26s cubic-bezier(0.2,0,0,1);
+  }
+}
+@keyframes sheetSlideUp{from{transform:translateY(100%)} to{transform:translateY(0)}}
+.sheet-handle-bar{
+  width:38px; height:4px; border-radius:999px;
+  background:var(--line); margin:0 auto 12px;
+  touch-action:none; cursor:grab;
 }
 @keyframes modalPop{from{opacity:0; transform:scale(0.95)} to{opacity:1; transform:scale(1)}}
 .modal-top-row{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
@@ -150,13 +174,11 @@ button, .backrow, .tgl, .segbar, .swatch{
   background:var(--surface2); color:var(--ink2); font-size:12px; font-weight:600;
   padding:4px 10px; border-radius:8px;
 }
-[data-scheme="dark"] .badge-scheduled{background:#1A222D; color:#9DABB9;}
 .modal-close-btn{
   background:var(--surface2); border:0; color:var(--ink); width:28px; height:28px; border-radius:50%;
   cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px;
   transition:background 180ms;
 }
-[data-scheme="dark"] .modal-close-btn{background:#2B3747; color:#E9EDEF;}
 .modal-close-btn:hover{background:var(--tint-gray)}
 .modal-title{font-size:22px; font-weight:700; margin-bottom:4px;}
 .modal-sub{font-size:14px; color:var(--ink2); margin-bottom:20px;}
@@ -166,15 +188,13 @@ button, .backrow, .tgl, .segbar, .swatch{
 }
 .modal-history-list{display:flex; flex-direction:column; gap:12px; font-size:14px;}
 .run-item{display:flex; align-items:center; justify-content:space-between; color:var(--ink);}
-[data-scheme="dark"] .run-item{color:#E9EDEF;}
-.run-item .dot-green{color:#3E9B6C; font-size:10px; margin-right:6px;}
+.run-item .dot-green{color:var(--ok); font-size:10px; margin-right:6px;}
 .run-item .run-time{color:var(--ink2); font-variant-numeric:tabular-nums; font-weight:500;}
 .btn-link{background:transparent; border:0; color:var(--accent); font-size:13px; font-weight:600; cursor:pointer; padding:6px 12px;}
 .modal-action-row{display:flex; gap:12px; margin-top:20px;}
 .modal-action-row .btn{flex:1; height:46px; border-radius:14px; font-weight:600; font-size:15px; border:0; cursor:pointer;}
 .btn-secondary{background:var(--surface2); color:var(--ink);}
-[data-scheme="dark"] .btn-secondary{background:#2B3747; color:#E9EDEF;}
-.btn-danger{background:#D9383A; color:#FFFFFF;}
+.btn-danger{background:var(--err); color:#FFFFFF;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 /* ---------- segmented tabs — Phương án A (TB-2) ---------- */
 /* Chỉ chữ, đúng mẫu control trong app Muse: track surface2
@@ -185,7 +205,12 @@ button, .backrow, .tgl, .segbar, .swatch{
 .segbar{
   display:flex; background:var(--surface2); border-radius:12px;
   padding:3px; gap:var(--s1); margin:0 0 var(--s3);
-  position:sticky; top:var(--stick-top); z-index:15; height:38px;
+  position:sticky; top:max(4px, env(safe-area-inset-top, 0px)); z-index:20; height:38px;
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+}
+.tab-badge-dot{
+  display:inline-block; width:6px; height:6px; border-radius:50%;
+  background:var(--rose); margin-left:4px; vertical-align:middle;
 }
 .segbar button{
   flex:1; border:0; background:transparent; color:var(--ink2);
@@ -518,10 +543,13 @@ table.fields tr + tr td.k:before{left:var(--s4)}
   color:var(--lav-deep);
   font-weight:var(--fw-s); cursor:pointer; min-height:44px;
   font-size:var(--fs-body);
+  padding-top:max(var(--s2), env(safe-area-inset-top, 0px));
 }
 .backrow:active{opacity:.55}
+.has-tg-back .backrow{display:none !important}
 .screen-title{font-size:var(--fs-screen); font-weight:var(--fw-s);
   margin:0 0 var(--s2); letter-spacing:-0.01em; overflow-wrap:anywhere; word-break:break-word}
+.has-tg-back section > .screen-title{padding-top:max(var(--s3), env(safe-area-inset-top, 0px))}
 /* Note = chữ trần 13 --ink2, KHÔNG hộp nền (TQ-2): hộp xám
    90pt ở đầu màn con ăn chrome và nói điều hiển nhiên. Nội
    dung dài để ở cuối màn (mẫu .bc-note / chân màn Quyền). */
@@ -688,7 +716,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <!-- ================= TAB BAR ================= -->
 <nav class="segbar" id="segbar">
   <button data-tab="viec" class="active">Việc</button>
-  <button data-tab="pheduyet">Phê duyệt</button>
+  <button data-tab="pheduyet">Phê duyệt<span id="tab-appr-dot" class="tab-badge-dot hidden"></span></button>
   <button data-tab="lich">Lịch</button>
   <button data-tab="hoso">Hồ sơ</button>
   <button data-tab="caidat">Cài đặt</button>
@@ -735,7 +763,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <div class="card-title" style="margin:8px 0 8px 4px; font-size:15px; font-weight:600; color:var(--ink2);">Hàng ngày</div>
   <div class="card" id="card-heartbeat-item" style="cursor:pointer; display:flex; align-items:center; gap:14px; padding:16px; border-radius:18px; margin-bottom:18px;">
     <div style="width:44px; height:44px; border-radius:50%; background:var(--surface2); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="#D95F57" stroke="#D95F57" stroke-width="1.5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="var(--err)" stroke="var(--err)" stroke-width="1.5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
     </div>
     <div style="flex:1;">
       <div style="font-size:16px; font-weight:600; color:var(--ink); margin-bottom:2px;">Heartbeat</div>
@@ -753,16 +781,17 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <!-- ================= MODAL HEARTBEAT (Ảnh 4 chuẩn Muse) ================= -->
 <div id="modal-heartbeat" class="modal-overlay hidden">
   <div class="modal-card">
+    <div class="sheet-handle-bar"></div>
     <div class="modal-top-row">
-      <span class="badge-scheduled">Đã lên lịch</span>
+      <span class="badge-scheduled" id="heartbeat-badge">Đã lên lịch</span>
       <button class="modal-close-btn" id="btn-close-heartbeat">✕</button>
     </div>
     <div class="modal-title">Heartbeat</div>
     <div class="modal-sub">30 phút một lần</div>
 
-    <div class="modal-section-title">
+    <div class="modal-section-title" id="heartbeat-history-toggle" style="cursor:pointer; user-select:none;">
       <span>Lịch sử chạy</span>
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      <svg id="heartbeat-history-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 200ms;"><path d="M6 9l6 6 6-6"/></svg>
     </div>
 
     <div id="heartbeat-run-history" class="modal-history-list">
@@ -772,9 +801,61 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       <button class="btn-link" id="btn-heartbeat-more">Xem thêm</button>
     </div>
 
-    <div class="modal-action-row">
+    <div class="modal-action-row" id="heartbeat-action-row">
       <button class="btn btn-secondary" id="btn-heartbeat-perm">Xem quyền</button>
       <button class="btn btn-danger" id="btn-heartbeat-del">Xóa</button>
+    </div>
+
+    <div id="heartbeat-confirm-box" class="hidden" style="margin-top:16px; padding:14px; border-radius:14px; background:var(--surface2); border:1px solid var(--line);">
+      <div style="font-size:13px; font-weight:500; margin-bottom:10px; color:var(--ink);">Ní có chắc muốn tạm dừng vòng quét Heartbeat ngầm (30 phút/lần)?</div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-danger btn-sm" id="btn-heartbeat-confirm-pause" style="flex:1; height:36px; border-radius:10px; border:0; cursor:pointer;">Tạm dừng</button>
+        <button class="btn btn-ghost btn-sm" id="btn-heartbeat-confirm-cancel" style="flex:1; height:36px; border-radius:10px; cursor:pointer;">Hủy</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal xem quyền Heartbeat -->
+<div id="modal-heartbeat-perms" class="modal-overlay hidden" style="z-index:110;">
+  <div class="modal-card">
+    <div class="sheet-handle-bar"></div>
+    <div class="modal-top-row">
+      <span class="badge-scheduled" style="background:var(--tint-lav); color:var(--lav-deep);">Phân quyền Muse</span>
+      <button class="modal-close-btn" id="btn-close-heartbeat-perms">✕</button>
+    </div>
+    <div class="modal-title" style="font-size:20px;">Quyền của Heartbeat</div>
+    <div class="modal-sub">Tiến trình quét định kỳ 30 phút/lần</div>
+
+    <div style="display:flex; flex-direction:column; gap:10px; margin:16px 0 20px; font-size:13px; line-height:1.45;">
+      <div style="display:flex; gap:10px; align-items:flex-start;">
+        <span style="color:var(--ok); font-size:14px; flex-shrink:0;">🟢</span>
+        <div><strong style="color:var(--ink);">Đọc Checklist &amp; Sở thích:</strong> <span style="color:var(--ink2);">Nạp mục tiêu từ HEARTBEAT.md và bộ lọc chủ đề PROACTIVE_PREFERENCES.md.</span></div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:flex-start;">
+        <span style="color:var(--ok); font-size:14px; flex-shrink:0;">🟢</span>
+        <div><strong style="color:var(--ink);">Đọc Ngữ cảnh nhẹ:</strong> <span style="color:var(--ink2);">Ký ức gần (facts), cam kết đang mở, lịch cá nhân đang bật (lightContext).</span></div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:flex-start;">
+        <span style="color:var(--ok); font-size:14px; flex-shrink:0;">🟢</span>
+        <div><strong style="color:var(--ink);">Mô hình nhẹ (Cheap Model):</strong> <span style="color:var(--ink2);">Chạy qua gemini-3.5-flash-lite tiết kiệm token, khung giờ 07:00–23:00.</span></div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:flex-start;">
+        <span style="color:var(--ok); font-size:14px; flex-shrink:0;">🟢</span>
+        <div><strong style="color:var(--ink);">Tạo Đề xuất im lặng:</strong> <span style="color:var(--ink2);">Xếp hàng việc cần làm vào proactive_notes, không tự tiện làm phiền.</span></div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:flex-start;">
+        <span style="color:var(--err); font-size:14px; flex-shrink:0;">🔴</span>
+        <div><strong style="color:var(--ink);">Tự ý nhắn tin vào Chat:</strong> <span style="color:var(--err); font-weight:500;">Bị chặn.</span> <span style="color:var(--ink2);">Chỉ gửi tin khi có việc khẩn cấp thật sự hoặc khi ní hỏi.</span></div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:flex-start;">
+        <span style="color:var(--err); font-size:14px; flex-shrink:0;">🔴</span>
+        <div><strong style="color:var(--ink);">Can thiệp tệp tin / Shell:</strong> <span style="color:var(--err); font-weight:500;">Bị chặn.</span> <span style="color:var(--ink2);">Không có quyền chạy bash hay sửa đổi file hệ thống.</span></div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;">
+      <button class="btn btn-accent" id="btn-ack-heartbeat-perms" style="width:100%; height:44px; border-radius:12px; font-weight:600;">Đã hiểu</button>
     </div>
   </div>
 </div>
@@ -1015,7 +1096,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <div class="card-title">Authorized Redirect URI</div>
     <div class="r-sub" style="margin-bottom:8px">Đăng ký đường dẫn này vào mục <i>Authorized redirect URIs</i> trên Google Cloud Console:</div>
     <div style="display:flex; gap:8px; align-items:center">
-      <input id="gconfig-redirect-uri" class="field-input" type="text" readonly style="font-family:monospace; font-size:12px; background:var(--card-tint); margin:0" spellcheck="false">
+      <input id="gconfig-redirect-uri" class="field-input" type="text" readonly style="font-family:monospace; font-size:12px; background:var(--surface2); margin:0" spellcheck="false">
       <button class="btn btn-soft btn-sm" id="gconfig-copy-uri" type="button" style="flex-shrink:0">Chép</button>
     </div>
   </div>
@@ -1050,7 +1131,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <div class="card"><div id="mkt-list"></div></div>
   <div class="card" id="mkt-pagination" style="display:flex; justify-content:space-between; align-items:center; padding:var(--s2) var(--s3); margin-top:var(--s2);">
     <button class="btn btn-soft btn-sm btn-auto" id="mkt-prev" disabled>Trang trước</button>
-    <span id="mkt-page-info" style="font-size:var(--fs-caption); font-weight:var(--fw-s); color:var(--ink2);">Trang 1</span>
+    <span id="mkt-page-info" style="font-size:var(--fs-cap); font-weight:var(--fw-s); color:var(--ink2);">Trang 1</span>
     <button class="btn btn-soft btn-sm btn-auto" id="mkt-next">Trang sau</button>
   </div>
 </section>
@@ -1164,6 +1245,18 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <button type="button" data-val="low">Tin cậy thấp<span class="tick">✓</span></button>
 </div>
 
+<div id="modal-prompt" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:340px; padding:20px;">
+    <div class="sheet-handle-bar"></div>
+    <div class="modal-title" id="modal-prompt-title" style="font-size:17px; margin-bottom:12px;">Đổi tên</div>
+    <input class="field-input" id="modal-prompt-input" type="text" style="margin-bottom:14px;">
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-secondary btn-sm" id="modal-prompt-cancel" style="flex:1">Huỷ</button>
+      <button class="btn btn-accent btn-sm" id="modal-prompt-ok" style="flex:1">Lưu</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -1171,8 +1264,14 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 const tg = window.Telegram && window.Telegram.WebApp;
 if (tg) {
   tg.ready(); tg.expand();
+  if (tg.disableVerticalSwipes) {
+    try { tg.disableVerticalSwipes(); } catch (e) {}
+  }
   if (tg.colorScheme === "dark")
     document.documentElement.dataset.scheme = "dark";
+  if (tg.BackButton && ((tg.platform && tg.platform !== "unknown") || !!tg.initData)) {
+    document.body.classList.add("has-tg-back");
+  }
 }
 const INIT = tg ? tg.initData : "";
 const START_PARAM = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || "";
@@ -1220,6 +1319,7 @@ function todayLabel(iso){
 
 /* ---------------- điều hướng ---------------- */
 const MAIN_TABS = ["viec","pheduyet","lich","hoso","caidat"];
+const TAB_TITLES = {"viec":"Việc","pheduyet":"Phê duyệt","lich":"Lịch","hoso":"Hồ sơ","caidat":"Cài đặt"};
 const TAB_OF_SCREEN = {"screen-task":"viec","screen-profile":"hoso",
   "screen-skill":"hoso",
   "screen-connectors":"caidat","screen-vault":"caidat",
@@ -1230,6 +1330,15 @@ const TAB_OF_SCREEN = {"screen-task":"viec","screen-profile":"hoso",
   "screen-import":"caidat",
   "screen-connector-policy":"caidat",
   "screen-google-config":"caidat"};
+const SCREEN_TITLES = {
+  "screen-task":"Chi tiết việc","screen-profile":"Hồ sơ","screen-skill":"Kỹ năng",
+  "screen-system":"Thiết bị & hệ thống","screen-feed":"Feed chủ động",
+  "screen-connectors":"Công cụ kết nối","screen-google-config":"Cấu hình Google",
+  "screen-mktcat":"Chợ MCP","screen-listing":"Chi tiết connector",
+  "screen-install":"Cài đặt MCP","screen-import":"Nhập thủ công",
+  "screen-vault":"Kho lưu trữ an toàn","screen-policy":"Quyền",
+  "screen-connector-policy":"Quyền connector"
+};
 function showMain(tab){
   stopOpPoll();
   mainTab = tab; subScreen = null;
@@ -1242,6 +1351,8 @@ function showMain(tab){
   /* KT-1: header gọn chỉ ở màn tab; màn con ẩn hẳn. */
   $("app-header").classList.remove("hidden");
   closePolMenu();
+  if (tg && tg.BackButton) tg.BackButton.hide();
+  document.title = (TAB_TITLES[tab] || "Mulon") + " — Mulon";
   window.scrollTo(0, 0);
 }
 function showSub(id){
@@ -1253,17 +1364,186 @@ function showSub(id){
   $("segbar").classList.add("hidden");
   $("app-header").classList.add("hidden");
   closePolMenu();
+  if (tg && tg.BackButton) tg.BackButton.show();
+  document.title = (SCREEN_TITLES[id] || "Mulon") + " — Mulon";
   window.scrollTo(0, 0);
+}
+function handleNativeBack(){
+  haptic("select");
+  if (!subScreen) return;
+  if (subScreen === "screen-install" || subScreen === "screen-import" || subScreen === "screen-mktcat") {
+    showSub("screen-connectors");
+  } else if (subScreen === "screen-listing") {
+    showSub(listingReturn || "screen-connectors");
+  } else if (subScreen === "screen-connector-policy") {
+    showSub("screen-policy");
+  } else if (subScreen === "screen-google-config") {
+    showSub("screen-connectors");
+  } else {
+    showMain(TAB_OF_SCREEN[subScreen] || "viec");
+  }
+}
+if (tg && tg.BackButton) {
+  tg.BackButton.onClick(handleNativeBack);
 }
 document.querySelectorAll("#segbar button").forEach(b =>
   b.addEventListener("click", () => { haptic("select"); showMain(b.dataset.tab); }));
 document.querySelectorAll("[data-back]").forEach(el =>
-  el.addEventListener("click", () => showMain(TAB_OF_SCREEN[
-    el.closest("section").id] || "viec")));
+  el.addEventListener("click", () => handleNativeBack()));
 document.querySelectorAll("[data-back-sub]").forEach(el =>
   el.addEventListener("click", () => showSub(el.dataset.backSub)));
 document.querySelectorAll("[data-open]").forEach(el =>
   el.addEventListener("click", () => showSub(el.dataset.open)));
+
+/* ---------- Cử chỉ vuốt kéo xuống đóng Bottom Sheet (Drag down to dismiss) ---------- */
+function bindSheetSwipeDismiss(modalEl, cardEl) {
+  if (!modalEl || !cardEl || cardEl._boundDismiss) return;
+  cardEl._boundDismiss = true;
+
+  let startY = 0;
+  let currentY = 0;
+  let isDragging = false;
+  let startScrollTop = 0;
+
+  cardEl.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1) return;
+    startY = e.touches[0].clientY;
+    currentY = startY;
+    startScrollTop = cardEl.scrollTop;
+    isDragging = (startScrollTop <= 2);
+  }, { passive: true });
+
+  cardEl.addEventListener("touchmove", (e) => {
+    if (!isDragging) return;
+    currentY = e.touches[0].clientY;
+    const dy = currentY - startY;
+    if (dy > 0 && cardEl.scrollTop <= 0) {
+      cardEl.style.transform = "translateY(" + (dy * 0.7) + "px)";
+      cardEl.style.transition = "none";
+    } else if (dy < 0) {
+      isDragging = false;
+      cardEl.style.transform = "";
+    }
+  }, { passive: true });
+
+  cardEl.addEventListener("touchend", () => {
+    if (!isDragging) return;
+    isDragging = false;
+    const dy = currentY - startY;
+    cardEl.style.transition = "transform 0.22s cubic-bezier(0.2,0,0,1)";
+    if (dy > 90) {
+      cardEl.style.transform = "translateY(100%)";
+      setTimeout(() => {
+        modalEl.classList.add("hidden");
+        cardEl.style.transform = "";
+        cardEl.style.transition = "";
+      }, 200);
+      haptic("select");
+    } else {
+      cardEl.style.transform = "";
+      setTimeout(() => { cardEl.style.transition = ""; }, 220);
+    }
+  }, { passive: true });
+}
+
+/* ---------- Cử chỉ vuốt ngang chuyển Tab chính (Swipe Tabs) ---------- */
+let tabTouchStartX = 0;
+let tabTouchStartY = 0;
+let tabTouchStartTime = 0;
+let tabSwipeActive = false;
+
+document.addEventListener("touchstart", (e) => {
+  if (e.touches.length !== 1) return;
+  if (subScreen) return;
+  const anyModal = document.querySelector(".modal-overlay:not(.hidden)");
+  if (anyModal) return;
+
+  const t = e.touches[0];
+  tabTouchStartX = t.clientX;
+  tabTouchStartY = t.clientY;
+  tabTouchStartTime = Date.now();
+  tabSwipeActive = true;
+}, { passive: true });
+
+document.addEventListener("touchmove", (e) => {
+  if (!tabSwipeActive) return;
+  const t = e.touches[0];
+  const dx = t.clientX - tabTouchStartX;
+  const dy = t.clientY - tabTouchStartY;
+  if (Math.abs(dy) > Math.abs(dx) * 1.2 && Math.abs(dy) > 12) {
+    tabSwipeActive = false;
+  }
+}, { passive: true });
+
+document.addEventListener("touchend", (e) => {
+  if (!tabSwipeActive) return;
+  tabSwipeActive = false;
+  if (e.changedTouches.length !== 1) return;
+  if (subScreen) return;
+  const anyModal = document.querySelector(".modal-overlay:not(.hidden)");
+  if (anyModal) return;
+
+  const t = e.changedTouches[0];
+  const dx = t.clientX - tabTouchStartX;
+  const dy = t.clientY - tabTouchStartY;
+  const dt = Date.now() - tabTouchStartTime;
+
+  if (dt < 450 && Math.abs(dx) >= 40 && Math.abs(dy) < Math.abs(dx) * 0.75) {
+    const curIdx = MAIN_TABS.indexOf(mainTab);
+    if (curIdx === -1) return;
+    if (dx < 0 && curIdx < MAIN_TABS.length - 1) {
+      haptic("select");
+      showMain(MAIN_TABS[curIdx + 1]);
+    } else if (dx > 0 && curIdx > 0) {
+      haptic("select");
+      showMain(MAIN_TABS[curIdx - 1]);
+    }
+  }
+}, { passive: true });
+
+let promptCallback = null;
+function promptModal(title, defaultValue, onOk, readOnly){
+  const m = $("modal-prompt");
+  if (!m) {
+    if (readOnly) { window.prompt(title, defaultValue); return; }
+    const res = window.prompt(title, defaultValue);
+    if (res !== null && onOk) onOk(res);
+    return;
+  }
+  $("modal-prompt-title").textContent = title;
+  const input = $("modal-prompt-input");
+  input.value = defaultValue || "";
+  input.readOnly = !!readOnly;
+  promptCallback = onOk;
+  $("modal-prompt-ok").classList.toggle("hidden", !!readOnly);
+  $("modal-prompt-cancel").textContent = readOnly ? "Đóng" : "Huỷ";
+  const prCard = m.querySelector(".modal-card");
+  if (prCard) bindSheetSwipeDismiss(m, prCard);
+  m.classList.remove("hidden");
+  setTimeout(() => input.focus(), 150);
+}
+if ($("modal-prompt") && !$("modal-prompt")._boundScrim) {
+  $("modal-prompt")._boundScrim = true;
+  $("modal-prompt").addEventListener("click", (e) => {
+    if (e.target === $("modal-prompt")) $("modal-prompt").classList.add("hidden");
+  });
+}
+const pCancel = $("modal-prompt-cancel");
+if (pCancel) pCancel.addEventListener("click", () => {
+  $("modal-prompt").classList.add("hidden");
+  promptCallback = null;
+});
+const pOk = $("modal-prompt-ok");
+if (pOk) pOk.addEventListener("click", () => {
+  const val = $("modal-prompt-input").value;
+  $("modal-prompt").classList.add("hidden");
+  if (promptCallback) promptCallback(val);
+  promptCallback = null;
+});
+function previewImage(url){
+  if (tg && tg.openLink) tg.openLink(url);
+  else window.open(url, "_blank");
+}
 
 /* ---------------- màu chủ đề (Giao diện) ---------------- */
 /* Mỗi theme = 1 họ hue nhuộm cả 3 tầng 60/30/10: 60% nền
@@ -1333,6 +1613,20 @@ function applyTheme(key){
   if (nameEl) nameEl.textContent = t.label;
   document.querySelectorAll(".swatch").forEach(sw =>
     sw.classList.toggle("active", sw.dataset.theme === key));
+  if (tg && tg.setHeaderColor) {
+    try {
+      tg.setHeaderColor(dark ? (t.dpaper || "#17212B") : (t.paper || "#FAF9F7"));
+    } catch(e) {}
+  }
+}
+function syncColorScheme(){
+  const isDark = (tg && tg.colorScheme === "dark") ||
+    document.documentElement.dataset.scheme === "dark";
+  document.documentElement.dataset.scheme = isDark ? "dark" : "";
+  applyTheme(curTheme);
+}
+if (tg && tg.onEvent) {
+  tg.onEvent("themeChanged", syncColorScheme);
 }
 async function pickTheme(key){
   themeTouched = true;
@@ -1476,6 +1770,8 @@ let lastTaskStatus = null;
 function renderStatus(){
   const st = (S && S.status) || {busy:false};
   const pending = (S && S.approvals.pending) || [];
+  const tabDot = $("tab-appr-dot");
+  if (tabDot) tabDot.classList.toggle("hidden", pending.length === 0);
   $("status-dot").classList.toggle("busy", !!st.busy);
   /* Dòng trạng thái nói đúng VIỆC HIỆN TẠI bằng lời thường
      (ánh xạ từ event stream phía backend), rảnh thì "Sẵn sàng". */
@@ -1576,20 +1872,23 @@ function resolveMediaUrl(p){
 
 function renderMd(text){
   if (!text) return "";
-  let s = esc(text);
-  // Code block ```lang\ncode\n```
-  s = s.replace(/```(?:[a-zA-Z0-9_\-]+)?\n([\s\S]*?)```/g, '<div class="code-block"><code>$1</code></div>');
-  // Inline code `code`
+  const codeBlocks = [];
+  let s = String(text).replace(/```(?:[a-zA-Z0-9_\-]+)?\n([\s\S]*?)```/g, (_, code) => {
+    codeBlocks.push(code);
+    return `%%%CB_${codeBlocks.length - 1}%%%`;
+  });
+  s = esc(s);
   s = s.replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>');
-  // Bold **text**
   s = s.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
-  // Markdown links [text](url)
+  s = s.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g,
+    '<div class="img-preview-wrap"><img src="$2" class="img-preview" alt="$1" loading="lazy" onclick="previewImage(this.src)"/></div>');
   s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="md-link">$1</a>');
-  // Image links or URLs ending in .png/.jpg/.webp/etc or agnes cdn
-  s = s.replace(/(https?:\/\/[^\s"<>]+?\.(?:png|jpg|jpeg|webp)(?:\?[^\s"<>]*)?|https:\/\/platform-outputs\.agnes-ai\.space\/images\/[^\s"<>]+)/gi,
-    '<div class="img-preview-wrap"><img src="$1" class="img-preview" alt="Ảnh kết quả" loading="lazy" onclick="window.open(this.src)"/></div><a href="$1" target="_blank" rel="noopener" class="img-sublink">$1</a>');
-  // Dòng mới thành <br>
+  s = s.replace(/(^|\s)(https?:\/\/[^\s"<>]+?\.(?:png|jpg|jpeg|webp)(?:\?[^\s"<>]*)?|https:\/\/platform-outputs\.agnes-ai\.space\/images\/[^\s"<>]+)($|\s)/gi,
+    '$1<div class="img-preview-wrap"><img src="$2" class="img-preview" alt="Ảnh kết quả" loading="lazy" onclick="previewImage(this.src)"/></div><a href="$2" target="_blank" rel="noopener" class="img-sublink">$2</a>$3');
   s = s.replace(/\n/g, '<br>');
+  s = s.replace(/%%%CB_(\d+)%%%/g, (_, idx) => {
+    return '<div class="code-block"><code>' + esc(codeBlocks[Number(idx)]) + '</code></div>';
+  });
   return s;
 }
 
@@ -1749,6 +2048,8 @@ function apprMeta(p){
 function renderApprovals(){
   const wrap = $("pending-wrap");
   const pending = (S && S.approvals.pending) || [];
+  const tabDot = $("tab-appr-dot");
+  if (tabDot) tabDot.classList.toggle("hidden", pending.length === 0);
   if (pending.length){
     wrap.innerHTML = pending.map(p =>
       p.kind === "marketplace_operation" ? mktApprovalCard(p) :
@@ -1882,70 +2183,225 @@ function renderSchedule(){
 }
 
 /* ---------------- Modal Heartbeat chuẩn Muse (Ảnh 4) ---------------- */
-function openHeartbeatModal(){
+let heartbeatHistoryLimit = 5;
+let heartbeatExpandedRuns = {};
+let heartbeatHistoryOpen = true;
+
+function renderHeartbeatRunList(hist) {
+  const historyBox = $("heartbeat-run-history");
+  if (!historyBox) return;
+  if (!hist || !hist.length) {
+    historyBox.innerHTML = '<div class="empty" style="padding:16px 0; text-align:center; color:var(--ink2); font-size:13px;">Chưa có lượt chạy Heartbeat nào được ghi nhận.</div>';
+    return;
+  }
+  historyBox.innerHTML = hist.map((h, idx) => {
+    const timeStr = h.time || (h.created_at ? hhmm(h.created_at) : "");
+    const fullTimeStr = h.full_time || (h.created_at ? todayLabel(h.created_at) : timeStr);
+    const trig = (h.trigger === "scheduled" || !h.trigger) ? "định kỳ" : h.trigger;
+    const isExp = Boolean(heartbeatExpandedRuns[idx]);
+    const p = h.payload || {};
+    const res = p.result || "HEARTBEAT_OK";
+    const cand = p.candidates !== undefined ? p.candidates : 0;
+    const supp = p.suppressed !== undefined ? p.suppressed : 0;
+
+    return `<div class="heartbeat-run-wrapper" style="border-bottom:1px solid color-mix(in srgb, var(--line) 40%, transparent); padding:4px 0;">` +
+      `<div class="run-item" data-hb-run="${idx}" style="cursor:pointer; padding:6px 4px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; user-select:none;">` +
+        `<span><span class="dot-green">🟢</span> Đã thành công · ${esc(trig)}</span> ` +
+        `<span class="run-time" style="display:flex; align-items:center; gap:4px;">${esc(timeStr)} <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" style="transform:${isExp ? "rotate(180deg)" : "rotate(0deg)"}; transition:transform 180ms;"><path d="M6 9l6 6 6-6"/></svg></span>` +
+      `</div>` +
+      (isExp ? `<div style="padding:10px 12px; margin:4px 0 6px; border-radius:12px; background:var(--surface2); font-size:12px; line-height:1.55; color:var(--ink2); animation:modalPop 0.15s ease-out;">` +
+        `<div><strong style="color:var(--ink);">Thời điểm:</strong> ${esc(fullTimeStr)}</div>` +
+        `<div><strong style="color:var(--ink);">Kết quả:</strong> <span style="color:var(--ok); font-weight:600;">${esc(res)}</span></div>` +
+        `<div><strong style="color:var(--ink);">Mục tiêu:</strong> Quét checklist HEARTBEAT.md định kỳ</div>` +
+        `<div><strong style="color:var(--ink);">Chi tiết:</strong> ${cand} đề xuất được phân tích, ${supp} đề xuất bị dập. Giữ im lặng chuẩn Muse.</div>` +
+      `</div>` : "") +
+    `</div>`;
+  }).join("");
+
+  historyBox.querySelectorAll("[data-hb-run]").forEach(el => {
+    el.addEventListener("click", () => {
+      const idx = el.dataset.hbRun;
+      heartbeatExpandedRuns[idx] = !heartbeatExpandedRuns[idx];
+      renderHeartbeatRunList(hist);
+    });
+  });
+}
+
+function updateHeartbeatModalState(isEn) {
+  const badge = $("heartbeat-badge");
+  const delBtn = $("btn-heartbeat-del");
+  if (badge) {
+    if (isEn) {
+      badge.textContent = "Đã lên lịch";
+      badge.style.background = "var(--surface2)";
+      badge.style.color = "var(--ink2)";
+    } else {
+      badge.textContent = "Đã tạm dừng";
+      badge.style.background = "var(--tint-err)";
+      badge.style.color = "var(--err)";
+    }
+  }
+  if (delBtn) {
+    if (isEn) {
+      delBtn.textContent = "Xóa";
+      delBtn.className = "btn btn-danger";
+    } else {
+      delBtn.textContent = "Kích hoạt lại";
+      delBtn.className = "btn btn-accent";
+    }
+  }
+}
+
+async function openHeartbeatModal(){
   const modal = $("modal-heartbeat");
   if (!modal) return;
-  const historyBox = $("heartbeat-run-history");
   const hist = (S && S.heartbeat_history) || [];
 
-  if (!hist.length) {
-    // Dự phòng mốc thời gian nếu server chưa trả
-    const now = new Date();
-    const mockHist = [];
-    const min = now.getMinutes() >= 35 ? 35 : 5;
-    for (let i = 0; i < 5; i++) {
-      const d = new Date(now.getTime() - i * 30 * 60000);
-      d.setMinutes(min);
-      const hh = String(d.getHours()).padStart(2, "0");
-      const mm = String(d.getMinutes()).padStart(2, "0");
-      mockHist.push({ time: `${hh}:${mm}` });
-    }
-    historyBox.innerHTML = mockHist.map(h =>
-      `<div class="run-item"><span><span class="dot-green">🟢</span> Đã thành công · scheduled</span> <span class="run-time">${esc(h.time)}</span></div>`
-    ).join("");
-  } else {
-    historyBox.innerHTML = hist.map(h =>
-      `<div class="run-item"><span><span class="dot-green">🟢</span> Đã thành công · scheduled</span> <span class="run-time">${esc(h.time)}</span></div>`
-    ).join("");
-  }
+  // Xác định trạng thái bật/tắt của heartbeat
+  const hbInfo = (S && S.schedule && S.schedule.heartbeat) || {};
+  let isEn = hbInfo.enabled !== false;
+  updateHeartbeatModalState(isEn);
 
-  modal.classList.remove("hidden");
+  // Render danh sách chạy
+  renderHeartbeatRunList(hist);
 
-  // Nút đóng
+  // Ẩn hộp xác nhận lúc mở
+  const confBox = $("heartbeat-confirm-box");
+  if (confBox) confBox.classList.add("hidden");
+
+  // Nút đóng modal
   const closeBtn = $("btn-close-heartbeat");
   if (closeBtn && !closeBtn._bound) {
     closeBtn._bound = true;
     closeBtn.addEventListener("click", () => modal.classList.add("hidden"));
   }
 
-  // Nút xem quyền
-  const permBtn = $("btn-heartbeat-perm");
-  if (permBtn && !permBtn._bound) {
-    permBtn._bound = true;
-    permBtn.addEventListener("click", () => {
-      modal.classList.add("hidden");
-      switchTab("caidat");
-      showSub("screen-policy");
+  // Đóng khi bấm ra ngoài scrim
+  if (!modal._boundScrim) {
+    modal._boundScrim = true;
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) modal.classList.add("hidden");
     });
   }
 
-  // Nút Xóa / Tạm dừng
+  // Accordion thu gọn / mở rộng lịch sử chạy
+  const histToggle = $("heartbeat-history-toggle");
+  const histBox = $("heartbeat-run-history");
+  const histChev = $("heartbeat-history-chevron");
+  if (histToggle && !histToggle._bound) {
+    histToggle._bound = true;
+    histToggle.addEventListener("click", () => {
+      heartbeatHistoryOpen = !heartbeatHistoryOpen;
+      if (histBox) histBox.style.display = heartbeatHistoryOpen ? "flex" : "none";
+      if (histChev) histChev.style.transform = heartbeatHistoryOpen ? "rotate(0deg)" : "rotate(-90deg)";
+    });
+  }
+
+  // Nút xem thêm lịch sử (tải tối đa 20 lượt từ backend)
+  const moreBtn = $("btn-heartbeat-more");
+  if (moreBtn && !moreBtn._bound) {
+    moreBtn._bound = true;
+    moreBtn.addEventListener("click", async () => {
+      moreBtn.textContent = "Đang tải thêm...";
+      try {
+        const res = await api("/api/heartbeat/history?limit=20");
+        if (res && res.ok && res.history) {
+          S.heartbeat_history = res.history;
+          renderHeartbeatRunList(res.history);
+          moreBtn.textContent = "Đã hiển thị tất cả lượt chạy gần nhất";
+          moreBtn.style.opacity = "0.7";
+          moreBtn.style.pointerEvents = "none";
+        }
+      } catch (e) {
+        toast("Không tải thêm được: " + e.message);
+        moreBtn.textContent = "Xem thêm";
+      }
+    });
+  }
+
+  // Nút xem quyền: Mở popup bảng quyền Heartbeat chi tiết
+  const permBtn = $("btn-heartbeat-perm");
+  const permsModal = $("modal-heartbeat-perms");
+  if (permBtn && !permBtn._bound) {
+    permBtn._bound = true;
+    permBtn.addEventListener("click", () => {
+      if (permsModal) permsModal.classList.remove("hidden");
+    });
+  }
+  const closePermsBtn = $("btn-close-heartbeat-perms");
+  const ackPermsBtn = $("btn-ack-heartbeat-perms");
+  if (closePermsBtn && !closePermsBtn._bound) {
+    closePermsBtn._bound = true;
+    closePermsBtn.addEventListener("click", () => {
+      if (permsModal) permsModal.classList.add("hidden");
+    });
+  }
+  if (ackPermsBtn && !ackPermsBtn._bound) {
+    ackPermsBtn._bound = true;
+    ackPermsBtn.addEventListener("click", () => {
+      if (permsModal) permsModal.classList.add("hidden");
+    });
+  }
+  if (permsModal && !permsModal._boundScrim) {
+    permsModal._boundScrim = true;
+    permsModal.addEventListener("click", (e) => {
+      if (e.target === permsModal) permsModal.classList.add("hidden");
+    });
+  }
+
+  // Nút Xóa / Tạm dừng / Bật lại Heartbeat
   const delBtn = $("btn-heartbeat-del");
   if (delBtn && !delBtn._bound) {
     delBtn._bound = true;
     delBtn.addEventListener("click", async () => {
-      if (confirm("Ní có chắc muốn tạm dừng hoặc gỡ lịch Heartbeat này?")) {
+      const curEn = (S && S.schedule && S.schedule.heartbeat && S.schedule.heartbeat.enabled !== false);
+      if (curEn) {
+        // Hiện confirm box nội bộ
+        if (confBox) confBox.classList.remove("hidden");
+      } else {
+        // Đang tắt -> bấm để Bật lại
         try {
-          await api("/api/schedule", "POST", { id: "heartbeat", enabled: false });
-          toast("Đã tạm dừng Heartbeat.");
-          modal.classList.add("hidden");
+          await api("/api/schedule", "POST", { id: "heartbeat", enabled: true });
+          toast("Đã kích hoạt lại Heartbeat.");
+          if (S && S.schedule && S.schedule.heartbeat) S.schedule.heartbeat.enabled = true;
+          updateHeartbeatModalState(true);
         } catch (e) {
           toast(e.message);
         }
       }
     });
   }
-}
+
+  const confPauseBtn = $("btn-heartbeat-confirm-pause");
+  if (confPauseBtn && !confPauseBtn._bound) {
+    confPauseBtn._bound = true;
+    confPauseBtn.addEventListener("click", async () => {
+      try {
+        await api("/api/schedule", "POST", { id: "heartbeat", enabled: false });
+        toast("Đã tạm dừng Heartbeat.");
+        if (S && S.schedule && S.schedule.heartbeat) S.schedule.heartbeat.enabled = false;
+        updateHeartbeatModalState(false);
+        if (confBox) confBox.classList.add("hidden");
+      } catch (e) {
+        toast(e.message);
+      }
+    });
+  }
+
+  const confCancelBtn = $("btn-heartbeat-confirm-cancel");
+  if (confCancelBtn && !confCancelBtn._bound) {
+    confCancelBtn._bound = true;
+    confCancelBtn.addEventListener("click", () => {
+      if (confBox) confBox.classList.add("hidden");
+    });
+  }
+
+  const card = modal.querySelector(".modal-card");
+  if (card) bindSheetSwipeDismiss(modal, card);
+  const pCard = permsModal ? permsModal.querySelector(".modal-card") : null;
+  if (pCard) bindSheetSwipeDismiss(permsModal, pCard);
+
+  modal.classList.remove("hidden");
 }
 
 /* ---------------- Hồ sơ ---------------- */
@@ -1988,17 +2444,17 @@ function renderLibrary(){
     const pinLabel = it.pinned ? "Bỏ ghim" : "Ghim";
     const wc = it.word_count ? (it.word_count + " từ · ") : "";
     const shared = it.share_status === "active" || it.share_status === "pending_host";
-    return '<div class="row static">' +
-      '<div class="r-main">' +
-      '<div class="r-title">' + pinBadge + esc(it.title) + '</div>' +
-      '<div class="r-sub">' + esc(wc + todayLabel(it.created_at)) + (shared ? " · Đang chia sẻ" : "") + '</div>' +
+    return '<div class="card" style="padding:var(--s3) var(--s4); margin-bottom:var(--s2); border:1px solid var(--line);">' +
+      '<div style="min-width:0;">' +
+      '<div class="r-title" style="white-space:normal; word-break:break-word; line-height:1.35; margin-bottom:4px;">' + pinBadge + esc(it.title) + '</div>' +
+      '<div class="r-sub" style="font-size:var(--fs-micro); color:var(--ink3);">' + esc(wc + todayLabel(it.created_at)) + (shared ? " · Đang chia sẻ" : "") + '</div>' +
       '</div>' +
-      '<div class="btn-row" style="padding:0;gap:4px">' +
-      '<button class="btn btn-soft btn-sm" data-lib-share="' + esc(it.id) + '">Chia sẻ</button>' +
-      (shared ? '<button class="btn btn-ghost btn-sm" data-lib-unshare="' + esc(it.id) + '">Hủy chia sẻ</button>' : '') +
-      '<button class="btn btn-ghost btn-sm" data-lib-pin="' + esc(it.id) + '" data-pinned="' + (it.pinned ? 1 : 0) + '">' + esc(pinLabel) + '</button>' +
-      '<button class="btn btn-ghost btn-sm" data-lib-rename="' + esc(it.id) + '" data-title="' + esc(it.title) + '">Sửa tên</button>' +
-      '<button class="btn btn-ghost btn-sm" data-lib-trash="' + esc(it.id) + '">Xóa</button>' +
+      '<div class="btn-row" style="padding:0; margin-top:8px; gap:6px; flex-wrap:wrap;">' +
+      '<button class="btn btn-soft btn-sm" style="min-height:34px; padding:0 12px; font-size:12px; flex:unset; min-width:unset;" data-lib-share="' + esc(it.id) + '">Chia sẻ</button>' +
+      (shared ? '<button class="btn btn-ghost btn-sm" style="min-height:34px; padding:0 12px; font-size:12px; flex:unset; min-width:unset;" data-lib-unshare="' + esc(it.id) + '">Hủy chia sẻ</button>' : '') +
+      '<button class="btn btn-ghost btn-sm" style="min-height:34px; padding:0 12px; font-size:12px; flex:unset; min-width:unset;" data-lib-pin="' + esc(it.id) + '" data-pinned="' + (it.pinned ? 1 : 0) + '">' + esc(pinLabel) + '</button>' +
+      '<button class="btn btn-ghost btn-sm" style="min-height:34px; padding:0 12px; font-size:12px; flex:unset; min-width:unset;" data-lib-rename="' + esc(it.id) + '" data-title="' + esc(it.title) + '">Sửa tên</button>' +
+      '<button class="btn btn-danger-text btn-sm" style="min-height:34px; padding:0 12px; font-size:12px; flex:unset; min-width:unset;" data-lib-trash="' + esc(it.id) + '">Xóa</button>' +
       '</div></div>';
   }).join("");
   const trashBtn = $("lib-trash-view");
@@ -2032,7 +2488,7 @@ function renderLibrary(){
             await navigator.clipboard.writeText(r.url);
             toast("Đã sao chép link chia sẻ!");
           } else {
-            prompt("Link chia sẻ (sao chép bên dưới):", r.url);
+            promptModal("Link chia sẻ (sao chép bên dưới):", r.url, null, true);
           }
         } else {
           toast("Không tạo được link chia sẻ.");
@@ -2069,22 +2525,23 @@ function renderLibrary(){
     }));
 
   box.querySelectorAll("[data-lib-rename]").forEach(btn =>
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", () => {
       const id = btn.dataset.libRename;
       const oldTitle = btn.dataset.title;
-      const newTitle = window.prompt("Nhập tên mới cho tài liệu:", oldTitle);
-      if (newTitle && newTitle.trim() && newTitle.trim() !== oldTitle) {
-        try {
-          // Sửa UI: backend đọc {name}, frontend cũ gửi {title}
-          // nên đổi tên luôn fail mà vẫn toast thành công. Gửi
-          // đúng {name} và kiểm tra ok trong body (HTTP vẫn 200
-          // khi backend trả ok:false nên api() không tự throw).
-          const r = await api("/api/library/items/" + encodeURIComponent(id) + "/rename", "POST", {name: newTitle.trim()});
-          if (r && r.ok === false) throw new Error(r.error || "không đổi tên được");
-          toast("Đã đổi tên tài liệu.");
-          await load();
-        } catch (e) { toast(e.message); }
-      }
+      promptModal("Nhập tên mới cho tài liệu:", oldTitle, async (newTitle) => {
+        if (newTitle && newTitle.trim() && newTitle.trim() !== oldTitle) {
+          try {
+            // Sửa UI: backend đọc {name}, frontend cũ gửi {title}
+            // nên đổi tên luôn fail mà vẫn toast thành công. Gửi
+            // đúng {name} và kiểm tra ok trong body (HTTP vẫn 200
+            // khi backend trả ok:false nên api() không tự throw).
+            const r = await api("/api/library/items/" + encodeURIComponent(id) + "/rename", "POST", {name: newTitle.trim()});
+            if (r && r.ok === false) throw new Error(r.error || "không đổi tên được");
+            toast("Đã đổi tên tài liệu.");
+            await load();
+          } catch (e) { toast(e.message); }
+        }
+      });
     }));
 }
 /* Kỹ năng ĐỌC ĐƯỢC (1.3.0): danh sách từ /api/skills (tên +
@@ -2386,7 +2843,7 @@ function renderVault(){
   }
   box.innerHTML = list.map(v => {
     const safeId = String(v.ref).replace(/[^a-zA-Z0-9]/g, "_");
-    return '<div class="vault-row" style="padding:12px 14px; border-bottom:1px solid var(--border)">' +
+    return '<div class="vault-row" style="padding:12px 14px; border-bottom:1px solid var(--line)">' +
       '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px">' +
         '<div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1">' +
           '<div class="glyph" style="flex-shrink:0">' +
@@ -2550,6 +3007,7 @@ function openPolMenu(row){
   if (top + mh > window.innerHeight - 8) top = r.top - mh - 4;
   menu.style.left = left + "px";
   menu.style.top = Math.max(8, top) + "px";
+  menuScrollStartY = window.scrollY;
 }
 
 const TRUST_LABELS = {high:"Tin cậy cao", normal:"Tin cậy thường", low:"Tin cậy thấp"};
@@ -2570,6 +3028,7 @@ function openFeedTrustMenu(){
   if (top + mh > window.innerHeight - 8) top = r.top - mh - 4;
   menu.style.left = left + "px";
   menu.style.top = Math.max(8, top) + "px";
+  menuScrollStartY = window.scrollY;
 }
 const feedTrig = $("feed-trust-trigger");
 if (feedTrig) feedTrig.addEventListener("click", openFeedTrustMenu);
@@ -2583,7 +3042,10 @@ document.querySelectorAll("#feed-trust-menu button").forEach(b =>
     closePolMenu();
   }));
 $("pol-scrim").addEventListener("click", closePolMenu);
-window.addEventListener("scroll", closePolMenu, {passive:true});
+let menuScrollStartY = 0;
+window.addEventListener("scroll", () => {
+  if (Math.abs(window.scrollY - menuScrollStartY) > 24) closePolMenu();
+}, {passive:true});
 document.querySelectorAll("#pol-menu button").forEach(b =>
   b.addEventListener("click", async () => {
     if (!polTarget) return;
@@ -3740,17 +4202,20 @@ function renderFeed(){
       }));
   }
 }
-$("feed-master-switch").addEventListener("change", async (e) => {
-  try {
-    const en = e.target.checked;
-    await feedPost({action: "set_enabled", enabled: en});
-    toast(en ? "Đã bật Feed tự động." : "Đã tắt Feed tự động.");
-    await load();
-  } catch (err) {
-    toast(err.message);
-    e.target.checked = !e.target.checked;
-  }
-});
+const feedMasterSw = $("feed-master-switch");
+if (feedMasterSw) {
+  feedMasterSw.addEventListener("change", async (e) => {
+    try {
+      const en = e.target.checked;
+      await feedPost({action: "set_enabled", enabled: en});
+      toast(en ? "Đã bật Feed tự động." : "Đã tắt Feed tự động.");
+      await load();
+    } catch (err) {
+      toast(err.message);
+      e.target.checked = !e.target.checked;
+    }
+  });
+}
 $("feed-run-now").addEventListener("click", async () => {
   try {
     const r = await feedPost({action:"run_now"});

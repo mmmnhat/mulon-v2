@@ -1370,43 +1370,45 @@ class Memory:
         return await self.get_schedule(schedule_id)  # type: ignore[return-value]
 
     async def get_heartbeat_history(self, limit: int = 5) -> list[dict]:
-        """Lấy lịch sử chạy Heartbeat (chuẩn Muse: 30 phút một lần, status succeeded)."""
-        from datetime import datetime, timedelta
+        """Lấy lịch sử chạy Heartbeat thật từ trajectory (chuẩn Muse)."""
+        import json
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
         cur = await self.db.execute(
-            "SELECT created_at FROM trajectory WHERE kind='heartbeat'"
+            "SELECT created_at, payload FROM trajectory WHERE kind='heartbeat'"
             " ORDER BY id DESC LIMIT ?",
             (limit,)
         )
         rows = await cur.fetchall()
         history = []
-        if rows:
-            for r in rows:
-                iso_ts = r[0]
+        vn_tz = ZoneInfo("Asia/Ho_Chi_Minh")
+        for r in rows:
+            iso_ts = r[0]
+            raw_payload = r[1]
+            payload = {}
+            if raw_payload:
                 try:
-                    dt = datetime.fromisoformat(iso_ts)
-                    t_str = dt.strftime("%H:%M")
+                    payload = json.loads(raw_payload) if isinstance(raw_payload, str) else raw_payload
                 except Exception:
-                    t_str = iso_ts[-8:-3] if len(iso_ts) >= 8 else iso_ts
-                history.append({
-                    "status": "succeeded",
-                    "status_label": "Đã thành công",
-                    "trigger": "scheduled",
-                    "time": t_str,
-                    "created_at": iso_ts,
-                })
-        else:
-            now = datetime.now()
-            minute = 35 if now.minute >= 35 else 5
-            base_time = now.replace(minute=minute, second=9, microsecond=0)
-            for i in range(limit):
-                t = base_time - timedelta(minutes=30 * i)
-                history.append({
-                    "status": "succeeded",
-                    "status_label": "Đã thành công",
-                    "trigger": "scheduled",
-                    "time": t.strftime("%H:%M"),
-                    "created_at": t.isoformat(),
-                })
+                    pass
+            try:
+                dt = datetime.fromisoformat(iso_ts)
+                if dt.tzinfo is not None:
+                    dt = dt.astimezone(vn_tz)
+                t_str = dt.strftime("%H:%M")
+                full_str = dt.strftime("%H:%M:%S · %d/%m/%Y")
+            except Exception:
+                t_str = iso_ts[-8:-3] if len(iso_ts) >= 8 else iso_ts
+                full_str = iso_ts
+            history.append({
+                "status": "succeeded",
+                "status_label": "Đã thành công",
+                "trigger": "định kỳ",
+                "time": t_str,
+                "full_time": full_str,
+                "created_at": iso_ts,
+                "payload": payload,
+            })
         return history
 
     async def get_schedule(self, schedule_id: str) -> Optional[dict]:
