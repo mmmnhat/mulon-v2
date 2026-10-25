@@ -145,6 +145,8 @@ def format_reply_context(message: Any, text: str) -> str:
         doc = getattr(replied, "document", None)
         if doc and getattr(doc, "file_name", None):
             rep_content = f"[Tệp: {doc.file_name}]"
+        elif getattr(replied, "photo", None):
+            rep_content = "[Hình ảnh]"
     if not rep_content:
         return text
     from_user = getattr(replied, "from_user", None)
@@ -461,7 +463,8 @@ class TelegramSurface:
     def _should_respond(self, message: Message) -> bool:
         if message.chat.type == ChatType.PRIVATE:
             return True
-        if (message.text or "").startswith("/"):
+        content = (message.text or message.caption or "").strip()
+        if content.startswith("/"):
             return True
         if not self.cfg.group_mention_only:
             return True
@@ -470,7 +473,7 @@ class TelegramSurface:
         if rep_user and self.bot is not None and getattr(rep_user, "id", None) == self.bot.id:
             return True
         username = getattr(self.bot, "_me_username", None) if self.bot else None
-        if username and f"@{username}" in (message.text or ""):
+        if username and f"@{username}" in content:
             return True
         return False
 
@@ -1946,15 +1949,39 @@ class TelegramSurface:
         async def on_document(message: Message) -> None:
             if not self._is_allowed(message):
                 return
-            # Hiện chỉ nhận file để import ký ức (mục 16.11); file
-            # khác được báo rõ thay vì nuốt im lặng.
             doc = message.document
             name = (doc.file_name or "").lower()
+            if any(name.endswith(ext) for ext in (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")):
+                if not self._should_respond(message):
+                    return
+                upload_dir = Path(self.cfg.workspace_dir) / "images" / "uploads"
+                upload_dir.mkdir(parents=True, exist_ok=True)
+                local = upload_dir / f"doc_{message.message_id}_{doc.file_name or 'image.jpg'}"
+                if self.bot:
+                    try:
+                        tg_file = await self.bot.get_file(doc.file_id)
+                        if tg_file.file_path:
+                            await self.bot.download_file(tg_file.file_path, destination=str(local))
+                    except Exception as exc:
+                        logger.warning("tải ảnh tài liệu lỗi: %s", exc)
+                caption = (message.caption or "").strip()
+                if local.is_file():
+                    text = f"[Người dùng gửi kèm ảnh: {local}]\n{caption}" if caption else f"[Người dùng gửi kèm ảnh: {local}]"
+                else:
+                    text = caption or "[Người dùng gửi một file hình ảnh]"
+                text = format_reply_context(message, text)
+                key = session_key_for(message)
+                self._sessions_meta[key] = message
+                await self.batcher.add(key, text)
+                return
+
+            # Hiện chỉ nhận file để import ký ức (mục 16.11); file
+            # khác được báo rõ thay vì nuốt im lặng.
             if not (name.endswith(".md") or name.endswith(".json")
                     or name.endswith(".txt")):
                 await message.answer(
                     "Hiện mình chỉ nhận file .md/.json/.txt để "
-                    "import ký ức. File này chưa được xử lý.")
+                    "import ký ức hoặc file ảnh. File này chưa được xử lý.")
                 return
             if self.bot is None:
                 await message.answer(
@@ -2076,6 +2103,40 @@ class TelegramSurface:
             self._sessions_meta[key] = message
 
             text = format_reply_context(message, message.text or "")
+            await self.batcher.add(key, text)
+
+        @dp.message(F.photo)
+        async def on_photo(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            if not self._should_respond(message):
+                return
+            key = session_key_for(message)
+            self._sessions_meta[key] = message
+
+            local_path: Optional[Path] = None
+            if self.bot and message.photo:
+                try:
+                    largest = message.photo[-1]
+                    tg_file = await self.bot.get_file(largest.file_id)
+                    upload_dir = Path(self.cfg.workspace_dir) / "images" / "uploads"
+                    upload_dir.mkdir(parents=True, exist_ok=True)
+                    local_path = upload_dir / f"photo_{message.message_id}_{largest.file_unique_id}.jpg"
+                    if tg_file.file_path:
+                        await self.bot.download_file(tg_file.file_path, destination=str(local_path))
+                except Exception as exc:
+                    logger.warning("tải ảnh từ telegram thất bại: %s", exc)
+
+            caption = (message.caption or "").strip()
+            if local_path and local_path.is_file():
+                if caption:
+                    text = f"[Người dùng gửi kèm ảnh: {local_path}]\n{caption}"
+                else:
+                    text = f"[Người dùng gửi kèm ảnh: {local_path}]"
+            else:
+                text = caption or "[Người dùng gửi một hình ảnh]"
+
+            text = format_reply_context(message, text)
             await self.batcher.add(key, text)
 
     async def _consolidate_closed(self, key: str) -> None:

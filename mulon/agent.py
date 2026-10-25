@@ -89,13 +89,16 @@ _LONG_HINTS = (
 
 
 def clean_task_title(text: str) -> str:
-    """Loại bỏ tiền tố trích dẫn reply nếu có để tiêu đề task trong Mini App gọn gàng."""
-    m = re.match(r"^\[Đang trả lời tin của [^\]]+\]\s*(.*)$", text or "", flags=re.DOTALL)
+    """Loại bỏ tiền tố trích dẫn reply hoặc tiền tố ảnh nếu có để tiêu đề task trong Mini App gọn gàng."""
+    cleaned = text or ""
+    m = re.match(r"^\[Đang trả lời tin của [^\]]+\]\s*(.*)$", cleaned, flags=re.DOTALL)
     if m:
-        sub = m.group(1).strip()
-        if sub:
-            return sub[:120]
-    return (text or "")[:120]
+        cleaned = m.group(1).strip()
+    m_img = re.match(r"^\[Người dùng gửi (?:kèm ảnh|một tấm ảnh|ảnh): [^\]]+\]\s*(.*)$", cleaned, flags=re.DOTALL)
+    if m_img:
+        sub = m_img.group(1).strip()
+        cleaned = sub if sub else "Xử lý hình ảnh gửi kèm"
+    return cleaned[:120]
 
 
 def classify_intent(text: str, messages: Optional[list[dict]] = None) -> Intent:

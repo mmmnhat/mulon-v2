@@ -13,10 +13,13 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import random
+import re
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Optional
 
 # Shim cho LiteLLM 1.106+ khi dùng với thư viện mcp:
@@ -170,6 +173,40 @@ class ModelGateway:
                 },
             )
 
+    def _prepare_multimodal_messages(self, messages: list[dict]) -> list[dict]:
+        """Tự động đóng gói hình ảnh đính kèm (nếu có) thành định dạng Multimodal (OpenAI/LiteLLM vision)."""
+        out: list[dict] = []
+        for m in messages:
+            content = m.get("content")
+            if m.get("role") == "user" and isinstance(content, str):
+                match = re.search(r"\[Người dùng gửi (?:kèm )?ảnh: ([^\]]+)\]", content)
+                if match:
+                    raw_path = match.group(1).strip()
+                    p = Path(raw_path)
+                    if p.is_file() and p.stat().st_size <= 15 * 1024 * 1024:
+                        try:
+                            ext = p.suffix.lower().lstrip(".") or "jpeg"
+                            if ext == "jpg":
+                                ext = "jpeg"
+                            data_b64 = base64.b64encode(p.read_bytes()).decode("utf-8")
+                            out.append({
+                                **m,
+                                "content": [
+                                    {"type": "text", "text": content},
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {
+                                            "url": f"data:image/{ext};base64,{data_b64}"
+                                        },
+                                    },
+                                ],
+                            })
+                            continue
+                        except Exception as exc:
+                            logger.warning("không thể đóng gói ảnh multimodal: %s", exc)
+            out.append(m)
+        return out
+
     # ---------- lời gọi chính ----------
     async def complete(
         self,
@@ -185,6 +222,7 @@ class ModelGateway:
 
         model_name = self._litellm_model(model)
         timeout = timeout or self.cfg.llm_timeout_s
+        prepared_messages = self._prepare_multimodal_messages(messages)
         last_err: Optional[Exception] = None
         started = time.monotonic()
         for attempt in range(self._max_attempts):
@@ -192,7 +230,7 @@ class ModelGateway:
             try:
                 kwargs: dict[str, Any] = {
                     "model": model_name,
-                    "messages": messages,
+                    "messages": prepared_messages,
                     "api_base": self.cfg.proxy_base_url,
                     "api_key": self.cfg.proxy_api_key,
                     "temperature": temperature,
@@ -255,12 +293,13 @@ class ModelGateway:
 
         model_name = self._litellm_model(model)
         timeout = timeout or self.cfg.llm_timeout_s
+        prepared_messages = self._prepare_multimodal_messages(messages)
         started = time.monotonic()
         self._check_breaker()
         try:
             resp = await acompletion(
                 model=model_name,
-                messages=messages,
+                messages=prepared_messages,
                 api_base=self.cfg.proxy_base_url,
                 api_key=self.cfg.proxy_api_key,
                 temperature=temperature,
