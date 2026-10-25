@@ -89,3 +89,60 @@ async def test_get_google_auth_url(dummy_surface):
 
     url = await dummy_surface._get_google_auth_url()
     assert url == "https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=123&state=abc"
+
+
+@pytest.mark.asyncio
+async def test_webapp_handle_mcp_oauth2callback_success():
+    from mulon.webapp_server import WebAppServer
+    server = WebAppServer(
+        MagicMock(), memory=MagicMock(), policy=MagicMock(),
+        broker=MagicMock(), connectors=[], mcp_manager=MagicMock(),
+        vault_store=MagicMock(), registry=MagicMock(), dossier=MagicMock()
+    )
+
+    req = MagicMock()
+    req.query_string = "state=test_state&code=4/0Atest"
+
+    mock_resp = AsyncMock()
+    mock_resp.status = 200
+    mock_resp.text = AsyncMock(return_value="Authentication Successful for user: <strong>user@gmail.com</strong>")
+    mock_resp.__aenter__.return_value = mock_resp
+
+    mock_session = MagicMock()
+    mock_session.get.return_value = mock_resp
+    mock_session.__aenter__.return_value = mock_session
+
+    with patch("aiohttp.ClientSession", return_value=mock_session):
+        resp = await server._handle_mcp_oauth2callback(req)
+        assert resp.status == 200
+        assert "Kết nối Google thành công" in resp.text
+        assert "user@gmail.com" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_webapp_handle_mcp_oauth2callback_failure():
+    from mulon.webapp_server import WebAppServer
+    server = WebAppServer(
+        MagicMock(), memory=MagicMock(), policy=MagicMock(),
+        broker=MagicMock(), connectors=[], mcp_manager=MagicMock(),
+        vault_store=MagicMock(), registry=MagicMock(), dossier=MagicMock()
+    )
+
+    req = MagicMock()
+    req.query_string = "state=bad_state&code=4/0Abad"
+
+    mock_resp = AsyncMock()
+    mock_resp.status = 400
+    mock_resp.text = AsyncMock(return_value="<p>Invalid or expired OAuth state parameter</p>")
+    mock_resp.__aenter__.return_value = mock_resp
+
+    mock_session = MagicMock()
+    mock_session.get.return_value = mock_resp
+    mock_session.__aenter__.return_value = mock_session
+
+    with patch("aiohttp.ClientSession", return_value=mock_session):
+        resp = await server._handle_mcp_oauth2callback(req)
+        assert resp.status == 400
+        assert "Chưa hoàn tất xác thực" in resp.text
+        assert "Invalid or expired OAuth state parameter" in resp.text
+

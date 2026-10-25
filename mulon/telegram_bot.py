@@ -2504,11 +2504,12 @@ class TelegramSurface:
                 return
             await message.answer(
                 "🔗 <b>XÁC THỰC GOOGLE WORKSPACE CHO MULON</b>\n\n"
-                "👉 <b>Bước 1:</b> Mở link đăng nhập Google dưới đây:\n"
+                "👉 <b>Bấm vào link đăng nhập Google dưới đây:</b>\n"
                 f"🔗 <a href=\"{auth_url}\"><b>BẤM VÀO ĐÂY ĐỂ ĐĂNG NHẬP GOOGLE</b></a>\n\n"
-                "👉 <b>Bước 2:</b>\n"
-                "• <b>Mở trên máy Mac:</b> Trình duyệt sẽ tự hoàn tất xác thực ngay lập tức.\n"
-                "• <b>Mở trên Điện thoại:</b> Sau khi đăng nhập và bấm 'Cho phép', Safari sẽ hiện trang lỗi trắng (do chuyển hướng về <code>localhost:8001</code> trên máy Mac). Ní chỉ cần <b>COPY THANH ĐỊA CHỈ SAFARI</b> (chứa <code>http://localhost:8001/oauth2callback?...</code>) rồi <b>DÁN GỬI VÀO ĐÂY</b> là xong ngay!",
+                "✨ <b>Cách thức hoạt động:</b>\n"
+                "• Đăng nhập tài khoản Google và bấm <b>Cho phép (Allow)</b>.\n"
+                "• Trình duyệt (trên điện thoại hay máy Mac) sẽ tự động chuyển hướng qua Cloudflare và hoàn tất kích hoạt 100% tự động.\n"
+                "• <i>(Dự phòng):</i> Nếu trình duyệt không tự chuyển hướng, ní chỉ cần copy toàn bộ link trên thanh địa chỉ rồi dán gửi vào đây nha!",
                 parse_mode="HTML",
                 disable_web_page_preview=True,
             )

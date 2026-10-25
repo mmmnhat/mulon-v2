@@ -14,10 +14,13 @@
         "--tool-tier",
         "core"
       ],
+      "env": {
+        "WORKSPACE_MCP_PORT": "8001",
+        "GOOGLE_OAUTH_REDIRECT_URI": "https://refinance-displayed-wing-approximate.trycloudflare.com/oauth2callback"
+      },
       "env_vault_refs": {
         "GOOGLE_OAUTH_CLIENT_ID": "google:client_id",
-        "GOOGLE_OAUTH_CLIENT_SECRET": "google:client_secret",
-        "GOOGLE_CLIENT_SECRET_PATH": "google:client_secret_path"
+        "GOOGLE_OAUTH_CLIENT_SECRET": "google:client_secret"
       },
       "enabled": true
     }

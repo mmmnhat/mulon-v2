@@ -43,6 +43,7 @@ from .ideas import IDEAS_AUTO_KV_KEY, effective_auto_enabled
 logger = logging.getLogger("mulon.webapp")
 
 try:
+    import aiohttp
     from aiohttp import web
 
     HAS_AIOHTTP = True
@@ -505,6 +506,8 @@ class WebAppServer:
                             self._handle_google_disconnect)
         app.router.add_get("/google/callback",
                            self._handle_google_callback)
+        app.router.add_get("/oauth2callback",
+                           self._handle_mcp_oauth2callback)
         # 1.3.0: Chợ MCP — mọi route qua cùng middleware auth
         # initData owner-only như các /api/* khác.
         app.router.add_get("/api/marketplace/summary",
@@ -1771,6 +1774,88 @@ class WebAppServer:
         return page("Đã kết nối Google" +
                     (f" ({result['email']})"
                      if result.get("email") else "") + ".", True)
+
+    async def _handle_mcp_oauth2callback(self, request):
+        """Route công khai nhận redirect từ Google OAuth (Web Application) qua Cloudflare tunnel,
+        chuyển tiếp thẳng vào cổng minimal OAuth server của MCP (8001/8000/8002) để lưu token."""
+        query = request.query_string
+        target_ports = [8001, 8000, 8002, 8003, 8004]
+        success = False
+        error_detail = ""
+        user_email = ""
+        response_body = ""
+
+        timeout = aiohttp.ClientTimeout(total=15)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            for port in target_ports:
+                target_url = f"http://127.0.0.1:{port}/oauth2callback?{query}"
+                try:
+                    async with session.get(target_url) as resp:
+                        response_body = await resp.text()
+                        if "Authentication Successful" in response_body or "successful" in response_body.lower() or resp.status == 200:
+                            success = True
+                            em_m = re.search(r'for user:\s*<strong>([^<]+)</strong>', response_body, re.IGNORECASE)
+                            if em_m:
+                                user_email = em_m.group(1).strip()
+                            break
+                        else:
+                            err_m = re.search(r'<p>([^<]+)</p>', response_body)
+                            if err_m:
+                                error_detail = err_m.group(1).strip()
+                except Exception as e:
+                    error_detail = str(e)
+
+        if success:
+            acc_str = f" ({html.escape(user_email)})" if user_email else ""
+            html_content = f"""<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mulon — Google Workspace</title>
+<style>
+body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #FAF9F7; color: #1F1E1D; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 16px; box-sizing: border-box; }}
+.card {{ background: #FFFFFF; border-radius: 20px; padding: 32px 24px; max-width: 420px; width: 100%; text-align: center; box-shadow: 0 8px 24px rgba(31,30,29,.08); border: 1px solid #E8E4DC; }}
+h2 {{ color: #3E9B6C; margin-top: 0; margin-bottom: 12px; }}
+p {{ line-height: 1.5; color: #6E6A61; margin-bottom: 24px; }}
+.btn {{ display: inline-block; background: #5A5E94; color: #FFFFFF; padding: 12px 24px; border-radius: 12px; text-decoration: none; font-weight: 600; }}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>🎉 Kết nối Google thành công!</h2>
+  <p>Đã cấp quyền Google Workspace{acc_str} cho bot Mulon.<br>Ní có thể đóng trang này và quay lại Telegram làm việc tiếp rồi nha!</p>
+  <a href="https://t.me" class="btn">Quay lại Telegram</a>
+</div>
+</body>
+</html>"""
+            return web.Response(text=html_content, content_type="text/html")
+        else:
+            fail_html = f"""<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mulon — Lỗi xác thực</title>
+<style>
+body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #FAF9F7; color: #1F1E1D; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 16px; box-sizing: border-box; }}
+.card {{ background: #FFFFFF; border-radius: 20px; padding: 32px 24px; max-width: 420px; width: 100%; text-align: center; box-shadow: 0 8px 24px rgba(31,30,29,.08); border: 1px solid #E8E4DC; }}
+h2 {{ color: #D95F57; margin-top: 0; margin-bottom: 12px; }}
+p {{ line-height: 1.5; color: #6E6A61; margin-bottom: 24px; }}
+.err {{ background: #FAE7E4; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 13px; color: #D95F57; word-break: break-all; margin-bottom: 20px; }}
+.btn {{ display: inline-block; background: #5A5E94; color: #FFFFFF; padding: 12px 24px; border-radius: 12px; text-decoration: none; font-weight: 600; }}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>⚠️ Chưa hoàn tất xác thực</h2>
+  <div class="err">{html.escape(error_detail or "Không nhận được phản hồi từ MCP server")}</div>
+  <p>Mã xác thực hoặc phiên có thể đã hết hạn. Hãy mở Telegram và gõ <code>/google_auth</code> để lấy link mới tinh nhé!</p>
+  <a href="https://t.me" class="btn">Quay lại Telegram</a>
+</div>
+</body>
+</html>"""
+            return web.Response(text=fail_html, content_type="text/html", status=400)
 
     # ---------- 1.3.0: Chợ MCP ----------
     def _mkt_guard(self):
