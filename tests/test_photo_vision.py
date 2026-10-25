@@ -20,6 +20,9 @@ def test_clean_task_title_with_photo():
     t3 = "[Đang trả lời tin của ní: \"tạo ảnh\"]\n[Người dùng gửi kèm ảnh: /tmp/p.jpg]\ntạo ảnh character sheets"
     assert clean_task_title(t3) == "tạo ảnh character sheets"
 
+    t4 = "có chạy tunnel để nó sống không vậy [Người dùng gửi kèm ảnh: /Volumes/External/auto/workspace/images/uploads/p.jpg]"
+    assert clean_task_title(t4) == "có chạy tunnel để nó sống không vậy"
+
 
 def test_format_reply_context_photo():
     msg = MagicMock()

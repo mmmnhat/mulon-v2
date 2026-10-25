@@ -52,7 +52,7 @@
   --tgl-off:#3A4757;
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
-html,body{margin:0; padding:0}
+html,body{margin:0; padding:0; overflow-x:hidden; max-width:100vw}
 html{-webkit-text-size-adjust:100%; overscroll-behavior:none}
 body{
   background:var(--paper); color:var(--ink);
@@ -61,6 +61,7 @@ body{
   font-size:var(--fs-body); line-height:var(--lh-body);
   -webkit-font-smoothing:antialiased;
   padding:0 var(--s4) calc(var(--s8) + env(safe-area-inset-bottom));
+  max-width:600px; margin:0 auto;
 }
 /* Cảm giác native (mobile-native): chạm không trễ, không chọn
    chữ ở control; hover chỉ khi thiết bị thật sự hover được. */
@@ -600,15 +601,15 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   body{max-width:600px; margin:0 auto;
     box-shadow:0 0 0 1px var(--line)}
 }
+#screen-task{max-width:100%; overflow-x:hidden}
 /* ---------- Rich Markdown & Media Preview ---------- */
-.code-block{background:#111214; color:#D4D4D4; padding:var(--s3); border-radius:8px; overflow-x:auto; font-family:ui-monospace, Menlo, monospace; font-size:12px; line-height:1.45; margin:var(--s2) 0; border:1px solid rgba(255,255,255,0.06)}
+.code-block{background:#111214; color:#D4D4D4; padding:var(--s3); border-radius:8px; overflow-x:auto; font-family:ui-monospace, Menlo, monospace; font-size:12px; line-height:1.45; margin:var(--s2) 0; border:1px solid rgba(255,255,255,0.06); max-width:100%}
 .code-block code{font-family:inherit}
 .inline-code{background:var(--tint-gray); padding:2px 6px; border-radius:4px; font-family:ui-monospace, Menlo, monospace; font-size:12px}
 .md-link{color:var(--lav-deep); font-weight:var(--fw-m); text-decoration:none}
 .md-link:hover{text-decoration:underline}
-.img-preview-wrap{margin:var(--s2) 0; border-radius:8px; overflow:hidden; background:var(--surface2); max-width:320px; box-shadow:0 2px 8px rgba(0,0,0,0.12); border:1px solid rgba(255,255,255,0.08)}
-.img-preview{display:block; width:100%; height:auto; cursor:pointer; transition:transform 0.2s}
-.img-preview:hover{transform:scale(1.02)}
+.img-preview-wrap{margin:var(--s2) 0; border-radius:8px; overflow:hidden; background:var(--surface2); max-width:100%; box-shadow:0 2px 8px rgba(0,0,0,0.12); border:1px solid rgba(255,255,255,0.08); box-sizing:border-box}
+.img-preview{display:block; width:100%; max-width:100%; height:auto; cursor:pointer; object-fit:contain}
 .img-sublink{display:block; font-size:11px; color:var(--ink3); word-break:break-all; margin-top:2px}
 
 @media (prefers-reduced-motion: reduce){
@@ -1418,6 +1419,13 @@ function taskSub(t){
   if (t.status === "failed") return "Lỗi: " + (t.error || "không rõ");
   return "";
 }
+function cleanTaskTitle(s){
+  if (!s) return "Chi tiết việc";
+  let t = s.replace(/\[(?:Người dùng gửi (?:kèm ảnh|một tấm ảnh|ảnh)|Đang trả lời tin)[^\]]*\]/gi, "").trim();
+  t = t.replace(/\/Volumes\/[^\s\]"']+/g, (m) => m.split("/").pop());
+  t = t.replace(/\s+/g, " ");
+  return t || "Chi tiết việc";
+}
 function renderTasks(){
   const box = $("task-list");
   const tasks = (S && S.tasks) || [];
@@ -1433,7 +1441,7 @@ function renderTasks(){
     if (!sub && t.steps_total)
       sub = t.steps_done + "/" + t.steps_total + " bước";
     return '<div class="row" data-task="' + esc(t.id) + '">' +
-      '<div class="r-main"><div class="r-title">' + esc(t.title) +
+      '<div class="r-main"><div class="r-title">' + esc(cleanTaskTitle(t.title)) +
       '</div>' + (sub ? '<div class="r-sub">' + esc(sub) +
       '</div>' : "") + '</div>' +
       '<span class="r-state">' + taskStateText(t) + '</span>' +
@@ -1499,17 +1507,26 @@ async function openTask(id){
   try {
     const data = await api("/api/task?id=" + encodeURIComponent(id));
     const t = data.task;
-    $("task-detail-title").textContent = t.title || "Chi tiết việc";
+    $("task-detail-title").textContent = cleanTaskTitle(t.title);
 
     const items = [];
-    items.push({name: "Đã bắt đầu", meta: todayLabel(t.created_at), cls: "done"});
+    const steps = t.steps || [];
+    if (!steps.length) {
+      items.push({name: "Đã bắt đầu", meta: todayLabel(t.created_at), cls: "done"});
+    }
 
-    (t.steps || []).forEach(st => {
+    steps.forEach((st, idx) => {
       let stepName = st.title || "Bước thực thi";
+      if (idx > 0 && stepName === "Đã bắt đầu") return;
+
       if (stepName.startsWith("Chạy lệnh: python3 -c") || stepName.startsWith("Chạy lệnh: python -c")){
         stepName = "Chạy script Python";
       } else if (stepName.startsWith("Chạy lệnh: curl ")){
         stepName = "Gửi request mạng (curl)";
+      } else if (stepName.startsWith("Chạy lệnh: ps ") || stepName.startsWith("Chạy lệnh: ps aux")){
+        stepName = "Kiểm tra tiến trình hệ thống";
+      } else if (stepName.startsWith("Chạy lệnh: kill ") || stepName.startsWith("Chạy lệnh: pkill")){
+        stepName = "Quản lý tiến trình";
       }
 
       let meta = "";
@@ -1536,6 +1553,12 @@ async function openTask(id){
       } else if (st.detail && typeof st.detail === "string" && !st.detail.startsWith("{")){
         meta = st.detail;
       }
+
+      // Làm sạch meta: loại bỏ tag đính kèm và rút gọn đường dẫn file dài
+      if (meta){
+        meta = meta.replace(/\[(?:Người dùng gửi (?:kèm ảnh|một tấm ảnh|ảnh)|Đang trả lời tin)[^\]]*\]/gi, "").trim();
+        meta = meta.replace(/\/Volumes\/[^\s\]"']+/g, (m) => m.split("/").pop());
+      }
       if (st.updated_at) meta = (meta ? meta + " · " : "") + hhmm(st.updated_at);
 
       let imgHtml = "";
@@ -1543,15 +1566,15 @@ async function openTask(id){
         const hasRef = parsed.reference_image;
         const hasOut = parsed.local_path || parsed.url;
         if (hasRef && hasOut){
-          imgHtml = '<div style="display:flex; gap:8px; margin:8px 0 4px">' +
-            '<div style="flex:1; max-width:140px"><div style="font-size:10px; color:var(--ink3); margin-bottom:2px">ẢNH MẪU</div>' +
+          imgHtml = '<div style="display:flex; gap:8px; margin:8px 0 4px; max-width:100%">' +
+            '<div style="flex:1; min-width:0; max-width:140px"><div style="font-size:10px; color:var(--ink3); margin-bottom:2px">ẢNH MẪU</div>' +
             '<div class="img-preview-wrap" style="margin:0"><img src="' + esc(resolveMediaUrl(hasRef)) + '" class="img-preview" alt="Mẫu" onclick="window.open(this.src)"/></div></div>' +
-            '<div style="flex:1; max-width:140px"><div style="font-size:10px; color:var(--ink3); margin-bottom:2px">KẾT QUẢ</div>' +
+            '<div style="flex:1; min-width:0; max-width:140px"><div style="font-size:10px; color:var(--ink3); margin-bottom:2px">KẾT QUẢ</div>' +
             '<div class="img-preview-wrap" style="margin:0"><img src="' + esc(resolveMediaUrl(hasOut)) + '" class="img-preview" alt="Tạo ra" onclick="window.open(this.src)"/></div></div>' +
           '</div>';
         } else if (hasOut || hasRef){
           const single = hasOut || hasRef;
-          imgHtml = '<div class="img-preview-wrap" style="max-width:240px; margin:6px 0 2px">' +
+          imgHtml = '<div class="img-preview-wrap" style="max-width:240px; width:100%; margin:6px 0 2px">' +
             '<img src="' + esc(resolveMediaUrl(single)) + '" class="img-preview" alt="Ảnh" onclick="window.open(this.src)"/>' +
           '</div>';
         }
