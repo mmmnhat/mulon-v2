@@ -31,3 +31,4 @@ workspace/
 .idea/
 .vscode/
 .commandcode/
+client_secret*.json

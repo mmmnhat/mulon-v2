@@ -14,6 +14,9 @@
         "--tool-tier",
         "core"
       ],
+      "env": {
+        "GOOGLE_CLIENT_SECRET_PATH": "/Volumes/External/auto/client_secret_408059856457-bkiemi7rq83lksl3vq3nkclj3itjteeo.apps.googleusercontent.com.json"
+      },
       "enabled": true
     }
   }
