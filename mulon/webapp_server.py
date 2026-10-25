@@ -554,6 +554,7 @@ class WebAppServer:
         app.router.add_post(
             "/api/marketplace/installed/{name}/uninstall/prepare",
             self._mkt_uninstall_prepare)
+        app.router.add_get("/media/{path:.*}", self._handle_workspace_media)
         # 1.6.0: Chia sẻ tài liệu / Artifacts công khai không qua auth
         app.router.add_get("/share/{token}", self._handle_public_share)
         # 1.6.0: Library management API cho Mini App
@@ -628,6 +629,33 @@ class WebAppServer:
         # duyệt cache để avatar không tải lại 1.2MB mỗi lần mở app.
         resp.headers["Cache-Control"] = "public, max-age=86400"
         return resp
+
+    async def _handle_workspace_media(self, request):
+        rel = request.match_info.get("path", "").strip()
+        if not rel or ".." in rel or rel.startswith("/") or rel.startswith("\\"):
+            return web.Response(text="Đường dẫn không hợp lệ", status=400)
+        ws = Path(self.cfg.workspace_dir).resolve()
+        target = (ws / rel).resolve()
+        try:
+            target.relative_to(ws)
+        except ValueError:
+            return web.Response(text="Từ chối truy cập ngoài workspace", status=403)
+        if not target.is_file():
+            return web.Response(text="Không tìm thấy file", status=404)
+        ext = target.suffix.lower()
+        content_types = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+            ".gif": "image/gif",
+            ".svg": "image/svg+xml",
+            ".mp3": "audio/mpeg",
+            ".wav": "audio/wav",
+            ".mp4": "video/mp4",
+        }
+        ctype = content_types.get(ext, "application/octet-stream")
+        return web.Response(body=target.read_bytes(), content_type=ctype)
 
     async def _handle_avatar(self, request):
         # Sửa 1.6.2: thử lần lượt nhiều đường dẫn thay vì chỉ 1.

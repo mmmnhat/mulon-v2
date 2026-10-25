@@ -84,10 +84,10 @@ async def test_generate_image_i2i_payload(tmp_path: Path, monkeypatch):
 
     # format_step_title với i2i
     title_i2i = format_step_title("generate_image", {"prompt": "cô gái anime", "image_path": "/tmp/a.jpg"})
-    assert "Biến đổi ảnh (i2i)" in title_i2i
+    assert "Đã tạo ảnh từ ảnh mẫu" in title_i2i
 
     title_t2i = format_step_title("generate_image", {"prompt": "cô gái anime"})
-    assert "Sinh ảnh AI" in title_t2i
+    assert "Đã tạo ảnh" in title_t2i
 
     # Mock API call
     import dataclasses

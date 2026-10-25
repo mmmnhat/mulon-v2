@@ -130,51 +130,82 @@ def format_step_title(tool_name: str, args: dict) -> str:
     if tool_name == "generate_image":
         prompt = args.get("prompt", "")
         img = args.get("image_path", "")
-        prefix = "Biến đổi ảnh (i2i)" if img else "Sinh ảnh AI"
-        return f"{prefix}: {prompt[:60]}" if prompt else prefix
+        prefix = "Đã tạo ảnh từ ảnh mẫu" if img else "Đã tạo ảnh"
+        return f"{prefix}: {prompt[:50]}" if prompt else prefix
     if tool_name == "run_command":
         cmd = args.get("command", "")
-        return f"Chạy lệnh: {cmd[:60]}" if cmd else "Chạy lệnh hệ thống"
+        return f"Chạy lệnh: {cmd[:50]}" if cmd else "Chạy lệnh hệ thống"
     if tool_name == "read_file":
-        return f"Đọc file: {args.get('path', '')}"
+        return f"Đã đọc file: {args.get('path', '')}"
     if tool_name == "write_file":
-        return f"Ghi file: {args.get('path', '')}"
+        return f"Đã ghi file: {args.get('path', '')}"
     if tool_name == "edit_file":
-        return f"Sửa file: {args.get('path', '')}"
+        return f"Đã sửa file: {args.get('path', '')}"
     if tool_name in ("web_fetch", "web_read"):
-        return f"Đọc trang web: {args.get('url', '')[:60]}"
+        return f"Đã đọc trang web: {args.get('url', '')[:50]}"
     if tool_name == "web_search":
-        return f"Tìm trên web: {args.get('query', '')[:60]}"
+        return f"Tìm kiếm web: {args.get('query', '')[:50]}"
     if tool_name == "connector_call":
         name = args.get("name", "")
         act = args.get("action", "")
         return f"Dịch vụ {name}: {act}" if name else "Gọi dịch vụ ngoài"
     if tool_name == "request_vault_secret":
-        return f"Yêu cầu cất bí mật vào Kho: {args.get('label', '')}"
+        return f"Yêu cầu lưu kho bí mật: {args.get('label', '')}"
     if tool_name == "add_memory_fact":
-        return f"Ghi nhớ fact: {args.get('fact', '')[:50]}"
+        return f"Ghi nhớ fact: {args.get('fact', '')[:45]}"
     if tool_name == "now":
         return "Xem thời gian hệ thống"
     return f"Dùng công cụ {tool_name}"
 
 
 def format_step_detail(tool_name: str, args: dict, result: dict) -> str:
-    """Dữ liệu chi tiết của bước thực thi để hiển thị chi tiết khi xem task."""
-    info: dict[str, Any] = {"tool": tool_name, "args": args, "ok": result.get("ok", True)}
-    if not result.get("ok"):
-        info["error"] = result.get("error", "")
-    if tool_name == "run_command":
-        info["command"] = args.get("command", "")
+    """Dữ liệu chi tiết của bước thực thi để hiển thị chi tiết khi xem task (chuẩn Muse)."""
+    ok = bool(result.get("ok", True))
+    info: dict[str, Any] = {
+        "tool": tool_name,
+        "args": args,
+        "ok": ok,
+        "status": "ok" if ok else "failed",
+    }
+    if not ok:
+        info["error"] = result.get("error", "Lỗi không xác định")
+
+    if tool_name == "generate_image":
+        prompt = args.get("prompt", "")
+        img_ref = args.get("image_path", "")
+        local_path = result.get("local_path", "")
+        url = result.get("url", "")
+        info["prompt"] = prompt
+        info["reference_image"] = img_ref
+        info["url"] = url
+        info["local_path"] = local_path
+        info["description"] = f"Generated image via media.generate_image with prompt:\n\"{prompt}\""
+        if img_ref:
+            info["summary"] = f"The image was created based on reference image {img_ref} and saved to {local_path or url}."
+        else:
+            info["summary"] = f"The image was created in {local_path or url}."
+    elif tool_name == "run_command":
+        cmd = args.get("command", "")
+        info["command"] = cmd
         info["stdout"] = (result.get("stdout") or "")[:2000]
         info["stderr"] = (result.get("stderr") or "")[:1000]
         info["exit_code"] = result.get("exit_code", 0)
-    elif tool_name == "generate_image":
-        info["prompt"] = args.get("prompt", "")
-        info["image_path"] = args.get("image_path", "")
-        info["url"] = result.get("url", "")
-        info["local_path"] = result.get("local_path", "")
+        info["description"] = f"Executed shell command: {cmd}"
+    elif tool_name in ("web_fetch", "web_read"):
+        info["url"] = args.get("url", "")
+        info["content"] = str(result.get("content", ""))[:1500]
+        info["description"] = f"Fetched content from: {args.get('url', '')}"
+    elif tool_name == "web_search":
+        info["query"] = args.get("query", "")
+        info["content"] = str(result.get("results", result.get("content", "")))[:1500]
+        info["description"] = f"Searched web for: {args.get('query', '')}"
+    elif tool_name == "read_file":
+        info["path"] = args.get("path", "")
+        info["content"] = str(result.get("content", ""))[:1500]
+        info["description"] = f"Read file content from: {args.get('path', '')}"
     elif "content" in result:
         info["content"] = str(result.get("content", ""))[:1500]
+
     return json.dumps(info, ensure_ascii=False)
 
 
@@ -567,6 +598,24 @@ class Agent:
         await self.memory.create_task(task_id, session_key, task_title, steps)
         await self._emit(on_event, "task_start",
                          task_id=task_id, steps=steps, title=task_title)
+
+        # Ghi nhận các bước khởi đầu chuẩn phong cách Muse
+        await self.memory.add_task_step(
+            task_id, "Đã bắt đầu", "done",
+            detail=json.dumps({"description": f"Bắt đầu thực hiện: {task_title}"}, ensure_ascii=False)
+        )
+        m_img = re.search(r"\[Người dùng gửi (?:kèm ảnh|một tấm ảnh|ảnh): ([^\]]+)\]", user_text)
+        if m_img:
+            img_ref = m_img.group(1).strip()
+            await self.memory.add_task_step(
+                task_id, "Đã đọc hình ảnh mẫu gửi kèm", "done",
+                detail=json.dumps({
+                    "tool": "read_image",
+                    "reference_image": img_ref,
+                    "description": f"Đã tiếp nhận và phân tích hình ảnh mẫu: {img_ref}",
+                    "status": "ok"
+                }, ensure_ascii=False)
+            )
 
         schemas = self.registry.schemas()
         convo: list[dict] = list(messages)
