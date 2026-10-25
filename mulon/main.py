@@ -104,6 +104,8 @@ async def build_system(cfg: Config):
     # MCP client: nối server đã bật trong config, đăng ký tool của
     # chúng vào registry chung. Server lỗi/vắng -> degrade sạch.
     mcp_manager = MCPManager(cfg, cfg.mcp_config_path)
+    if vault_store is not None:
+        mcp_manager.set_secret_resolver(vault_store.resolve)
     await mcp_manager.start()
     # 1.2.0: broker duyệt việc (policy nấc "ask") — dùng chung cho
     # agent (mở yêu cầu), bề mặt Telegram (trình + gỡ thẻ) và Mini

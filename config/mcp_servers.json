@@ -14,8 +14,10 @@
         "--tool-tier",
         "core"
       ],
-      "env": {
-        "GOOGLE_CLIENT_SECRET_PATH": "/Volumes/External/auto/client_secret_408059856457-bkiemi7rq83lksl3vq3nkclj3itjteeo.apps.googleusercontent.com.json"
+      "env_vault_refs": {
+        "GOOGLE_OAUTH_CLIENT_ID": "google:client_id",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "google:client_secret",
+        "GOOGLE_CLIENT_SECRET_PATH": "google:client_secret_path"
       },
       "enabled": true
     }

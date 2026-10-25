@@ -45,7 +45,9 @@ def test_store_put_resolve_labels_delete(cfg):
     ref = store.put("api-key-x", SECRET)
     assert ref.startswith("vault:")
     assert store.exists(ref) is True
+    assert store.exists("api-key-x") is True
     assert store.resolve(ref) == SECRET  # cửa đọc duy nhất
+    assert store.resolve("api-key-x") == SECRET
     labels = store.labels()
     assert labels and labels[0]["label"] == "api-key-x"
     assert SECRET not in json.dumps(labels)  # label list không lộ giá trị

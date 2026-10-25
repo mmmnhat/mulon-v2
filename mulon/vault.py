@@ -190,7 +190,14 @@ class VaultStore:
         """CỬA ĐỌC DUY NHẤT. Chỉ các luồng cần dùng giá trị thật mới
         gọi hàm này; mọi bề mặt hiển thị chỉ được thấy ref + label."""
         with self._lock:
-            entry = self._load().get(ref)
+            data = self._load()
+            entry = data.get(ref)
+            if not isinstance(entry, dict):
+                # Cho phép resolve bằng label nếu truyền nhãn thay vì ref UUID
+                for e in data.values():
+                    if isinstance(e, dict) and e.get("label") == ref:
+                        entry = e
+                        break
         if not isinstance(entry, dict):
             return None
         # Sửa 1.6.2: entry mã hoá đọc qua giải mã; entry plaintext
@@ -201,7 +208,10 @@ class VaultStore:
 
     def exists(self, ref: str) -> bool:
         with self._lock:
-            return ref in self._load()
+            data = self._load()
+            if ref in data:
+                return True
+            return any(isinstance(e, dict) and e.get("label") == ref for e in data.values())
 
     def labels(self) -> list[dict]:
         """Danh sách ref + label + thời gian — KHÔNG kèm giá trị."""
