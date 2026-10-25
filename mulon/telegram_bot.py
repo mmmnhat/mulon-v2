@@ -32,6 +32,8 @@ import html
 import json
 import logging
 import re
+import urllib.error
+import urllib.request
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Awaitable, Callable, Optional
@@ -1487,6 +1489,93 @@ class TelegramSurface:
             return True
         return False
 
+    async def _get_google_auth_url(self) -> Optional[str]:
+        """Tạo fresh OAuth Authorization URL từ Google Workspace MCP."""
+        target_tools = [
+            "mcp_google-workspace_search_drive_files",
+            "mcp_google-workspace_list_tasks",
+            "mcp_google-workspace_list_calendars",
+        ]
+        if not self.agent or not self.agent.registry:
+            return None
+        tool_name = None
+        for t in target_tools:
+            if self.agent.registry.has(t):
+                tool_name = t
+                break
+        if not tool_name:
+            return None
+        try:
+            res = await self.agent.registry.execute(
+                tool_name,
+                {"user_google_email": "mmmnhat.1810@gmail.com", "query": "auth_probe"}
+            )
+            raw = str(res.get("result", ""))
+            m = re.search(r'https://accounts\.google\.com/o/oauth2/auth\?[^\s\n\)]+', raw)
+            if m:
+                return m.group(0)
+        except Exception as e:
+            logger.warning("Lỗi kích hoạt Google auth flow: %s", e)
+        return None
+
+    async def _handle_oauth_callback(self, message: Message) -> bool:
+        """Tự động xử lý link OAuth callback (Google Workspace, v.v.) do người dùng paste vào chat."""
+        text = (message.text or "").strip()
+        if "oauth2callback" not in text or "code=" not in text:
+            return False
+
+        m = re.search(r'(?:https?://[^/:\s]+(?::(\d+))?)?/oauth2callback\?([^\s\n\)]+)', text)
+        if not m:
+            return False
+
+        explicit_port = m.group(1)
+        query = m.group(2)
+        candidate_ports = [int(explicit_port)] if explicit_port else [8001, 8000, 8002, 8003, 8004]
+
+        success = False
+        error_detail = ""
+        user_email = ""
+
+        for port in candidate_ports:
+            url = f"http://127.0.0.1:{port}/oauth2callback?{query}"
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Mulon-Bot)"})
+                with urllib.request.urlopen(req, timeout=8) as resp:
+                    body = resp.read().decode("utf-8", errors="ignore")
+                    if "Authentication Successful" in body or "successful" in body.lower() or resp.status == 200:
+                        success = True
+                        em_m = re.search(r'for user:\s*<strong>([^<]+)</strong>', body, re.IGNORECASE)
+                        if em_m:
+                            user_email = em_m.group(1).strip()
+                        break
+            except urllib.error.HTTPError as e:
+                err_body = e.read().decode("utf-8", errors="ignore")
+                err_m = re.search(r'<p>([^<]+)</p>', err_body)
+                if err_m:
+                    error_detail = err_m.group(1).strip()
+                else:
+                    error_detail = f"HTTP {e.code}"
+            except Exception as e:
+                error_detail = str(e)
+
+        if success:
+            acc_str = f" cho tài khoản <code>{html.escape(user_email)}</code>" if user_email else ""
+            await message.answer(
+                f"🎉 <b>Xác thực Google Workspace thành công rực rỡ{acc_str}!</b>\n\n"
+                "✅ Đã nạp và lưu trữ an toàn credentials.\n"
+                "🚀 Toàn bộ 43 công cụ Google Workspace (Gmail, Google Drive, Calendar, Docs, Sheets, Tasks) đã sẵn sàng phục vụ ní ngay lập tức!",
+                parse_mode="HTML"
+            )
+            return True
+        else:
+            await message.answer(
+                "⚠️ <b>Chưa hoàn tất xác thực Google Workspace</b>\n\n"
+                f"Lý do: <code>{html.escape(error_detail or 'Không thể kết nối cổng OAuth callback trên máy Mac')}</code>\n\n"
+                "👉 Mã (code) hoặc phiên xác thực có thể đã hết hạn. Ní vui lòng gõ <code>/google_auth</code> để lấy link đăng nhập mới tinh nha!",
+                parse_mode="HTML"
+            )
+            return True
+
     # ---- handlers ----
     def _register_handlers(self) -> None:
         dp = self.dp
@@ -2401,6 +2490,29 @@ class TelegramSurface:
                     "Đã gửi hướng dẫn nhập vault vào DM của bạn "
                     "(không đăng link ở group).")
 
+        @dp.message(F.text.startswith("/google_auth"))
+        async def cmd_google_auth(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            await message.answer("⏳ <i>Đang tạo link xác thực Google Workspace mới...</i>", parse_mode="HTML")
+            auth_url = await self._get_google_auth_url()
+            if not auth_url:
+                await message.answer(
+                    "⚠️ Không thể tạo link xác thực Google lúc này. Ní hãy kiểm tra xem server <code>google-workspace</code> trong MCP đã bật chưa nhé.",
+                    parse_mode="HTML"
+                )
+                return
+            await message.answer(
+                "🔗 <b>XÁC THỰC GOOGLE WORKSPACE CHO MULON</b>\n\n"
+                "👉 <b>Bước 1:</b> Mở link đăng nhập Google dưới đây:\n"
+                f"🔗 <a href=\"{auth_url}\"><b>BẤM VÀO ĐÂY ĐỂ ĐĂNG NHẬP GOOGLE</b></a>\n\n"
+                "👉 <b>Bước 2:</b>\n"
+                "• <b>Mở trên máy Mac:</b> Trình duyệt sẽ tự hoàn tất xác thực ngay lập tức.\n"
+                "• <b>Mở trên Điện thoại:</b> Sau khi đăng nhập và bấm 'Cho phép', Safari sẽ hiện trang lỗi trắng (do chuyển hướng về <code>localhost:8001</code> trên máy Mac). Ní chỉ cần <b>COPY THANH ĐỊA CHỈ SAFARI</b> (chứa <code>http://localhost:8001/oauth2callback?...</code>) rồi <b>DÁN GỬI VÀO ĐÂY</b> là xong ngay!",
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+            )
+
         @dp.message(F.text.startswith("/forget"))
         async def cmd_forget(message: Message) -> None:
             if not self._is_allowed(message):
@@ -2584,6 +2696,10 @@ class TelegramSurface:
             if clean_txt in ("restart", "restart bot", "restart bot lại đi", "khởi động lại", "khởi động lại bot", "/restart"):
                 await cmd_restart(message)
                 return
+            # Tự động bắt OAuth callback (Google Workspace, v.v.) khi user dán URL vào
+            if message.text and ("oauth2callback" in message.text and "code=" in message.text):
+                if await self._handle_oauth_callback(message):
+                    return
             # Phase 6: các phản hồi dạng lệnh ngắn được xử lý ngay,
             # không vào agent: xác nhận 'quên thật', reply
             # 'duyệt'/'bỏ' vào note, 'làm luôn' vào thẻ ý tưởng.
