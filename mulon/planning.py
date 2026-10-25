@@ -183,13 +183,16 @@ def register_planning_tools(registry, cfg, memory) -> None:
     @spec(
         "schedule_task",
         "Hẹn giờ 1 việc lặp lại theo cron 5 trường (phút giờ ngày tháng "
-        "thứ), múi giờ tường minh. Việc chỉ CHẠY khi scheduler được bật "
-        "(SCHEDULER_ENABLED=1). Trả về lịch đã tạo kèm lần chạy kế tiếp.",
+        "thứ), múi giờ tường minh. Phải gắn với goal_id hoặc tracked_item_id "
+        "nếu là việc theo dõi mục tiêu. Trả về lịch đã tạo kèm lần chạy kế tiếp.",
         {
             "type": "object",
             "properties": {
                 "cron": {"type": "string"},
                 "payload": {"type": "string"},
+                "title": {"type": "string", "default": ""},
+                "goal_id": {"type": "integer"},
+                "tracked_item_id": {"type": "integer"},
                 "timezone": {
                     "type": "string",
                     "default": "Asia/Ho_Chi_Minh",
@@ -201,6 +204,9 @@ def register_planning_tools(registry, cfg, memory) -> None:
         "schedule", 10,
     )
     async def schedule_task(cron: str, payload: str,
+                            title: str = "",
+                            goal_id: Optional[int] = None,
+                            tracked_item_id: Optional[int] = None,
                             timezone: str = "Asia/Ho_Chi_Minh",
                             session_key: str = ""):
         tz_name = timezone or cfg.default_timezone
@@ -211,6 +217,7 @@ def register_planning_tools(registry, cfg, memory) -> None:
         schedule_id = uuid.uuid4().hex[:12]
         sched = await memory.create_schedule(
             schedule_id, cron, tz_name, payload, session_key, nxt,
+            title=title, goal_id=goal_id, tracked_item_id=tracked_item_id,
         )
         return {"ok": True, "schedule": sched}
 

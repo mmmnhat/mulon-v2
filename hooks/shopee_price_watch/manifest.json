@@ -1,0 +1,14 @@
+{
+  "id": "shopee_price_watch",
+  "title": "Theo dõi biến động giá Shopee",
+  "interval_s": 60,
+  "enabled": true,
+  "dry_run_passed": true,
+  "created_at": "2026-10-25T16:48:00Z",
+  "updated_at": "2026-10-25T09:49:13+00:00",
+  "last_poll_at": "",
+  "last_decision": "",
+  "has_script": true,
+  "has_instruction": true,
+  "instruction": "# Hướng dẫn xử lý khi Hook Shopee Price Watch phát hiện biến động (Wake)\n\n1. Đọc payload sự kiện (giá cũ vs giá mới).\n2. Kiểm tra xem mức giảm giá có vượt quá ngưỡng 20% hay không.\n3. Nếu hợp lệ, tạo một thẻ ý tưởng (Idea Card) hoặc thông báo ngắn gọn cho người dùng trong Chat chính kèm link tiếp thị liên kết Accesstrade.\n"
+}

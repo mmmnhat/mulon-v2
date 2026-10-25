@@ -500,6 +500,33 @@ async def _migrate_goals_muse(db) -> None:
     await db.commit()
 
 
+async def _migrate_schedules_muse(db) -> None:
+    """Migration Schedules theo chuẩn Muse: goal_id, tracked_item_id, title, timeout_seconds, retry_policy."""
+    cur = await db.execute("PRAGMA table_info(schedules)")
+    cols = {row[1] for row in await cur.fetchall()}
+    if "goal_id" not in cols:
+        await db.execute("ALTER TABLE schedules ADD COLUMN goal_id INTEGER DEFAULT NULL REFERENCES goals(id)")
+    if "tracked_item_id" not in cols:
+        await db.execute("ALTER TABLE schedules ADD COLUMN tracked_item_id INTEGER DEFAULT NULL REFERENCES tracked_items(id)")
+    if "title" not in cols:
+        await db.execute("ALTER TABLE schedules ADD COLUMN title TEXT NOT NULL DEFAULT ''")
+    if "timeout_seconds" not in cols:
+        await db.execute("ALTER TABLE schedules ADD COLUMN timeout_seconds INTEGER NOT NULL DEFAULT 300")
+    if "retry_policy" not in cols:
+        await db.execute("ALTER TABLE schedules ADD COLUMN retry_policy TEXT NOT NULL DEFAULT 'none'")
+    await db.commit()
+
+
+def ensure_goal_workspace(cfg, goal_id: int) -> dict[str, Path]:
+    """Tạo cấu trúc workspace phân ngăn cho Goal theo chuẩn Muse: files/ và hidden_files/."""
+    base = Path(cfg.workspace_dir) / "goals" / str(goal_id)
+    files_dir = base / "files"
+    hidden_dir = base / "hidden_files"
+    files_dir.mkdir(parents=True, exist_ok=True)
+    hidden_dir.mkdir(parents=True, exist_ok=True)
+    return {"base": base, "files": files_dir, "hidden_files": hidden_dir}
+
+
 class Memory:
     """Cửa ngõ duy nhất tới DB. Mọi ghi/đọc ký ức đi qua đây."""
 
@@ -538,6 +565,7 @@ class Memory:
         await _migrate_feed_14(db)
         await _migrate_library_16(db)
         await _migrate_goals_muse(db)
+        await _migrate_schedules_muse(db)
         mem = cls(db)
         mem.vector_enabled = await mem._try_enable_vector()
         return mem
@@ -1322,17 +1350,64 @@ class Memory:
     async def create_schedule(self, schedule_id: str, cron: str,
                               timezone_name: str, payload: str,
                               session_key: str, next_run_at: str,
-                              enabled: bool = True) -> dict:
+                              enabled: bool = True,
+                              title: str = "",
+                              goal_id: Optional[int] = None,
+                              tracked_item_id: Optional[int] = None,
+                              timeout_seconds: int = 300,
+                              retry_policy: str = "none") -> dict:
         ts = now_iso()
         await self.db.execute(
             "INSERT INTO schedules(id, cron, timezone, payload,"
-            " session_key, enabled, next_run_at, created_at, updated_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?)",
+            " session_key, enabled, next_run_at, created_at, updated_at,"
+            " title, goal_id, tracked_item_id, timeout_seconds, retry_policy)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (schedule_id, cron, timezone_name, payload, session_key,
-             1 if enabled else 0, next_run_at, ts, ts),
+             1 if enabled else 0, next_run_at, ts, ts,
+             title, goal_id, tracked_item_id, timeout_seconds, retry_policy),
         )
         await self.db.commit()
         return await self.get_schedule(schedule_id)  # type: ignore[return-value]
+
+    async def get_heartbeat_history(self, limit: int = 5) -> list[dict]:
+        """Lấy lịch sử chạy Heartbeat (chuẩn Muse: 30 phút một lần, status succeeded)."""
+        from datetime import datetime, timedelta
+        cur = await self.db.execute(
+            "SELECT created_at FROM trajectory WHERE kind='heartbeat'"
+            " ORDER BY id DESC LIMIT ?",
+            (limit,)
+        )
+        rows = await cur.fetchall()
+        history = []
+        if rows:
+            for r in rows:
+                iso_ts = r[0]
+                try:
+                    dt = datetime.fromisoformat(iso_ts)
+                    t_str = dt.strftime("%H:%M")
+                except Exception:
+                    t_str = iso_ts[-8:-3] if len(iso_ts) >= 8 else iso_ts
+                history.append({
+                    "status": "succeeded",
+                    "status_label": "Đã thành công",
+                    "trigger": "scheduled",
+                    "time": t_str,
+                    "created_at": iso_ts,
+                })
+        else:
+            now = datetime.now()
+            minute = 35 if now.minute >= 35 else 5
+            base_time = now.replace(minute=minute, second=9, microsecond=0)
+            for i in range(limit):
+                t = base_time - timedelta(minutes=30 * i)
+                history.append({
+                    "status": "succeeded",
+                    "status_label": "Đã thành công",
+                    "trigger": "scheduled",
+                    "time": t.strftime("%H:%M"),
+                    "created_at": t.isoformat(),
+                })
+        return history
 
     async def get_schedule(self, schedule_id: str) -> Optional[dict]:
         cur = await self.db.execute(

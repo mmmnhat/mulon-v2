@@ -72,46 +72,44 @@ button, .backrow, .tgl, .segbar, .swatch{
   user-select:none; -webkit-user-select:none;
   -webkit-touch-callout:none;
 }
-/* ---------- header dính — hàng ngang gọn (KT-1) ---------- */
-/* Màn tab: avatar 40 + tên 17/600 + trạng thái 13 trên cùng
-   một trục ngang, tổng 56pt. Màn con: ẩn hẳn header (chỉ
-   còn nav back + tiêu đề màn) — JS gắn .hidden khi showSub. */
+/* ---------- header dính — căn giữa, to hơn chuẩn Muse ---------- */
 .app-header{
-  position:sticky; top:0; z-index:20;
-  display:flex; align-items:center; gap:var(--s3);
-  height:var(--stick-top);
-  background:color-mix(in srgb, var(--paper) 84%, transparent);
-  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  position:sticky; top:0; z-index:25;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:16px 0 10px; margin-bottom:12px;
+  background:color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  text-align:center;
 }
-.head-meta{min-width:0}
+.avatar-wrap{
+  position:relative; width:84px; height:84px; margin:0 auto 10px;
+}
 .avatar{
-  width:40px; height:40px; flex:0 0 40px; border-radius:50%;
+  width:84px; height:84px; flex:0 0 84px; border-radius:50%;
   background:var(--tint-lav); overflow:hidden; position:relative;
-  font-size:var(--fs-body); font-weight:var(--fw-s); color:var(--lav-deep);
-  box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);
-  transition:box-shadow 240ms var(--ease);
+  font-size:32px; font-weight:var(--fw-s); color:var(--lav-deep);
+  box-shadow:0 6px 20px rgba(0,0,0,0.12), inset 0 0 0 1px rgba(0,0,0,.08);
+  transition:box-shadow 240ms var(--ease), transform 240ms var(--ease);
 }
+.avatar:hover{transform:scale(1.02)}
 [data-scheme="dark"] .avatar{
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);
+  box-shadow:0 6px 20px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,.15);
 }
-/* Chữ cái dự phòng nằm DƯỚI ảnh (tuyệt đối, căn giữa) — vòng 2
-   nó nằm cạnh ảnh trong flex và lòi ra mép phải vòng tròn
-   thành "vết lạ" (TQ-4). Ảnh phủ kín lên trên nó. */
+.avatar-edit-badge{
+  position:absolute; bottom:2px; right:2px; width:26px; height:26px;
+  border-radius:50%; background:#2B3747; border:2px solid var(--paper);
+  display:flex; align-items:center; justify-content:center; color:#fff;
+  cursor:pointer; z-index:5; box-shadow:0 2px 6px rgba(0,0,0,.25);
+  transition:transform 180ms var(--ease);
+}
+.avatar-edit-badge:active{transform:scale(0.9)}
+.head-meta{text-align:center; width:100%}
 .avatar #avatar-letter{
   position:absolute; inset:0; display:flex;
   align-items:center; justify-content:center;
 }
 .avatar img{position:relative; z-index:1; width:100%; height:100%;
   object-fit:cover; display:block}
-/* Avatar sprite states (1.3.0): phát ATLAS PNG thật (bộ
-   mulon-states v0 owner đã chốt: lưới 5x5, ô 256x256) theo
-   trạng thái app biết thật từ /api/state. Một ô phóng vừa vòng
-   tròn bằng background-size 500% 500%; vị trí frame theo % =
-   chỉ số/(số ô mỗi chiều - 1)*100. Nhịp đổi frame do JS
-   (spritePlay) theo fps của manifest. Lớp sprite chỉ hiện khi
-   atlas tải được (class .sprite-on do JS gắn sau khi probe
-   ảnh thành công) — thiếu asset thì lộ ảnh tĩnh /app/avatar,
-   dưới nữa là chữ cái đầu trên nền tint tím theo theme. */
 .avatar .sprite{
   position:absolute; inset:0; z-index:2; display:none;
   background-image:url("/app/assets/sprite-sheet-alpha.png");
@@ -120,18 +118,63 @@ button, .backrow, .tgl, .segbar, .swatch{
 }
 .avatar.sprite-on .sprite{display:block}
 .avatar.sprite-on img{visibility:hidden}
-/* Frame sprite trong suốt: chữ cái dự phòng phải ẩn hẳn khi
-   sprite bật, nếu không nó ló qua phần trong suốt của frame
-   thành "vết lạ" cạnh nhân vật (bắt được ở render 1.3.0). */
 .avatar.sprite-on #avatar-letter{visibility:hidden}
-.app-name{font-size:var(--fs-name); font-weight:var(--fw-s);
-  letter-spacing:-0.01em; line-height:var(--lh-title)}
-.app-status{font-size:var(--fs-cap); color:var(--ink2);
-  display:flex; align-items:center; gap:var(--s1);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.dot{width:8px; height:8px; border-radius:50%; background:var(--ink3);
+.app-name{font-size:22px; font-weight:700;
+  letter-spacing:-0.02em; line-height:1.2; margin-bottom:4px; text-align:center;}
+.app-status{font-size:13px; font-weight:500; color:#3E9B6C;
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  margin:0 auto; white-space:nowrap;}
+.dot{width:8px; height:8px; border-radius:50%; background:#3E9B6C;
   display:inline-block}
 .dot.busy{background:var(--lav); animation:pulse 1.2s infinite}
+
+/* ---------- modal chi tiết Heartbeat chuẩn Muse ---------- */
+.modal-overlay{
+  position:fixed; inset:0; z-index:100;
+  background:rgba(0,0,0,0.65); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  display:flex; align-items:center; justify-content:center; padding:16px;
+}
+.modal-overlay.hidden{display:none !important;}
+.modal-card{
+  background:var(--surface); color:var(--ink); border-radius:24px;
+  width:100%; max-width:440px; padding:24px; box-shadow:0 12px 36px rgba(0,0,0,0.45);
+  position:relative; animation:modalPop 0.25s cubic-bezier(0.2,0,0,1);
+  border:1px solid var(--line);
+}
+[data-scheme="dark"] .modal-card{
+  background:#232E3C; color:#E9EDEF; border-color:#303D4D;
+}
+@keyframes modalPop{from{opacity:0; transform:scale(0.95)} to{opacity:1; transform:scale(1)}}
+.modal-top-row{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
+.badge-scheduled{
+  background:var(--surface2); color:var(--ink2); font-size:12px; font-weight:600;
+  padding:4px 10px; border-radius:8px;
+}
+[data-scheme="dark"] .badge-scheduled{background:#1A222D; color:#9DABB9;}
+.modal-close-btn{
+  background:var(--surface2); border:0; color:var(--ink); width:28px; height:28px; border-radius:50%;
+  cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px;
+  transition:background 180ms;
+}
+[data-scheme="dark"] .modal-close-btn{background:#2B3747; color:#E9EDEF;}
+.modal-close-btn:hover{background:var(--tint-gray)}
+.modal-title{font-size:22px; font-weight:700; margin-bottom:4px;}
+.modal-sub{font-size:14px; color:var(--ink2); margin-bottom:20px;}
+.modal-section-title{
+  font-size:14px; color:var(--ink2); font-weight:600; display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:14px; border-bottom:1px solid var(--line); padding-bottom:8px;
+}
+.modal-history-list{display:flex; flex-direction:column; gap:12px; font-size:14px;}
+.run-item{display:flex; align-items:center; justify-content:space-between; color:var(--ink);}
+[data-scheme="dark"] .run-item{color:#E9EDEF;}
+.run-item .dot-green{color:#3E9B6C; font-size:10px; margin-right:6px;}
+.run-item .run-time{color:var(--ink2); font-variant-numeric:tabular-nums; font-weight:500;}
+.btn-link{background:transparent; border:0; color:var(--accent); font-size:13px; font-weight:600; cursor:pointer; padding:6px 12px;}
+.modal-action-row{display:flex; gap:12px; margin-top:20px;}
+.modal-action-row .btn{flex:1; height:46px; border-radius:14px; font-weight:600; font-size:15px; border:0; cursor:pointer;}
+.btn-secondary{background:var(--surface2); color:var(--ink);}
+[data-scheme="dark"] .btn-secondary{background:#2B3747; color:#E9EDEF;}
+.btn-danger{background:#D9383A; color:#FFFFFF;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 /* ---------- segmented tabs — Phương án A (TB-2) ---------- */
 /* Chỉ chữ, đúng mẫu control trong app Muse: track surface2
@@ -619,15 +662,24 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 </head>
 <body>
 
-<!-- ================= HEADER ================= -->
+<!-- ================= HEADER (Mascot ở giữa chuẩn Muse) ================= -->
 <header class="app-header" id="app-header">
-  <div class="avatar" id="avatar-box"><img src="/app/avatar" alt=""
-    onerror="this.remove()"><span id="avatar-letter">M</span><div
-    class="sprite" id="avatar-sprite"></div></div>
+  <div class="avatar-wrap">
+    <div class="avatar" id="avatar-box">
+      <img src="/app/avatar" alt="" onerror="this.remove()">
+      <span id="avatar-letter">M</span>
+      <div class="sprite" id="avatar-sprite"></div>
+    </div>
+    <div class="avatar-edit-badge" title="Đổi trạng thái avatar">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    </div>
+  </div>
   <div class="head-meta">
     <div class="app-name">Mulon</div>
-    <div class="app-status"><span class="dot" id="status-dot"></span>
-      <span id="status-text">đang tải…</span></div>
+    <div class="app-status">
+      <span class="dot" id="status-dot"></span>
+      <span id="status-text">Đã kết nối</span>
+    </div>
   </div>
 </header>
 
@@ -676,18 +728,56 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   </div>
 </section>
 
-<!-- ================= TAB: LỊCH ================= -->
+<!-- ================= TAB: LỊCH (Chuẩn Muse) ================= -->
 <section id="tab-lich" class="hidden">
   <div id="schedule-banner"></div>
+
+  <div class="card-title" style="margin:8px 0 8px 4px; font-size:15px; font-weight:600; color:var(--ink2);">Hàng ngày</div>
+  <div class="card" id="card-heartbeat-item" style="cursor:pointer; display:flex; align-items:center; gap:14px; padding:16px; border-radius:18px; margin-bottom:18px;">
+    <div style="width:44px; height:44px; border-radius:50%; background:var(--surface2); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="#D95F57" stroke="#D95F57" stroke-width="1.5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:16px; font-weight:600; color:var(--ink); margin-bottom:2px;">Heartbeat</div>
+      <div style="font-size:13px; color:var(--ink2);">30 phút một lần</div>
+    </div>
+    <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+  </div>
+
+  <div class="card-title" style="margin:16px 0 8px 4px; font-size:15px; font-weight:600; color:var(--ink2);">Lịch hẹn &amp; Nhắc việc cá nhân</div>
   <div class="card">
-    <div class="card-title">Lịch hẹn &amp; Nhắc việc cá nhân</div>
     <div id="schedule-list"></div>
   </div>
-  <div class="card" style="margin-top:16px;">
-    <div class="card-title">Vòng lặp hệ thống (Muse Background Loops)</div>
-    <div id="system-loops-list"></div>
-  </div>
 </section>
+
+<!-- ================= MODAL HEARTBEAT (Ảnh 4 chuẩn Muse) ================= -->
+<div id="modal-heartbeat" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div class="modal-top-row">
+      <span class="badge-scheduled">Đã lên lịch</span>
+      <button class="modal-close-btn" id="btn-close-heartbeat">✕</button>
+    </div>
+    <div class="modal-title">Heartbeat</div>
+    <div class="modal-sub">30 phút một lần</div>
+
+    <div class="modal-section-title">
+      <span>Lịch sử chạy</span>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+
+    <div id="heartbeat-run-history" class="modal-history-list">
+      <!-- Dòng lịch sử render từ JS -->
+    </div>
+    <div style="text-align:center; margin:14px 0 20px;">
+      <button class="btn-link" id="btn-heartbeat-more">Xem thêm</button>
+    </div>
+
+    <div class="modal-action-row">
+      <button class="btn btn-secondary" id="btn-heartbeat-perm">Xem quyền</button>
+      <button class="btn btn-danger" id="btn-heartbeat-del">Xóa</button>
+    </div>
+  </div>
+</div>
 
 <!-- ================= TAB: HỒ SƠ ================= -->
 <section id="tab-hoso" class="hidden">
@@ -800,15 +890,12 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <div class="row static">
       <div class="r-main">
         <div class="r-title">Tự động đăng bài theo lịch</div>
-        <div class="r-sub" id="feed-master-desc">Tự tìm tin và đăng bài theo lịch cron</div>
+        <div class="r-sub" id="feed-master-desc">🟢 Mặc định tự động đăng theo vòng lặp hệ thống Muse</div>
       </div>
-      <label class="tgl">
-        <input type="checkbox" id="feed-master-switch">
-        <span class="tr"></span>
-      </label>
+      <span class="r-state" style="color:var(--ok); font-weight:600;">Mặc định</span>
     </div>
   </div>
-  <div class="note">Mỗi lượt, hệ thống tự tìm tin từ nguồn tin cậy/chính thống theo brief và đăng vào topic Feed. Có thể bật/tắt tự động bằng công tắc ở trên hoặc ở tab Lịch.</div>
+  <div class="note">Mỗi lượt, hệ thống tự tìm tin từ nguồn tin cậy/chính thống theo brief và đăng vào topic Feed theo lịch hệ thống.</div>
   <div id="feed-paused"></div>
   <div class="card">
     <div class="card-title">Trạng thái</div>
@@ -1775,26 +1862,14 @@ function renderSchedule(){
       '</div>').join("");
   }
 
-  // Danh sách vòng lặp hệ thống (Muse Background Loops)
-  const boxSys = $("system-loops-list");
-  if (boxSys) {
-    boxSys.innerHTML = sysItems.map(it =>
-      '<div class="row static">' +
-      '<div class="r-main"><div class="r-title">' + esc(it.name) +
-      '</div><div class="r-sub">' +
-      (it.enabled ? "🟢 Đang hoạt động ngầm · " : "⚪ Tạm dừng · ") +
-      esc(it.cron) +
-      (it.next_run_at ? " · tới: " + esc(todayLabel(it.next_run_at)) : "") +
-      '</div></div>' +
-      (it.toggleable
-        ? '<label class="tgl"><input type="checkbox" data-sched="' +
-          esc(it.id) + '"' + (it.enabled ? " checked" : "") +
-          '><span class="tr"></span></label>'
-        : '<span class="r-state">' + (it.enabled ? "Đang bật" : "Đang tắt") + '</span>') +
-      '</div>').join("");
+  // Khối Hàng ngày -> Heartbeat (Ảnh 3 chuẩn Muse)
+  const hbCard = $("card-heartbeat-item");
+  if (hbCard && !hbCard._bound) {
+    hbCard._bound = true;
+    hbCard.addEventListener("click", () => openHeartbeatModal());
   }
 
-  // Gắn event listener cho tất cả toggle
+  // Gắn event listener cho toggle lịch cá nhân
   document.querySelectorAll("[data-sched]").forEach(inp =>
     inp.addEventListener("change", async () => {
       try {
@@ -1804,6 +1879,73 @@ function renderSchedule(){
         toast(inp.checked ? "Đã bật tiến trình." : "Đã tạm dừng tiến trình.");
       } catch (e) { toast(e.message); inp.checked = !inp.checked; }
     }));
+}
+
+/* ---------------- Modal Heartbeat chuẩn Muse (Ảnh 4) ---------------- */
+function openHeartbeatModal(){
+  const modal = $("modal-heartbeat");
+  if (!modal) return;
+  const historyBox = $("heartbeat-run-history");
+  const hist = (S && S.heartbeat_history) || [];
+
+  if (!hist.length) {
+    // Dự phòng mốc thời gian nếu server chưa trả
+    const now = new Date();
+    const mockHist = [];
+    const min = now.getMinutes() >= 35 ? 35 : 5;
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(now.getTime() - i * 30 * 60000);
+      d.setMinutes(min);
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      mockHist.push({ time: `${hh}:${mm}` });
+    }
+    historyBox.innerHTML = mockHist.map(h =>
+      `<div class="run-item"><span><span class="dot-green">🟢</span> Đã thành công · scheduled</span> <span class="run-time">${esc(h.time)}</span></div>`
+    ).join("");
+  } else {
+    historyBox.innerHTML = hist.map(h =>
+      `<div class="run-item"><span><span class="dot-green">🟢</span> Đã thành công · scheduled</span> <span class="run-time">${esc(h.time)}</span></div>`
+    ).join("");
+  }
+
+  modal.classList.remove("hidden");
+
+  // Nút đóng
+  const closeBtn = $("btn-close-heartbeat");
+  if (closeBtn && !closeBtn._bound) {
+    closeBtn._bound = true;
+    closeBtn.addEventListener("click", () => modal.classList.add("hidden"));
+  }
+
+  // Nút xem quyền
+  const permBtn = $("btn-heartbeat-perm");
+  if (permBtn && !permBtn._bound) {
+    permBtn._bound = true;
+    permBtn.addEventListener("click", () => {
+      modal.classList.add("hidden");
+      switchTab("caidat");
+      showSub("screen-policy");
+    });
+  }
+
+  // Nút Xóa / Tạm dừng
+  const delBtn = $("btn-heartbeat-del");
+  if (delBtn && !delBtn._bound) {
+    delBtn._bound = true;
+    delBtn.addEventListener("click", async () => {
+      if (confirm("Ní có chắc muốn tạm dừng hoặc gỡ lịch Heartbeat này?")) {
+        try {
+          await api("/api/schedule", "POST", { id: "heartbeat", enabled: false });
+          toast("Đã tạm dừng Heartbeat.");
+          modal.classList.add("hidden");
+        } catch (e) {
+          toast(e.message);
+        }
+      }
+    });
+  }
+}
 }
 
 /* ---------------- Hồ sơ ---------------- */

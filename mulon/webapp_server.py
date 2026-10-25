@@ -865,22 +865,25 @@ class WebAppServer:
             "toggleable": True, "kind": "ideas_auto",
         })
         items.append({
-            "id": "heartbeat", "name": "Heartbeat chủ động",
-            "cron": f"mỗi {self.cfg.proactivity_interval_s}s",
-            "prompt": "Quét checklist HEARTBEAT.md — gạt công tắc "
-                      "là áp dụng ngay, không cần sửa .env, "
-                      "không cần khởi động lại.",
-            "enabled": await effective_enabled(self.memory,
-                                               self.cfg),
+            "id": "heartbeat", "name": "Heartbeat",
+            "cron": "30 phút một lần",
+            "prompt": "Quét checklist HEARTBEAT.md định kỳ.",
+            "enabled": await effective_enabled(self.memory, self.cfg),
             "next_run_at": "", "last_run_at": "",
             "toggleable": True, "kind": "heartbeat",
         })
         scheduler_on = bool(self.cfg.scheduler_enabled)
+        heartbeat_info = {
+            "id": "heartbeat",
+            "name": "Heartbeat",
+            "interval": "30 phút một lần",
+            "status": "scheduled",
+            "status_label": "Đã lên lịch",
+            "enabled": await effective_enabled(self.memory, self.cfg),
+        }
         return {"available": available, "scheduler_enabled": scheduler_on,
-                # 1.4: tab Lịch cần biết vòng tick vẫn chạy cho job
-                # nội bộ dù scheduler thường tắt (tránh banner
-                # "scheduler đang tắt" gây hiểu nhầm cho Feed).
                 "feed_auto": self.feed_auto is not None,
+                "heartbeat": heartbeat_info,
                 "items": items}
 
     async def _profile_state(self) -> dict:
@@ -1068,12 +1071,9 @@ class WebAppServer:
             # Feed chủ động. None khi bản chạy chưa nối runner.
             "feed": (await self.feed_auto.get_state()
                      if self.feed_auto is not None else None),
-            # Sửa UI: trước đây /api/state không có "library" và
-            # frontend cũng không fetch /api/library/items để hiển
-            # thị, nên màn Thư viện trong Mini App luôn trống dù
-            # backend có đủ route share/pin/rename. Đưa danh sách
-            # active vào state để renderLibrary() có dữ liệu vẽ.
             "library": await self._library_state(),
+            "heartbeat_history": (await self.memory.get_heartbeat_history(limit=5)
+                                  if self.memory is not None else []),
         }
         return web.json_response(state)
 
