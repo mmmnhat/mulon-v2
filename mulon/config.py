@@ -297,6 +297,7 @@ class Config:
     # Refresh token KHÔNG qua env — chỉ ở Vault.
     google_client_id: str = ""
     google_client_secret: str = ""
+    google_legacy_connectors: bool = False
     # Thẻ duyệt (policy nấc "ask") hết hạn sau ngần này giây.
     approval_timeout_s: float = 60.0
 
@@ -443,6 +444,7 @@ class Config:
             webapp_port=_env_int("WEBAPP_PORT", 8320),
             google_client_id=_env("GOOGLE_CLIENT_ID", ""),
             google_client_secret=_env("GOOGLE_CLIENT_SECRET", ""),
+            google_legacy_connectors=_env_bool("GOOGLE_LEGACY_CONNECTORS", False),
             approval_timeout_s=_env_float("APPROVAL_TIMEOUT_S", 60.0),
             marketplace_enabled=_env_bool("MARKETPLACE_ENABLED", True),
             marketplace_curated_path=_resolve(_env(

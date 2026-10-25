@@ -146,9 +146,9 @@ async def test_get_listing_detail_mcp_marketplace_without_command(service_env):
     mock_mcp.call_tool.return_value = {
         "ok": True,
         "result": {
-            "name": "Google Workspace MCP",
-            "slug": "google-workspace-mcp",
-            "tagline": "Google Workspace",
+            "name": "Custom Unknown MCP",
+            "slug": "custom-unknown-mcp",
+            "tagline": "Custom MCP",
             "description": "No local command provided",
             "security": {
                 "score": 8,
@@ -158,7 +158,7 @@ async def test_get_listing_detail_mcp_marketplace_without_command(service_env):
             "install": {
                 "config_local": {
                     "mcpServers": {
-                        "google-workspace-mcp": {}
+                        "custom-unknown-mcp": {}
                     }
                 }
             },
@@ -167,11 +167,40 @@ async def test_get_listing_detail_mcp_marketplace_without_command(service_env):
     svc = MarketplaceService(
         cfg, policy=policy, broker=broker, vault_store=vault, mcp_manager=mock_mcp
     )
-    detail = await svc.get_listing_detail("mcp-marketplace", "google-workspace-mcp")
-    assert detail["name"] == "Google Workspace MCP"
+    detail = await svc.get_listing_detail("mcp-marketplace", "custom-unknown-mcp")
+    assert detail["name"] == "Custom Unknown MCP"
     assert detail["manifest"] is None
     assert detail["support_state"] == "unsupported"
     assert "Server này chưa có cấu hình lệnh chạy" in detail["unsupported_reasons"][0]
+
+
+@pytest.mark.asyncio
+async def test_get_listing_detail_google_workspace_fallback(service_env):
+    cfg, policy, vault, broker = service_env
+    mock_mcp = AsyncMock()
+    mock_mcp.call_tool.return_value = {
+        "ok": True,
+        "result": {
+            "name": "Google Workspace MCP",
+            "slug": "google-workspace-mcp",
+            "tagline": "Google Workspace",
+            "description": "Google Workspace integration",
+            "security": {
+                "score": 8,
+                "risk_level": "medium",
+                "critical_findings": [],
+            },
+            "install": {},
+        },
+    }
+    svc = MarketplaceService(
+        cfg, policy=policy, broker=broker, vault_store=vault, mcp_manager=mock_mcp
+    )
+    detail = await svc.get_listing_detail("mcp-marketplace", "google-workspace-mcp")
+    assert detail["name"] == "Google Workspace MCP"
+    assert detail["support_state"] == "supported"
+    assert detail["manifest"]["command"] == "uvx"
+    assert "workspace-mcp" in detail["manifest"]["args"]
 
 
 @pytest.mark.asyncio

@@ -3,6 +3,18 @@
     "mcp-marketplace": {
       "type": "http",
       "url": "https://mcp-marketplace.io/api/mcp/mcp"
+    },
+    "google-workspace": {
+      "command": "uvx",
+      "args": [
+        "--python",
+        "3.12",
+        "workspace-mcp",
+        "--single-user",
+        "--tool-tier",
+        "core"
+      ],
+      "enabled": true
     }
   }
 }

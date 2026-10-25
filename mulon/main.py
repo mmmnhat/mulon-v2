@@ -94,9 +94,11 @@ async def build_system(cfg: Config):
     # sớm ở đây để auth đọc credential (marketplace + phase 6
     # dùng lại đúng instance này).
     register_vault_tools(registry, cfg)
-    from .google_conn import build_google_auth
+    google_auth = None
+    if getattr(cfg, "google_legacy_connectors", False):
+        from .google_conn import build_google_auth
 
-    google_auth = build_google_auth(cfg, vault_store)
+        google_auth = build_google_auth(cfg, vault_store)
     connectors = build_default_connectors(cfg, google_auth=google_auth)
     register_connector_tools(registry, connectors)
     # MCP client: nối server đã bật trong config, đăng ký tool của

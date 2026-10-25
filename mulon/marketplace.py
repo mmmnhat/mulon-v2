@@ -838,6 +838,7 @@ class MarketplaceService:
         if mcp_servers:
             server_cfg = next(iter(mcp_servers.values()), {})
 
+        slug = str(raw.get("slug") or "")
         if server_cfg and server_cfg.get("command"):
             command = server_cfg.get("command")
             args = server_cfg.get("args") or []
@@ -852,6 +853,29 @@ class MarketplaceService:
                 "setup_requirements": (raw.get("setup_requirements")
                                        or []),
                 "warnings": [],
+            }
+            detail["support_state"] = "supported"
+            detail["unsupported_reasons"] = []
+        elif slug == "google-workspace-mcp":
+            detail["manifest"] = {
+                "transport": "stdio",
+                "command": "uvx",
+                "args": ["--python", "3.12", "workspace-mcp", "--single-user", "--tool-tier", "core"],
+                "package": {
+                    "ecosystem": "pypi",
+                    "name": "workspace-mcp",
+                    "version": "2.2.0",
+                    "pinned": False,
+                },
+                "public_env": {},
+                "setup_requirements": [],
+                "warnings": [
+                    {
+                        "code": "download_and_run",
+                        "severity": "medium",
+                        "text": "'uvx' tải và chạy Google Workspace MCP từ PyPI (workspace-mcp).",
+                    }
+                ],
             }
             detail["support_state"] = "supported"
             detail["unsupported_reasons"] = []
