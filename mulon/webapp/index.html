@@ -599,76 +599,16 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   body{max-width:600px; margin:0 auto;
     box-shadow:0 0 0 1px var(--line)}
 }
-@media (min-width:900px){
-  body{max-width:920px}
-  body.split{display:grid; grid-template-columns:340px 1fr;
-    column-gap:var(--s6)}
-  body.split .app-header, body.split .segbar,
-  body.split #global-error{grid-column:1 / -1}
-  body.split #tab-viec{display:block !important}
-  body.split #screen-task{display:block !important}
-}
-/* ---------- Chuẩn giao diện Muse Modal & Inspect Panel ---------- */
-.muse-modal-header{margin-bottom:var(--s3)}
-.muse-modal-header-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--s2)}
-.muse-close-btn{width:32px; height:32px; border-radius:50%; background:#25262A; color:#A0A0A5; border:none; display:flex; align-items:center; justify-content:center; font-size:20px; line-height:1; cursor:pointer; transition:all 0.15s ease}
-.muse-close-btn:hover{background:#323338; color:#FFF}
-.muse-task-title{font-size:1.3rem; font-weight:600; color:var(--ink); margin:0; line-height:1.35}
-
-.task-badge{font-size:11px; font-weight:var(--fw-m); padding:3px 10px; border-radius:6px; letter-spacing:0.02em}
-.task-badge.running{background:#25262A; color:#60A5FA; border:1px solid rgba(96,165,250,0.3)}
-.task-badge.done{background:#25262A; color:#34D399; border:1px solid rgba(52,211,153,0.3)}
-.task-badge.failed{background:#25262A; color:#F87171; border:1px solid rgba(248,113,113,0.3)}
-
-.task-muse-layout{display:flex; flex-direction:column; gap:var(--s3); margin-bottom:var(--s3)}
-@media (min-width:768px){
-  .task-muse-layout{display:grid; grid-template-columns:320px 1fr; gap:var(--s4); align-items:start}
-}
-
-.muse-steps-container{display:flex; flex-direction:column; gap:3px}
-.muse-step-row{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; cursor:pointer; color:var(--ink2); transition:all 0.15s ease; border:1px solid transparent}
-.muse-step-row:hover{background:var(--surface2); color:var(--ink)}
-.muse-step-row.active{background:#26272B; color:#FFF; font-weight:500; border-color:rgba(255,255,255,0.08); box-shadow:0 1px 4px rgba(0,0,0,0.25)}
-.muse-step-icon{width:22px; height:22px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:13px}
-.muse-step-icon.done{color:#34D399}
-.muse-step-icon.doing{color:#60A5FA; animation:muse-spin 1s linear infinite}
-.muse-step-icon.failed{color:#F87171}
-.muse-step-name{font-size:13px; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-
-@keyframes muse-spin{
-  from{transform:rotate(0deg)}
-  to{transform:rotate(360deg)}
-}
-
-.inspect-body{padding:var(--s3) var(--s4) var(--s4); font-size:var(--fs-cap); line-height:var(--lh-body)}
-.muse-quote{background:rgba(255,255,255,0.03); border-left:3px solid #10B981; padding:10px 14px; border-radius:0 8px 8px 0; font-size:13px; font-style:italic; color:var(--ink); margin:10px 0; line-height:1.5}
-.muse-bullet-list{display:flex; flex-direction:column; gap:6px; margin:10px 0}
-.muse-bullet{font-size:12.5px; color:var(--ink2); display:flex; align-items:baseline; gap:6px; line-height:1.4}
-.muse-bullet-dot{color:var(--ink3); font-size:10px}
-.muse-tag{background:rgba(255,255,255,0.08); padding:2px 7px; border-radius:4px; font-family:ui-monospace,Menlo,monospace; font-size:11.5px; color:var(--ink)}
-.muse-tag.ok{color:#34D399; background:rgba(16,185,129,0.12)}
-.muse-tag.failed{color:#F87171; background:rgba(239,68,68,0.12)}
-.muse-path{font-family:ui-monospace,Menlo,monospace; font-size:11.5px; color:var(--ink3); word-break:break-all}
-
-.muse-img-grid{display:grid; grid-template-columns:1fr; gap:12px; margin-top:14px}
-@media (min-width:480px){
-  .muse-img-grid{grid-template-columns:1fr 1fr}
-}
-.muse-img-card{background:rgba(0,0,0,0.18); border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.08); display:flex; flex-direction:column}
-.muse-img-card-header{padding:6px 12px; font-size:11px; font-weight:600; text-transform:uppercase; color:var(--ink3); background:rgba(255,255,255,0.03); border-bottom:1px solid rgba(255,255,255,0.05)}
-.muse-img-frame{position:relative; width:100%; aspect-ratio:1/1; background:#0B0C0E; display:flex; align-items:center; justify-content:center; overflow:hidden}
-.muse-img-frame img{width:100%; height:100%; object-fit:cover; cursor:pointer; transition:transform 0.2s ease}
-.muse-img-frame img:hover{transform:scale(1.03)}
-
+/* ---------- Rich Markdown & Media Preview ---------- */
 .code-block{background:#111214; color:#D4D4D4; padding:var(--s3); border-radius:8px; overflow-x:auto; font-family:ui-monospace, Menlo, monospace; font-size:12px; line-height:1.45; margin:var(--s2) 0; border:1px solid rgba(255,255,255,0.06)}
 .code-block code{font-family:inherit}
 .inline-code{background:var(--tint-gray); padding:2px 6px; border-radius:4px; font-family:ui-monospace, Menlo, monospace; font-size:12px}
 .md-link{color:var(--lav-deep); font-weight:var(--fw-m); text-decoration:none}
 .md-link:hover{text-decoration:underline}
-.img-preview-wrap{margin:var(--s3) 0; border-radius:12px; overflow:hidden; background:var(--surface2); max-width:400px; box-shadow:0 4px 16px rgba(0,0,0,0.15); border:1px solid rgba(255,255,255,0.08)}
+.img-preview-wrap{margin:var(--s2) 0; border-radius:8px; overflow:hidden; background:var(--surface2); max-width:320px; box-shadow:0 2px 8px rgba(0,0,0,0.12); border:1px solid rgba(255,255,255,0.08)}
 .img-preview{display:block; width:100%; height:auto; cursor:pointer; transition:transform 0.2s}
 .img-preview:hover{transform:scale(1.02)}
-.img-sublink{display:block; font-size:11px; color:var(--ink3); word-break:break-all; margin-top:4px}
+.img-sublink{display:block; font-size:11px; color:var(--ink3); word-break:break-all; margin-top:2px}
 
 @media (prefers-reduced-motion: reduce){
   *, *:after{animation:none !important; transition:none !important}
@@ -711,33 +651,16 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   </div>
 </section>
 
-<!-- chi tiết 1 việc (chuẩn thẻ việc Muse) -->
+<!-- chi tiết 1 việc -->
 <section id="screen-task" class="hidden">
-  <div class="muse-modal-header">
-    <div class="muse-modal-header-top">
-      <span id="task-detail-badge" class="task-badge"></span>
-      <button class="muse-close-btn" data-back aria-label="Đóng">&times;</button>
-    </div>
-    <h2 class="screen-title muse-task-title" id="task-detail-title">Chi tiết việc</h2>
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
+  <h2 class="screen-title" id="task-detail-title">Chi tiết việc</h2>
+  <div class="card">
+    <div class="card-title">Dòng thời gian</div>
+    <div class="timeline" id="task-timeline"></div>
   </div>
-
-  <!-- Layout 2 cột: Danh sách bước & Chi tiết bước đã chọn -->
-  <div class="task-muse-layout">
-    <div class="card muse-col-steps" style="margin-bottom:0">
-      <div class="card-title">Các bước thực hiện</div>
-      <div id="task-timeline" class="muse-steps-container"></div>
-    </div>
-    <div class="card muse-col-inspect" style="margin-bottom:0" id="task-inspect-card">
-      <div class="card-title" id="inspect-title">Chi tiết bước</div>
-      <div class="inspect-body" id="inspect-content">
-        <div class="dim">Chạm vào một bước bên cạnh để xem lệnh và kết quả chi tiết.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Kết quả công việc hoàn thành -->
-  <div class="card" style="margin-top:var(--s3)">
-    <div class="card-title">Kết quả công việc</div>
+  <div class="card">
+    <div class="card-title">Tóm tắt</div>
     <div class="summary-box" id="task-summary"></div>
   </div>
 </section>
@@ -1567,193 +1490,94 @@ function renderMd(text){
   return s;
 }
 
-function renderStepInspect(item){
-  const box = $("inspect-content");
-  $("inspect-title").textContent = item.name || "Chi tiết bước";
-  let h = '';
-  let parsed = null;
-  if (item.raw && item.raw.detail){
-    if (typeof item.raw.detail === "object") parsed = item.raw.detail;
-    else {
-      try { parsed = JSON.parse(item.raw.detail); } catch(e){}
-    }
-  }
-
-  if (parsed){
-    // 1. Dòng mô tả tự nhiên (giống Muse Ảnh 2 & 3)
-    if (parsed.description){
-      h += '<div style="color:var(--ink2); font-size:13px; margin-bottom:8px; line-height:1.5">' + esc(parsed.description) + '</div>';
-    }
-
-    // 2. Blockquote prompt (nổi bật như Muse Ảnh 3)
-    if (parsed.prompt){
-      h += '<div class="muse-quote">“' + esc(parsed.prompt) + '”</div>';
-    }
-
-    // 3. Bullet points thông số chi tiết
-    h += '<div class="muse-bullet-list">';
-    if (parsed.status){
-      h += '<div class="muse-bullet"><span class="muse-bullet-dot">•</span> <span>Status:</span> <span class="muse-tag ' + esc(parsed.status) + '">' + esc(parsed.status) + '</span></div>';
-    }
-    if (parsed.tool){
-      h += '<div class="muse-bullet"><span class="muse-bullet-dot">•</span> <span>Tool:</span> <span class="muse-tag">' + esc(parsed.tool) + '</span></div>';
-    }
-    if (parsed.reference_image){
-      h += '<div class="muse-bullet"><span class="muse-bullet-dot">•</span> <span>Reference image provided:</span> <span class="muse-path">' + esc(parsed.reference_image) + '</span></div>';
-    }
-    if (parsed.local_path){
-      h += '<div class="muse-bullet"><span class="muse-bullet-dot">•</span> <span>Local path:</span> <span class="muse-path">' + esc(parsed.local_path) + '</span></div>';
-    }
-    if (parsed.exit_code !== undefined && parsed.exit_code !== null){
-      h += '<div class="muse-bullet"><span class="muse-bullet-dot">•</span> <span>Exit code:</span> <span class="muse-tag">' + esc(parsed.exit_code) + '</span></div>';
-    }
-    h += '</div>';
-
-    // 4. Dòng summary
-    if (parsed.summary){
-      h += '<div style="color:var(--ink3); font-size:12px; margin-top:6px; line-height:1.4">' + esc(parsed.summary) + '</div>';
-    }
-
-    // 5. Image Grid Preview (Ảnh 3 của Muse)
-    const hasRef = parsed.reference_image;
-    const hasOut = parsed.local_path || parsed.url;
-    if (hasRef && hasOut){
-      h += '<div class="muse-img-grid">' +
-        '<div class="muse-img-card">' +
-          '<div class="muse-img-card-header">Ảnh mẫu (Reference)</div>' +
-          '<div class="muse-img-frame"><img src="' + esc(resolveMediaUrl(parsed.reference_image)) + '" alt="Ảnh mẫu" loading="lazy" onclick="window.open(this.src)"/></div>' +
-        '</div>' +
-        '<div class="muse-img-card">' +
-          '<div class="muse-img-card-header">Ảnh đã tạo (Output)</div>' +
-          '<div class="muse-img-frame"><img src="' + esc(resolveMediaUrl(hasOut)) + '" alt="Kết quả" loading="lazy" onclick="window.open(this.src)"/></div>' +
-        '</div>' +
-      '</div>';
-    } else if (hasOut || hasRef){
-      const single = hasOut || parsed.reference_image;
-      h += '<div class="muse-img-card" style="max-width:380px; margin-top:14px">' +
-        '<div class="muse-img-frame"><img src="' + esc(resolveMediaUrl(single)) + '" alt="Hình ảnh" loading="lazy" onclick="window.open(this.src)"/></div>' +
-      '</div>';
-    }
-
-    // 6. Terminal code blocks
-    if (parsed.command){
-      h += '<div class="dim" style="margin:10px 0 4px">Lệnh đã chạy trong terminal:</div>';
-      h += '<div class="code-block"><code>' + esc(parsed.command) + '</code></div>';
-    }
-    if (parsed.stdout){
-      h += '<div class="dim" style="margin:8px 0 4px">Đầu ra (stdout):</div>';
-      h += '<div class="code-block"><code>' + esc(parsed.stdout) + '</code></div>';
-    }
-    if (parsed.stderr){
-      h += '<div class="dim" style="margin:8px 0 4px; color:#F87171">Lỗi (stderr):</div>';
-      h += '<div class="code-block" style="border-left:3px solid #F87171"><code>' + esc(parsed.stderr) + '</code></div>';
-    }
-    if (parsed.content){
-      h += '<div class="dim" style="margin:8px 0 4px">Nội dung đọc được:</div>';
-      h += '<div class="code-block"><code>' + esc(parsed.content) + '</code></div>';
-    }
-    if (parsed.args && !parsed.command && !parsed.prompt){
-      h += '<div class="dim" style="margin:8px 0 4px">Tham số thực thi:</div>';
-      h += '<div class="code-block"><code>' + esc(JSON.stringify(parsed.args, null, 2)) + '</code></div>';
-    }
-    if (parsed.error){
-      h += '<div style="color:#F87171; margin-top:8px"><b>Lỗi:</b> ' + esc(parsed.error) + '</div>';
-    }
-  } else if (item.meta) {
-    h += '<div style="line-height:1.6; color:var(--ink2)">' + esc(item.meta) + '</div>';
-  } else {
-    h += '<div class="dim">Bước này không có tham số mở rộng.</div>';
-  }
-  box.innerHTML = h;
-}
-
 async function openTask(id){
   showSub("screen-task");
-  if (window.innerWidth >= 900) document.body.classList.add("split");
+  document.body.classList.remove("split");
   $("task-timeline").innerHTML = '<div class="skel"><div class="bar w70"></div><div class="bar w40"></div></div>';
   $("task-summary").textContent = "";
-  $("inspect-content").innerHTML = '<div class="dim">Đang tải chi tiết việc...</div>';
   try {
     const data = await api("/api/task?id=" + encodeURIComponent(id));
     const t = data.task;
     $("task-detail-title").textContent = t.title || "Chi tiết việc";
-    const badge = $("task-detail-badge");
-    if (badge){
-      badge.textContent = t.status === "running" ? "Đang tiến hành"
-        : t.status === "done" ? "Đã hoàn tất" : "Thất bại";
-      badge.className = "task-badge " + (t.status || "done");
-    }
 
     const items = [];
-    (t.steps || []).forEach((st, idx) => {
-      let icon = "●";
-      let iconCls = st.status || "done";
-      const titleLower = (st.title || "").toLowerCase();
-      if (titleLower.includes("bắt đầu")){
-        icon = "●";
-        iconCls = "done";
-      } else if (titleLower.includes("tạo ảnh") || titleLower.includes("sinh ảnh") || titleLower.includes("hình ảnh")){
-        icon = "🖼";
-        iconCls = "done";
-      } else if (titleLower.includes("đọc") || st.status === "done"){
-        icon = "✓";
-        iconCls = "done";
-      } else if (st.status === "doing" || st.status === "running"){
-        icon = "⟳";
-        iconCls = "doing";
-      } else if (st.status === "failed"){
-        icon = "✕";
-        iconCls = "failed";
+    items.push({name: "Đã bắt đầu", meta: todayLabel(t.created_at), cls: "done"});
+
+    (t.steps || []).forEach(st => {
+      let meta = "";
+      let parsed = null;
+      if (st.detail){
+        try { parsed = JSON.parse(st.detail); } catch(e){}
       }
+      if (parsed && typeof parsed === "object"){
+        // Trích xuất lời thường tinh gọn, TUYỆT ĐỐI không in raw JSON!
+        if (parsed.summary) meta = parsed.summary;
+        else if (parsed.description) meta = parsed.description;
+        else if (parsed.command) meta = parsed.command;
+        else if (parsed.query) meta = "Tìm: " + parsed.query;
+      } else if (st.detail && typeof st.detail === "string" && !st.detail.startsWith("{")){
+        meta = st.detail;
+      }
+      if (st.updated_at) meta = (meta ? meta + " · " : "") + hhmm(st.updated_at);
+
+      let imgHtml = "";
+      if (parsed){
+        const hasRef = parsed.reference_image;
+        const hasOut = parsed.local_path || parsed.url;
+        if (hasRef && hasOut){
+          imgHtml = '<div style="display:flex; gap:8px; margin:8px 0 4px">' +
+            '<div style="flex:1; max-width:140px"><div style="font-size:10px; color:var(--ink3); margin-bottom:2px">ẢNH MẪU</div>' +
+            '<div class="img-preview-wrap" style="margin:0"><img src="' + esc(resolveMediaUrl(hasRef)) + '" class="img-preview" alt="Mẫu" onclick="window.open(this.src)"/></div></div>' +
+            '<div style="flex:1; max-width:140px"><div style="font-size:10px; color:var(--ink3); margin-bottom:2px">KẾT QUẢ</div>' +
+            '<div class="img-preview-wrap" style="margin:0"><img src="' + esc(resolveMediaUrl(hasOut)) + '" class="img-preview" alt="Tạo ra" onclick="window.open(this.src)"/></div></div>' +
+          '</div>';
+        } else if (hasOut || hasRef){
+          const single = hasOut || hasRef;
+          imgHtml = '<div class="img-preview-wrap" style="max-width:240px; margin:6px 0 2px">' +
+            '<img src="' + esc(resolveMediaUrl(single)) + '" class="img-preview" alt="Ảnh" onclick="window.open(this.src)"/>' +
+          '</div>';
+        }
+      }
+
       items.push({
         name: st.title,
-        icon: icon,
-        iconCls: iconCls,
-        raw: st
+        meta: meta,
+        cls: st.status === "done" ? "done" : st.status === "doing" ? "doing" : st.status === "failed" ? "err" : "",
+        imgHtml: imgHtml
       });
     });
 
-    if (!items.length){
-      items.push({name: "Đã bắt đầu", icon: "●", iconCls: "done", raw: {description: "Đang thực hiện tác vụ"}});
-      items.push({name: t.status === "running" ? "Đang xử lý..." : "Hoàn tất", icon: t.status === "running" ? "⟳" : "✓", iconCls: t.status === "running" ? "doing" : "done", raw: {status: t.status}});
-    }
-
-    $("task-timeline").innerHTML = items.map((i, idx) =>
-      '<div class="muse-step-row" data-step-idx="' + idx + '">' +
-        '<div class="muse-step-icon ' + i.iconCls + '">' + i.icon + '</div>' +
-        '<div class="muse-step-name">' + esc(i.name) + '</div>' +
-      '</div>').join("");
-
-    const stepEls = $("task-timeline").querySelectorAll(".muse-step-row");
-    stepEls.forEach(el => {
-      el.addEventListener("click", () => {
-        stepEls.forEach(s => s.classList.remove("active"));
-        el.classList.add("active");
-        const idx = parseInt(el.dataset.stepIdx, 10);
-        if (items[idx]) renderStepInspect(items[idx]);
-      });
+    if (!(t.steps || []).length) (data.events || []).forEach(ev => {
+      const tool = ev.payload.tool || "";
+      if (ev.kind === "tool_call")
+        items.push({name: stepActionLabel(tool, ev.payload.group),
+          meta: (tool ? tool + " · " : "") + (ev.payload.ok ? "thành công" : "lỗi") + " · " + hhmm(ev.at),
+          cls: ev.payload.ok ? "done" : "err"});
+      else if (ev.kind === "approval_requested")
+        items.push({name: "Đã xin duyệt — " + stepActionLabel(tool, ev.payload.group),
+          meta: (tool ? tool + " · " : "") + hhmm(ev.at), cls: "doing"});
+      else if (ev.kind === "approval_decision")
+        items.push({name: "Kết quả duyệt: " + outcomeLabel({outcome: ev.payload.outcome || ""}),
+          meta: hhmm(ev.at), cls: ev.payload.approved ? "done" : "err"});
     });
 
-    // Ưu tiên chọn step có ảnh hoặc step đang running, nếu không thì step cuối
-    let activeIdx = 0;
-    for (let j = items.length - 1; j >= 0; j--){
-      const raw = items[j].raw || {};
-      let d = raw.detail;
-      if (typeof d === "string") { try{ d = JSON.parse(d); }catch(e){} }
-      if (d && (d.reference_image || d.url || d.local_path)){
-        activeIdx = j;
-        break;
-      }
-    }
-    if (stepEls[activeIdx]){
-      stepEls[activeIdx].classList.add("active");
-      renderStepInspect(items[activeIdx]);
-    }
+    items.push({
+      name: t.status === "running" ? "Đang hoàn tất…" : "Hoàn tất",
+      meta: todayLabel(t.updated_at),
+      cls: t.status === "failed" ? "err" : "done"
+    });
 
-    $("task-summary").innerHTML = renderMd(t.result || t.error || "(chưa có kết quả phản hồi)");
+    $("task-timeline").innerHTML = items.map(i =>
+      '<div class="tl-item"><div class="tl-dot ' + i.cls + '"></div>' +
+      '<div class="tl-body"><div class="tl-name">' + esc(i.name) + '</div>' +
+      (i.meta ? '<div class="tl-meta">' + esc(i.meta) + '</div>' : "") +
+      (i.imgHtml || "") +
+      '</div></div>').join("");
+
+    $("task-summary").innerHTML = renderMd(t.result || t.error || "(chưa có tóm tắt)");
   } catch (e) {
     $("task-timeline").innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
-    $("inspect-content").innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+    $("task-summary").innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
   }
 }
 
