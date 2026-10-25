@@ -130,6 +130,20 @@ def _is_short_opener(text: str) -> bool:
     return False
 
 
+def _is_incomplete_fragment(text: str) -> bool:
+    """True nếu tin nhắn chưa hoàn chỉnh (câu ngắn <= 4 từ không có dấu kết thúc
+    ?!.; hoặc câu mở đầu, từ nối dở dang), người dùng gần như chắc chắn sẽ gõ tiếp."""
+    stripped = (text or "").strip()
+    if not stripped:
+        return True
+    if stripped[-1] in "?!.;":
+        return False
+    words = stripped.split()
+    if len(words) <= 4 or len(stripped) <= 25:
+        return True
+    return False
+
+
 def format_reply_context(message: Any, text: str) -> str:
     """Nếu message là reply tới một tin nhắn khác, đính kèm ngữ cảnh
     tin được trích dẫn (mục 16.1) để agent nắm được chủ đề/URL/dữ liệu."""
@@ -191,6 +205,22 @@ class MessageBatcher:
         """
         self._busy[key] = self._busy.get(key, 0) + 1
 
+    def _compute_delay(self, key: str, text: str) -> float:
+        buf = self._buffers.get(key, [])
+        is_fragment = _is_short_opener(text) or _is_incomplete_fragment(text)
+        is_media = (text or "").strip().lower().startswith("[người dùng gửi")
+        has_burst = len(buf) > 1
+
+        if is_fragment or is_media:
+            # Câu cụt, câu mở đầu, hoặc gửi ảnh: cần cửa sổ rộng (~6.0s) để user kịp gõ tiếp
+            return self.debounce_s * 2.4
+        elif has_burst:
+            # Đang trong chuỗi tin liên tiếp: giữ cửa sổ gom vừa đủ (~4.0s)
+            return self.debounce_s * 1.6
+        else:
+            # Câu hoàn chỉnh đơn lẻ: phản hồi nhanh (2.5s)
+            return self.debounce_s
+
     def release(self, key: str) -> None:
         """Một lượt kết thúc: đếm -1. Khi đếm về 0 mà buffer
         còn tin bị giữ thì hẹn giờ flush theo debounce như
@@ -202,7 +232,9 @@ class MessageBatcher:
             return
         self._busy.pop(key, None)
         if self._buffers.get(key):
-            self._schedule(key)
+            last_msg = self._buffers[key][-1] if self._buffers[key] else ""
+            delay = self._compute_delay(key, last_msg)
+            self._schedule(key, delay)
 
     def drain(self, key: str) -> list[str]:
         """Rút toàn bộ buffer (hủy timer tương ứng): tin tới
@@ -228,12 +260,7 @@ class MessageBatcher:
             # Lượt chờ lock sẽ drain, hoặc release() của lượt
             # đang chạy sẽ kick nhịp debounce khi nó xong.
             return
-        is_burst = (
-            _is_short_opener(text)
-            or (text or "").strip().lower().startswith("[người dùng gửi")
-            or len(self._buffers.get(key, [])) > 1
-        )
-        delay = (self.debounce_s * 1.5) if is_burst else self.debounce_s
+        delay = self._compute_delay(key, text)
         self._schedule(key, delay)
 
     async def _delayed_flush(self, key: str, wait_s: Optional[float] = None) -> None:
