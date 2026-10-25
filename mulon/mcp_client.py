@@ -327,8 +327,14 @@ class MCPManager:
     async def _open_stdio(self, conn: _Connection) -> None:
         entry = conn.entry
         env = dict(get_default_environment())
-        if "PYTHONPATH" in os.environ and "PYTHONPATH" not in env:
+        # Khi chạy qua uv/uvx, không truyền PYTHONPATH của host kẻo xung đột
+        # package C-extension giữa Python của host và virtualenv của uvx.
+        cmd = str(entry["command"])
+        is_uv = "uv" in os.path.basename(cmd)
+        if not is_uv and "PYTHONPATH" in os.environ and "PYTHONPATH" not in env:
             env["PYTHONPATH"] = os.environ["PYTHONPATH"]
+        elif is_uv:
+            env.pop("PYTHONPATH", None)
         extra_env = entry.get("env") or {}
         if isinstance(extra_env, dict):
             env.update({str(k): str(v) for k, v in extra_env.items()})

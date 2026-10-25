@@ -4031,11 +4031,21 @@ function renderOperation(){
   if (stage === "done")
     h += '<div class="card"><div class="op-note">Đã cài và đang ' +
       'hoạt động.</div></div>';
-  if (stage === "failed")
-    h += '<div class="card"><div class="op-note">' +
-      esc(op.error
-        ? [op.error.code, op.error.message].filter(Boolean).join(" · ")
-        : "Đã lỗi không rõ nguyên nhân.") + '</div></div>';
+  if (stage === "failed") {
+    const errMsg = op.error
+      ? [op.error.code, op.error.message].filter(Boolean).join(" · ")
+      : "Đã lỗi không rõ nguyên nhân.";
+    h += '<div class="card"><div class="card-title" style="color:var(--err)">Thất bại</div>' +
+      '<div class="op-note">' + esc(errMsg) + '</div>';
+    if (errMsg.includes("Connection closed") || (op.subject_name || "").includes("Telegram")) {
+      h += '<div class="detail-list" style="margin-top:var(--s2);font-size:var(--fs-cap);color:var(--ink2)">' +
+        'Gói này yêu cầu thông tin xác thực (token bot hoặc đăng nhập tài khoản) trước khi khởi chạy. Do thiếu cấu hình nên server MCP tự động ngắt kết nối khi chạy thử.' +
+        '</div>';
+    }
+    h += '<div class="btn-row" style="margin-top:var(--s3)">' +
+      '<button class="btn btn-soft" id="op-fail-back">Quay lại danh mục</button>' +
+      '</div></div>';
+  }
   if (stage === "expired")
     h += '<div class="card"><div class="op-note">Operation đã hết hạn.</div></div>';
   if (stage === "cancelled")
@@ -4105,6 +4115,11 @@ function renderOperation(){
       toast(e.message);
       installNowBtn.disabled = false;
     }
+  });
+  const failBackBtn = $("op-fail-back");
+  if (failBackBtn) failBackBtn.addEventListener("click", () => {
+    stopOpPoll();
+    showSub("screen-connectors");
   });
 }
 $("install-cancel").addEventListener("click", async () => {
