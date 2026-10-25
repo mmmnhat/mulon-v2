@@ -13,6 +13,5 @@ user làm được ngay. Không bịa số liệu, không trích đoạn chat.
 ## Taste (tự động — hệ thống cập nhật từ reaction, đừng sửa tay)
 
 <!-- TASTE:BEGIN -->
-Chưa có tín hiệu taste nào. Reaction 👍/❤️/👎 của user trên bài Feed
-sẽ được học vào đây.
+Chưa có tín hiệu taste nào.
 <!-- TASTE:END -->

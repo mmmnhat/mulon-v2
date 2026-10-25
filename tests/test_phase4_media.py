@@ -128,3 +128,15 @@ async def test_media_transcribe_uses_whisper_layer(cfg, clip, monkeypatch):
     assert out["ok"] is True
     assert out["text_tho"] == "lời trong clip"
     assert seen["understand"] is False  # pipeline cần bản thô + timecode
+
+
+async def test_generate_image_tool_no_key_returns_structured_error(cfg, monkeypatch):
+    """Khi không có key trong vault hay env, generate_image trả lỗi hướng dẫn."""
+    monkeypatch.delenv("AGNES_AI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    reg = _registry(cfg)
+    out = await reg.execute("generate_image", {"prompt": "bức tranh hoàng hôn"})
+    assert out["ok"] is False
+    assert "Chưa có API key" in out["error"]
+
+

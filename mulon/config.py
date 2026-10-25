@@ -159,7 +159,7 @@ class Config:
     embedder_backend: str = "fastembed"
     embedder_model: str = "BAAI/bge-m3"
     embedder_stub_dim: int = 128
-    embed_timeout_s: float = 5.0
+    embed_timeout_s: float = 30.0
     recall_vector_weight: float = 0.7
     recall_bm25_weight: float = 0.3
     lessons_token_budget: int = 2_000
@@ -372,7 +372,7 @@ class Config:
             embedder_backend=_env("EMBEDDER_BACKEND", "fastembed"),
             embedder_model=_env("EMBEDDER_MODEL", "BAAI/bge-m3"),
             embedder_stub_dim=_env_int("EMBEDDER_STUB_DIM", 128),
-            embed_timeout_s=_env_float("EMBED_TIMEOUT_S", 5.0),
+            embed_timeout_s=_env_float("EMBED_TIMEOUT_S", 30.0),
             recall_vector_weight=_env_float("RECALL_VECTOR_WEIGHT", 0.7),
             recall_bm25_weight=_env_float("RECALL_BM25_WEIGHT", 0.3),
             lessons_token_budget=_env_int("LESSONS_TOKEN_BUDGET", 2_000),

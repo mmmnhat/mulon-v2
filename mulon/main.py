@@ -144,8 +144,8 @@ async def build_system(cfg: Config):
     worker = ConsolidationWorker(cfg, memory, gateway)
 
     # --- Phase 4: chủ động + tiếng nói + media + skills ---
-    # Media pipeline tools (ffmpeg trên máy — vắng thì unavailable).
-    register_media_tools(registry, cfg, gateway)
+    # Media pipeline tools (ffmpeg trên máy — vắng thì unavailable; sinh ảnh qua Agnes AI).
+    register_media_tools(registry, cfg, gateway, vault_store=vault_store)
     # Skills SKILL.md: nạp sau khi registry đã đủ tool để xét
     # eligibility theo requires; mục lục vào tool skill_list /
     # skill_read, kết quả vet ghi trajectory.

@@ -241,8 +241,106 @@ async def transcribe(cfg, path, gateway=None) -> dict:
         cfg, src, gateway=None, understand=False)
 
 
-def register_media_tools(registry, cfg, gateway=None):
-    """Đăng ký 6 tool media vào registry chung."""
+async def generate_image(cfg, prompt: str, model: str = "agnes-image-2.5-flash",
+                         size: str = "1024x1024", vault_store=None) -> dict:
+    """Sinh ảnh AI từ prompt qua API Agnes AI (OpenAI-compatible)."""
+    import base64
+    import os
+    import time
+    import httpx
+
+    # Tìm API key trong Vault
+    api_key = ""
+    if vault_store is not None:
+        try:
+            labels = vault_store.labels()
+            for item in labels:
+                lbl = str(item.get("label", "")).lower()
+                if "agnes" in lbl:
+                    api_key = vault_store.resolve(item.get("ref", ""))
+                    if api_key:
+                        break
+            if not api_key:
+                for item in labels:
+                    lbl = str(item.get("label", "")).lower()
+                    if "api" in lbl or "key" in lbl:
+                        api_key = vault_store.resolve(item.get("ref", ""))
+                        if api_key:
+                            break
+        except Exception as exc:
+            logger.warning("Đọc vault cho generate_image lỗi: %s", exc)
+
+    if not api_key:
+        api_key = os.environ.get("AGNES_AI_API_KEY", "") or os.environ.get("OPENAI_API_KEY", "")
+
+    if not api_key:
+        return {
+            "ok": False,
+            "error": "Chưa có API key để sinh ảnh. Hãy gọi tool request_vault_secret(label='agnes_ai:api_key') để yêu cầu chủ nhân lưu key vào Kho an toàn (Vault).",
+        }
+
+    endpoint = "https://apihub.agnes-ai.com/v1/images/generations"
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "n": 1,
+        "size": size,
+    }
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "User-Agent": "MulonBot/1.0",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=45.0) as client:
+            resp = await client.post(endpoint, json=payload, headers=headers)
+            if resp.status_code != 200:
+                return {"ok": False, "error": f"Lỗi từ nhà cung cấp ({resp.status_code}): {resp.text[:300]}"}
+            data = resp.json()
+    except Exception as exc:
+        return {"ok": False, "error": f"Lỗi kết nối khi gọi API sinh ảnh: {exc}"}
+
+    items = data.get("data", [])
+    if not items:
+        return {"ok": False, "error": "API không trả về ảnh nào"}
+
+    img_url = items[0].get("url") or ""
+    b64 = items[0].get("b64_json") or ""
+
+    workdir = Path(cfg.workspace_dir).resolve() / "images"
+    workdir.mkdir(parents=True, exist_ok=True)
+    filename = f"gen_{int(time.time())}.png"
+    local_path = workdir / filename
+
+    saved = False
+    if b64:
+        try:
+            local_path.write_bytes(base64.b64decode(b64))
+            saved = True
+        except Exception:
+            pass
+
+    if not saved and img_url:
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                img_resp = await client.get(img_url)
+                if img_resp.status_code == 200:
+                    local_path.write_bytes(img_resp.content)
+                    saved = True
+        except Exception:
+            pass
+
+    return {
+        "ok": True,
+        "prompt": prompt,
+        "url": img_url,
+        "local_path": str(local_path) if saved else "",
+        "message": f"Đã sinh ảnh thành công: {local_path if saved else img_url}",
+    }
+
+
+def register_media_tools(registry, cfg, gateway=None, vault_store=None):
+    """Đăng ký các tool media vào registry chung."""
 
     async def media_probe(path: str):
         return await probe(cfg, path)
@@ -264,7 +362,18 @@ def register_media_tools(registry, cfg, gateway=None):
     async def media_transcribe(path: str):
         return await transcribe(cfg, path, gateway)
 
+    async def generate_image_tool(prompt: str, model: str = "agnes-image-2.5-flash",
+                                  size: str = "1024x1024"):
+        return await generate_image(cfg, prompt, model=model, size=size, vault_store=vault_store)
+
     specs = [
+        ("generate_image",
+         "Sinh ảnh AI từ mô tả văn bản (prompt). Tự động lấy API key từ Vault để gọi dịch vụ tạo ảnh (Agnes AI / OpenAI-compatible). Lưu ảnh vào workspace và trả về file local cùng URL.",
+         {"type": "object",
+          "properties": {"prompt": {"type": "string", "description": "Mô tả chi tiết nội dung ảnh muốn tạo"},
+                         "model": {"type": "string", "default": "agnes-image-2.5-flash", "description": "Tên model tạo ảnh"},
+                         "size": {"type": "string", "default": "1024x1024", "description": "Kích thước ảnh"}},
+          "required": ["prompt"]}, 60, generate_image_tool),
         ("media_probe",
          "Đọc thông tin media bằng ffprobe: thời lượng, độ phân "
          "giải, codec video/audio, dung lượng.",

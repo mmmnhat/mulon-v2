@@ -596,7 +596,8 @@ class Memory:
                 raise ValueError("embedder trả vector sai số chiều")
             return vecs
         except Exception as exc:
-            await self.log_trajectory("", "embed_error", {"error": str(exc)})
+            err_msg = f"{type(exc).__name__}: {exc}".strip(": ")
+            await self.log_trajectory("", "embed_error", {"error": err_msg})
             return None
 
     async def _vec_upsert(self, table: str, rowid: int, vec: list[float]) -> None:

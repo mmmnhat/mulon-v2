@@ -49,6 +49,17 @@ _TOOL_HINTS = (
     "đọc web", "xem web", "đọc link", "link",
     "liệt kê", "list file", "read file", "run ", "search ", "fetch ",
     "nhớ giúp", "lưu lại là", "ghi nhớ",
+    # Tìm kiếm — user hay nói ngắn gọn "tìm X" thay vì "tìm trên web X"
+    "tìm kiếm", "tìm thông tin", "tìm sản phẩm", "tìm giá", "tìm hiểu",
+    # Memory save — user hay nói "nhớ là..." / "nhớ rằng..."
+    "nhớ là", "nhớ rằng", "ghi là", "ghi rằng", "lưu là", "note lại",
+    # Scheduling
+    "đặt lịch", "hẹn lịch", "tạo lịch", "thêm lịch", "đặt hẹn", "hẹn",
+    "nhắc tui", "nhắc tôi", "nhắc mình", "schedule",
+    # Short action confirms — "triển" "thực hiện" thường là xác nhận làm
+    "triển", "thực hiện", "bắt đầu đi", "tiến hành ngay",
+    # Service usage — "xài X", "dùng X" thường chỉ gọi tool
+    "xài ", "dùng ", "sử dụng ",
     # Vault / secrets
     "vault", "két", "secret", "bí mật", "sk-", "api key", "apikey", "token",
     "lưu key", "cất key", "lưu vào vault", "cất vào vault",
@@ -300,6 +311,21 @@ class Agent:
 
         if intent is Intent.CHAT:
             result = await self._fast_path(session_key, built.messages, on_delta)
+            # Lưới an toàn chống nói suông (Hallucination escape hatch):
+            # Nếu fast path lỡ rơi vào câu trả lời hứa hẹn hành động mà không gọi tool thật,
+            # tự động nâng cấp lượt này lên task path để tool thật sự được chạy.
+            _ACTION_PROMISES = (
+                "chờ tui chút", "chờ tui xíu", "chờ tui tí", "để tui gọi",
+                "đang gọi api", "đang tạo ảnh", "đang sinh ảnh", "đang xử lý",
+                "tui sẽ gọi", "tui sẽ tạo", "tui sẽ sinh", "đang chạy lệnh",
+            )
+            low_res = (result.text or "").lower()
+            if any(p in low_res for p in _ACTION_PROMISES):
+                logger.info("Phát hiện fast_path trả lời hứa hẹn hành động, tự động nâng cấp sang task_path")
+                intent = Intent.TOOL
+                result = await self._task_path(
+                    session_key, user_text, built.messages, intent, on_event
+                )
         else:
             result = await self._task_path(
                 session_key, user_text, built.messages, intent, on_event

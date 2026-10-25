@@ -600,6 +600,7 @@ class TelegramSurface:
                     # chứa <div>, "a < b" trong câu trả lời).
                     for chunk in chunk_html(html.escape(final)):
                         await anchor.answer(chunk, parse_mode="HTML")
+                await self._maybe_send_photo(anchor, final)
                 await self._maybe_send_voice(key, anchor, final)
                 if was_bootstrap_pending and self.dossier is not None:
                     # Lượt vừa rồi có thể đã gỡ BOOTSTRAP_PENDING khỏi
@@ -618,6 +619,52 @@ class TelegramSurface:
             # giữ (nếu còn) — chạy cả khi lượt xử lý ném lỗi.
             self.activity.end_turn()
             self.batcher.release(key)
+
+    # ---- media / photo output ----
+    async def _maybe_send_photo(self, anchor: Message, final_text: str) -> None:
+        """Tự động phát hiện nếu trong câu trả lời có file ảnh local hoặc link ảnh
+        trực tiếp (từ tool sinh ảnh Agnes AI / media) để gửi ảnh thật vào chat."""
+        if not final_text:
+            return
+        # 1. Tìm đường dẫn file ảnh local
+        img_paths = re.findall(
+            r"(?:[\w\-\./]+)?images/[\w\-]+\.(?:png|jpg|jpeg|webp)",
+            final_text, re.IGNORECASE,
+        )
+        sent = False
+        for p in img_paths:
+            candidates = [
+                Path(p),
+                Path(self.cfg.workspace_dir) / "images" / Path(p).name,
+                Path(self.cfg.workspace_dir) / p,
+            ]
+            for cand in candidates:
+                if cand.is_file() and cand.stat().st_size > 0:
+                    try:
+                        await anchor.answer_photo(FSInputFile(str(cand)))
+                        sent = True
+                        break
+                    except Exception as exc:
+                        logger.warning("gửi ảnh local qua telegram lỗi: %s", exc)
+            if sent:
+                break
+
+        if not sent:
+            # 2. Tìm link URL ảnh
+            urls = re.findall(r"https?://[^\s\)\]<>\"]+", final_text)
+            for u in urls:
+                clean_u = u.rstrip(".,;:\"'")
+                is_img_url = (
+                    any(clean_u.lower().endswith(ext) for ext in (".png", ".jpg", ".jpeg", ".webp"))
+                    or "platform-outputs.agnes-ai.space" in clean_u
+                )
+                if is_img_url:
+                    try:
+                        await anchor.answer_photo(clean_u)
+                        sent = True
+                        break
+                    except Exception as exc:
+                        logger.warning("gửi ảnh url qua telegram lỗi: %s", exc)
 
     # ---- voice (Phase 4, mục 8.1) ----
     async def _maybe_send_voice(self, key: str, anchor: Message,
