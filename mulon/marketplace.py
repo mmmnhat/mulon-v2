@@ -856,8 +856,11 @@ class MarketplaceService:
             detail["support_state"] = "supported"
             detail["unsupported_reasons"] = []
         else:
-            detail["support_state"] = "supported"
-            detail["unsupported_reasons"] = []
+            detail["manifest"] = None
+            detail["support_state"] = "unsupported"
+            detail["unsupported_reasons"] = [
+                "Server này chưa có cấu hình lệnh chạy (command) từ kho Marketplace."
+            ]
 
         installed = None
         for record in self.store.all_installed().values():

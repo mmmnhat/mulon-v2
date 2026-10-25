@@ -3648,10 +3648,16 @@ function renderListingDetail(){
   const installed = listingIsInstalled(L);
   const instObj = mktInstalledForListing(L);
   const instName = instObj ? (instObj.local_name || "") : "";
+  const hasInstallableManifest = !!(man.command || man.url);
   const unsupported = L.support_state === "unsupported" ||
+    !hasInstallableManifest ||
+    (!L.installed && reasonsText(L.unsupported_reasons).length > 0) ||
     (L.support_state == null &&
       reasonsText(L.unsupported_reasons).length > 0);
   const reasons = reasonsText(L.unsupported_reasons);
+  if (!hasInstallableManifest && !reasons.length) {
+    reasons.push("Kho chưa có lệnh chạy tự động (command/stdio) cho server này.");
+  }
   const updateAvail = !!(L.update_available ||
     (instObj && instObj.update_available));
   let h = "";
@@ -3723,7 +3729,11 @@ function renderListingDetail(){
   const cmdline = [man.command].concat(man.args || [])
     .filter(Boolean).join(" ");
   h += '<div class="card"><div class="card-title">Cấu hình sẽ dùng</div>';
-  if (cmdline) h += '<pre class="mono-block">' + esc(cmdline) + '</pre>';
+  if (cmdline) {
+    h += '<pre class="mono-block">' + esc(cmdline) + '</pre>';
+  } else if (!hasInstallableManifest) {
+    h += '<div class="empty">Kho chưa có lệnh chạy tự động (command/stdio) cho server này.</div>';
+  }
   h += '<table class="fields">';
   if (man.transport)
     h += '<tr><td class="k">Transport</td><td>' +

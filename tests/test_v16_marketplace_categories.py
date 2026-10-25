@@ -140,6 +140,41 @@ async def test_get_listing_detail_mcp_marketplace(service_env):
 
 
 @pytest.mark.asyncio
+async def test_get_listing_detail_mcp_marketplace_without_command(service_env):
+    cfg, policy, vault, broker = service_env
+    mock_mcp = AsyncMock()
+    mock_mcp.call_tool.return_value = {
+        "ok": True,
+        "result": {
+            "name": "Google Workspace MCP",
+            "slug": "google-workspace-mcp",
+            "tagline": "Google Workspace",
+            "description": "No local command provided",
+            "security": {
+                "score": 8,
+                "risk_level": "medium",
+                "critical_findings": [],
+            },
+            "install": {
+                "config_local": {
+                    "mcpServers": {
+                        "google-workspace-mcp": {}
+                    }
+                }
+            },
+        },
+    }
+    svc = MarketplaceService(
+        cfg, policy=policy, broker=broker, vault_store=vault, mcp_manager=mock_mcp
+    )
+    detail = await svc.get_listing_detail("mcp-marketplace", "google-workspace-mcp")
+    assert detail["name"] == "Google Workspace MCP"
+    assert detail["manifest"] is None
+    assert detail["support_state"] == "unsupported"
+    assert "Server này chưa có cấu hình lệnh chạy" in detail["unsupported_reasons"][0]
+
+
+@pytest.mark.asyncio
 async def test_search_catalog_async_pagination(service_env):
     cfg, policy, vault, broker = service_env
     mock_mcp = AsyncMock()
