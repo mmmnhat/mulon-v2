@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import logging
 import secrets
 import shutil
@@ -393,18 +394,28 @@ class LibraryService:
         }
 
 
+ICON_MAP = {
+    "image": "🖼️",
+    "media": "🎵",
+    "document": "📄",
+    "code": "💻",
+    "other": "📁",
+}
+
+
 def format_library_list(items: list[dict]) -> str:
     if not items:
         return "Library trống."
-    lines = ["Library:"]
+    lines = [f"📚 <b>Thư viện Mulon ({len(items)} mục):</b>\n"]
     for it in items:
         extra = ""
         pin = "📌 " if it.get("pinned") else ""
+        icon = ICON_MAP.get(it.get("kind"), "📁")
         if it.get("share_status") == "active" and it.get("share_token"):
-            extra = f" · share active (hết hạn {it.get('share_expires_at')})"
+            extra = " <i>(đang chia sẻ)</i>"
         elif it.get("share_status") == "pending_host":
-            extra = f" · chia sẻ chờ host tới {it.get('share_expires_at')}"
-        lines.append(
-            f"{pin}- #{it['id']} [{it['kind']}] {it['name']} ({it['path']})"
-            + extra)
+            extra = " <i>(chờ chia sẻ)</i>"
+        name_esc = html.escape(str(it.get("name", "")))
+        lines.append(f"{pin}• <b>#{it['id']}</b> {icon} <code>{name_esc}</code>{extra}")
+    lines.append("\n💡 <i>Gõ <code>/library &lt;id&gt;</code> (vd: <code>/library 6</code>) để tải file/ảnh gốc về chat.</i>")
     return "\n".join(lines)

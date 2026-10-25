@@ -40,7 +40,7 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ChatType
 from aiogram.types import (BotCommand, CallbackQuery, FSInputFile,
                            InlineKeyboardButton, InlineKeyboardMarkup,
-                           Message, ReactionTypeEmoji)
+                           InputMediaPhoto, Message, ReactionTypeEmoji)
 
 from . import surfaces as surf
 from .agent import clean_task_title
@@ -1766,11 +1766,80 @@ class TelegramSurface:
                 await message.answer(
                     "Library chưa được nối ở bản chạy này.")
                 return
+
+            text = (message.text or "").strip()
+            parts = text.split()
+            # 1. Nếu người dùng gõ /library <id>, vd: /library 6 hoặc /library@Mulon_bot 6
+            if len(parts) > 1 and parts[1].isdigit():
+                target_id = int(parts[1])
+                item = await library.get_item(target_id)
+                if not item or item.get("status") == "trashed":
+                    await message.answer(f"Không tìm thấy mục #{target_id} trong Thư viện.")
+                    return
+                p = Path(item["path"])
+                if not p.exists():
+                    await message.answer(f"Tệp của mục #{target_id} không còn tồn tại trên máy.")
+                    return
+                ext = p.suffix.lower()
+                caption = f"#{item['id']} • {item['name']}"
+                try:
+                    if item.get("kind") == "image" or ext in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+                        await message.answer_photo(photo=FSInputFile(str(p)), caption=caption)
+                    elif item.get("kind") == "media" or ext in (".ogg", ".mp3", ".wav", ".m4a"):
+                        await message.answer_voice(voice=FSInputFile(str(p)), caption=caption)
+                    else:
+                        await message.answer_document(document=FSInputFile(str(p)), caption=caption)
+                except Exception as e:
+                    await message.answer(f"Lỗi khi gửi tệp #{target_id}: {e}")
+                return
+
+            # 2. Nếu người dùng gọi /library để duyệt thư viện
             await library.scan()
             items = await library.list_items(status="active")
             from .library import format_library_list
+            if not items:
+                await message.answer(format_library_list(items))
+                return
 
-            await _answer_chunks(message, format_library_list(items))
+            # Gửi xem trước các hình ảnh gần nhất thành Album ảnh trực quan
+            image_items = [
+                it for it in items
+                if (it.get("kind") == "image" or Path(it.get("path", "")).suffix.lower() in (".jpg", ".jpeg", ".png", ".webp"))
+                and Path(it.get("path", "")).exists()
+            ]
+            if len(image_items) > 1:
+                recent = image_items[-6:]  # Tối đa 6 ảnh mới nhất
+                media_group = [
+                    InputMediaPhoto(
+                        media=FSInputFile(it["path"]),
+                        caption=(f"🖼️ Thư viện ảnh Mulon ({len(image_items)} ảnh) • #{it['id']} {it['name']}"
+                                 if idx == 0 else f"#{it['id']} {it['name']}")
+                    )
+                    for idx, it in enumerate(recent)
+                ]
+                try:
+                    await message.answer_media_group(media=media_group)
+                except Exception as e:
+                    logger.warning("Gửi media group thất bại: %s", e)
+            elif len(image_items) == 1:
+                it = image_items[0]
+                try:
+                    await message.answer_photo(
+                        photo=FSInputFile(it["path"]),
+                        caption=f"🖼️ #{it['id']} {it['name']}"
+                    )
+                except Exception as e:
+                    logger.warning("Gửi ảnh đơn thất bại: %s", e)
+
+            # Gửi danh sách tóm tắt có icon đẹp mắt và nút mở Mini App
+            kb = None
+            direct_url = webapp_direct_link(self.cfg, self._bot_username(), "panel")
+            if direct_url:
+                kb = InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(text="🖼️ Mở Bảng điều khiển (Mini App)", url=direct_url)
+                ]])
+
+            await message.answer(format_library_list(items), parse_mode="HTML", reply_markup=kb)
 
         async def _library_action(message: Message, action: str) -> None:
             library = self._svc("library")
