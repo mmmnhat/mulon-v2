@@ -136,6 +136,21 @@ def get_commit_summary(sha: str) -> str:
         return ""
 
 
+def is_remote_ahead(remote_sha: str) -> bool:
+    """True nếu remote_sha có commit mới mà HEAD local chưa có."""
+    if not remote_sha:
+        return False
+    try:
+        res = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", remote_sha, "HEAD"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+        )
+        return res.returncode != 0
+    except Exception:
+        return False
+
+
 def auto_watch_enabled(env: Optional[dict] = None, flag: bool = False) -> bool:
     """Sửa 1.6.3: cờ bật auto_watch. Mặc định TẮT."""
     if flag:
@@ -474,9 +489,9 @@ class BotSupervisor:
                     time.sleep(3)
                     self.start_bot()
 
-                # Kiểm tra commit trên remote
+                # Kiểm tra commit trên remote (chỉ update nếu remote có commit mới mà local chưa có)
                 remote_sha = get_remote_commit(self.remote, self.branch)
-                if remote_sha and remote_sha != self.current_sha:
+                if remote_sha and remote_sha != self.current_sha and is_remote_ahead(remote_sha):
                     self.update_and_restart(remote_sha)
 
             except Exception as e:
