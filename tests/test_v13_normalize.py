@@ -50,10 +50,16 @@ def test_command_and_url_is_ambiguous(roots):
     assert ei.value.code == "invalid_config"
 
 
-def test_remote_url_only_unsupported_in_13(roots):
+def test_remote_url_supported(roots):
     m = _norm({"url": "https://mcp.example.com/sse"}, roots)
-    assert m["support_state"] == "unsupported"
-    codes = [r["code"] for r in m["unsupported_reasons"]]
+    assert m["support_state"] == "supported"
+    assert m["transport"] == "http"
+    assert m["url"] == "https://mcp.example.com/sse"
+    m_dis = normalize_server_config(
+        {"url": "https://mcp.example.com/sse"},
+        source="manual", allowed_cwd_roots=roots, allow_remote=False)
+    assert m_dis["support_state"] == "unsupported"
+    codes = [r["code"] for r in m_dis["unsupported_reasons"]]
     assert "unsupported_transport" in codes
 
 

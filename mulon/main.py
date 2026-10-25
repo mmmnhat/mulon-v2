@@ -307,7 +307,11 @@ async def _dry_run(cfg: Config) -> int:
         "db": str(cfg.db_path),
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    await services["mcp"].close()
+    if "mcp" in services:
+        try:
+            await services["mcp"].close()
+        except BaseException:
+            pass
     await memory.close()
     return 0
 

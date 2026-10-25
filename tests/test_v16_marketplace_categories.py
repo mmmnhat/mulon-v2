@@ -169,9 +169,10 @@ async def test_get_listing_detail_mcp_marketplace_without_command(service_env):
     )
     detail = await svc.get_listing_detail("mcp-marketplace", "custom-unknown-mcp")
     assert detail["name"] == "Custom Unknown MCP"
-    assert detail["manifest"] is None
-    assert detail["support_state"] == "unsupported"
-    assert "Server này chưa có cấu hình lệnh chạy" in detail["unsupported_reasons"][0]
+    assert detail["support_state"] == "supported"
+    assert detail["manifest"] is not None
+    assert detail["manifest"]["command"] == "npx"
+    assert "custom-unknown-mcp" in detail["manifest"]["args"]
 
 
 @pytest.mark.asyncio

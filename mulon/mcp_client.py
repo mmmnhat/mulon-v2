@@ -355,7 +355,8 @@ class MCPManager:
         conn.error = ""
 
     async def close(self) -> None:
-        for conn in list(self._conns.values()):
+        # AnyIO cancel scopes yêu cầu thứ tự thoát LIFO (ngược thứ tự mở):
+        for conn in reversed(list(self._conns.values())):
             if conn.stack is not None:
                 try:
                     await conn.stack.aclose()

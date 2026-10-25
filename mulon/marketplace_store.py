@@ -26,8 +26,10 @@ tiếp ngoài qua các method ở đây.
 from __future__ import annotations
 
 import json
+import os
 import threading
 import time
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -71,7 +73,8 @@ class MarketplaceStore:
     def save(self) -> None:
         with self._lock:
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+            tmp = self.path.with_suffix(
+                f"{self.path.suffix}.tmp.{os.getpid()}.{uuid.uuid4().hex[:8]}")
             tmp.write_text(
                 json.dumps(self._data, ensure_ascii=False, indent=2),
                 encoding="utf-8")

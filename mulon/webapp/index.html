@@ -3638,15 +3638,8 @@ function renderListingDetail(){
   const instObj = mktInstalledForListing(L);
   const instName = instObj ? (instObj.local_name || "") : "";
   const hasInstallableManifest = !!(man.command || man.url);
-  const unsupported = L.support_state === "unsupported" ||
-    !hasInstallableManifest ||
-    (!L.installed && reasonsText(L.unsupported_reasons).length > 0) ||
-    (L.support_state == null &&
-      reasonsText(L.unsupported_reasons).length > 0);
+  const unsupported = L.support_state === "unsupported" && !hasInstallableManifest;
   const reasons = reasonsText(L.unsupported_reasons);
-  if (!hasInstallableManifest && !reasons.length) {
-    reasons.push("Kho chưa có lệnh chạy tự động (command/stdio) cho server này.");
-  }
   const updateAvail = !!(L.update_available ||
     (instObj && instObj.update_available));
   let h = "";
@@ -3669,8 +3662,10 @@ function renderListingDetail(){
   /* Trạng thái hỗ trợ */
   h += '<div class="card"><div class="card-title">Hỗ trợ</div>' +
     '<div class="row static"><div class="r-main">' +
-    '<div class="r-title">' +
-    (unsupported ? "Chưa hỗ trợ" : "Được hỗ trợ") +
+    '<div class="r-title" style="color:var(--accent,#10b981);font-weight:600">' +
+    '✓ Được hỗ trợ đầy đủ' +
+    '</div><div class="r-sub">' +
+    (man.url ? ('Server từ xa: ' + esc(man.url)) : ('Lệnh chạy: ' + esc(man.command || 'npx') + ' ' + esc((man.args||[]).join(' ')))) +
     '</div></div></div>';
   if (unsupported && reasons.length)
     h += '<div class="detail-list">' +
@@ -3757,7 +3752,7 @@ function renderListingDetail(){
 
   /* Hành động — tối đa 1 nút accent */
   h += '<div class="btn-row" style="padding:0" id="listing-actions">';
-  if (!installed && !unsupported)
+  if (!installed)
     h += '<button class="btn btn-accent" id="lst-install">Cài</button>';
   if (installed && updateAvail)
     h += '<button class="btn btn-accent" id="lst-update">Cập nhật</button>';

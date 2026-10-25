@@ -199,7 +199,8 @@ async def test_parse_import_variants(env13):
     assert out["listing"]["provider_id"] == "manual"
     remote = svc.parse_import(
         text=json.dumps({"url": "https://x.test/mcp"}))
-    assert remote["support_state"] == "unsupported"
+    assert remote["support_state"] == "supported"
+    assert remote["listing"]["transport"] == "http"
 
 
 async def test_parse_import_secret_literal_rejected(env13):

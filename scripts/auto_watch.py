@@ -292,7 +292,7 @@ class BotSupervisor:
                 cwd=PROJECT_ROOT,
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=45,
             )
             if res.returncode == 0:
                 return True, ""

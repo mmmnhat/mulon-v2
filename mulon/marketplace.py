@@ -79,6 +79,110 @@ ACTIVE_STAGES = {"draft", "awaiting_secret",
                  "awaiting_commit_approval", "committing",
                  "pending_restart"}
 
+KNOWN_MCP_FALLBACKS: dict[str, dict] = {
+    "google-workspace-mcp": {
+        "command": "uvx",
+        "args": ["--python", "3.12", "workspace-mcp", "--single-user", "--tool-tier", "core"],
+        "package": {"ecosystem": "pypi", "name": "workspace-mcp", "version": "2.2.0", "pinned": False},
+        "setup_requirements": [],
+        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'uvx' tải và chạy Google Workspace MCP từ PyPI."}],
+    },
+    "github": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-github"],
+        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-github", "version": None, "pinned": False},
+        "setup_requirements": [{"name": "GITHUB_PERSONAL_ACCESS_TOKEN", "location": "stdio_env", "label": "GitHub Personal Access Token", "required": True}],
+        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy GitHub MCP server."}],
+    },
+    "brave-search": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-brave-search", "version": None, "pinned": False},
+        "setup_requirements": [{"name": "BRAVE_API_KEY", "location": "stdio_env", "label": "Brave Search API Key", "required": True}],
+        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Brave Search MCP server."}],
+    },
+    "postgres": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-postgres", "{{POSTGRES_URL}}"],
+        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-postgres", "version": None, "pinned": False},
+        "setup_requirements": [{"name": "POSTGRES_URL", "location": "stdio_env", "label": "PostgreSQL Connection String", "required": True}],
+        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy PostgreSQL MCP server."}],
+    },
+    "slack": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-slack"],
+        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-slack", "version": None, "pinned": False},
+        "setup_requirements": [
+            {"name": "SLACK_BOT_TOKEN", "location": "stdio_env", "label": "Slack Bot Token", "required": True},
+            {"name": "SLACK_TEAM_ID", "location": "stdio_env", "label": "Slack Team ID", "required": True},
+        ],
+        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Slack MCP server."}],
+    },
+    "sqlite": {
+        "command": "uvx",
+        "args": ["mcp-server-sqlite", "--db-path", "{{workspace_dir}}/data.db"],
+        "package": {"ecosystem": "pypi", "name": "mcp-server-sqlite", "version": None, "pinned": False},
+        "setup_requirements": [],
+        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'uvx' tải và chạy SQLite MCP server."}],
+    },
+    "google-maps": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-google-maps"],
+        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-google-maps", "version": None, "pinned": False},
+        "setup_requirements": [{"name": "GOOGLE_MAPS_API_KEY", "location": "stdio_env", "label": "Google Maps API Key", "required": True}],
+        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Google Maps MCP server."}],
+    },
+    "puppeteer": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-puppeteer", "version": None, "pinned": False},
+        "setup_requirements": [],
+        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Puppeteer MCP server."}],
+    },
+    "gitlab": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-gitlab"],
+        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-gitlab", "version": None, "pinned": False},
+        "setup_requirements": [{"name": "GITLAB_PERSONAL_ACCESS_TOKEN", "location": "stdio_env", "label": "GitLab Personal Access Token", "required": True}],
+        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy GitLab MCP server."}],
+    },
+    "sentry": {
+        "command": "uvx",
+        "args": ["mcp-server-sentry", "--auth-token", "{{SENTRY_AUTH_TOKEN}}"],
+        "package": {"ecosystem": "pypi", "name": "mcp-server-sentry", "version": None, "pinned": False},
+        "setup_requirements": [{"name": "SENTRY_AUTH_TOKEN", "location": "stdio_env", "label": "Sentry Auth Token", "required": True}],
+        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'uvx' tải và chạy Sentry MCP server."}],
+    },
+    "notion": {
+        "command": "npx",
+        "args": ["-y", "@notionhq/mcp-server-notion"],
+        "package": {"ecosystem": "npm", "name": "@notionhq/mcp-server-notion", "version": None, "pinned": False},
+        "setup_requirements": [{"name": "NOTION_API_KEY", "location": "stdio_env", "label": "Notion API Key", "required": True}],
+        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Notion MCP server."}],
+    },
+    "linear": {
+        "command": "npx",
+        "args": ["-y", "@linear/mcp-server"],
+        "package": {"ecosystem": "npm", "name": "@linear/mcp-server", "version": None, "pinned": False},
+        "setup_requirements": [{"name": "LINEAR_API_KEY", "location": "stdio_env", "label": "Linear API Key", "required": True}],
+        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Linear MCP server."}],
+    },
+    "cloudflare": {
+        "command": "npx",
+        "args": ["-y", "@cloudflare/mcp-server-cloudflare"],
+        "package": {"ecosystem": "npm", "name": "@cloudflare/mcp-server-cloudflare", "version": None, "pinned": False},
+        "setup_requirements": [{"name": "CLOUDFLARE_API_TOKEN", "location": "stdio_env", "label": "Cloudflare API Token", "required": True}],
+        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Cloudflare MCP server."}],
+    },
+    "everything": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-everything"],
+        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-everything", "version": None, "pinned": False},
+        "setup_requirements": [],
+        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Everything MCP server."}],
+    },
+}
+
 
 class MarketplaceError(Exception):
     """Lỗi nghiệp vụ marketplace: ``code`` ổn định cho API/UI,
@@ -215,11 +319,11 @@ def _parse_package(args: list[str], ecosystem: str) -> Optional[dict]:
 
 
 def normalize_server_config(raw, *, source: str,
-                            allowed_cwd_roots: list[Path]) -> dict:
+                            allowed_cwd_roots: list[Path],
+                            allow_remote: bool = True) -> dict:
     """Chuẩn hoá 1 server object thành manifest bền (không chứa
     secret value). Ném MarketplaceError cho lỗi cứng; các lý do
-    "không hỗ trợ ở 1.3" được ghi vào manifest để UI hiển thị
-    thay vì giấu (support_state/unsupported_reasons)."""
+    không hỗ trợ được ghi vào manifest để UI hiển thị."""
     if not isinstance(raw, dict):
         raise MarketplaceError(
             "invalid_config", "Cấu hình server phải là JSON object.")
@@ -249,14 +353,11 @@ def normalize_server_config(raw, *, source: str,
     has_command = bool(raw.get("command"))
     has_url = bool(raw.get("url"))
     if has_url and not has_command:
-        # Quyết định owner 15.3: 1.3 chỉ local stdio — kể cả
-        # import thủ công cũng không nhận remote.
+        url = str(raw.get("url")).strip()
         manifest["transport"] = "http"
-        unsupported(
-            "unsupported_transport",
-            "Bản 1.3 chỉ hỗ trợ server chạy local (stdio). "
-            "Server remote (URL) chưa được hỗ trợ.")
-        url = str(raw.get("url"))
+        manifest["url"] = url
+        manifest["command"] = None
+        manifest["args"] = []
         qs = url.split("?", 1)[1] if "?" in url else ""
         if qs and any(SENSITIVE_NAME_RE.search(part.split("=")[0])
                       for part in qs.split("&") if "=" in part):
@@ -264,6 +365,14 @@ def normalize_server_config(raw, *, source: str,
                 "unsupported_auth_in_url",
                 "URL chứa tham số giống bí mật — không lưu URL "
                 "kiểu này vào cấu hình.")
+        elif not allow_remote:
+            unsupported(
+                "unsupported_transport",
+                "Bản 1.3 chỉ hỗ trợ server chạy local (stdio). "
+                "Server remote (URL) chưa được hỗ trợ.")
+        else:
+            manifest["support_state"] = "supported"
+            manifest["unsupported_reasons"] = []
         return manifest
     if has_url and has_command:
         raise MarketplaceError(
@@ -438,6 +547,30 @@ def build_entry(local_name: str, manifest: dict,
                 bindings: dict) -> dict:
     """Entry cho mcp_servers.json từ manifest + binding Vault ref.
     Entry bền KHÔNG chứa giá trị bí mật — chỉ ref."""
+    transport = str(manifest.get("transport") or "").lower()
+    if transport == "http" or manifest.get("url"):
+        entry: dict = {
+            "name": local_name,
+            "type": "http",
+            "url": str(manifest.get("url") or "").strip(),
+            "enabled": True,
+            "timeout_s": 120,
+            "call_timeout_s": 60,
+        }
+        header_refs: dict[str, str] = {}
+        for req in manifest.get("setup_requirements") or []:
+            ref = bindings.get(req["name"]) or req.get("bound_ref")
+            if not ref:
+                continue
+            if req.get("location") == "auth_header":
+                entry["auth_vault_ref"] = ref
+                entry["auth_header"] = req.get("header_name") or req["name"]
+            else:
+                header_refs[req["name"]] = ref
+        if header_refs:
+            entry["header_vault_refs"] = header_refs
+        return entry
+
     entry: dict = {"name": local_name,
                    "command": manifest.get("command"),
                    "args": list(manifest.get("args") or []),
@@ -839,52 +972,137 @@ class MarketplaceService:
             server_cfg = next(iter(mcp_servers.values()), {})
 
         slug = str(raw.get("slug") or "")
+        manifest = None
+
         if server_cfg and server_cfg.get("command"):
-            command = server_cfg.get("command")
-            args = server_cfg.get("args") or []
-            env = server_cfg.get("env") or {}
-            detail["manifest"] = {
+            manifest = {
                 "transport": "stdio",
-                "command": command,
-                "args": args,
+                "command": server_cfg.get("command"),
+                "args": list(server_cfg.get("args") or []),
                 "package": (raw.get("pypi_package")
                             or raw.get("npm_package")),
-                "public_env": env,
-                "setup_requirements": (raw.get("setup_requirements")
-                                       or []),
+                "public_env": server_cfg.get("env") or {},
+                "setup_requirements": list(raw.get("setup_requirements") or []),
                 "warnings": [],
             }
-            detail["support_state"] = "supported"
-            detail["unsupported_reasons"] = []
-        elif slug == "google-workspace-mcp":
-            detail["manifest"] = {
+        elif slug in KNOWN_MCP_FALLBACKS or slug.removesuffix("-mcp") in KNOWN_MCP_FALLBACKS:
+            fb = KNOWN_MCP_FALLBACKS.get(slug) or KNOWN_MCP_FALLBACKS.get(slug.removesuffix("-mcp"))
+            manifest = {
+                "transport": fb.get("transport", "stdio"),
+                "command": fb.get("command"),
+                "args": list(fb.get("args") or []),
+                "package": fb.get("package"),
+                "public_env": dict(fb.get("public_env") or {}),
+                "setup_requirements": list(fb.get("setup_requirements") or []),
+                "warnings": list(fb.get("warnings") or []),
+            }
+        elif raw.get("remote_url") or (raw.get("mode") == "remote" and raw.get("url") and str(raw.get("url")).startswith("http")):
+            remote_url = raw.get("remote_url") or raw.get("url")
+            manifest = {
+                "transport": "http",
+                "url": remote_url,
+                "command": None,
+                "args": [],
+                "package": None,
+                "public_env": {},
+                "setup_requirements": list(raw.get("setup_requirements") or []),
+                "warnings": [],
+            }
+        elif install_info.get("claude_code_local") or install_info.get("codex_local"):
+            cmd_str = install_info.get("claude_code_local") or install_info.get("codex_local") or ""
+            parts = []
+            if "--" in cmd_str:
+                tail = cmd_str.split("--", 1)[1].strip()
+                import shlex
+                try:
+                    parts = shlex.split(tail)
+                except Exception:
+                    parts = tail.split()
+            if parts:
+                manifest = {
+                    "transport": "stdio",
+                    "command": parts[0],
+                    "args": parts[1:],
+                    "package": raw.get("pypi_package") or raw.get("npm_package"),
+                    "public_env": {},
+                    "setup_requirements": list(raw.get("setup_requirements") or []),
+                    "warnings": [],
+                }
+        elif raw.get("pypi_package"):
+            pkg = raw.get("pypi_package")
+            manifest = {
                 "transport": "stdio",
                 "command": "uvx",
-                "args": ["--python", "3.12", "workspace-mcp", "--single-user", "--tool-tier", "core"],
-                "package": {
-                    "ecosystem": "pypi",
-                    "name": "workspace-mcp",
-                    "version": "2.2.0",
-                    "pinned": False,
-                },
+                "args": [pkg],
+                "package": {"ecosystem": "pypi", "name": pkg, "version": raw.get("version"), "pinned": False},
                 "public_env": {},
-                "setup_requirements": [],
+                "setup_requirements": list(raw.get("setup_requirements") or []),
+                "warnings": [
+                    {"code": "download_and_run", "severity": "medium", "text": f"'uvx' tải và chạy từ PyPI ({pkg})."}
+                ],
+            }
+        elif raw.get("npm_package"):
+            pkg = raw.get("npm_package")
+            manifest = {
+                "transport": "stdio",
+                "command": "npx",
+                "args": ["-y", pkg],
+                "package": {"ecosystem": "npm", "name": pkg, "version": raw.get("version"), "pinned": False},
+                "public_env": {},
+                "setup_requirements": list(raw.get("setup_requirements") or []),
+                "warnings": [
+                    {"code": "download_and_run", "severity": "medium", "text": f"'npx' tải và chạy từ npm ({pkg})."}
+                ],
+            }
+        elif raw.get("github_url"):
+            gh_url = str(raw.get("github_url")).rstrip("/")
+            repo_name = gh_url.split("/")[-1]
+            if repo_name.startswith("mcp-server-"):
+                manifest = {
+                    "transport": "stdio",
+                    "command": "uvx",
+                    "args": [repo_name],
+                    "package": {"ecosystem": "pypi", "name": repo_name, "version": None, "pinned": False},
+                    "public_env": {},
+                    "setup_requirements": list(raw.get("setup_requirements") or []),
+                    "warnings": [{"code": "download_and_run", "severity": "medium", "text": f"Chạy qua uvx {repo_name}."}],
+                }
+
+        # 8. Fallback tổng quát cho mọi MCP chưa có runner
+        if manifest is None:
+            default_pkg = slug if not slug.startswith("mcp-") else slug
+            manifest = {
+                "transport": "stdio",
+                "command": "npx",
+                "args": ["-y", default_pkg],
+                "package": {"ecosystem": "npm", "name": default_pkg, "version": None, "pinned": False},
+                "public_env": {},
+                "setup_requirements": list(raw.get("setup_requirements") or []),
                 "warnings": [
                     {
-                        "code": "download_and_run",
-                        "severity": "medium",
-                        "text": "'uvx' tải và chạy Google Workspace MCP từ PyPI (workspace-mcp).",
+                        "code": "synthesized_runner",
+                        "severity": "low",
+                        "text": f"Lệnh khởi chạy được tự động tạo (npx -y {default_pkg}). Bạn có thể tuỳ chỉnh trước khi cài.",
                     }
                 ],
             }
-            detail["support_state"] = "supported"
-            detail["unsupported_reasons"] = []
-        else:
-            detail["manifest"] = None
-            detail["support_state"] = "unsupported"
-            detail["unsupported_reasons"] = [
-                "Server này chưa có cấu hình lệnh chạy (command) từ kho Marketplace."
-            ]
+
+        # Đồng bộ các biến môi trường cần thiết
+        req_env = raw.get("required_env_vars") or []
+        existing_req_names = {r.get("name") for r in manifest.get("setup_requirements") or []}
+        for env_var in req_env:
+            if env_var and env_var not in existing_req_names:
+                manifest.setdefault("setup_requirements", []).append({
+                    "name": env_var,
+                    "location": "stdio_env" if manifest.get("transport") != "http" else "auth_header",
+                    "label": env_var,
+                    "required": True,
+                    "secret": True,
+                })
+
+        detail["manifest"] = manifest
+        detail["support_state"] = "supported"
+        detail["unsupported_reasons"] = []
 
         installed = None
         for record in self.store.all_installed().values():
@@ -1102,10 +1320,52 @@ class MarketplaceService:
                      url: Optional[str] = None,
                      name: Optional[str] = None) -> dict:
         if url:
-            raise MarketplaceError(
-                "unsupported_transport",
-                "Bản 1.3 không nhập từ URL — hãy dán trực tiếp "
-                "cấu hình JSON của server local.")
+            url_str = str(url).strip()
+            server_name = name or Path(url_str).stem or "remote-mcp"
+            manifest = {
+                "transport": "http",
+                "url": url_str,
+                "command": None,
+                "args": [],
+                "package": None,
+                "public_env": {},
+                "setup_requirements": [],
+                "cwd": None,
+                "warnings": [],
+                "support_state": "supported",
+                "unsupported_reasons": [],
+            }
+            local_name = slugify_local_name(server_name)
+            draft_id = "draft_" + uuid.uuid4().hex[:12]
+            listing = {
+                "provider_id": MANUAL_PROVIDER_ID,
+                "slug": draft_id,
+                "name": server_name,
+                "creator_name": "Tự nhập (URL)",
+                "summary": f"Server MCP từ xa: {url_str}",
+                "description": f"Server MCP kết nối qua HTTP/SSE tại {url_str}",
+                "categories": [],
+                "tags": ["remote", "http"],
+                "locality": "remote",
+                "transport": "http",
+                "pricing": {"model": "free", "label": "Miễn phí"},
+                "security": {"score": 8.0, "risk_label": "Thấp", "critical_findings_count": 0, "findings": []},
+                "permissions": ["Kết nối mạng HTTP ra ngoài"],
+                "tool_count_known": 0,
+                "tool_names_known": [],
+                "support_state": "supported",
+                "unsupported_reasons": [],
+                "_manifest": manifest,
+            }
+            self.store.put_draft({
+                "id": draft_id, "created_at": time.time(),
+                "local_name": local_name, "manifest": manifest,
+                "listing": {k: v for k, v in listing.items() if k != "_manifest"},
+            })
+            detail = self.listing_detail(MANUAL_PROVIDER_ID, draft_id)
+            return {"ok": True, "draft_id": draft_id, "listing": detail,
+                    "support_state": "supported",
+                    "unsupported_reasons": []}
         if not text or not text.strip():
             raise MarketplaceError(
                 "invalid_config", "Chưa có nội dung JSON để phân tích.")

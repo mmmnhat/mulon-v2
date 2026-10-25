@@ -1913,10 +1913,17 @@ class WebAppServer:
                     detail = await self.marketplace.get_listing_detail(
                         pid, str(body["slug"]))
                     manifest = detail.get("manifest") or {}
+                    cmd = body.get("custom_command") or manifest.get("command")
+                    args = body.get("custom_args") if body.get("custom_args") is not None else (manifest.get("args") or [])
+                    url = body.get("custom_url") or manifest.get("url")
+                    transport = "http" if url and not cmd else (manifest.get("transport") or "stdio")
                     source["install"] = {
-                        "command": manifest.get("command"),
-                        "args": manifest.get("args") or [],
+                        "transport": transport,
+                        "command": cmd,
+                        "args": args,
+                        "url": url,
                         "env": manifest.get("public_env") or {},
+                        "setup_requirements": manifest.get("setup_requirements") or [],
                     }
                     source["security"] = detail.get("security")
                     source["name"] = detail.get("name")
