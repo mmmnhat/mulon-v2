@@ -79,35 +79,36 @@ button, .backrow, .tgl, .segbar, .swatch{
     font-size: 16px;
   }
 }
-/* ---------- header — căn giữa chuẩn Muse, cuộn tự nhiên ---------- */
+/* ---------- Cụm Header dính (Stitched Mascot Mulon + Tab Bar) ---------- */
+.sticky-top-wrap{
+  position:sticky; top:0; z-index:30;
+  background:color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  padding-top:max(var(--s2), env(safe-area-inset-top, 0px));
+  margin:0 calc(-1 * var(--s4)) var(--s2);
+  padding-left:var(--s4); padding-right:var(--s4);
+  padding-bottom:2px;
+  border-bottom:1px solid color-mix(in srgb, var(--line) 40%, transparent);
+}
 .app-header{
-  position:relative; z-index:10;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
-  padding:calc(var(--s3) + env(safe-area-inset-top, 0px)) 0 var(--s2); margin-bottom:var(--s2);
+  padding:6px 0 4px;
   text-align:center;
 }
 .avatar-wrap{
-  position:relative; width:84px; height:84px; margin:0 auto 10px;
+  position:relative; width:92px; height:92px; margin:0 auto 6px;
 }
 .avatar{
-  width:84px; height:84px; flex:0 0 84px; border-radius:50%;
+  width:92px; height:92px; flex:0 0 92px; border-radius:50%;
   background:var(--tint-lav); overflow:hidden; position:relative;
-  font-size:32px; font-weight:var(--fw-s); color:var(--lav-deep);
-  box-shadow:0 6px 20px rgba(0,0,0,0.12), inset 0 0 0 1px rgba(0,0,0,.08);
+  font-size:36px; font-weight:var(--fw-s); color:var(--lav-deep);
+  box-shadow:0 6px 22px rgba(0,0,0,0.14), inset 0 0 0 1px rgba(0,0,0,.08);
   transition:box-shadow 240ms var(--ease), transform 240ms var(--ease);
 }
 .avatar:hover{transform:scale(1.02)}
 [data-scheme="dark"] .avatar{
-  box-shadow:0 6px 20px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,.15);
+  box-shadow:0 6px 22px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,.15);
 }
-.avatar-edit-badge{
-  position:absolute; bottom:2px; right:2px; width:26px; height:26px;
-  border-radius:50%; background:var(--surface2); border:2px solid var(--paper);
-  display:flex; align-items:center; justify-content:center; color:var(--ink);
-  cursor:pointer; z-index:5; box-shadow:0 2px 6px rgba(0,0,0,.25);
-  transition:transform 180ms var(--ease);
-}
-.avatar-edit-badge:active{transform:scale(0.9)}
 .head-meta{text-align:center; width:100%}
 .avatar #avatar-letter{
   position:absolute; inset:0; display:flex;
@@ -124,8 +125,8 @@ button, .backrow, .tgl, .segbar, .swatch{
 .avatar.sprite-on .sprite{display:block}
 .avatar.sprite-on img{visibility:hidden}
 .avatar.sprite-on #avatar-letter{visibility:hidden}
-.app-name{font-size:22px; font-weight:700;
-  letter-spacing:-0.02em; line-height:1.2; margin-bottom:4px; text-align:center;}
+.app-name{font-size:21px; font-weight:700;
+  letter-spacing:-0.02em; line-height:1.2; margin-bottom:2px; text-align:center;}
 .app-status{font-size:var(--fs-cap); font-weight:var(--fw-m); color:var(--ok);
   display:inline-flex; align-items:center; justify-content:center; gap:6px;
   margin:0 auto; white-space:nowrap;}
@@ -204,9 +205,7 @@ button, .backrow, .tgl, .segbar, .swatch{
    Đệm track 3px là ngoại lệ lưới có chủ đích (mẫu iOS/Muse). */
 .segbar{
   display:flex; background:var(--surface2); border-radius:12px;
-  padding:3px; gap:var(--s1); margin:0 0 var(--s3);
-  position:sticky; top:max(4px, env(safe-area-inset-top, 0px)); z-index:20; height:38px;
-  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  padding:3px; gap:var(--s1); margin:4px 0 6px; height:38px;
 }
 .tab-badge-dot{
   display:inline-block; width:6px; height:6px; border-radius:50%;
@@ -660,6 +659,10 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 /* ---------- responsive ---------- */
 @media (min-width:640px){
   body{padding-left:var(--s6); padding-right:var(--s6)}
+  .sticky-top-wrap{
+    margin-left:calc(-1 * var(--s6)); margin-right:calc(-1 * var(--s6));
+    padding-left:var(--s6); padding-right:var(--s6);
+  }
   #tab-hoso{display:grid; grid-template-columns:1fr 1fr;
     gap:0 var(--s4)}
   #tab-hoso .card, #tab-hoso .bc-note{grid-column:1 / -1}
@@ -690,37 +693,36 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 </head>
 <body>
 
-<!-- ================= HEADER (Mascot ở giữa chuẩn Muse) ================= -->
-<header class="app-header" id="app-header">
-  <div class="avatar-wrap">
-    <div class="avatar" id="avatar-box">
-      <img src="/app/avatar" alt="" onerror="this.remove()">
-      <span id="avatar-letter">M</span>
-      <div class="sprite" id="avatar-sprite"></div>
+<!-- ================= STICKY TOP (Mascot Mulon + Tab Bar dính trên đỉnh mọi màn hình) ================= -->
+<div class="sticky-top-wrap" id="sticky-top-wrap">
+  <header class="app-header" id="app-header">
+    <div class="avatar-wrap">
+      <div class="avatar" id="avatar-box">
+        <img src="/app/avatar" alt="" onerror="this.remove()">
+        <span id="avatar-letter">M</span>
+        <div class="sprite" id="avatar-sprite"></div>
+      </div>
     </div>
-    <div class="avatar-edit-badge" title="Đổi trạng thái avatar">
-      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    <div class="head-meta">
+      <div class="app-name">Mulon</div>
+      <div class="app-status">
+        <span class="dot" id="status-dot"></span>
+        <span id="status-text">Đã kết nối</span>
+      </div>
     </div>
-  </div>
-  <div class="head-meta">
-    <div class="app-name">Mulon</div>
-    <div class="app-status">
-      <span class="dot" id="status-dot"></span>
-      <span id="status-text">Đã kết nối</span>
-    </div>
-  </div>
-</header>
+  </header>
+
+  <!-- ================= TAB BAR ================= -->
+  <nav class="segbar" id="segbar">
+    <button data-tab="viec" class="active">Việc</button>
+    <button data-tab="pheduyet">Phê duyệt<span id="tab-appr-dot" class="tab-badge-dot hidden"></span></button>
+    <button data-tab="lich">Lịch</button>
+    <button data-tab="hoso">Hồ sơ</button>
+    <button data-tab="caidat">Cài đặt</button>
+  </nav>
+</div>
 
 <div id="global-error"></div>
-
-<!-- ================= TAB BAR ================= -->
-<nav class="segbar" id="segbar">
-  <button data-tab="viec" class="active">Việc</button>
-  <button data-tab="pheduyet">Phê duyệt<span id="tab-appr-dot" class="tab-badge-dot hidden"></span></button>
-  <button data-tab="lich">Lịch</button>
-  <button data-tab="hoso">Hồ sơ</button>
-  <button data-tab="caidat">Cài đặt</button>
-</nav>
 
 <!-- ================= TAB: VIỆC ================= -->
 <section id="tab-viec">
@@ -1347,8 +1349,8 @@ function showMain(tab){
   Object.keys(TAB_OF_SCREEN).forEach(id => $(id).classList.add("hidden"));
   document.querySelectorAll("#segbar button").forEach(b =>
     b.classList.toggle("active", b.dataset.tab === tab));
+  $("sticky-top-wrap").classList.remove("hidden");
   $("segbar").classList.remove("hidden");
-  /* KT-1: header gọn chỉ ở màn tab; màn con ẩn hẳn. */
   $("app-header").classList.remove("hidden");
   closePolMenu();
   if (tg && tg.BackButton) tg.BackButton.hide();
@@ -1361,8 +1363,12 @@ function showSub(id){
   MAIN_TABS.forEach(t => $("tab-" + t).classList.add("hidden"));
   Object.keys(TAB_OF_SCREEN).forEach(s =>
     $(s).classList.toggle("hidden", s !== id));
-  $("segbar").classList.add("hidden");
-  $("app-header").classList.add("hidden");
+  $("sticky-top-wrap").classList.remove("hidden");
+  $("segbar").classList.remove("hidden");
+  $("app-header").classList.remove("hidden");
+  const parentTab = TAB_OF_SCREEN[id] || "caidat";
+  document.querySelectorAll("#segbar button").forEach(b =>
+    b.classList.toggle("active", b.dataset.tab === parentTab));
   closePolMenu();
   if (tg && tg.BackButton) tg.BackButton.show();
   document.title = (SCREEN_TITLES[id] || "Mulon") + " — Mulon";
