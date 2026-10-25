@@ -2,6 +2,7 @@
 DB), verify độc lập, history chỉ chứa câu trả lời sạch, trace ở trajectory."""
 
 import json
+import pytest
 
 from mulon.agent import Agent
 from mulon.context import ContextEngine, Dossier
@@ -108,3 +109,52 @@ async def test_tools_reload_dossier_on_write(cfg):
 
 async def _noop():
     return None
+
+
+@pytest.mark.asyncio
+async def test_unlimited_budget_and_synthesis_fallback(cfg):
+    from dataclasses import replace
+    from mulon.gateway import Completion, ToolCall
+    from mulon.policy import PolicyEngine
+    from mulon.context import ContextEngine, Dossier
+    from mulon.agent import Agent
+
+    cfg2 = replace(cfg, max_llm_calls_per_task=0, verify_max_retries=0)
+    memory = await open_memory(cfg2)
+    policy = PolicyEngine(cfg2.policy_path, memory=memory)
+
+    call_count = 0
+
+    class LoopingGateway:
+        async def complete(self, messages, model=None, tools=None, purpose="", temperature=None):
+            nonlocal call_count
+            call_count += 1
+            if purpose == "verify":
+                return Completion(text=json.dumps({"ok": True, "diagnosis": ""}))
+            if purpose == "plan":
+                return Completion(text=json.dumps({"steps": ["Chạy"]}))
+            if purpose == "synthesize":
+                return Completion(text="Đã hoàn tất tổng hợp báo cáo.")
+            if call_count < 35:
+                # Gọi tool 34 lần (vượt trần cũ 30)
+                return Completion(
+                    text="",
+                    tool_calls=[ToolCall(id=f"c_{call_count}", name="now", arguments="{}")],
+                )
+            return Completion(text="Hoàn thành sau 35 lượt gọi.")
+
+        async def stream(self, messages, model=None, purpose="", on_delta=None):
+            return await self.complete(messages, model=model, purpose=purpose)
+
+    gateway = LoopingGateway()
+    dossier = Dossier.load(cfg2.dossier_dir)
+    ctx = ContextEngine(cfg2, dossier, memory, gateway)
+    reg = build_default_registry(cfg2, memory)
+    agent = Agent(cfg2, gateway, memory, ctx, reg, policy)
+
+    res = await agent.handle("sess:test_unlimited", "chạy lệnh kiểm tra giờ hệ thống")
+    assert "chạm trần ngân sách" not in res.text
+    assert call_count >= 35
+    assert "Hoàn thành sau 35 lượt gọi." in res.text
+    await memory.close()
+

@@ -663,7 +663,7 @@ class Agent:
                 for step_idx in range(len(steps)):
                     await self.memory.update_step(task_id, step_idx, "done")
 
-                if self._llm_calls >= self.cfg.max_llm_calls_per_task:
+                if self.cfg.max_llm_calls_per_task > 0 and self._llm_calls >= self.cfg.max_llm_calls_per_task:
                     diagnosis = "chạm trần ngân sách lời gọi model của tác vụ"
                     verified = False
                     break
@@ -727,7 +727,7 @@ class Agent:
     ) -> str:
         """Chạy tool cho tới khi model dừng gọi tool hoặc chạm trần."""
         final_text = ""
-        while self._llm_calls < self.cfg.max_llm_calls_per_task:
+        while self.cfg.max_llm_calls_per_task <= 0 or self._llm_calls < self.cfg.max_llm_calls_per_task:
             comp = await self._call(
                 convo, model=self.cfg.model_brain, tools=schemas,
                 purpose="act",
@@ -840,6 +840,23 @@ class Agent:
                         "content": trimmed.text,
                     }
                 )
+        if not final_text.strip():
+            # Nếu kết thúc act_loop mà model chưa kịp phát biểu câu trả lời (do vừa chạy xong tool hoặc hết vòng),
+            # gọi model thêm 1 lượt tổng hợp để final_text không bao giờ bị rỗng.
+            try:
+                synth_prompt = list(convo)
+                synth_prompt.append({
+                    "role": "user",
+                    "content": "Hãy tổng hợp ngắn gọn, rõ ràng các việc đã thực hiện và kết quả cụ thể tới giờ để báo cáo cho người dùng."
+                })
+                comp_synth = await self._call(
+                    synth_prompt, model=self.cfg.model_brain,
+                    purpose="synthesize",
+                )
+                if comp_synth.text:
+                    final_text = comp_synth.text
+            except Exception as synth_exc:
+                logger.warning("Lỗi tổng hợp câu trả lời cuối: %s", synth_exc)
         return final_text
 
     async def _ask_approval(

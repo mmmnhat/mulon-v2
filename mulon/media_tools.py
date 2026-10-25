@@ -241,15 +241,19 @@ async def transcribe(cfg, path, gateway=None) -> dict:
         cfg, src, gateway=None, understand=False)
 
 
-async def generate_image(cfg, prompt: str, model: str = "agnes-image-2.1-flash",
+async def generate_image(cfg, prompt: str, model: str = "muse-image",
                          size: str = "1024x1024", image_path: str = "",
                          vault_store=None) -> dict:
-    """Sinh hoặc chỉnh sửa ảnh AI (Text-to-Image & Image-to-Image) qua API Agnes AI (OpenAI-compatible)."""
+    """Sinh hoặc chỉnh sửa ảnh AI (Text-to-Image & Image-to-Image) qua proxy hoặc Agnes AI (OpenAI-compatible)."""
     import asyncio
     import base64
     import os
+    import re
     import time
     import httpx
+
+    proxy_base = getattr(cfg, "proxy_base_url", "") or os.environ.get("PROXY_BASE_URL", "")
+    proxy_key = getattr(cfg, "proxy_api_key", "") or os.environ.get("PROXY_API_KEY", "")
 
     # Tìm API key trong Vault
     api_key = ""
@@ -258,7 +262,7 @@ async def generate_image(cfg, prompt: str, model: str = "agnes-image-2.1-flash",
             labels = vault_store.labels()
             for item in labels:
                 lbl = str(item.get("label", "")).lower()
-                if "agnes" in lbl:
+                if "agnes" in lbl or "muse" in lbl:
                     api_key = vault_store.resolve(item.get("ref", ""))
                     if api_key:
                         break
@@ -274,6 +278,8 @@ async def generate_image(cfg, prompt: str, model: str = "agnes-image-2.1-flash",
 
     if not api_key:
         api_key = os.environ.get("AGNES_AI_API_KEY", "") or os.environ.get("OPENAI_API_KEY", "")
+        if not api_key and proxy_key and proxy_key != "local-proxy":
+            api_key = proxy_key
 
     if not api_key:
         return {
@@ -281,10 +287,19 @@ async def generate_image(cfg, prompt: str, model: str = "agnes-image-2.1-flash",
             "error": "Chưa có API key để sinh ảnh. Hãy gọi tool request_vault_secret(label='agnes_ai:api_key') để yêu cầu chủ nhân lưu key vào Kho an toàn (Vault).",
         }
 
+    if proxy_base:
+        endpoint = f"{proxy_base.rstrip('/')}/images/generations"
+        if not model or model == "agnes-image-2.1-flash":
+            model = "muse-image"
+    else:
+        endpoint = "https://apihub.agnes-ai.com/v1/images/generations"
+
     extra_body = None
+    ref_data_uri = ""
     if image_path and str(image_path).strip():
         clean_img = str(image_path).strip()
         if clean_img.startswith("http://") or clean_img.startswith("https://"):
+            ref_data_uri = clean_img
             extra_body = {"image": [clean_img], "response_format": "url"}
         else:
             try:
@@ -304,18 +319,17 @@ async def generate_image(cfg, prompt: str, model: str = "agnes-image-2.1-flash",
                             buf = BytesIO()
                             im.save(buf, format="JPEG", quality=85)
                             b64_str = base64.b64encode(buf.getvalue()).decode("utf-8")
-                            data_uri = f"data:image/jpeg;base64,{b64_str}"
+                            ref_data_uri = f"data:image/jpeg;base64,{b64_str}"
                     except Exception:
                         raw_bytes = src_path.read_bytes()
                         b64_str = base64.b64encode(raw_bytes).decode("utf-8")
-                        data_uri = f"data:image/{ext};base64,{b64_str}"
-                    extra_body = {"image": [data_uri], "response_format": "url"}
+                        ref_data_uri = f"data:image/{ext};base64,{b64_str}"
+                    extra_body = {"image": [ref_data_uri], "response_format": "url"}
                 else:
                     logger.warning("Không tìm thấy file ảnh i2i: %s", clean_img)
             except Exception as exc:
                 logger.warning("Xử lý ảnh i2i thất bại: %s", exc)
 
-    endpoint = "https://apihub.agnes-ai.com/v1/images/generations"
     payload = {
         "model": model,
         "prompt": prompt,
@@ -324,6 +338,9 @@ async def generate_image(cfg, prompt: str, model: str = "agnes-image-2.1-flash",
     }
     if extra_body:
         payload["extra_body"] = extra_body
+    if ref_data_uri:
+        payload["image"] = ref_data_uri
+        payload["reference_image"] = ref_data_uri
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -378,14 +395,25 @@ async def generate_image(cfg, prompt: str, model: str = "agnes-image-2.1-flash",
             pass
 
     if not saved and img_url:
-        try:
-            async with httpx.AsyncClient(timeout=25.0) as client:
-                img_resp = await client.get(img_url)
-                if img_resp.status_code == 200:
-                    local_path.write_bytes(img_resp.content)
-                    saved = True
-        except Exception:
-            pass
+        urls_to_try = []
+        if img_url.startswith("/"):
+            urls_to_try.append(f"http://127.0.0.1:18610{img_url}")
+            base_origin = re.match(r"^https?://[^/]+", endpoint)
+            if base_origin:
+                urls_to_try.append(f"{base_origin.group(0)}{img_url}")
+        else:
+            urls_to_try.append(img_url)
+
+        for u in urls_to_try:
+            try:
+                async with httpx.AsyncClient(timeout=25.0) as client:
+                    img_resp = await client.get(u)
+                    if img_resp.status_code == 200 and len(img_resp.content) > 200:
+                        local_path.write_bytes(img_resp.content)
+                        saved = True
+                        break
+            except Exception:
+                pass
 
     return {
         "ok": True,
@@ -420,16 +448,16 @@ def register_media_tools(registry, cfg, gateway=None, vault_store=None):
     async def media_transcribe(path: str):
         return await transcribe(cfg, path, gateway)
 
-    async def generate_image_tool(prompt: str, model: str = "agnes-image-2.1-flash",
+    async def generate_image_tool(prompt: str, model: str = "muse-image",
                                   size: str = "1024x1024", image_path: str = ""):
         return await generate_image(cfg, prompt, model=model, size=size, image_path=image_path, vault_store=vault_store)
 
     specs = [
         ("generate_image",
-         "Sinh hoặc chỉnh sửa ảnh AI (Text-to-Image & Image-to-Image). Hỗ trợ truyền 'image_path' (đường dẫn ảnh trong workspace hoặc URL) để biến đổi, giữ nét nhân vật hoặc chuyển phong cách từ ảnh có sẵn qua Agnes AI. Tự động lấy API key từ Vault.",
+         "Sinh hoặc chỉnh sửa ảnh AI (Text-to-Image & Image-to-Image). Hỗ trợ truyền 'image_path' (đường dẫn ảnh trong workspace hoặc URL) để biến đổi, giữ nét nhân vật hoặc chuyển phong cách từ ảnh có sẵn (qua model muse-image hoặc Agnes AI).",
          {"type": "object",
           "properties": {"prompt": {"type": "string", "description": "Mô tả chi tiết nội dung ảnh muốn tạo hoặc các thay đổi so với ảnh gốc"},
-                         "model": {"type": "string", "default": "agnes-image-2.1-flash", "description": "Tên model tạo ảnh (agnes-image-2.1-flash, agnes-image-2.0-flash...)"},
+                         "model": {"type": "string", "default": "muse-image", "description": "Tên model tạo ảnh (muse-image, grok-imagine-image, agnes-image-2.1-flash...)"},
                          "size": {"type": "string", "default": "1024x1024", "description": "Kích thước ảnh"},
                          "image_path": {"type": "string", "default": "", "description": "Đường dẫn file ảnh cục bộ (trong workspace/uploads) hoặc URL ảnh mẫu để thực hiện Image-to-Image (i2i)"}},
           "required": ["prompt"]}, 150, generate_image_tool),

@@ -124,9 +124,13 @@ class SubagentRunner:
                                     self.cfg.subagent_token_budget)
         child_cfg = replace(
             self.cfg,
-            max_llm_calls_per_task=min(
-                self.cfg.max_llm_calls_per_task,
-                self.cfg.subagent_max_llm_calls,
+            max_llm_calls_per_task=(
+                self.cfg.subagent_max_llm_calls
+                if self.cfg.max_llm_calls_per_task <= 0
+                else min(
+                    self.cfg.max_llm_calls_per_task,
+                    self.cfg.subagent_max_llm_calls,
+                )
             ),
             max_task_seconds=self.cfg.subagent_max_seconds,
             review_fork_enabled=False,  # subagent không sinh fork cháu

@@ -145,7 +145,7 @@ class Config:
     history_max_messages: int = 60
 
     # --- Ngân sách tác vụ (thiết kế mục 3.1) ---
-    max_llm_calls_per_task: int = 30
+    max_llm_calls_per_task: int = 0  # 0 = không giới hạn trần ngân sách lời gọi model
     max_task_seconds: int = 600
     verify_max_retries: int = 2
     llm_timeout_s: int = 60
@@ -365,7 +365,7 @@ class Config:
             recall_token_budget=_env_int("RECALL_TOKEN_BUDGET", 6_000),
             tool_result_max_chars=_env_int("TOOL_RESULT_MAX_CHARS", 8_000),
             history_max_messages=_env_int("HISTORY_MAX_MESSAGES", 60),
-            max_llm_calls_per_task=_env_int("MAX_LLM_CALLS_PER_TASK", 30),
+            max_llm_calls_per_task=_env_int("MAX_LLM_CALLS_PER_TASK", 0),  # 0 = không giới hạn
             max_task_seconds=_env_int("MAX_TASK_SECONDS", 600),
             verify_max_retries=_env_int("VERIFY_MAX_RETRIES", 2),
             llm_timeout_s=_env_int("LLM_TIMEOUT_S", 60),
