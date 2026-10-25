@@ -382,6 +382,31 @@ class ContextEngine:
             )
             tokens += estimate_tokens(summary)
 
+        # Định danh Topic / Bề mặt (chuẩn Muse)
+        surface_hint = ""
+        if ":topic:" in session_key:
+            try:
+                tid = int(session_key.rsplit(":topic:", 1)[1])
+                if tid == 1:
+                    surface_hint = "BỐI CẢNH BỀ MẶT: Bạn đang ở Topic Chat chính (Main Chat). Đây là luồng trao đổi tổng quan."
+                elif tid == 3:
+                    surface_hint = "BỐI CẢNH BỀ MẶT: Bạn đang ở Topic Feed (Bản tin). Người dùng có thể đang trao đổi hoặc hỏi sâu về tin tức công nghệ/AI."
+                elif tid == 4:
+                    surface_hint = "BỐI CẢNH BỀ MẶT: Bạn đang ở Topic Ideas (Ý tưởng). Nơi đề xuất, thảo luận và thực thi các thẻ ý tưởng (nhận việc qua nút Làm luôn)."
+                elif tid == 5:
+                    surface_hint = "BỐI CẢNH BỀ MẶT: Bạn đang ở Topic Goals (Mục tiêu). Nơi theo dõi tiến trình và cập nhật các mục tiêu lớn."
+                elif tid == 6:
+                    surface_hint = "BỐI CẢNH BỀ MẶT: Bạn đang ở Topic Library (Thư viện). Nơi lưu trữ, quản lý file, ảnh và tài liệu."
+                elif tid == 7:
+                    surface_hint = "BỐI CẢNH BỀ MẶT: Bạn đang ở Topic Lịch sử & Hệ thống (History). Nơi lưu nhật ký hành động và trạng thái."
+                elif tid > 10:
+                    surface_hint = f"BỐI CẢNH BỀ MẶT: Bạn đang ở một Chat phụ (Side Chat, thread {tid}). Luồng này độc lập với Main Chat, dùng chung trí nhớ bền."
+            except (ValueError, IndexError):
+                pass
+        if surface_hint:
+            messages.append({"role": "system", "content": surface_hint})
+            tokens += estimate_tokens(surface_hint)
+
         recent = await self.memory.recent_messages(
             session_key, limit=cfg.history_max_messages, after_id=summary_upto
         )

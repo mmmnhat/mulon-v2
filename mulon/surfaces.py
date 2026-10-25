@@ -30,46 +30,39 @@ SURFACES: list[dict] = [
         "key": "main", "title": "Chat chính",
         "blurb": "Nơi ra lệnh và trao đổi chính với agent. Mọi bề "
                  "mặt khác đều gọi được bằng lời thường ngay tại đây.",
-        "commands": "/status · /new · /memory · /quyen",
+        "commands": "Nhắn tin tự nhiên · /menu mở bảng điều khiển",
     },
     {
         "key": "feed", "title": "Feed",
-        "blurb": "Bài Feed TỰ đăng theo lịch (mặc định 2 lần/ngày) "
-                 "từ goals + ký ức của user và tin ngoài do hệ "
-                 "thống tự tìm kiếm từ nguồn tin cậy/chính thống "
-                 "(trích dẫn chỉ dùng link thật đã lấy về). "
-                 "Reaction trên bài là tín hiệu gu (taste) cho "
-                 "các bài sau.",
-        "commands": "/feedbrief <nội dung> · /feedsources · tự "
-                    "chạy theo lịch (điều khiển ở Mini App)",
+        "blurb": "Bản tin Công nghệ & AI thực chiến tự đăng theo lịch "
+                 "hệ thống. Trích dẫn chỉ dùng nguồn thật. "
+                 "Reaction ❤️ Thích và 💬 Thảo luận giúp học gu bài viết.",
+        "commands": "Tự động đăng bài · Bấm nút ❤️ Thích hoặc 💬 Thảo luận",
     },
     {
         "key": "ideas", "title": "Ideas",
-        "blurb": "Thẻ ý tưởng agent đề xuất. Trả lời 'làm luôn' vào "
-                 "một thẻ để biến nó thành goal + task; thẻ tự hết "
-                 "hạn sau ~14 ngày.",
-        "commands": "/ideas · /idea_do <id> · /idea_bo <id>",
+        "blurb": "Thẻ ý tưởng agent đề xuất tự động. Bấm '🚀 Làm luôn' "
+                 "để nhận việc hoặc '🗑 Bỏ qua' để ẩn thẻ; thẻ tự động "
+                 "retire sau ~14 ngày.",
+        "commands": "Bấm trực tiếp nút trên thẻ (không cần gõ lệnh)",
     },
     {
         "key": "goals", "title": "Goals",
-        "blurb": "Mục tiêu dài hạn (2 trạng thái: đang chạy / đã "
-                 "hoàn thành) và các cam kết đang được theo dõi.",
-        "commands": "hỏi bằng lời thường: 'goals đang chạy có gì?'",
+        "blurb": "Mục tiêu dài hạn (State Machine) và tiến trình theo dõi. "
+                 "Tự động cập nhật trạng thái khi bạn báo kết quả trong chat.",
+        "commands": "Tự động ghi nhận tiến độ qua chat · Xem trong Mini App",
     },
     {
         "key": "library", "title": "Library",
-        "blurb": "Catalog mọi file agent đã tạo/lưu cho user. Xóa "
-                 "là vào thùng rác 30 ngày, khôi phục được; chia sẻ "
-                 "tối đa 48h và phải duyệt từng lần.",
-        "commands": "/library · /trash_item <id> · "
-                    "/restore_item <id> · /share_item <id>",
+        "blurb": "Kho ảnh và tài liệu agent lưu cho user. Mọi ảnh gửi "
+                 "qua chat hoặc AI sinh ra đều tự động đồng bộ vào đây.",
+        "commands": "Tự động đồng bộ ảnh · Quản lý trong Mini App",
     },
     {
         "key": "history", "title": "Lịch sử & Hệ thống",
-        "blurb": "Đề xuất chủ động đang chờ duyệt, lịch sử quyết "
-                 "định quyền, trạng thái hệ thống và ký ức.",
-        "commands": "/notes · /note_ok <id> · /note_bo <id> · "
-                    "/approvals · /memory",
+        "blurb": "Lịch sử quyết định quyền, trạng thái hệ thống và "
+                 "nhật ký phê duyệt.",
+        "commands": "Xem trong Mini App (tab Phê duyệt / Cài đặt)",
     },
 ]
 
