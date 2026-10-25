@@ -115,3 +115,22 @@ async def test_setup_partial_failure_keeps_successes(cfg):
     assert "feed" in result["map"]
     assert any("Ideas" in e for e in result["errors"])
     await memory.close()
+
+
+async def test_feed_signals_and_forward_discuss(cfg):
+    memory = await open_memory(cfg)
+    chat_id = -1001
+    post_msg_id = 42
+
+    # Thử ghi feed signal like và discuss
+    sig_like = await memory.add_feed_signal(chat_id, post_msg_id, "❤️")
+    assert sig_like > 0
+    sig_disc = await memory.add_feed_signal(chat_id, post_msg_id, "💬")
+    assert sig_disc > 0
+
+    counts = await memory.feed_signal_counts()
+    rx_map = {c["reaction"]: c["n"] for c in counts}
+    assert rx_map.get("❤️") == 1
+    assert rx_map.get("💬") == 1
+    await memory.close()
+
