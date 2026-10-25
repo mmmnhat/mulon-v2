@@ -134,7 +134,12 @@ def format_step_title(tool_name: str, args: dict) -> str:
         return f"{prefix}: {prompt[:50]}" if prompt else prefix
     if tool_name == "run_command":
         cmd = args.get("command", "")
-        return f"Chạy lệnh: {cmd[:50]}" if cmd else "Chạy lệnh hệ thống"
+        if cmd.startswith("python3 -c") or cmd.startswith("python -c"):
+            return "Chạy script Python"
+        if cmd.startswith("curl "):
+            return "Gửi request mạng (curl)"
+        first_line = cmd.strip().split("\n")[0]
+        return f"Chạy lệnh: {first_line[:45]}" if first_line else "Chạy lệnh hệ thống"
     if tool_name == "read_file":
         return f"Đã đọc file: {args.get('path', '')}"
     if tool_name == "write_file":
@@ -189,8 +194,10 @@ def format_step_detail(tool_name: str, args: dict, result: dict) -> str:
         info["command"] = cmd
         info["stdout"] = (result.get("stdout") or "")[:2000]
         info["stderr"] = (result.get("stderr") or "")[:1000]
-        info["exit_code"] = result.get("exit_code", 0)
-        info["description"] = f"Executed shell command: {cmd}"
+        exit_code = result.get("exit_code", 0)
+        info["exit_code"] = exit_code
+        info["summary"] = "Đã thực thi thành công" if ok and exit_code == 0 else f"Lỗi thực thi (mã {exit_code or 1})"
+        info["description"] = info["summary"]
     elif tool_name in ("web_fetch", "web_read"):
         info["url"] = args.get("url", "")
         info["content"] = str(result.get("content", ""))[:1500]

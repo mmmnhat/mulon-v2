@@ -165,6 +165,7 @@ section{animation:tab-in var(--t2) var(--ease)}
 .card{
   background:var(--surface); border:1px solid var(--line);
   border-radius:var(--r-card); padding:var(--s1) 0; margin-bottom:var(--s3);
+  overflow:hidden;
 }
 /* Tiêu đề section: 13/600 --ink2 sentence-case (PH-1) — đọc
    như đầu mục của Muse, không còn hét viết hoa 11px --ink3. */
@@ -317,9 +318,9 @@ button:focus-visible{outline:2px solid var(--lav-deep);
 /* ---------- timeline ---------- */
 /* Đệm đáy thẻ 8 + chấm 8pt (NT-2): hết khoảng chết cuối thẻ,
    chấm hết nặng so với rail 2px. */
-.timeline{padding:var(--s1) var(--s4) var(--s2)}
+.timeline{padding:var(--s1) var(--s4) var(--s2); overflow:hidden}
 .tl-item{display:flex; gap:var(--s3); position:relative;
-  padding:var(--s2) 0}
+  padding:var(--s2) 0; min-width:0; max-width:100%}
 .tl-item:before{
   content:""; position:absolute; left:3px; top:22px; bottom:-4px;
   width:2px; background:var(--line);
@@ -331,9 +332,9 @@ button:focus-visible{outline:2px solid var(--lav-deep);
 .tl-dot.done{background:var(--ink2)}
 .tl-dot.doing{background:var(--lav)}
 .tl-dot.err{background:var(--ink3)}
-.tl-body{flex:1}
-.tl-name{font-weight:var(--fw-s); font-size:var(--fs-body)}
-.tl-meta{font-size:var(--fs-cap); color:var(--ink2)}
+.tl-body{flex:1; min-width:0; max-width:100%; overflow-wrap:anywhere; word-break:break-word}
+.tl-name{font-weight:var(--fw-s); font-size:var(--fs-body); line-height:1.4; overflow-wrap:anywhere; word-break:break-word}
+.tl-meta{font-size:var(--fs-cap); color:var(--ink2); line-height:1.45; margin-top:2px; overflow-wrap:anywhere; word-break:break-word}
 /* ---------- bảng trường + trạng thái dạng chữ ---------- */
 table.fields{width:100%; border-collapse:collapse;
   font-size:var(--fs-cap)}
@@ -476,7 +477,7 @@ table.fields tr + tr td.k:before{left:var(--s4)}
 }
 .backrow:active{opacity:.55}
 .screen-title{font-size:var(--fs-screen); font-weight:var(--fw-s);
-  margin:0 0 var(--s2); letter-spacing:-0.01em}
+  margin:0 0 var(--s2); letter-spacing:-0.01em; overflow-wrap:anywhere; word-break:break-word}
 /* Note = chữ trần 13 --ink2, KHÔNG hộp nền (TQ-2): hộp xám
    90pt ở đầu màn con ăn chrome và nói điều hiển nhiên. Nội
    dung dài để ở cuối màn (mẫu .bc-note / chân màn Quyền). */
@@ -492,7 +493,7 @@ pre.content{
   line-height:var(--lh-body);
 }
 .summary-box{padding:var(--s3) var(--s4) var(--s4);
-  font-size:var(--fs-body)}
+  font-size:var(--fs-body); overflow-wrap:anywhere; word-break:break-word}
 .hidden{display:none !important}
 #toast{
   position:fixed; left:50%;
@@ -1504,17 +1505,34 @@ async function openTask(id){
     items.push({name: "Đã bắt đầu", meta: todayLabel(t.created_at), cls: "done"});
 
     (t.steps || []).forEach(st => {
+      let stepName = st.title || "Bước thực thi";
+      if (stepName.startsWith("Chạy lệnh: python3 -c") || stepName.startsWith("Chạy lệnh: python -c")){
+        stepName = "Chạy script Python";
+      } else if (stepName.startsWith("Chạy lệnh: curl ")){
+        stepName = "Gửi request mạng (curl)";
+      }
+
       let meta = "";
       let parsed = null;
       if (st.detail){
         try { parsed = JSON.parse(st.detail); } catch(e){}
       }
       if (parsed && typeof parsed === "object"){
-        // Trích xuất lời thường tinh gọn, TUYỆT ĐỐI không in raw JSON!
-        if (parsed.summary) meta = parsed.summary;
-        else if (parsed.description) meta = parsed.description;
-        else if (parsed.command) meta = parsed.command;
-        else if (parsed.query) meta = "Tìm: " + parsed.query;
+        // Trích xuất lời thường tinh gọn, TUYỆT ĐỐI không in raw JSON và không lặp lại lệnh dài lê thê
+        if (parsed.tool === "run_command" || parsed.command || (st.title && st.title.startsWith("Chạy lệnh"))){
+          meta = (parsed.ok !== false && (!parsed.exit_code || parsed.exit_code === 0)) ? "Đã thực thi thành công" : ("Lỗi thực thi" + (parsed.exit_code ? " (mã " + parsed.exit_code + ")" : ""));
+        } else if (parsed.summary){
+          meta = parsed.summary;
+        } else if (parsed.description){
+          let d = parsed.description;
+          if (d.startsWith("Executed shell command:")){
+            meta = (parsed.ok !== false) ? "Đã thực thi thành công" : "Lỗi thực thi";
+          } else {
+            meta = d;
+          }
+        } else if (parsed.query){
+          meta = "Tìm: " + parsed.query;
+        }
       } else if (st.detail && typeof st.detail === "string" && !st.detail.startsWith("{")){
         meta = st.detail;
       }
@@ -1540,7 +1558,7 @@ async function openTask(id){
       }
 
       items.push({
-        name: st.title,
+        name: stepName,
         meta: meta,
         cls: st.status === "done" ? "done" : st.status === "doing" ? "doing" : st.status === "failed" ? "err" : "",
         imgHtml: imgHtml
