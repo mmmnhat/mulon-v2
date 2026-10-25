@@ -241,9 +241,11 @@ async def transcribe(cfg, path, gateway=None) -> dict:
         cfg, src, gateway=None, understand=False)
 
 
-async def generate_image(cfg, prompt: str, model: str = "agnes-image-2.5-flash",
-                         size: str = "1024x1024", vault_store=None) -> dict:
-    """Sinh ảnh AI từ prompt qua API Agnes AI (OpenAI-compatible)."""
+async def generate_image(cfg, prompt: str, model: str = "agnes-image-2.1-flash",
+                         size: str = "1024x1024", image_path: str = "",
+                         vault_store=None) -> dict:
+    """Sinh hoặc chỉnh sửa ảnh AI (Text-to-Image & Image-to-Image) qua API Agnes AI (OpenAI-compatible)."""
+    import asyncio
     import base64
     import os
     import time
@@ -279,6 +281,40 @@ async def generate_image(cfg, prompt: str, model: str = "agnes-image-2.5-flash",
             "error": "Chưa có API key để sinh ảnh. Hãy gọi tool request_vault_secret(label='agnes_ai:api_key') để yêu cầu chủ nhân lưu key vào Kho an toàn (Vault).",
         }
 
+    extra_body = None
+    if image_path and str(image_path).strip():
+        clean_img = str(image_path).strip()
+        if clean_img.startswith("http://") or clean_img.startswith("https://"):
+            extra_body = {"image": [clean_img], "response_format": "url"}
+        else:
+            try:
+                src_path = _resolve_in_workspace(cfg, clean_img)
+                if src_path.is_file():
+                    ext = src_path.suffix.lower().lstrip(".") or "jpeg"
+                    if ext == "jpg":
+                        ext = "jpeg"
+                    try:
+                        from PIL import Image
+                        from io import BytesIO
+                        with Image.open(src_path) as im:
+                            if im.mode not in ("RGB", "L"):
+                                im = im.convert("RGB")
+                            if max(im.size) > 1024:
+                                im.thumbnail((1024, 1024))
+                            buf = BytesIO()
+                            im.save(buf, format="JPEG", quality=85)
+                            b64_str = base64.b64encode(buf.getvalue()).decode("utf-8")
+                            data_uri = f"data:image/jpeg;base64,{b64_str}"
+                    except Exception:
+                        raw_bytes = src_path.read_bytes()
+                        b64_str = base64.b64encode(raw_bytes).decode("utf-8")
+                        data_uri = f"data:image/{ext};base64,{b64_str}"
+                    extra_body = {"image": [data_uri], "response_format": "url"}
+                else:
+                    logger.warning("Không tìm thấy file ảnh i2i: %s", clean_img)
+            except Exception as exc:
+                logger.warning("Xử lý ảnh i2i thất bại: %s", exc)
+
     endpoint = "https://apihub.agnes-ai.com/v1/images/generations"
     payload = {
         "model": model,
@@ -286,19 +322,40 @@ async def generate_image(cfg, prompt: str, model: str = "agnes-image-2.5-flash",
         "n": 1,
         "size": size,
     }
+    if extra_body:
+        payload["extra_body"] = extra_body
+
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         "User-Agent": "MulonBot/1.0",
     }
-    try:
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            resp = await client.post(endpoint, json=payload, headers=headers)
-            if resp.status_code != 200:
-                return {"ok": False, "error": f"Lỗi từ nhà cung cấp ({resp.status_code}): {resp.text[:300]}"}
-            data = resp.json()
-    except Exception as exc:
-        return {"ok": False, "error": f"Lỗi kết nối khi gọi API sinh ảnh: {exc}"}
+
+    timeout_s = 120.0 if extra_body else 60.0
+    data = None
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=timeout_s) as client:
+                resp = await client.post(endpoint, json=payload, headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    break
+                elif resp.status_code == 503 and attempt < 2:
+                    # Server bận/queue full -> đợi 2.5s rồi thử lại
+                    await asyncio.sleep(2.5)
+                    continue
+                else:
+                    return {"ok": False, "error": f"Lỗi từ nhà cung cấp ({resp.status_code}): {resp.text[:300]}"}
+        except httpx.TimeoutException:
+            if attempt < 2:
+                await asyncio.sleep(2.0)
+                continue
+            return {"ok": False, "error": f"Quá thời gian chờ phản hồi ({int(timeout_s)}s) từ dịch vụ tạo ảnh."}
+        except Exception as exc:
+            return {"ok": False, "error": f"Lỗi kết nối khi gọi API sinh ảnh: {exc}"}
+
+    if not data:
+        return {"ok": False, "error": "Không nhận được phản hồi từ dịch vụ tạo ảnh"}
 
     items = data.get("data", [])
     if not items:
@@ -322,7 +379,7 @@ async def generate_image(cfg, prompt: str, model: str = "agnes-image-2.5-flash",
 
     if not saved and img_url:
         try:
-            async with httpx.AsyncClient(timeout=20.0) as client:
+            async with httpx.AsyncClient(timeout=25.0) as client:
                 img_resp = await client.get(img_url)
                 if img_resp.status_code == 200:
                     local_path.write_bytes(img_resp.content)
@@ -333,6 +390,7 @@ async def generate_image(cfg, prompt: str, model: str = "agnes-image-2.5-flash",
     return {
         "ok": True,
         "prompt": prompt,
+        "image_path": image_path,
         "url": img_url,
         "local_path": str(local_path) if saved else "",
         "message": f"Đã sinh ảnh thành công: {local_path if saved else img_url}",
@@ -362,18 +420,19 @@ def register_media_tools(registry, cfg, gateway=None, vault_store=None):
     async def media_transcribe(path: str):
         return await transcribe(cfg, path, gateway)
 
-    async def generate_image_tool(prompt: str, model: str = "agnes-image-2.5-flash",
-                                  size: str = "1024x1024"):
-        return await generate_image(cfg, prompt, model=model, size=size, vault_store=vault_store)
+    async def generate_image_tool(prompt: str, model: str = "agnes-image-2.1-flash",
+                                  size: str = "1024x1024", image_path: str = ""):
+        return await generate_image(cfg, prompt, model=model, size=size, image_path=image_path, vault_store=vault_store)
 
     specs = [
         ("generate_image",
-         "Sinh ảnh AI từ mô tả văn bản (prompt). Tự động lấy API key từ Vault để gọi dịch vụ tạo ảnh (Agnes AI / OpenAI-compatible). Lưu ảnh vào workspace và trả về file local cùng URL.",
+         "Sinh hoặc chỉnh sửa ảnh AI (Text-to-Image & Image-to-Image). Hỗ trợ truyền 'image_path' (đường dẫn ảnh trong workspace hoặc URL) để biến đổi, giữ nét nhân vật hoặc chuyển phong cách từ ảnh có sẵn qua Agnes AI. Tự động lấy API key từ Vault.",
          {"type": "object",
-          "properties": {"prompt": {"type": "string", "description": "Mô tả chi tiết nội dung ảnh muốn tạo"},
-                         "model": {"type": "string", "default": "agnes-image-2.5-flash", "description": "Tên model tạo ảnh"},
-                         "size": {"type": "string", "default": "1024x1024", "description": "Kích thước ảnh"}},
-          "required": ["prompt"]}, 60, generate_image_tool),
+          "properties": {"prompt": {"type": "string", "description": "Mô tả chi tiết nội dung ảnh muốn tạo hoặc các thay đổi so với ảnh gốc"},
+                         "model": {"type": "string", "default": "agnes-image-2.1-flash", "description": "Tên model tạo ảnh (agnes-image-2.1-flash, agnes-image-2.0-flash...)"},
+                         "size": {"type": "string", "default": "1024x1024", "description": "Kích thước ảnh"},
+                         "image_path": {"type": "string", "default": "", "description": "Đường dẫn file ảnh cục bộ (trong workspace/uploads) hoặc URL ảnh mẫu để thực hiện Image-to-Image (i2i)"}},
+          "required": ["prompt"]}, 150, generate_image_tool),
         ("media_probe",
          "Đọc thông tin media bằng ffprobe: thời lượng, độ phân "
          "giải, codec video/audio, dung lượng.",

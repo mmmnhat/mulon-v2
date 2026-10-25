@@ -129,7 +129,9 @@ def format_step_title(tool_name: str, args: dict) -> str:
     """Tiêu đề lời thường trực quan cho từng bước thực thi tool (chuẩn thẻ việc Muse)."""
     if tool_name == "generate_image":
         prompt = args.get("prompt", "")
-        return f"Sinh ảnh AI: {prompt[:60]}" if prompt else "Sinh ảnh bằng AI"
+        img = args.get("image_path", "")
+        prefix = "Biến đổi ảnh (i2i)" if img else "Sinh ảnh AI"
+        return f"{prefix}: {prompt[:60]}" if prompt else prefix
     if tool_name == "run_command":
         cmd = args.get("command", "")
         return f"Chạy lệnh: {cmd[:60]}" if cmd else "Chạy lệnh hệ thống"
@@ -168,6 +170,7 @@ def format_step_detail(tool_name: str, args: dict, result: dict) -> str:
         info["exit_code"] = result.get("exit_code", 0)
     elif tool_name == "generate_image":
         info["prompt"] = args.get("prompt", "")
+        info["image_path"] = args.get("image_path", "")
         info["url"] = result.get("url", "")
         info["local_path"] = result.get("local_path", "")
     elif "content" in result:
@@ -286,7 +289,12 @@ def build_self_knowledge(cfg, registry) -> str:
         "'Để tui gọi API sinh ảnh', 'Đang thực hiện...' mà không "
         "gọi tool thật. Nếu chủ nhân yêu cầu tạo ảnh, gọi API, "
         "chạy tác vụ, PHẢI dùng tool (run_command, connector_call, "
-        "web_fetch...) để thực hiện thật sự và trả kết quả thật."
+        "web_fetch...) để thực hiện thật sự và trả kết quả thật.\n"
+        "6. Tool generate_image hỗ trợ cả Text-to-Image (t2i) và Image-to-Image (i2i). "
+        "Khi chủ nhân gửi ảnh mẫu (nhân vật, sản phẩm, phong cách) hoặc yêu cầu "
+        "tạo ảnh 'giống vầy', 'tương tự ảnh này', 'từ ảnh này', BẠN PHẢI "
+        "truyền đường dẫn file ảnh đính kèm vào tham số image_path của tool generate_image "
+        "để thực hiện Image-to-Image (i2i) giữ nguyên nét khuôn mặt và phong cách."
     )
 
 

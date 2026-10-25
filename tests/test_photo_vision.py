@@ -74,3 +74,50 @@ def test_telegram_bot_has_photo_handler():
         for h in handlers
     )
     assert has_photo, "Bot phải đăng ký on_photo handler"
+
+
+@pytest.mark.asyncio
+async def test_generate_image_i2i_payload(tmp_path: Path, monkeypatch):
+    from unittest.mock import AsyncMock
+    from mulon.media_tools import generate_image
+    from mulon.agent import format_step_title
+
+    # format_step_title với i2i
+    title_i2i = format_step_title("generate_image", {"prompt": "cô gái anime", "image_path": "/tmp/a.jpg"})
+    assert "Biến đổi ảnh (i2i)" in title_i2i
+
+    title_t2i = format_step_title("generate_image", {"prompt": "cô gái anime"})
+    assert "Sinh ảnh AI" in title_t2i
+
+    # Mock API call
+    import dataclasses
+    cfg = dataclasses.replace(Config(), workspace_dir=str(tmp_path))
+    fake_img = tmp_path / "sample.png"
+    fake_img.write_bytes(b"\x89PNG\r\n\x1a\nfake")
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"data": [{"url": "https://example.com/out.png"}]}
+
+    recorded_payloads = []
+
+    async def fake_post(url, json=None, headers=None):
+        recorded_payloads.append(json)
+        return mock_resp
+
+    mock_client = AsyncMock()
+    mock_client.post = fake_post
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+
+    monkeypatch.setattr("httpx.AsyncClient", lambda **kw: mock_client)
+    monkeypatch.setenv("AGNES_AI_API_KEY", "test-key")
+
+    res = await generate_image(cfg, "anime girl", image_path=str(fake_img))
+    assert res["ok"] is True
+    assert len(recorded_payloads) == 1
+    p = recorded_payloads[0]
+    assert "extra_body" in p
+    assert "image" in p["extra_body"]
+    assert p["extra_body"]["image"][0].startswith("data:image/")
+
