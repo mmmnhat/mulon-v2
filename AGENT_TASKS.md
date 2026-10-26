@@ -127,7 +127,7 @@ của MuLon — đợt này FORMAL HOÁ nó thành bộ phận chính thức:
 - Đa nền tảng theo T-15: dùng bản CLIProxyAPI phù hợp từng OS
   (hoặc EasyCLIProxyAPI desktop nếu hợp), không hardcode path.
 
-### [T-15] Mở khoá cài đặt + đa nền tảng — Giao: Antigravity — `DOING` (ƯU TIÊN 2)
+### [T-15] Mở khoá cài đặt + đa nền tảng — Giao: Antigravity — `TODO` (ƯU TIÊN 2)
 Quyết định chủ dự án 26/10/2026, THAY luật "một chủ duy nhất"
 trong AGENTS.md mục 3.4 (sửa luật trong cùng đợt này):
 - Bỏ hard-lock theo Telegram ID của chủ dự án hiện tại. Thay
@@ -234,7 +234,7 @@ marketplace cài thêm), dùng tài khoản của chính người cài:
   lỗi kết nối phải degrade (bot vẫn chạy, báo rõ connector nào
   đang hỏng).
 
-### [T-21] Lỗi trải nghiệm từ test thật qua Telegram (đợt 1) — Giao: Antigravity — `TODO` (ƯU TIÊN CAO)
+### [T-21] Lỗi trải nghiệm từ test thật qua Telegram (đợt 1) — Giao: Antigravity — `DOING` (ƯU TIÊN CAO)
 Nguồn: Muse đóng vai tester khó tính, test TRỰC TIẾP bằng acc
 Telegram của chủ dự án qua connector `custom.telegram` (đợt
 v1 26/10 23:54 + v2 27/10 00:03–00:07, timeline đầy đủ ở
