@@ -859,6 +859,21 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Bằng chứng (battery v5, 27/10 03:12–03:17): (1) gửi tin lúc bot đang bận viết bài dài -> KHÔNG có bất kỳ phản hồi tức thì nào cho biết đã nhận/xếp hàng; phải đợi ~46s tới khi lượt trước xong mới thấy lượt của mình bắt đầu (cơ chế xếp hàng đúng — tin không mất, chạy ngay sau). (2) Lóe markdown thô trước khi định dạng kịp áp: đáp án "17 + 25" hiện dạng `**17 + 25 = 42**` chữ thô rồi mới sửa thành in đậm thật; bài quán cà phê cũng sửa 3 nhịp mới ổn định định dạng. (3) Bài dài còn sót ký tự phân cách thô dạng `---` trong thân bài (cả bài phân tích AI agent lẫn bài so sánh Muse/ChatGPT).
 - Nghiệm thu: gửi tin khi bot bận -> có xác nhận xếp hàng trong vài giây; đáp án cuối không qua trạng thái chữ markdown thô nhìn thấy được; bài dài không còn dòng `---` thô.
 
+### [T-26] Chốt bề mặt slash commands (46 lệnh thật, menu chỉ 8, không có /help) — Giao: Antigravity — `TODO` (ƯU TIÊN 25)
+- Nguồn: audit chi tiết `docs/ui-professional-audit-2026-10-27.md` mục 1 (Muse rà code + probe sống 19 lệnh trên bot thật 27/10). Bệnh: 3 tầng lệch nhau (menu 8 / BOT_COMMANDS +14 / handler ngầm +24); /lich + /saptol + /upcoming ba lệnh một việc (probe: bảng giống hệt); /help KHÔNG có handler (agent tự chế đáp án chậm); lệnh bịa /xyz123khongco bị coi là việc chat chạy một lượt model vô nghĩa; /memory dump nguyên văn dossier; the_duyet (lệnh test) sống trong bản thật để lại dữ liệu thử.
+- Yêu cầu tóm tắt (chi tiết + nghiệm thu ở tài liệu audit mục 1.4): một danh sách lệnh khai duy nhất sinh ra menu + /help + tài liệu, có test tĩnh quét handler đối chiếu; thêm /help theo nhóm; gộp alias ẩn (saptol/lich -> upcoming, stop -> cancel, dongchat -> chatphu_dong); lệnh lạ trả lời ngay không vào vòng agent; lệnh-theo-id rút khỏi bề mặt công bố (giữ làm đường nội bộ cho nút bấm); lệnh nâng cao/phá huỷ (restart, forget, export_memory, google_auth, claim, setup) gom nhóm Nâng cao trong /help kèm cảnh báo; the_duyet chỉ bật khi có cờ dev, mặc định tắt; /memory trả tóm tắt có cấu trúc thay vì dump thô.
+
+### [T-27] Giao diện Mini App đạt chuẩn chuyên nghiệp 100% — Giao: Antigravity — `TODO` (ƯU TIÊN 26)
+- Nguồn: `docs/ui-professional-audit-2026-10-27.md` mục 2 (đối chiếu sitemap đo thật + cây IA `docs/miniapp-ia-redesign-2026-10-27.md`; liên quan T-12, T-23.1..T-23.6, T-24.5, T-25 — đợt này là lớp HOÀN THIỆN CHUYÊN NGHIỆP trên cấu trúc IA đó, không thay thế chúng).
+- Chuẩn xuyên suốt phải đạt (chi tiết mục 2.1): native Telegram (BackButton mọi màn con, MainButton cho hành động chính, haptic, themeParams + một màu nhấn); design system đo được (lưới 8pt, padding 16, hàng ≥56/vùng chạm ≥44, tối đa 4 cỡ chữ/2 weight, bo góc thống nhất); mọi màn đủ 4 trạng thái (skeleton/rỗng/lỗi-tại-chỗ/có dữ liệu) và mở màn con < 1s cảm nhận; nhãn = đích đến; xác nhận cho thao tác phá huỷ.
+- Thiếu/thừa từng màn: liệt kê đầy đủ ở mục 2.2 (Việc, Phê duyệt — xoá dữ liệu thử + thêm timestamp lịch sử, Lịch, Hồ sơ — bỏ ~400 nút lộ thiên + hết trùng bộ nhớ, Cài đặt — bỏ danh sách tool phẳng + chi tiết connector, Kho, Chợ — tìm kiếm/danh mục/phân trang, Feed — hết hardcode nhãn giờ).
+- Nghiệm thu (mục 2.3): render thật trước/sau từng màn + chạm thử 0 hàng chết + đo lại thời gian mở màn + đối chiếu checklist 2.1 từng dòng. Không nghiệm thu bằng lời.
+
+### [T-28] CI đỏ mọi commit — tìm chân gãy macOS/Windows — Giao: Antigravity — `TODO` (ƯU TIÊN 27)
+- Hiện tượng (chủ dự án phát hiện 27/10 03:27 qua app GitHub): gần như mọi commit gần đây đều bị đánh ✗. CI là `.github/workflows/ci.yml` (pytest trên ubuntu/macos/windows).
+- Đã kiểm từ phía Muse: chạy full suite trên cây hiện tại ở Linux = **496/496 passed** -> chân Ubuntu xanh; chân gãy là macOS và/hoặc Windows (nghi phạm: test quyền file 0600 của Vault, symlink, dữ liệu múi giờ). Connector GitHub của Muse không đọc được log Actions — việc này cần phía Mac mở tab Actions lấy đúng job/test gãy.
+- Yêu cầu: xác định job + test gãy, sửa đúng gốc (ưu tiên sửa test cho đúng đa nền tảng; cấm xoá/nới test để CI xanh — luật AGENTS.md mục 7.3); nếu là lỗi code thật thì sửa code + test hồi quy. Xong: 3/3 chân xanh trên commit mới nhất và ghi kết quả vào mục này.
+
 ## Đã đóng (VERIFIED)
 
 - Đợt vá hardcode 1.6.4 (gateway containment, denylist file tool,
