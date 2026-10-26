@@ -32,6 +32,10 @@ T-10.1 `DOING` phía Mac.
 Cập nhật 2026-10-27 ~01:50 bởi Antigravity: T-10.1 đã
 `DONE` (commit `25772ee`), 484/484 unit tests PASS,
 eval vàng 31/36, chờ Muse nghiệm thu.
+Cập nhật 2026-10-27 ~02:00 bởi Muse (autowatch): T-10.1
+`VERIFIED` (full suite 484/484 + eval 31/36 + test sống VM
+15/15; vòng test sống trên bot thật theo nghiệm thu vẫn chờ
+phía Mac — xem mục T-10.1). Head lúc chốt verdict: `14ccae9`.
 Bổ sung 2026-10-27 ~00:47 bởi Muse: thêm T-23 từ QA Mini
 App đợt 1 (Muse mở app bằng WebView của chủ dự án, chỉ
 đọc, 5 tab + 16 màn con, 00:10–00:46) — chia 6 mục con
@@ -116,7 +120,7 @@ trùng hai nơi. Mỗi mục con: trước khi code phải rà trạng
 thái hiện tại theo ID checklist ghi trong mục, chỉ làm phần
 CÒN THIẾU (nhiều bề mặt đã có nền), không làm lại phần đã đạt.
 
-### [T-10.1] Phê duyệt đồng bộ 2 chiều + thẻ Vault trong chat — Giao: Antigravity — `DONE` (ƯU TIÊN 3)
+### [T-10.1] Phê duyệt đồng bộ 2 chiều + thẻ Vault trong chat — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 3)
 Checklist: F3 + F2 (đều MỘT PHẦN, F3 ghi rõ "chấm lại theo T-10").
 - Thẻ duyệt trong chat <-> màn Phê duyệt trong Mini App dùng
   CHUNG một bản ghi duyệt: quyết (Cho phép/Từ chối) ở bất cứ
@@ -141,6 +145,13 @@ Checklist: F3 + F2 (đều MỘT PHẦN, F3 ghi rõ "chấm lại theo T-10").
   3. *Hết hạn hiển thị rõ ở 2 nơi:* Khi timeout, `ApprovalBroker.wait()` ghi nhận `outcome="expired"`, phát sự kiện cập nhật thẻ chat sang `⌛ HẾT HẠN PHÊ DUYỆT` (gỡ nút) và hiển thị `outcome: expired` trong lịch sử Mini App.
   4. *Thẻ Vault trong chat end-to-end:* Thêm `VaultBroker` và cơ chế lắng nghe `VaultStore.on_captured`. Agent thiếu bí mật tự động gọi `request_vault_secret` gửi thẻ chat kèm link Mini App điền sẵn nhãn (`startapp=vault_<label>`). Người dùng dán bí mật xong (qua `/api/vault/capture` hoặc Vault server), bot gửi tin nhắn báo lại NGAY trong chat đã gửi thẻ (`🔐 ✅ Đã nhận và lưu bí mật cho '<label>' vào Kho an toàn`), tự động đánh thức lượt việc đang dở qua `_resume_vault_task` để agent tiếp tục hoàn tất công việc. Bí mật không vào log, trajectory hay chat (Rule 5).
   5. *Kiểm chứng:* 484/484 tests PASS (thêm 6 test hồi quy toàn diện trong `tests/test_v17_parity_approval_vault.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
+- **Kiểm chứng độc lập (Muse autowatch 27/10/2026, lượt soi commit `25772ee` + `14ccae9` trên nền head `14ccae9`):**
+  - Full suite trên đúng nội dung remote: **484 passed / 0 failed** (khớp con số Antigravity báo; không cần vá venv lần này). Eval stub **31/36 = 86% qua cổng** (5 case trượt cũ marketplace/self-read, không đổi); version trong code đúng **1.7.3**.
+  - Test sống phía VM (hàm thật, dữ liệu thật, script `~/workspace/mulon-clone/live_t101.py`): **15/15** — ApprovalBroker resolve lần 2 trả False (idempotent), timeout -> outcome expired, resolve sau hết hạn False; VaultBroker open/wait/resolve đúng ref; VaultStore trên file thật mode 0600, put lại cùng label vô hiệu hoá ref cũ, thông báo chat chỉ chứa label + ref mờ (không chứa giá trị bí mật).
+  - Đối chiếu code: MỘT ApprovalBroker dùng chung cho agent/surface/server (`main.py`: 1 broker); `resolve()` chỉ set Future một lần (lần 2 False); `wait()` timeout -> outcome expired; `_on_approval_decided` (listener `broker.on_decided`) edit thẻ tại chỗ sang ĐÃ DUYỆT/ĐÃ CHẶN/HẾT HẠN PHÊ DUYỆT + gỡ reply_markup (mặc định `update`, giữ `delete` kế thừa qua `APPROVAL_CARD_ACTION`); `/api/approve` trả `resolved: False` + "đã được xử lý" khi quyết trùng; VaultBroker + `VaultStore.on_captured` -> `on_vault_secret_captured` chỉ gửi label + ref vào chat (giá trị không vào log/trajectory/chat) rồi `_resume_vault_task` tiếp tục việc dở; không hardcode mới, không nới chốt bảo mật (đúng luật mục 5).
+  - Checklist parity liên quan: F3 (phê duyệt đồng bộ 2 chiều) + F2 (thẻ Vault trong chat) — cả hai đều ghi "chấm lại theo T-10 / end-to-end", nay đã chấm lại xong ở tầng code + broker + server thật.
+  - Chưa tự kiểm được từ VM (ghi rõ, không phải lỗi): vòng test sống trên bot thật theo đúng nghiệm thu T-10.1 (duyệt 1 việc từ Mini App -> thẻ chat đổi trạng thái; duyệt 1 việc từ chat -> màn app đổi trạng thái; chạy 1 việc thiếu bí mật -> thẻ Vault tới, nhập xong việc chạy tiếp) — phần này thuộc máy Mac/bot thật, cần Antigravity hoặc chủ dự án chạy một lượt trên bot thật trước khi coi T-10.1 là hoàn tất ngoài đời.
+  - Theo LUẬT HÀNG ĐỢI, mục tiếp theo là T-10.2 (ƯU TIÊN 4).
 
 ### [T-10.2] Tab Hành động + Sắp tới — Giao: Antigravity — `TODO` (ƯU TIÊN 4)
 Checklist: D4 + C6 (MỘT PHẦN) + phần Activity/Upcoming của E8.
