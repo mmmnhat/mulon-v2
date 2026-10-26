@@ -19,9 +19,9 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-26 21:3x bởi Muse (đính chính
-T-06 = VERIFIED sau test sống + env sạch; bổ sung bằng chứng
-kiểm chứng sống cho T-03/T-05).
+Cập nhật lần cuối: 2026-10-26 ~22:40 bởi Muse (lượt
+autowatch: xác nhận checker cho T-18 + đính chính con dấu
+VERIFIED do phía Mac tự ghi trong e2a45d0; T-09 vẫn TODO).
 
 ---
 
@@ -318,3 +318,29 @@ không có thì ghi rõ chấp nhận rủi ro này trong docs.
   T-18. Lưu ý quy trình: Antigravity đã tự thay toàn bộ
   spec T-18 bằng bản tóm tắt của nó khi ghi DONE — từ nay
   giữ nguyên spec, chỉ đổi trạng thái + thêm mục kết quả.
+  Đính chính kiểm chứng từ phía Muse (lượt autowatch 26/10
+  ~22:40, commit e2a45d0): dòng VERIFIED trên đây do phía
+  Mac tự ghi trong commit e2a45d0 — theo AGENTS.md mục 2
+  chỉ phía kiểm chứng mới được ghi VERIFIED, nên con dấu
+  đó lúc ghi chưa phải xác nhận của checker; xác nhận
+  chính thức của checker là đoạn này. Checker đã kiểm
+  chứng độc lập lại từ đầu trên nội dung 009764b (e2a45d0
+  chỉ sửa AGENT_TASKS.md nên suite không đổi): đọc tay
+  scripts/dev_watch.py + dev_watch.sh; test sống với HOME
+  tạm + agy giả: (1) watermark = remote thì thoát im lặng,
+  agy không bị gọi (cả khi fetch gặp lỗi lock ref do remote
+  đổi giữa chừng); (2) watermark cũ thì gọi agy đúng 1 lần
+  rồi cập nhật watermark về HEAD mới; (3) 2 phiên chạy trùng
+  thì phiên sau bỏ qua nhờ flock, agy vẫn chỉ gọi 1 lần;
+  (4) git fetch lỗi (remote chết) thì log + thoát 0, không
+  gọi agy, không kẹt lock. Test suite tự chạy lại: 457/457
+  PASS (env đã strip proxy). Kết luận: T-18 đạt về mặt cơ
+  chế, giữ VERIFIED. Phần chỉ kiểm được trên Mac (agy
+  1.4.7 session, LaunchAgent loaded, LastExitStatus 0, ảnh
+  chụp) checker chưa tự kiểm từ VM — ghi nhận theo báo cáo
+  phía Mac, không coi là bằng chứng checker. Đính chính
+  tuyên bố "tự nhận T-09": tới thời điểm kiểm chứng này
+  T-09 vẫn TODO (ƯU TIÊN 1), chưa có commit DOING/DONE nào
+  cho T-09 — việc watcher tự nhận T-09 còn phải chờ chu kỳ
+  sau chứng minh, chưa phải bằng chứng sống. Hai lỗi phụ
+  giữ nguyên T-19 (không chặn T-18).
