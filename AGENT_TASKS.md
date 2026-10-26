@@ -234,6 +234,89 @@ marketplace cài thêm), dùng tài khoản của chính người cài:
   lỗi kết nối phải degrade (bot vẫn chạy, báo rõ connector nào
   đang hỏng).
 
+### [T-21] Lỗi trải nghiệm từ test thật qua Telegram (đợt 1) — Giao: Antigravity — `TODO` (ƯU TIÊN CAO)
+Nguồn: Muse đóng vai tester khó tính, test TRỰC TIẾP bằng acc
+Telegram của chủ dự án qua connector `custom.telegram` (đợt
+v1 26/10 23:54 + v2 27/10 00:03–00:07, timeline đầy đủ ở
+`~/workspace/mulon-clone/test-battery*-results.jsonl` phía
+Muse). Mọi mục dưới đây đều có bằng chứng hành vi thật;
+nghiệm thu = Muse test lại trực tiếp qua Telegram sau khi
+sửa, không chỉ unit test.
+- **X-01 (NGHIÊM TRỌNG — rò rỉ ngữ cảnh):** hỏi trong group
+  "Mulon": "nãy tui nhắn riêng vụ bài đăng hồi sáng, tui nói
+  gì nhớ không" → bot kể lại CHI TIẾT nội dung hội thoại DM
+  ngay trong group (chủ đề bài đăng, kịch bản post + 2
+  comment đã chốt). Chuẩn Muse: ngữ cảnh DM và group tách
+  bạch; trong group chỉ được từ chối khéo hoặc nói chung
+  chung, KHÔNG trích nội dung DM. Cần: tách memory/context
+  theo chat_id + rào chắn khi trả lời trong group về nội
+  dung thuộc chat khác.
+- **X-02 (cao — đồng hồ sai):** bot trả lời giờ nhanh hơn
+  giờ thật đúng ~25 phút, nhất quán 3 lần đo: 23:55 thật →
+  "ngày 27/10" (sớm 1 ngày); ~23:57 → "bây giờ là 00:20";
+  00:03:37 thật → "Bây giờ là 00:28". Mọi câu trả lời dính
+  giờ/ngày đều không tin được. Cần tìm nguồn "now" bot đang
+  dùng (nghi lệch ở tầng inject thời gian/múi giờ, KHÔNG
+  phải đồng hồ máy Mac — giờ hiển thị Telegram trên máy
+  user đúng).
+- **X-03 (cao — việc bị mất tích):** yêu cầu "tìm 3 tin AI
+  nổi bật hôm nay kèm nguồn": placeholder + 1 dòng tiến
+  trình ("Dùng tool tìm kiếm...") rồi IM LUÔN, kết quả
+  không bao giờ tới, không lỗi, không xin lỗi. Chuẩn Muse:
+  việc chạy nền xong phải có kết quả hoặc báo lỗi rõ.
+- **X-04 (cao — gộp tin vẫn nứt khi đang bận):** tin vụn
+  đến trong lúc bot đang xử lý lượt trước bị flush theo
+  cụm rời: 7 mẩu của một ý bị cắt ở mẩu 3 ("bot ơi check
+  giùm tui cái bài đăng") thành một lượt riêng ngay khi
+  lượt trước vừa xong (cửa sổ sau release() không tính
+  việc user vẫn đang gõ tiếp, nghỉ 6,5s là nứt). Mẩu sửa
+  ý sau đó ("á nhầm", "hồi sáng á") bị xếp thành lượt kế
+  chứ KHÔNG sửa/huỷ lượt đang chạy — bot chạy hết ~50s
+  việc sai ý rồi mới trả kết quả không ai hỏi nữa. Cần:
+  (a) cửa sổ gom sau release đủ dài / reset theo nhịp gõ;
+  (b) nhận diện mẩu SỬA Ý (markers: "á nhầm", "ý là",
+  "không phải", kèm nội dung thay thế) để dừng + định
+  hướng lại lượt đang chạy như cơ chế ngắt hiện có.
+- **X-05 (cao — agent phóng đại phạm vi):** "check giùm
+  cái bài đăng... xem ổn chưa" → bot tự quét TOÀN HỆ
+  THỐNG Threads (63 bài, audit comment, chạy
+  threads_scanner.py + đọc file + dùng vault ref), ~50s,
+  trả báo cáo không ai yêu cầu. Chuẩn Muse: việc mơ hồ
+  thì hỏi lại 1 câu (bài nào?) hoặc kiểm đúng bài gần
+  nhất; không tự mở rộng sang quét toàn hệ thống.
+- **X-06 (trung bình — một làn xe, không tín hiệu hàng
+  đợi):** mọi lượt xử lý nối đuôi một làn: câu hỏi trivial
+  chờ 45–90s sau các việc tồn, các câu hỏi bị dồn thành
+  MỘT tin trả lời gộp muộn (H3+H5 chung một tin, H4+H6
+  chung một tin), user không hề biết mình đang xếp hàng
+  thứ mấy. Cần: tín hiệu đang chờ (placeholder ghi rõ
+  đang đợi lượt trước) và/hoặc cho câu hỏi nhanh đi làn
+  riêng không cần tool.
+- **X-07 (trung bình — chất lượng hiển thị):** (a) tiến
+  trình của việc ĐÃ BỊ ĐỔI Ý vẫn hiển thị kế hoạch cũ
+  ~25s trước khi kết quả mới thay vào (placeholder "nói
+  dối"); (b) streaming sửa tin kiểu ~7 lần sửa/8s với nội
+  dung gần như nguyên vẹn lặp lại, và bản cuối bị TUỘT
+  định dạng so với bản giữa chừng (markdown `###`/bold
+  biến mất) — splitter HTML đang ăn định dạng; (c) một
+  lần streaming flash đúng 1 ký tự "N" trước khi hiện cả
+  câu; (d) tin xác nhận hiện diện mẫu cứng "Tui đây tui
+  đây ní ơi!..." bị gửi TRÙNG 2 lần trong vài phút.
+- **X-08 (trung bình — group):** trong group, câu hỏi vụn
+  "nay có gì hot không" bị trả bằng tin xác nhận hiện
+  diện chung chung và câu hỏi bị RƠI (không có câu trả
+  lời tiếp theo). Group phải được xử lý như một phiên
+  thật: gộp đủ ý rồi trả lời đúng câu hỏi.
+- **X-09 (thấp — độ trễ câu đơn giản):** "mấy giờ rồi"
+  mất ~20s mới có đáp án (placeholder "…" đứng im). Câu
+  hỏi không cần tool phải đáp trong vài giây.
+- Ghi nhận điểm ĐẠT (giữ nguyên, đừng sửa hỏng): gộp tin
+  cơ bản đúng nhịp khi không bận (đợt test của user 23:41
+  + S1 v1), trí nhớ mạch hội thoại đúng (tự nhắc lại đáp
+  án đã trả), /menu đáp ~0,5s, voice note nghe hiểu và
+  làm đúng việc, hàng đợi cuối cùng vẫn xả hết không mất
+  câu nào (chỉ là muộn và gộp).
+
 ## Đã đóng (VERIFIED)
 
 - Đợt vá hardcode 1.6.4 (gateway containment, denylist file tool,
