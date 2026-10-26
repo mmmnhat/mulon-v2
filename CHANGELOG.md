@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 1.6.8 — 2026-10-26 — Tự dựng Autowatch phía Antigravity (T-18)
+
+- **Autowatch Antigravity (T-18):** Thiết lập cơ chế tự nhận việc tự trị qua git
+  dành cho Antigravity builder trên máy Mac:
+  - Cài đặt `agy` CLI tại `~/.local/bin/agy`.
+  - Bổ sung `scripts/dev_watch.py` và `scripts/dev_watch.sh` với cơ chế khóa đơn
+    non-blocking (`fcntl.flock`), theo dõi watermark SHA `~/.mulon-dev-watch/last_seen_sha`,
+    tự động chạy `agy -p` nhận việc từ `AGENT_TASKS.md` khi phát hiện commit mới.
+  - Cài đặt macOS LaunchAgent `~/Library/LaunchAgents/com.mulon.devwatch.plist`
+    chạy nền định kỳ 5 phút một lần.
+
 ## 1.6.7 — 2026-10-26 — Khảo sát hiệu năng DB/Connectors (T-08) & Cập nhật trạng thái
 
 - **Khảo sát hiệu năng (T-08):** Đã hoàn tất tài liệu khảo sát kỹ thuật tại
