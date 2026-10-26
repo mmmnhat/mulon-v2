@@ -228,6 +228,10 @@ class MessageBatcher:
             delay = self._compute_delay(key, last_msg)
             self._schedule(key, delay)
 
+    def has_pending(self, key: str) -> bool:
+        """Kiểm tra xem session có tin đang trong bộ đệm chờ gộp hay không."""
+        return bool(self._buffers.get(key) or (key in self._timers))
+
     def drain(self, key: str) -> list[str]:
         """Rút toàn bộ buffer (hủy timer tương ứng): tin tới
         trong lúc lượt chờ lock thuộc về chính lượt đó, không
@@ -330,7 +334,7 @@ def md_to_html(text: str) -> str:
     out = _CODE_OR_LINK_RE.sub(_keep, text or "")
     out = html.escape(out, quote=False)
     out = _BOLD_RE.sub(r"<b>\1</b>", out)
-    out = _HEADING_RE.sub(r"<b>\1</b>", out)
+    out = _HEADING_RE.sub(r"\n<b>\1</b>\n", out)
     return re.sub("\x00(\\d+)\x00",
                   lambda m: stash[int(m.group(1))], out)
 
@@ -448,12 +452,17 @@ _STOP_KEYWORDS = tuple(_CANCELLATION_DATA.get("stop_keywords", (
 )))
 _REDIRECT_MARKERS = tuple(_CANCELLATION_DATA.get("redirect_markers", (
     "thôi đừng", "thay vì vậy", "thay vì thế", "chuyển sang", "đổi sang",
-    "làm cái này đi", "không làm cái đó nữa",
+    "làm cái này đi", "không làm cái đó nữa", "thôi khỏi", "đổi ý", "doi y",
+)))
+_CORRECTION_MARKERS = tuple(_CANCELLATION_DATA.get("correction_markers", (
+    "á nhầm", "a nham", "nhầm rồi", "nham roi", "ý là", "y la", "không phải",
+    "khong phai", "sửa lại", "sua lai", "nói nhầm", "noi nham", "nhầm á",
+    "nham a", "nhầm rùi", "khoan nhầm", "nhầm nha"
 )))
 
 
 def is_cancellation_intent(text: str) -> tuple[bool, str]:
-    """Phát hiện ý định huỷ / dừng / chuyển hướng lượt đang chạy.
+    """Phát hiện ý định huỷ / dừng / sửa ý / chuyển hướng lượt đang chạy.
     Trả về (is_cancel, remaining_text).
     """
     clean = (text or "").strip()
@@ -461,15 +470,24 @@ def is_cancellation_intent(text: str) -> tuple[bool, str]:
     if not lowered:
         return False, ""
 
-    # 1. Chuyển hướng: e.g. "thôi đừng làm A nữa, làm B đi"
-    for marker in _REDIRECT_MARKERS:
+    # 1. Chuyển hướng & sửa ý (redirect & correction markers): e.g. "á nhầm, bài hồi sáng á", "ý là làm B đi"
+    for marker in (*_REDIRECT_MARKERS, *_CORRECTION_MARKERS):
         if marker in lowered:
             idx = lowered.find(marker)
             rest = clean[idx + len(marker):].strip()
-            rest = re.sub(r"^(nữa|mà|hãy|thì|,|\.|\s)+", "", rest, flags=re.IGNORECASE).strip()
+            rest = re.sub(r"^(?:\b(?:nữa|mà|hãy|thì|là|ơi)\b|[,.:;\s])+", "", rest, flags=re.IGNORECASE).strip()
             return True, rest
 
-    # 2. Dừng hẳn: so khớp từ khoá dừng ngắn hoặc câu bắt đầu bằng từ dừng
+    # 2. Xử lý từng dòng nếu tin nhắn nhiều dòng: e.g. dòng 2 có "thôi khỏi..." hoặc "đổi ý:..."
+    lines = [ln.strip() for ln in clean.splitlines() if ln.strip()]
+    if len(lines) > 1:
+        for idx, line in enumerate(lines):
+            sub_cancel, sub_rem = is_cancellation_intent(line)
+            if sub_cancel:
+                sub_rest = " ".join([sub_rem] + lines[idx + 1:]).strip() if sub_rem else " ".join(lines[idx + 1:]).strip()
+                return True, sub_rest
+
+    # 3. Dừng hẳn: so khớp từ khoá dừng ngắn hoặc câu bắt đầu bằng từ dừng
     tokens = lowered.split()
     first_two = " ".join(tokens[:2]) if len(tokens) >= 2 else (tokens[0] if tokens else "")
     first_word = tokens[0] if tokens else ""
@@ -480,7 +498,7 @@ def is_cancellation_intent(text: str) -> tuple[bool, str]:
         if len(tokens) <= 5:
             return True, ""
         rest = " ".join(tokens[2:] if first_two in _STOP_KEYWORDS else tokens[1:]).strip()
-        rest = re.sub(r"^(đừng|không|hãy|nữa|,|\.|\s)+", "", rest, flags=re.IGNORECASE).strip()
+        rest = re.sub(r"^(?:\b(?:đừng|không|hãy|nữa|khỏi)\b|[,.:;\s])+", "", rest, flags=re.IGNORECASE).strip()
         return True, rest
 
     return False, ""
@@ -570,6 +588,10 @@ class TelegramSurface:
             return True
         if not self.cfg.group_mention_only:
             return True
+        key = session_key_for(message)
+        if self.batcher.has_pending(key):
+            # Trong group: Nếu session này đã có tin chờ gộp (user đang gõ tiếp chuỗi ý), không bắt lặp @bot
+            return True
         rep = getattr(message, "reply_to_message", None)
         rep_user = getattr(rep, "from_user", None) if rep else None
         if rep_user and self.bot is not None and getattr(rep_user, "id", None) == self.bot.id:
@@ -642,6 +664,14 @@ class TelegramSurface:
             )
         try:
             lock = self._locks.setdefault(key, asyncio.Lock())
+            placeholder = None
+            if lock.locked():
+                # X-06: Tín hiệu hàng đợi khi kẹt lượt trước
+                try:
+                    placeholder = await anchor.answer("⏳ <i>Đang xếp hàng (chờ hoàn thành lượt trước)...</i>", parse_mode="HTML")
+                except Exception:
+                    placeholder = None
+
             async with lock:  # mỗi session tối đa 1 lượt active (mục 3.3)
                 # Drain: tin tới trong lúc lượt này chờ lock
                 # thuộc về chính lượt này — gộp vào input theo
@@ -655,20 +685,20 @@ class TelegramSurface:
                     await anchor.react([ReactionTypeEmoji(emoji=chosen_emoji)])
                 except Exception:
                     pass
-                placeholder = None
                 state = {"shown": "", "last_edit": 0.0}
 
                 async def on_delta(piece: str) -> None:
                     state["shown"] += piece
                     now = asyncio.get_event_loop().time()
-                    if placeholder is not None and now - state["last_edit"] > 1.0:
+                    # X-07 (c): Tránh flash 1 ký tự, chỉ edit khi đủ dài (>=15 ký tự) và cách nhau >= 1.2s
+                    if placeholder is not None and len(state["shown"]) >= 15 and now - state["last_edit"] > 1.2:
                         state["last_edit"] = now
                         try:
                             await placeholder.edit_text(state["shown"][:4000])
                         except Exception:
                             pass
 
-                if True:
+                if placeholder is None:
                     try:
                         placeholder = await anchor.answer("…")
                     except Exception:

@@ -884,6 +884,7 @@ class Memory:
         query: str,
         limit: int = 8,
         exclude_session: Optional[str] = None,
+        exclude_dm: bool = False,
     ) -> list[dict]:
         """Hybrid recall: facts đang hiệu lực + đoạn hội thoại cũ.
 
@@ -938,6 +939,8 @@ class Memory:
         if exclude_session:
             sql += " AND m.session_key <> ?"
             params.append(exclude_session)
+        if exclude_dm:
+            sql += " AND m.session_key NOT LIKE '%:dm:%'"
         sql += " ORDER BY rank LIMIT ?"
         params.append(pool)
         cur = await self.db.execute(sql, params)
@@ -982,6 +985,8 @@ class Memory:
                     if exclude_session and \
                             msg["session_key"] == exclude_session:
                         continue
+                    if exclude_dm and ":dm:" in str(msg.get("session_key", "")):
+                        continue
                     h = slot(f"message:{rid}", {
                         "source": "message", "id": rid,
                         "text": msg["content"],
@@ -1017,6 +1022,7 @@ class Memory:
         query: str,
         limit: int = 8,
         exclude_session: Optional[str] = None,
+        exclude_dm: bool = False,
     ) -> list[dict]:
         """Tìm trong episodic: trả tin gốc NGUYÊN VĂN + session + thời
         gian (session search kiểu Hermes — không tóm tắt, không LLM)."""
@@ -1033,6 +1039,8 @@ class Memory:
         if exclude_session:
             sql += " AND m.session_key <> ?"
             params.append(exclude_session)
+        if exclude_dm:
+            sql += " AND m.session_key NOT LIKE '%:dm:%'"
         sql += " ORDER BY rank LIMIT ?"
         params.append(int(limit))
         cur = await self.db.execute(sql, params)

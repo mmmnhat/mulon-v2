@@ -419,7 +419,7 @@ nội dung — người dùng có thể đã nối Instagram/Threads (bài
   nhắn người chưa có hội thoại phải báo đúng giới hạn,
   không lỗi im lặng.
 
-### [T-21] Lỗi trải nghiệm từ test thật qua Telegram (đợt 1) — Giao: Antigravity — `DOING` (ƯU TIÊN CAO)
+### [T-21] Lỗi trải nghiệm từ test thật qua Telegram (đợt 1) — Giao: Antigravity — `DONE` (ƯU TIÊN CAO)
 Nguồn: Muse đóng vai tester khó tính, test TRỰC TIẾP bằng acc
 Telegram của chủ dự án qua connector `custom.telegram` (đợt
 v1 26/10 23:54 + v2 27/10 00:03–00:07, timeline đầy đủ ở
@@ -501,6 +501,16 @@ sửa, không chỉ unit test.
   án đã trả), /menu đáp ~0,5s, voice note nghe hiểu và
   làm đúng việc, hàng đợi cuối cùng vẫn xả hết không mất
   câu nào (chỉ là muộn và gộp).
+- **Kết quả thực hiện (Antigravity 27/10/2026):**
+  1. *X-01 (Tách biệt ngữ cảnh & rào chắn bảo mật Group):* Thêm tham số `exclude_dm` vào `Memory.recall()` và `Memory.session_search()` (loại trừ triệt để các bản ghi có `session_key` thuộc `:dm:` trong cả nhánh BM25/FTS và vector). `ContextEngine.build()` tự động phát hiện phiên nhóm (`:group:` / `:channel:`) để kích hoạt `exclude_dm=True`, đồng thời tiêm khối chỉ thị `GROUP PRIVACY GUARD` yêu cầu tuyệt đối không tiết lộ/trích dẫn hội thoại DM trong group.
+  2. *X-02 & X-09 (Đồng hồ chuẩn xác & Phản hồi thời gian tức thì):* `ContextEngine.build()` tự động tiêm khối thông tin thời gian thực chuẩn xác theo múi giờ (`cfg.default_timezone`, mặc định `Asia/Ho_Chi_Minh` từ `DEFAULT_TIMEZONE` — tuân thủ Rule 0, không hardcode): ngày, thứ, giờ:phút:giây và ISO. Intent hỏi giờ/ngày được phân loại vào `Intent.CHAT` (fast path), trả lời ngay lập tức trong 1-2s mà không cần gọi tool và không lệch thời gian.
+  3. *X-03 & X-07 (Trạng thái rõ ràng, không treo placeholder & chống nói dối):* Khi lượt bị hủy hoặc chuyển hướng, placeholder được cập nhật lập tức thành `⚠️ Đã dừng tác vụ theo yêu cầu`, dọn dẹp sạch tiến trình cũ. Bổ sung từ khóa tìm kiếm vào `tool_hints` và thêm "dùng tool", "đang tìm" vào `action_promises` (`config/intent_hints.json`) để nâng cấp tự động sang `task_path`.
+  4. *X-04 (Gộp tin nhịp nhàng & Nhận diện mẩu sửa ý):* Bổ sung `correction_markers` vào `config/cancellation_markers.json` ("á nhầm", "ý là", "không phải"...). `is_cancellation_intent()` hỗ trợ đa dòng, nhận diện mẩu sửa ý giữa chừng để hủy ngay lượt đang chạy và chuyển hướng sang ý mới. `MessageBatcher.release()` sử dụng hệ số debounce nhịp nhàng cho tin tồn.
+  5. *X-05 (Chống phóng đại phạm vi):* Cập nhật chỉ dẫn phong cách trong `mulon/prompts/muse_reply_style.txt` (nạp qua `load_prompt`): khi yêu cầu kiểm tra ngắn gọn/mơ hồ ("check giùm bài đăng"), chỉ kiểm tra đúng 1 bài gần nhất hoặc hỏi lại 1 câu, tuyệt đối không tự quét toàn bộ hệ thống tài khoản nếu không có từ "tất cả" / "toàn bộ".
+  6. *X-06 (Tín hiệu hàng đợi):* Khi lượt tin nhắn mới đến trong lúc phiên đang bận xử lý lượt trước, bot gửi ngay thông báo `⏳ Đang xếp hàng (chờ hoàn thành lượt trước)...` trước khi chờ lock.
+  7. *X-07 (Chất lượng hiển thị):* Tách dòng tiêu đề `md_to_html` bằng ngắt dòng rõ ràng, `on_delta` áp ngưỡng độ dài (15 ký tự) và rate limit 1.2s tránh flash 1 ký tự. Thêm quy tắc trong `muse_reply_style.txt` tránh lặp mẫu câu chào hiện diện cứng nhắc ("Tui đây tui đây ní ơi!...").
+  8. *X-08 (Trải nghiệm trong Group):* `TelegramSurface._should_respond` cho phép gộp tin tiếp nối trong chuỗi tin vụn của cùng một user mà không bắt buộc phải lặp lại `@bot` trên từng tin nhỏ.
+  9. *Kiểm chứng:* 469/469 unit tests PASS (thêm 6 test hồi quy trong `tests/test_v17_experience_fixes.py`); golden eval stub đạt 31/36 (86%, qua cổng 85%); version 1.7.1.
 
 ## Đã đóng (VERIFIED)
 

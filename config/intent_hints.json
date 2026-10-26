@@ -31,6 +31,10 @@
   "lưu lại là",
   "ghi nhớ",
   "tìm kiếm",
+  "tìm giúp",
+  "tìm tin",
+  "tin tức",
+  "kèm nguồn",
   "tìm thông tin",
   "tìm sản phẩm",
   "tìm giá",
@@ -179,7 +183,15 @@
   "tui sẽ gọi",
   "tui sẽ tạo",
   "tui sẽ sinh",
-  "đang chạy lệnh"
+  "đang chạy lệnh",
+  "dùng tool",
+  "để tui tìm",
+  "đang tìm",
+  "tui sẽ tìm",
+  "để tui kiểm tra",
+  "tui kiểm tra",
+  "đang tra cứu",
+  "tui sẽ check"
  ],
  "followup_hints": [
   "vault",

@@ -21,7 +21,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+from zoneinfo import ZoneInfo
 
+from .config import DEFAULT_TIMEZONE
 from .gateway import count_messages_tokens, estimate_tokens
 
 logger = logging.getLogger("mulon.context")
@@ -358,6 +360,28 @@ class ContextEngine:
         messages: list[dict] = [{"role": "system", "content": system_text}]
         tokens = estimate_tokens(system_text)
 
+        # Thời gian hệ thống hiện tại (chuẩn xác theo múi giờ, giải quyết lệch giờ / latency)
+        try:
+            tz_str = getattr(cfg, "default_timezone", DEFAULT_TIMEZONE)
+            tz = ZoneInfo(tz_str)
+            now_dt = datetime.now(tz)
+        except Exception:
+            tz_str = DEFAULT_TIMEZONE
+            tz = timezone.utc
+            now_dt = datetime.now(tz)
+
+        _WEEKDAYS = ("Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật")
+        wday = _WEEKDAYS[now_dt.weekday()] if 0 <= now_dt.weekday() < len(_WEEKDAYS) else ""
+        time_part = now_dt.strftime("%H:%M:%S")
+        date_part = now_dt.strftime("%d/%m/%Y")
+        time_block = (
+            f"## THỜI GIAN HỆ THỐNG HIỆN TẠI (SỰ THẬT THỜI GIAN THỰC)\n"
+            f"- Bây giờ là: {time_part}, {wday}, ngày {date_part} (Múi giờ {tz_str}, ISO: {now_dt.isoformat(timespec='seconds')}).\n"
+            f"- Khi người dùng hỏi giờ giấc, ngày tháng, thứ mấy: DÙNG CHÍNH XÁC thông tin trên để trả lời ngay lập tức, không đoán mò."
+        )
+        messages.append({"role": "system", "content": time_block})
+        tokens += estimate_tokens(time_block)
+
         # Bài học từ correction (mục 4.4): mục riêng ngay sau dossier,
         # có trần token riêng — học rồi thì phải có mặt trong ngữ cảnh.
         try:
@@ -387,9 +411,24 @@ class ContextEngine:
                 })
                 tokens += used
 
+        is_group = bool(":group:" in session_key or ":channel:" in session_key)
+        if is_group:
+            group_guard = (
+                "## BẢO VỆ RIÊNG TƯ TRONG NHÓM (GROUP PRIVACY GUARD)\n"
+                "- Bạn đang trò chuyện trong một NHÓM CHAT CÔNG KHAI / GROUP.\n"
+                "- TUYỆT ĐỐI KHÔNG tiết lộ, trích dẫn, hay nhắc lại bất kỳ chi tiết nào "
+                "về nội dung tin nhắn riêng (DM), các cuộc trò chuyện riêng tư của chủ nhân "
+                "hay dữ liệu nhạy cảm.\n"
+                "- Nếu có người hỏi trong group về việc nhắn riêng hồi sáng/nãy nói gì: "
+                "hãy từ chối khéo léo, trả lời chung chung hoặc bảo nhắn trong tin nhắn riêng (DM)."
+            )
+            messages.append({"role": "system", "content": group_guard})
+            tokens += estimate_tokens(group_guard)
+
         # Recall: chạy trước, có trần ngân sách token (mục 3.2/4.2).
+        # Phân tách ngữ cảnh: trong group, TUYỆT ĐỐI không recall tin nhắn từ DM (:dm:)
         hits = await self.memory.recall(
-            user_text, limit=8, exclude_session=session_key
+            user_text, limit=8, exclude_session=session_key, exclude_dm=is_group
         )
         if hits:
             block_lines: list[str] = []

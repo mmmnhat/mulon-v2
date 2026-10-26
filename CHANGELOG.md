@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## 1.7.1 — 2026-10-27 — Vá triệt để các lỗi trải nghiệm Telegram thực tế đợt 1 (T-21: X-01..X-09)
+
+- **X-01 (Bảo mật & Phân tách ngữ cảnh DM và Group):**
+  - Tách bạch episodic memory và recall theo loại session: bổ sung tham số `exclude_dm` trong `Memory.recall()` và `Memory.session_search()` (chặn hoàn toàn các bản ghi có `session_key` thuộc `:dm:` trong cả nhánh BM25/FTS và vector search khi truy vấn từ nhóm).
+  - Tự động phát hiện phiên nhóm (`:group:` hoặc `:channel:`) trong `ContextEngine.build()`, áp dụng `exclude_dm=True` và tiêm khối chỉ thị an toàn `GROUP PRIVACY GUARD` vào system prompt: tuyệt đối không trích dẫn hay nhắc lại các nội dung riêng tư đã bàn trong tin nhắn trực tiếp (DM).
+- **X-02 & X-09 (Thời gian chuẩn xác & Giảm độ trễ câu hỏi đơn giản):**
+  - `ContextEngine.build()` tự động tính toán và tiêm khối thông tin thời gian thực chuẩn xác theo múi giờ (`cfg.default_timezone`, mặc định `Asia/Ho_Chi_Minh` từ `DEFAULT_TIMEZONE` — tuân thủ Rule 0, không hardcode): giờ:phút:giây, thứ trong tuần, ngày/tháng/năm và ISO timestamp.
+  - Phân loại ý định hỏi thời gian vào `Intent.CHAT` (fast path): trả lời trực tiếp trong 1-2 giây từ ngữ cảnh hệ thống, loại bỏ tình trạng bot tự đoán mò lệch 25 phút hay treo placeholder gọi tool không cần thiết.
+- **X-03 & X-07 (Trạng thái rõ ràng, không treo placeholder & chống nói dối tiến trình):**
+  - Bổ sung `correction_markers` vào `config/cancellation_markers.json` (nạp qua `load_json_data`) và mở rộng `is_cancellation_intent()` nhận diện đa dòng: phát hiện chuẩn xác các mẩu sửa ý ("á nhầm", "ý là", "không phải", "thôi khỏi, đổi ý:...").
+  - Khi tác vụ bị dừng do hủy hoặc chuyển hướng, placeholder của lượt trước lập tức được cập nhật thành `⚠️ Đã dừng tác vụ theo yêu cầu`, loại bỏ tình trạng giữ nguyên kế hoạch cũ hay im lặng mất tích.
+  - Bổ sung từ khóa tìm kiếm vào `tool_hints` và thêm "dùng tool", "đang tìm", "tui sẽ tìm" vào `action_promises` (`config/intent_hints.json`) để nâng cấp tự động sang `task_path` khi model có xu hướng hứa hẹn.
+- **X-04 (Gộp tin nhịp nhàng & Nhận diện mẩu sửa ý):**
+  - `MessageBatcher`: khi lượt bận kết thúc, các tin nhắn đến dở dang được hẹn giờ gộp nhịp nhàng theo tỉ lệ `debounce_seconds`, tạo điều kiện cho người dùng gõ nốt ý hoàn chỉnh.
+  - Mẩu sửa ý tự động hủy lượt việc đang chạy và khởi chạy ngay yêu cầu mới, không bắt người dùng chờ 50 giây cho lượt việc sai ý.
+- **X-05 (Chống phóng đại phạm vi — Scope Restraint):**
+  - Bổ sung chỉ dẫn phong cách trong `mulon/prompts/muse_reply_style.txt` (nạp qua `load_prompt`): khi yêu cầu kiểm tra ngắn gọn hoặc mơ hồ ("check giùm bài đăng"), chỉ kiểm tra đúng 1 bài gần nhất hoặc hỏi lại 1 câu, tuyệt đối không tự ý quét toàn bộ hệ thống tài khoản nếu không có yêu cầu "tất cả" / "toàn bộ".
+- **X-06 (Tín hiệu hàng đợi rõ ràng):**
+  - Khi lượt tin nhắn mới đến trong lúc phiên đang bận xử lý lượt trước, bot gửi ngay thông báo hàng đợi trên placeholder: `⏳ Đang xếp hàng (chờ hoàn thành lượt trước)...` trước khi chờ lock, giúp người dùng nắm được trạng thái xử lý.
+- **X-07 (Chất lượng hiển thị & Tránh lặp câu chào hiện diện):**
+  - `md_to_html`: tách dòng tiêu đề (`_HEADING_RE`) bằng ngắt dòng rõ ràng, không làm vỡ phân cấp thị giác khi Telegram render HTML.
+  - `on_delta`: áp ngưỡng độ dài tối thiểu (15 ký tự) và rate limit 1.2s trước khi cập nhật placeholder, loại bỏ hiện tượng flash 1 ký tự khi stream.
+  - Thêm chỉ thị trong `muse_reply_style.txt` tránh lặp lại các mẫu câu chào hiện diện cứng nhắc ("Tui đây tui đây ní ơi!...") khi người dùng hối thúc.
+- **X-08 (Trải nghiệm mượt mà trong Group):**
+  - `TelegramSurface._should_respond`: khi người dùng đã mở đầu chuỗi tin vụn với `@bot` trong nhóm, các mẩu tin kế tiếp trong cửa sổ gộp không bắt buộc phải lặp lại `@bot`, giúp câu hỏi không bị rơi hay ngắt quãng.
+- **Kiểm chứng:** 469/469 unit tests PASS (bổ sung 6 test hồi quy toàn diện trong `tests/test_v17_experience_fixes.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
+
+
 ## 1.7.0 — 2026-10-26 — Cơ chế hội thoại ngang Muse (T-09)
 
 - **Gộp tin (Message batching) & Cơ chế ngắt (Cancellation / Queueing):**

@@ -32,6 +32,28 @@
     "chuyển sang",
     "đổi sang",
     "làm cái này đi",
-    "không làm cái đó nữa"
+    "không làm cái đó nữa",
+    "thôi khỏi",
+    "đổi ý",
+    "doi y"
+  ],
+  "correction_markers": [
+    "á nhầm",
+    "a nham",
+    "nhầm rồi",
+    "nham roi",
+    "ý là",
+    "y la",
+    "không phải",
+    "khong phai",
+    "sửa lại",
+    "sua lai",
+    "nói nhầm",
+    "noi nham",
+    "nhầm á",
+    "nham a",
+    "nhầm rùi",
+    "khoan nhầm",
+    "nhầm nha"
   ]
 }
