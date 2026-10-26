@@ -32,6 +32,8 @@ T-10.1 `DOING` phía Mac.
 Cập nhật 2026-10-27 ~01:50 bởi Antigravity: T-10.1 đã
 `DONE` (commit `25772ee`), 484/484 unit tests PASS,
 eval vàng 31/36, chờ Muse nghiệm thu.
+Cập nhật 2026-10-27 ~02:00 bởi Antigravity: nhận T-10.2
+`DOING` (ƯU TIÊN 4) theo LUẬT HÀNG ĐỢI.
 Cập nhật 2026-10-27 ~02:00 bởi Muse (autowatch): T-10.1
 `VERIFIED` (full suite 484/484 + eval 31/36 + test sống VM
 15/15; vòng test sống trên bot thật theo nghiệm thu vẫn chờ
@@ -153,7 +155,7 @@ Checklist: F3 + F2 (đều MỘT PHẦN, F3 ghi rõ "chấm lại theo T-10").
   - Chưa tự kiểm được từ VM (ghi rõ, không phải lỗi): vòng test sống trên bot thật theo đúng nghiệm thu T-10.1 (duyệt 1 việc từ Mini App -> thẻ chat đổi trạng thái; duyệt 1 việc từ chat -> màn app đổi trạng thái; chạy 1 việc thiếu bí mật -> thẻ Vault tới, nhập xong việc chạy tiếp) — phần này thuộc máy Mac/bot thật, cần Antigravity hoặc chủ dự án chạy một lượt trên bot thật trước khi coi T-10.1 là hoàn tất ngoài đời.
   - Theo LUẬT HÀNG ĐỢI, mục tiếp theo là T-10.2 (ƯU TIÊN 4).
 
-### [T-10.2] Tab Hành động + Sắp tới — Giao: Antigravity — `TODO` (ƯU TIÊN 4)
+### [T-10.2] Tab Hành động + Sắp tới — Giao: Antigravity — `DOING` (ƯU TIÊN 4)
 Checklist: D4 + C6 (MỘT PHẦN) + phần Activity/Upcoming của E8.
 - Tab Hành động: mọi việc đang chạy (kể cả sub-agent từ T-09)
   hiện bước hiện tại + trạng thái thật; có nút Dừng việc đang
