@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 1.6.6 — 2026-10-26 — Vá DNS rebinding TOCTOU (T-06) & Dọn code thừa (T-07)
+
+- **Bảo mật mạng (SSRF - T-06):** Vá lỗ hổng TOCTOU DNS rebinding trong
+  `http_get_public` (`mulon/tools.py`). Sau khi `resolve_and_verify_url`
+  kiểm tra toàn bộ địa chỉ DNS trả về đều là IP công cộng, IP đã kiểm chứng
+  được ghim trực tiếp (IP pinning qua `PinningBackend` trên `httpcore`) vào
+  kết nối socket TCP thay vì để HTTP client resolve DNS lần hai.
+  Vẫn bảo toàn đầy đủ SNI và Host header cho TLS handshake/HTTPS.
+  Hỗ trợ cập nhật pinning trên từng hop redirect (tối đa 3 lần).
+- **Dọn code thừa (Ponytail review - T-07):** Xoá provider rỗng
+  `McpMarketplaceCatalogProvider` không có caller trong `marketplace_providers.py`;
+  dọn unused imports trong `evolution.py`, `voice.py`, `feed.py`, `subagents.py`;
+  thu gọn `_BotShim` trong `feed_auto.py` dùng `types.SimpleNamespace`.
+- **Test:** Thêm test suite `tests/test_v165_dns_pinning.py` với 10 test case
+  bao phủ phân giải IP, lọc địa chỉ hỗn hợp, ghim socket và chặn redirect nội bộ.
+  457/457 tests passed.
+
 ## 1.6.5 — 2026-10-26 — TTL dọn artifact tool-results (Backlog audit B1)
 
 - **Artifacts:** Bổ sung cơ chế `clean_old_tool_results` tự động xóa

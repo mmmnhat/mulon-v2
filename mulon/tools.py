@@ -235,29 +235,31 @@ def ssrf_error_for_url(url: str) -> Optional[str]:
     return None
 
 
-async def assert_url_public(url: str) -> Optional[str]:
-    """Kiểm tra đầy đủ cho 1 URL: vòng tĩnh + phân giải DNS của
-    hostname, mọi địa chỉ phân giải ra đều phải là công cộng.
-    Trả chuỗi lỗi nếu bị chặn, None nếu đạt. DNS lỗi -> chặn
-    (fail-closed): fetch thật cũng sẽ lỗi DNS, nên chặn sớm không
-    làm mất trang hợp lệ nào ngoài trang đã không đọc được."""
+async def resolve_and_verify_url(url: str) -> tuple[Optional[str], Optional[str]]:
+    """Kiểm tra URL công cộng và trả về (error_message, pinned_ip).
+    Nếu hợp lệ, error_message là None và pinned_ip là IP công cộng đã được
+    kiểm chứng. Nếu lỗi, pinned_ip là None.
+    Chống DNS rebinding TOCTOU: caller dùng pinned_ip để ghim kết nối socket,
+    tránh việc HTTP client phân giải lại DNS lần hai ra IP nội bộ."""
     err = ssrf_error_for_url(url)
     if err:
-        return err
-    host = (urlparse(url).hostname or "").lower()
+        return err, None
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
     try:
-        ipaddress.ip_address(host)
-        return None  # IP literal đã qua vòng tĩnh
+        ip = ipaddress.ip_address(host)
+        return None, str(ip)  # IP literal đã qua vòng tĩnh
     except ValueError:
         pass
     try:
         loop = asyncio.get_running_loop()
-        infos = await loop.getaddrinfo(host, 443,
-                                       proto=socket.IPPROTO_TCP)
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        infos = await loop.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
     except Exception:
-        return f"không phân giải được host {host!r} — từ chối (fail-closed)"
+        return f"không phân giải được host {host!r} — từ chối (fail-closed)", None
     if not infos:
-        return f"không phân giải được host {host!r} — từ chối (fail-closed)"
+        return f"không phân giải được host {host!r} — từ chối (fail-closed)", None
+    first_ip = None
     for info in infos:
         sockaddr = info[4] if len(info) > 4 else None
         if not sockaddr:
@@ -265,25 +267,129 @@ async def assert_url_public(url: str) -> Optional[str]:
         try:
             ip = ipaddress.ip_address(sockaddr[0])
         except ValueError:
-            return "địa chỉ phân giải không hợp lệ — từ chối (SSRF guard)"
+            return "địa chỉ phân giải không hợp lệ — từ chối (SSRF guard)", None
         if _ip_is_private_or_reserved(ip):
-            return (f"host {host!r} phân giải ra địa chỉ nội bộ "
-                    "— từ chối (SSRF guard)")
-    return None
+            return (f"host {host!r} phân giải ra địa chỉ nội bộ — từ chối (SSRF guard)", None)
+        if first_ip is None:
+            first_ip = str(ip)
+    if not first_ip:
+        return f"không lấy được địa chỉ IP từ host {host!r} — từ chối (fail-closed)", None
+    return None, first_ip
+
+
+async def assert_url_public(url: str) -> Optional[str]:
+    """Kiểm tra đầy đủ cho 1 URL: vòng tĩnh + phân giải DNS của
+    hostname, mọi địa chỉ phân giải ra đều phải là công cộng.
+    Trả chuỗi lỗi nếu bị chặn, None nếu đạt. DNS lỗi -> chặn
+    (fail-closed): fetch thật cũng sẽ lỗi DNS, nên chặn sớm không
+    làm mất trang hợp lệ nào ngoài trang đã không đọc được."""
+    err, _ = await resolve_and_verify_url(url)
+    return err
+
+
+try:
+    import httpcore
+    from httpcore._backends.anyio import AnyIOBackend
+    _HTTPCORE_AVAILABLE = True
+except Exception:  # pragma: no cover
+    _HTTPCORE_AVAILABLE = False
+    AnyIOBackend = object  # type: ignore
+
+try:
+    import httpx
+    _HTTPX_AVAILABLE = True
+except Exception:  # pragma: no cover
+    _HTTPX_AVAILABLE = False
+    httpx = None  # type: ignore
+
+
+class PinningBackend(AnyIOBackend):
+    """Backend kết nối TCP cho httpcore có hỗ trợ ghim IP (IP pinning).
+    Ghim host -> pinned_ip tại tầng socket để chống DNS rebinding TOCTOU,
+    trong khi tầng TLS vẫn dùng server_hostname/SNI của domain gốc."""
+
+    def __init__(self, ip_map: dict[str, str]):
+        if _HTTPCORE_AVAILABLE:
+            super().__init__()
+        self.ip_map = ip_map
+
+    async def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: Optional[float] = None,
+        local_address: Optional[str] = None,
+        socket_options=None,
+    ):
+        target = self.ip_map.get(host.lower(), host)
+        return await super().connect_tcp(
+            target,
+            port,
+            timeout=timeout,
+            local_address=local_address,
+            socket_options=socket_options,
+        )
+
+
+class PinningTransport(httpx.AsyncHTTPTransport if _HTTPX_AVAILABLE else object):  # type: ignore
+    """Transport httpx ghim IP chống DNS rebinding TOCTOU."""
+
+    def __init__(self, ip_map: Optional[dict[str, str]] = None, **kwargs):
+        if _HTTPX_AVAILABLE:
+            super().__init__(**kwargs)
+            self.ip_map = ip_map if ip_map is not None else {}
+            if _HTTPCORE_AVAILABLE and hasattr(self, "_pool"):
+                self._pool = httpcore.AsyncConnectionPool(
+                    ssl_context=getattr(self._pool, "_ssl_context", None),
+                    network_backend=PinningBackend(self.ip_map),
+                )
+        else:
+            self.ip_map = ip_map or {}
+
+
+def instrument_pinning_client(client: Any, ip_map: dict[str, str]) -> None:
+    """Gắn PinningBackend vào connection pool của httpx client nếu khả dụng."""
+    if not _HTTPCORE_AVAILABLE:
+        return
+    transport = getattr(client, "_transport", None)
+    pool = getattr(transport, "_pool", None)
+    if pool is not None and hasattr(pool, "_network_backend"):
+        if not isinstance(pool._network_backend, PinningBackend):
+            pool._network_backend = PinningBackend(ip_map)
+        else:
+            pool._network_backend.ip_map = ip_map
 
 
 async def http_get_public(client, url: str, max_redirects: int = 3):
     """GET qua httpx client (phải đặt follow_redirects=False) với
     kiểm tra SSRF ở MỖI hop redirect, tối đa max_redirects lần.
+    Chống DNS rebinding TOCTOU bằng IP pinning: ghim IP đã qua kiểm duyệt
+    ở mỗi hop vào network backend của client để kết nối trực tiếp không
+    thông qua resolve DNS lần 2.
     Trả response cuối (không phải redirect). Raise ValueError khi
     URL/hop bị chặn hoặc vượt trần redirect — caller bọc thành
     {ok: False, error} theo quy ước của từng đường (registry đã
     bọc mọi exception của web_fetch; websearch tự bọc)."""
     current = (url or "").strip()
+    ip_map = getattr(client, "_ip_map", None)
+    if not isinstance(ip_map, dict):
+        ip_map = getattr(getattr(client, "_transport", None), "ip_map", None)
+    if not isinstance(ip_map, dict):
+        ip_map = {}
+        instrument_pinning_client(client, ip_map)
+        try:
+            client._ip_map = ip_map
+        except Exception:
+            pass
+
     for hop in range(max_redirects + 1):
-        err = await assert_url_public(current)
+        err, pinned_ip = await resolve_and_verify_url(current)
         if err:
             raise ValueError(err)
+        host = (urlparse(current).hostname or "").lower()
+        if host and pinned_ip:
+            ip_map[host] = pinned_ip
+
         resp = await client.get(current)
         location = resp.headers.get("location") or ""
         if resp.status_code in {301, 302, 303, 307, 308} and location:
