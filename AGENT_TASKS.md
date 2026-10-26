@@ -26,6 +26,13 @@ HÀNG ĐỢI — bản cục cũ không tag nên bị nhảy cóc 2 lượt;
 chủ dự án — Zalo, Telegram cá nhân, Facebook cá nhân, tin
 nhắn Instagram, tin nhắn Threads, chia 3 mục con ƯU TIÊN
 8..10. T-21 đang `DOING`, T-15 `TODO` (ƯU TIÊN 2)).
+Bổ sung 2026-10-27 ~00:47 bởi Muse: thêm T-23 từ QA Mini
+App đợt 1 (Muse mở app bằng WebView của chủ dự án, chỉ
+đọc, 5 tab + 16 màn con, 00:10–00:46) — chia 6 mục con
+T-23.1..T-23.6, ƯU TIÊN 11..16; báo cáo đầy đủ:
+`docs/qa-miniapp-2026-10-27.md`. T-21 đã `DONE` (commit
+`f0e2c25`), chờ Muse nghiệm thu riêng; T-15 đã được
+Mac nhận `DOING` (commit `5f99f79`) theo đúng LUẬT HÀNG ĐỢI.
 
 ---
 
@@ -418,6 +425,145 @@ nội dung — người dùng có thể đã nối Instagram/Threads (bài
   -> thả reaction -> ngắt kết nối sạch; trường hợp Threads
   nhắn người chưa có hội thoại phải báo đúng giới hạn,
   không lỗi im lặng.
+
+### [T-23] QA Mini App đợt 1 — `ĐÃ CHIA NHỎ` (mục cha, KHÔNG nhận mục này)
+Nguồn: Muse QA/QC trực tiếp Mini App bằng WebView đã xác
+thực của chủ dự án (chỉ đọc; 5 tab + 16 màn con; app
+1.7.1). Báo cáo đầy đủ: `docs/qa-miniapp-2026-10-27.md`
+(mã lỗi Q-01..Q-10). Chỉ làm các mục con T-23.1..T-23.6
+theo số ƯU TIÊN + LUẬT HÀNG ĐỢI. Liên quan T-12 (design
+system): các mục con này là DANH SÁCH LỖI CỤ THỂ phải sửa
+trong lúc/trước khi làm lại theo T-12 — không đợi xong
+design system mới sửa lỗi điều hướng/hiển thị. Mọi thay
+đổi UI phải có RENDER THẬT từ HTML/CSS của app để nghiệm
+thu (luật AGENTS.md mục 6).
+
+### [T-23.1] Sửa điều hướng Mini App — Giao: Antigravity — `TODO` (ƯU TIÊN 11)
+QA Q-01 (nghiêm trọng nhất): nhấn hàng trong Cài đặt mở
+lại màn con TRƯỚC ĐÓ (stale navigation), phải nhấn lần
+hai; chỉ chevron mới mở chắc, thân hàng lúc được lúc
+không; hàng lịch sử chạy Heartbeat có chevron nhưng chết;
+hàng lịch/tài liệu nhấn không tác dụng.
+- Nhấn BẤT KỲ hàng nào (toàn thân hàng) phải mở ĐÚNG màn
+  con của hàng đó ngay lần đầu; bỏ trạng thái điều hướng
+  kẹt giữa các lần mở.
+- Mọi màn con có nút QUAY LẠI chuẩn (hiện không có — thoát
+  bằng nhấn lại tab cha).
+- Hàng nào có chevron thì phải mở được; hàng chưa có màn
+  chi tiết thì bỏ chevron (chi tiết cho Lịch ở T-23.4).
+- Nghiệm thu: Muse mở lại app kiểm từng hàng Cài đặt +
+  Lịch + Chợ + thư viện; kèm test hồi quy trạng thái điều
+  hướng nếu test được ở tầng webapp.
+
+### [T-23.2] Render markdown + tải chậm + dọn rò rỉ hiển thị — Giao: Antigravity — `TODO` (ƯU TIÊN 12)
+QA Q-02 + Q-04 + Q-07: markdown THÔ ở Tóm tắt việc, Hồ
+sơ, Bộ nhớ, chi tiết kỹ năng (lộ comment HTML, dính chữ
+thiếu khoảng trắng); lộ đường dẫn máy cục bộ ở chi tiết
+kỹ năng + lệnh chạy connector; màn con tải 15–20s chỉ
+"Đang tải…"; heading chi tiết việc hiện tiêu đề việc cũ
+(stale heading); cụm "Một lượt việc vừa hoàn tất." rò
+rỉ cuối gần như mọi màn.
+- Render markdown thật mọi nơi có markdown; strip
+  comment HTML; sửa dính chữ ở nguồn sinh tóm tắt.
+- ẨN đường dẫn tuyệt đối của máy chạy (chỉ hiện tên
+  file/thư mục tương đối) ở mọi màn.
+- Màn con chậm: có skeleton + mục tiêu tải < 3s (tìm
+  nguyên nhân truy vấn/chặn I/O nếu là do server).
+- Xoá stale heading (xoá tiêu đề cũ trước khi tải việc
+  mới); toast hoàn tất phải tự ẩn, không nằm trong DOM
+  cuối trang.
+- Nghiệm thu: Muse mở lại các màn trên đối chiếu Q-02/
+  Q-04; render thật đính kèm báo cáo DONE.
+
+### [T-23.3] Tách tab Hồ sơ thành 4 màn con — Giao: Antigravity — `TODO` (ƯU TIÊN 13)
+QA Q-05 (màn quá tải nhất app): 2 thẻ lớn + 91 kỹ năng +
+100 tài liệu + ~400 nút lộ thiên trong 1 trang cuộn;
+nhấn tên tài liệu không mở xem trước; Bộ nhớ "810 fact"
+nhưng màn con chỉ là khối văn bản.
+- Tab Hồ sơ chỉ còn 4 HÀNG điều hướng gọn: Hồ sơ agent /
+  Bộ nhớ / Kỹ năng / Thư viện tài liệu.
+- Hồ sơ agent: mục lục 9 file, mỗi file 1 màn con render
+  markdown (theo T-23.2), có tìm kiếm.
+- Bộ nhớ: danh sách FACT có tìm kiếm + lọc ngày/chủ đề;
+  số đếm khớp số ngoài thẻ; fact mở được chi tiết.
+- Kỹ năng: giữ tìm kiếm đang tốt; dịch mô tả sang tiếng
+  Việt ở tầng hiển thị nếu dữ liệu gốc tiếng Anh; sửa
+  các mô tả vỡ chỉ còn ">" / ">-"; ẩn đường dẫn nguồn.
+- Thư viện: mỗi thẻ chỉ còn tên + ngày + MỘT nút tràn
+  (⋯: Chia sẻ/Ghim/Sửa tên/Xoá có xác nhận); nhấn thẻ
+  mở XEM TRƯỚC; tìm kiếm + lọc theo loại file; Thùng
+  rác thành màn con riêng có tiêu đề rõ.
+- Nghiệm thu: Muse mở lại tab Hồ sơ đếm nút/thẻ +
+  kiểm từng màn con; render thật đính kèm.
+
+### [T-23.4] Thống nhất trạng thái việc + chi tiết Lịch — Giao: Antigravity — `TODO` (ƯU TIÊN 14)
+QA Q-03 + Q-10 (Lịch): việc ở danh sách "✕ Đã lỗi"
+nhưng chi tiết "Hoàn tất/Đạt yêu cầu"; "5/6 bước" vẫn
+"✓ Đã xong"; giờ 2 định dạng; hàng lịch không có màn
+chi tiết như Heartbeat; cron nguyên văn khó hiểu.
+- Trạng thái việc MỘT nguồn sự thật duy nhất cho danh
+  sách + chi tiết + tóm tắt; số bước xong/tổng phải
+  nhất quán với trạng thái (chưa đủ bước thì không ghi
+  "Đã xong" — ghi rõ trạng thái thật).
+- Một định dạng thời gian duy nhất toàn app.
+- MỌI hàng lịch có màn chi tiết: lịch sử chạy (từng
+  lượt mở được chi tiết: thời lượng/đầu ra/lỗi), quyền,
+  sửa, xoá CÓ xác nhận — lấy chi tiết connector/Heartbeat
+  làm mẫu; diễn giải cron bằng tiếng Việt bên cạnh cron
+  ("mỗi 5 phút"); tiêu đề không cắt giữa từ.
+- Nghiệm thu: Muse đối chiếu 3 việc thật giữa danh
+  sách/chi tiết + mở chi tiết 2 lịch; render thật.
+
+### [T-23.5] Chuẩn hoá màu/nhãn + chợ MCP + dọn dữ liệu thử — Giao: Antigravity — `TODO` (ƯU TIÊN 15)
+QA Q-06 + Q-08 + Q-10 (Chợ/Feed): màu trạng thái xanh
+lá/đỏ/vàng khắp nơi phá 60/30/10; lịch sử phê duyệt
+toàn bản ghi thử; nhãn trùng/kỹ thuật; chợ 2.101 trang
+không tìm kiếm.
+- Màu: trạng thái bằng CHỮ + phân cấp trung tính; tím
+  Mulon là điểm nhấn duy nhất; đỏ CHỈ cho hành động phá
+  huỷ có xác nhận; bỏ chấm xanh lá header, tim đỏ, pill
+  xanh lá, ô biểu tượng 5 màu ở Cài đặt. Mục 6 ô màu chủ
+  đề (có "Xanh lá"): ghi chú rõ đây là tuỳ chọn phá
+  chuẩn thiết kế, giữ hay bỏ chờ chủ dự án quyết — KHÔNG
+  tự quyết mục này.
+- Xoá dữ liệu thử khỏi giao diện thật (2 bản ghi "Gửi
+  thẻ phê duyệt thử" trong lịch sử); viết lại nhãn kỹ
+  thuật ("the_duyet", "ask", "Lớp policy",
+  "download_and_run", slug) bằng tiếng Việt thân thiện.
+- Sửa mâu thuẫn nhãn/dữ liệu: "Giờ yên lặng" trùng ở
+  Feed; "Đang nối"/"Đang bật" ở Công cụ kết nối; ô
+  "Cron 5 trường" nhưng giá trị 6 trường; "Trang 1 /
+  2.101"; hàng chợ thiếu số tool.
+- Chợ MCP: thêm TÌM KIẾM theo tên + lọc Local/remote/
+  điểm bảo mật (bỏ phụ thuộc lật trang); Feed: tách màn
+  trạng thái (chỉ xem + "Chạy ngay" có xác nhận) khỏi
+  form cài đặt, gộp các nút Lưu thành MỘT nút lưu.
+- Nghiệm thu: Muse mở lại app rà màu/nhãn theo báo
+  cáo QA; render thật đính kèm.
+
+### [T-23.6] Siết quyền mặc định + xác nhận hành động phá huỷ — Giao: Antigravity — `TODO` (ƯU TIÊN 16)
+QA Q-09 (an toàn): màn Quyền cho thấy ~100+ quyền đều
+"Cho phép" — gồm `delete_vault_secret`, `run_command`,
+`restart_bot`, gửi Gmail/tin nhắn — và "Đổi là áp dụng
+ngay" không xác nhận, lệch chuẩn F4 (đọc = cho phép,
+ghi/xoá = HỎI).
+- Kiểm tra nguồn sự thật của policy hiện tại: mặc định
+  nào làm mọi tool thành "Cho phép"? Khôi phục mặc
+  định chuẩn 1.6/F4: đọc = Cho phép; ghi/xoá/gửi ra
+  ngoài/hành động phá huỷ = Hỏi trước. Quyền người dùng
+  đã tự đổi tường minh thì giữ, không ghi đè lặng lẽ —
+  ghi rõ trong báo cáo DONE đã đổi mặc định nào.
+- Màn Quyền: tổng quan "X/Y quyền đang mở" ở đầu, tìm
+  kiếm tool, thu gọn từng nhóm, tách "Từng tool" thành
+  màn con có lọc theo connector.
+- Mọi nút phá huỷ (Xoá ở Vault/thư viện/Heartbeat,
+  Cài connector có quyền file) phải có hộp thoại XÁC
+  NHẬN trước khi thực thi; Xoá trong Vault chuyển vào
+  màn chi tiết từng bí mật (theo T-23.3 mẫu thư viện).
+- KHÔNG nới lỏng chốt bảo mật nào khác (AGENTS.md mục 5).
+- Nghiệm thu: Muse mở màn Quyền kiểm mặc định các
+  tool nguy hiểm = "Hỏi"; test đơn vị policy + test
+  sống bấm Xoá thử phải hiện xác nhận.
 
 ### [T-21] Lỗi trải nghiệm từ test thật qua Telegram (đợt 1) — Giao: Antigravity — `DONE` (ƯU TIÊN CAO)
 Nguồn: Muse đóng vai tester khó tính, test TRỰC TIẾP bằng acc
