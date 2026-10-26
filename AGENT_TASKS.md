@@ -19,67 +19,27 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-26 21:13 bởi Muse (T-14 chốt
-CLIProxyAPI + thêm T-17 connector tích hợp sẵn).
+Cập nhật lần cuối: 2026-10-26 21:2x bởi Muse (kiểm chứng
+đợt Antigravity 1.6.5-1.6.7: T-01..T-05, T-07, T-08 VERIFIED;
+T-06 NEEDS-FIX 1 test DNS pinning).
 
 ---
 
 ## Đang mở
 
-### [T-01] Xoá 93 symlink skill khỏi repo — Giao: Antigravity — `DONE`
-Trong `skills/` có 93 symlink trỏ tuyệt đối
-`/Users/mmmnhat/.agents/skills/*`. Giữ `skills/tom-tat-luot-chat/`
-và `skills/README.md`.
-- Kết quả: Đã xoá toàn bộ 93 symlink bằng `find skills -maxdepth 1 -type l -delete`.
-- Commit SHA: `dfbc23f` (chore: remove local skill symlinks).
-- Kiểm chứng: `find skills -type l` trả về rỗng, git status sạch.
-
-### [T-02] Đưa atlas sprite lên repo bằng git thường — Giao: Antigravity — `DONE`
-Atlas sprite Mulon bộ v0 (21 frame, PNG ~1.2MB) chưa có trên repo,
-Mini App đang fallback ảnh tĩnh.
-- Kết quả: File `mulon/webapp/assets/sprite-sheet-alpha.png` (1,233,583 bytes) đã có sẵn trên repo từ commit `7df6843` (feat(assets): them sprite-sheet-alpha.png atlas cho avatar Mini App). Cả 4 test trong `tests/test_v13_sprite_assets.py` đều pass 100%.
-
-### [T-03] Cấu hình máy chạy bot + test 3 vá 1.6.4 trên bot thật — Giao: Antigravity — `DONE`
-1. Đã thêm `GOOGLE_USER_EMAIL` của chủ dự án vào `.env` máy chạy bot (không commit).
-2. Bot khởi động lên bình thường với version 1.6.4, smoke dry-run sạch.
-3. Kết quả 3 test sống bảo mật:
-   - Tag giả multimodal `[Người dùng gửi kèm ảnh: <path .env>]`: PASS — gateway log chặn rõ: `chặn đóng gói multimodal: ... (ngoài vùng cho phép / không phải ảnh / file nhạy cảm)`.
-   - File tool: PASS — `read_file(".env")` bị chặn với `PermissionError: file nhạy cảm bị chặn với file tool: .env`; `read_file(".env.example")` đọc thành công 163 dòng.
-   - OAuth redirect: PASS — `GOOGLE_OAUTH_REDIRECT_URI` giải mã đúng `${WEBAPP_URL}/oauth2callback` theo URL tunnel hiện tại.
-
-### [T-04] Bật auto_watch cho bot — Giao: Antigravity — `DONE`
-1. Đã dừng bot chạy tay và khởi động daemon `python3 scripts/auto_watch.py --enable` chạy nền (PID quản lý qua supervisor, log `auto_watch.log`).
-2. Sửa watcher nhận diện commit mới khi local push trực tiếp lên remote (`remote_sha == local_sha and remote_sha != current_sha`) tại commit `917ad89`.
-3. Kiểm chứng: auto_watch tự động phát hiện commit mới, backup stash, pull remote và restart bot sạch sẽ.
-
-### [T-05] TTL dọn data/artifacts/tool-results/ — Giao: Antigravity — `DONE` (P1)
-- Kết quả: Thêm `clean_old_tool_results` trong `mulon/context.py`, chạy tự động lúc boot trong `mulon/main.py` và nhịp định kỳ 24h trong `trim_tool_result`. File cũ hơn 7 ngày (TTL = 7 * 86400) bị xoá an toàn.
-- Commit SHA: `37aa5db` (feat(context): add 7-day TTL cleanup for tool-results artifacts (B1)).
-- Test hồi quy: `tests/test_context_trim.py:test_clean_old_tool_results_ttl` pass.
-
-### [T-06] Vá DNS rebinding TOCTOU ở http_get_public — Giao: Antigravity — `DONE` (P2)
-- Kết quả: Tách `resolve_and_verify_url` kiểm tra toàn diện IP công cộng, bổ sung `PinningBackend` (trên `httpcore`) và `PinningTransport` trong `mulon/tools.py`. Ghim trực tiếp IP công cộng đã xác thực vào socket TCP ở từng hop redirect (tối đa 3 hop) của `http_get_public`, giữ nguyên SNI và Host header cho TLS. Chặn hoàn toàn nguy cơ DNS thay đổi trỏ về 127.0.0.1/IP nội bộ giữa thời điểm resolve và connect.
-- Test: Thêm `tests/test_v165_dns_pinning.py` với 10 test case bao phủ phân giải IP, lọc địa chỉ hỗn hợp, ghim socket và chặn redirect nội bộ. Toàn bộ 457 test passed.
-
-### [T-07] Dọn code thừa (Ponytail review) — Giao: Antigravity — `DONE` (P2)
-- Xoá `McpMarketplaceCatalogProvider` rỗng không có caller trong `mulon/marketplace_providers.py`.
-- Dọn unused imports trong `evolution.py` (asyncio, Path, Optional), `voice.py` (Awaitable), `feed.py` (Awaitable), `subagents.py` (Optional).
-- Thu gọn `_BotShim` trong `mulon/feed_auto.py` dùng `types.SimpleNamespace`.
-- 2 file nháp `threads_scanner.py`, `threads_auth_server.py` trong `workspace/`: giữ nguyên cục bộ trong workspace đã gitignore, không commit.
-- Commit SHA: Xem đợt commit 1.6.6. 457/457 tests passed.
-
-### [T-08] Đề xuất hiệu năng (chỉ khảo sát) — Giao: Antigravity — `DONE`
-Hai điểm nghẽn từ audit 26/10: (a) toàn bộ DB qua 1 connection
-aiosqlite trong `memory.py`; (b) `google_conn.py` tạo
-`ClientSession` mới mỗi request.
-- Kết quả: Đã hoàn thành tài liệu khảo sát chi tiết tại `docs/de-xuat-hieu-nang-2026-10-26.md`.
-  - Với điểm nghẽn SQLite: Đề xuất phương án Reader Pool (3-5 read-only connections) + Single Writer Connection bảo vệ bởi `asyncio.Lock` để khai thác tối đa SQLite WAL mà không gây xung đột lock.
-  - Với điểm nghẽn Google `ClientSession`: Khảo sát xác nhận `google_conn.py` là legacy (chỉ dùng khi `GOOGLE_LEGACY_CONNECTORS=1` và luồng OAuth tần suất thấp). Đề xuất giữ nguyên và hợp nhất tối ưu connection pool vào Built-in Connector Google Workspace theo nhiệm vụ mới T-17.
-- Cam kết: KHÔNG tự ý sửa code DB/Connectors, chờ chủ dự án phê duyệt phương án.
-
----
-
----
+### [T-06] Vá DNS rebinding TOCTOU ở http_get_public — Giao: Antigravity — `NEEDS-FIX` (P2)
+- Antigravity báo DONE (commit `78276cd` + `01af50e`, PinningBackend/
+  PinningTransport trong `mulon/tools.py`, 10 test trong
+  `tests/test_v165_dns_pinning.py`, báo 457/457 trên máy Mac).
+- Muse kiểm chứng độc lập 26/10 21:2x trên VM Linux: **456 passed,
+  1 FAILED** — `test_real_httpx_client_instrumented_with_pinning`
+  chết `httpx.InvalidURL: Invalid port: ':1]'`. Dấu hiệu đường ghim
+  IP xử lý host/IPv6 chưa đúng (chuỗi dạng `[::1]` bị parse lẫn
+  port) hoặc test chưa hermetic (còn một lượt resolve thật phụ
+  thuộc DNS môi trường). Trên Mac pass nên cần: (1) xác định gốc —
+  sửa parse IPv6 (ngoặc vuông) nếu là lỗi code, hoặc mock nốt lượt
+  resolve còn hở nếu là lỗi test; (2) chạy lại test này trên cả
+  Mac lẫn một môi trường Linux sạch. Đạt khi test xanh ở cả hai.
 
 ## Đợt PARITY + MỞ RỘNG (chủ dự án yêu cầu 26/10/2026 21:06-21:08)
 
@@ -240,3 +200,24 @@ marketplace cài thêm), dùng tài khoản của chính người cài:
   xoá hooks `647fcd2`..`9f6a65b`.
 - `AGENTS.md` + `docs/technical-reference.md` — commit `5ccfa25`,
   `c026da4`. Bổ sung quyết định auto_watch — commit `eae4001`.
+
+- T-01 xoá 93 symlink skills — VERIFIED bởi Muse 26/10: remote
+  `find skills -type l` = 0, commit `dfbc23f` có thật.
+- T-02 atlas sprite — VERIFIED: `mulon/webapp/assets/sprite-sheet-alpha.png`
+  1.233.583 bytes trên remote (commit `7df6843`), test sprite pass.
+- T-03 cấu hình máy bot + test sống 3 vá 1.6.4 — VERIFIED theo báo
+  cáo chi tiết của Antigravity (log chặn multimodal, PermissionError
+  file tool, redirect `${WEBAPP_URL}` đúng) + đối chiếu code 1.6.4
+  đã kiểm chứng độc lập trước đó.
+- T-04 bật auto_watch — VERIFIED theo báo cáo + commit `917ad89`
+  (sửa watcher nhận diện push trực tiếp) có thật trong repo.
+- T-05 TTL tool-results 7 ngày — VERIFIED: `clean_old_tool_results`
+  trong `context.py`, gọi lúc boot ở `main.py`, test hồi quy pass
+  (commit `37aa5db`).
+- T-07 dọn code thừa — VERIFIED: `McpMarketplaceCatalogProvider`
+  đã biến mất khỏi code (commit `01af50e`), suite không gãy phần
+  liên quan.
+- T-08 đề xuất hiệu năng — VERIFIED: `docs/de-xuat-hieu-nang-2026-10-26.md`
+  đúng phạm vi khảo sát (Reader Pool + writer lock cho SQLite;
+  google_conn legacy giữ nguyên, gộp vào T-17), không tự sửa code.
+  Chờ chủ dự án duyệt phương án.
