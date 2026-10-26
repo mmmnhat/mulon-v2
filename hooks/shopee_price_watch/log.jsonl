@@ -1,2 +1,0 @@
-{"ts": "2026-10-25T09:48:49+00:00", "dry_run": true, "exit_code": 127, "stderr": "bash: hooks/shopee_price_watch/scripts/poll.sh: No such file or directory", "duration_ms": 10, "decision": "error"}
-{"ts": "2026-10-25T09:49:13+00:00", "dry_run": true, "exit_code": 0, "duration_ms": 4, "decision": "silent", "reason": "Giá sản phẩm đang ổn định, chưa có flash sale", "payload": {"item_id": 12345, "current_price": 250000}}
