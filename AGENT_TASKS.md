@@ -19,13 +19,13 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-27 ~00:28 bởi Muse (theo lệnh
-chủ dự án: CHIA NHỎ T-10 thành 5 mục con T-10.1..T-10.5, mỗi
-mục gắn số ƯU TIÊN riêng 3..7 + tiêu chí nghiệm thu, vì bản
-cục cũ không tag ưu tiên nên bị nhảy cóc 2 lượt liên tiếp —
-agy nhận T-15 rồi T-21 thay vì T-10; kèm LUẬT HÀNG ĐỢI ở đầu
-đợt PARITY bên dưới. Trạng thái các mục khác giữ nguyên:
-T-21 đang `DOING`, T-15 về `TODO` (ƯU TIÊN 2)).
+Cập nhật lần cuối: 2026-10-27 ~00:35 bởi Muse (00:28: CHIA
+NHỎ T-10 thành 5 mục con T-10.1..T-10.5, ƯU TIÊN 3..7 + LUẬT
+HÀNG ĐỢI — bản cục cũ không tag nên bị nhảy cóc 2 lượt;
+00:35: thêm T-22 connector TÀI KHOẢN CÁ NHÂN theo yêu cầu
+chủ dự án — Zalo, Telegram cá nhân, Facebook cá nhân, tin
+nhắn Instagram, tin nhắn Threads, chia 3 mục con ƯU TIÊN
+8..10. T-21 đang `DOING`, T-15 `TODO` (ƯU TIÊN 2)).
 
 ---
 
@@ -328,6 +328,96 @@ marketplace cài thêm), dùng tài khoản của chính người cài:
 - Mỗi connector có test + mục trạng thái trong màn Connector;
   lỗi kết nối phải degrade (bot vẫn chạy, báo rõ connector nào
   đang hỏng).
+- Liên quan: mảng TÀI KHOẢN CÁ NHÂN (Zalo, Telegram cá nhân,
+  Facebook cá nhân, DM Instagram/Threads) nằm ở **T-22** —
+  đừng làm trùng vào mục này (mục này là Page/bề mặt công khai
+  + Google Workspace).
+
+### [T-22] Connector tài khoản cá nhân — `ĐÃ CHIA NHỎ` (mục cha, KHÔNG nhận mục này)
+Yêu cầu chủ dự án 2026-10-27 ~00:34: thêm cho MuLon các
+connector TÀI KHOẢN CÁ NHÂN giống phía Muse đang có: Zalo
+cá nhân, Telegram cá nhân, Facebook cá nhân, tin nhắn
+Instagram, tin nhắn Threads. Chỉ làm các mục con T-22.1..
+T-22.3 theo số ƯU TIÊN + LUẬT HÀNG ĐỢI.
+Chuẩn chung cả 3 mục con (như T-17): connector built-in
+(cài MuLon là có), dùng tài khoản của CHÍNH người cài; màn
+Kết nối trong Mini App (đăng nhập/trạng thái/ngắt kết nối);
+phiên đăng nhập + bí mật CHỈ ở Vault của bản cài (không
+commit, không log); quyền theo từng hành động giữ chuẩn
+hiện có (đọc = cho phép, GỬI tin/hành động ra ngoài = hỏi
+trước mặc định); nội dung tin nhắn đến là dữ liệu ngoài —
+phải qua `frame_external`; giữ lượng dùng ở mức người dùng
+thường (không spam hàng loạt); session hết hạn -> báo rõ +
+luồng đăng nhập lại, connector hỏng thì degrade, bot vẫn
+chạy. LƯU Ý: code connector phía Muse KHÔNG nằm trong
+repo này và một phần là cơ chế nội bộ của nền tảng Muse —
+KHÔNG copy được; Antigravity tự cài đặt mới trong MuLon
+theo đúng thư viện/cơ chế đã chứng minh ở từng mục con.
+
+### [T-22.1] Zalo cá nhân + Telegram cá nhân (đăng nhập QR) — Giao: Antigravity — `TODO` (ƯU TIÊN 8)
+Hai nền tảng này cùng họ cơ chế: đăng nhập QR, không mật
+khẩu, phiên lưu bền — phía Muse đã chạy thật ổn định.
+- **Zalo cá nhân** (thư viện `zca-js`): quét QR bằng app
+  Zalo để đăng nhập; gửi/nhận tin nhắn (cả nhóm), gửi file,
+  tìm người dùng bằng số điện thoại, nghe tin nhắn mới.
+  Giới hạn phải ghi rõ trong docs + màn Kết nối: KHÔNG đăng
+  được nhật ký/bài viết (muốn đăng phải qua Zalo OA API —
+  ngoài phạm vi mục này).
+- **Telegram cá nhân** (thư viện `Telethon`, giao thức
+  MTProto): quét QR bằng app Telegram; gửi/đọc/nghe tin
+  trong mọi hội thoại tài khoản tham gia (kể cả nhóm bot
+  không có mặt). Đây là kênh RIÊNG với Bot API hiện tại của
+  MuLon — không thay thế, chạy song song. Ghi rõ rủi ro:
+  đây là userbot, Telegram có thể hạn chế nếu lạm dụng;
+  giữ lượng dùng bình thường.
+- Nghiệm thu: test đơn vị + test sống trên bản cài của chủ
+  dự án (chủ dự án quét QR): kết nối -> kiểm tra đúng tài
+  khoản -> đọc hộp thư -> gửi 1 tin thử (có duyệt) -> nhận
+  tin mới -> ngắt kết nối/hết hạn xử lý sạch.
+
+### [T-22.2] Facebook cá nhân — Giao: Antigravity — `TODO` (ƯU TIÊN 9) (NGHIÊN CỨU TRƯỚC)
+Mục này KHÓ NHẤT trong T-22, làm theo 2 bước:
+- Bước 1 — NGHIÊN CỨU, viết kết luận vào `docs/` TRƯỚC khi
+  code: phía Muse nối Facebook cá nhân qua liên kết Meta
+  Accounts Center — đó là cơ chế nội bộ của nền tảng Muse,
+  MuLon KHÔNG dùng lại được đường đó. Meta cũng không có
+  API chính thức cho trang cá nhân/Messenger cá nhân. Đường
+  khả thi duy nhất cho MuLon là phiên web của chính người
+  cài: phải đánh giá độ ổn định, checkpoint/xác minh 2 lớp,
+  và RỦI RO KHOÁ TÀI KHOẢN, tất cả ghi thẳng vào tài liệu.
+- Bước 2 — chỉ code khi bước 1 cho thấy đường đi chấp nhận
+  được: phạm vi mục tiêu = đọc trang cá nhân/bạn bè/bảng
+  tin + đọc/gửi Messenger. Màn Kết nối phải báo rõ rủi ro
+  cho người cài trước khi họ đăng nhập. Nếu nghiên cứu kết
+  luận không có đường đủ ổn định/an toàn: DỪNG, ghi kết
+  luận + bằng chứng vào mục này và báo chủ dự án quyết —
+  KHÔNG lách bằng cơ chế rủi ro cao mà không báo trước
+  (đúng tiền lệ TikTok ở T-17).
+- Nghiệm thu: tài liệu nghiên cứu có kết luận rõ; nếu code:
+  test sống như T-22.1 (đọc + gửi thử có duyệt + degrade).
+
+### [T-22.3] Tin nhắn Instagram + tin nhắn Threads — Giao: Antigravity — `TODO` (ƯU TIÊN 10)
+Tiền lệ phía Muse: kết nối TIN NHẮN tách riêng với kết nối
+nội dung — người dùng có thể đã nối Instagram/Threads (bài
+đăng, ở T-17) mà chưa nối tin nhắn. MuLon cũng tách như vậy.
+- **Tin nhắn Instagram**: đọc hộp thư (inbox/yêu cầu chờ/
+  spam), đọc từng hội thoại, tìm kiếm tin nhắn, gửi văn
+  bản/file vào hội thoại có sẵn hoặc cho người nhận xác
+  định được, thả reaction.
+- **Tin nhắn Threads**: đọc hộp thư + mục yêu cầu chờ, đọc
+  hội thoại, gửi vào hội thoại có sẵn. GIỚI HẠN CỨNG (đã
+  kiểm chứng từ sử dụng thật phía Muse, phải ghi vào docs
+  + UI): chỉ nhắn được người ĐÃ có hội thoại từ trước
+  (hoặc đã nhắn cho mình trước); KHÔNG mở DM mới tới người
+  lạ chỉ bằng @handle.
+- Cả hai dùng tài khoản Meta của người cài (liên kết qua
+  Accounts Center ở phía người cài nếu nền tảng yêu cầu);
+  phiên/token ở Vault bản cài.
+- Nghiệm thu: test đơn vị + test sống: nối tin nhắn -> đọc
+  inbox -> gửi 1 tin thử vào hội thoại có sẵn (có duyệt)
+  -> thả reaction -> ngắt kết nối sạch; trường hợp Threads
+  nhắn người chưa có hội thoại phải báo đúng giới hạn,
+  không lỗi im lặng.
 
 ### [T-21] Lỗi trải nghiệm từ test thật qua Telegram (đợt 1) — Giao: Antigravity — `DOING` (ƯU TIÊN CAO)
 Nguồn: Muse đóng vai tester khó tính, test TRỰC TIẾP bằng acc
