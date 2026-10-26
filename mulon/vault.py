@@ -16,6 +16,7 @@ Nguyên tắc cứng:
 
 from __future__ import annotations
 
+import asyncio
 import html
 import json
 import logging
@@ -62,6 +63,7 @@ class VaultStore:
     def __init__(self, path: str | Path, encryption_key: str = None):
         self.path = Path(path)
         self._lock = threading.Lock()
+        self._capture_listeners: list = []
         # Sửa 1.6.2: key lấy từ tham số (config đã đọc env) trước,
         # rồi mới tới env trực tiếp — để VaultStore vẫn bật mã hoá
         # khi được dựng từ cfg test thiếu trường mới.
@@ -71,6 +73,22 @@ class VaultStore:
         self._cipher = None
         self._cipher_checked = False
         self._cipher_warned = False
+
+    def on_captured(self, fn) -> None:
+        """Đăng ký listener được gọi khi có bí mật mới được lưu vào Kho (label, ref)."""
+        self._capture_listeners.append(fn)
+
+    def _notify_captured(self, label: str, ref: str) -> None:
+        for fn in list(self._capture_listeners):
+            try:
+                res = fn(label, ref)
+                if hasattr(res, "__await__"):
+                    try:
+                        asyncio.get_event_loop().create_task(res)
+                    except RuntimeError:
+                        pass
+            except Exception as exc:
+                logger.warning("listener vault capture lỗi (bỏ qua): %s", exc)
 
     @property
     def encryption_active(self) -> bool:
@@ -185,6 +203,7 @@ class VaultStore:
                 entry["enc"] = "none"
             data[ref] = entry
             self._save(data)
+        self._notify_captured(lbl, ref)
         return ref
 
     def resolve(self, ref: str) -> Optional[str]:
@@ -278,7 +297,9 @@ class VaultStore:
                     data[ref_str].pop("value_enc", None)
             data[ref_str]["updated_at"] = now_iso()
             self._save(data)
-            return True
+        if value is not None and str(value) != "":
+            self._notify_captured(data[ref_str].get("label", ""), ref_str)
+        return True
 
 
 _FORM_HTML = """<!doctype html>
@@ -452,8 +473,47 @@ class VaultFormServer:
             self._thread = None
 
 
-def register_vault_tools(registry, cfg, notifier=None) -> None:
-    """Đăng ký tool request_vault_secret (1.6.0) cho agent.
+class VaultBroker:
+    """Quản lý các yêu cầu bí mật Vault đang chờ trong phiên (1.7.3 T-10.1)."""
+
+    def __init__(self):
+        self._pending: dict[str, dict] = {}
+
+    def open(self, label: str, info: dict) -> dict:
+        loop = asyncio.get_event_loop()
+        entry = {
+            "label": label,
+            "info": dict(info),
+            "future": loop.create_future(),
+            "created_at": time.time(),
+        }
+        self._pending[label] = entry
+        return entry
+
+    def is_waiting(self, label: str) -> bool:
+        return label in self._pending and not self._pending[label]["future"].done()
+
+    def resolve(self, label: str, ref: str) -> bool:
+        entry = self._pending.pop(label, None)
+        if entry is None or entry["future"].done():
+            return False
+        entry["future"].set_result(ref)
+        return True
+
+    async def wait(self, label: str, timeout_s: float = 60.0) -> Optional[str]:
+        entry = self._pending.get(label)
+        if entry is None:
+            return None
+        try:
+            return await asyncio.wait_for(asyncio.shield(entry["future"]), timeout=timeout_s)
+        except asyncio.TimeoutError:
+            self._pending.pop(label, None)
+            return None
+
+
+def register_vault_tools(registry, cfg, notifier=None,
+                         vault_broker: Optional[VaultBroker] = None) -> None:
+    """Đăng ký tool request_vault_secret (1.6.0 + 1.7.3) cho agent.
 
     Khi agent thiếu bí mật (API key, OAuth credentials, tokens...),
     thay vì bắt người dùng gõ lệnh thủ công trong chat, agent gọi tool này
@@ -464,7 +524,8 @@ def register_vault_tools(registry, cfg, notifier=None) -> None:
     """
     from .tools import ToolSpec
 
-    async def request_vault_secret(label: str, description: str = "") -> dict:
+    async def request_vault_secret(label: str, description: str = "",
+                                   wait_timeout_s: float = 0.0) -> dict:
         lbl = str(label or "").strip()
         if not lbl:
             return {"ok": False, "error": "thiếu nhãn (label) bí mật"}
@@ -483,16 +544,15 @@ def register_vault_tools(registry, cfg, notifier=None) -> None:
             "startapp_param": safe_param,
             "direct_url": app_url,
         }
+        if vault_broker is not None:
+            vault_broker.open(lbl, info)
+
         sent = False
         if notifier is not None:
             try:
                 res = notifier(info)
                 if hasattr(res, "__await__"):
                     res = await res
-                # Sửa 1.6.1: tôn trọng kết quả thật của notifier.
-                # Trước đây sent=True ngay cả khi notifier trả False,
-                # và ok=True ngay cả khi không có notifier nào —
-                # agent có thể báo "đã gửi thẻ" trong khi không có thẻ nào.
                 if res is False:
                     sent = False
                 elif isinstance(res, dict) and not res.get("ok", True):
@@ -503,14 +563,40 @@ def register_vault_tools(registry, cfg, notifier=None) -> None:
                 logger.warning("Gửi thẻ Vault qua notifier thất bại: %s", exc)
                 sent = False
 
-        # Không có notifier = không có thẻ nào được gửi: ok=False
-        # để agent không diễn giải thành "đã gửi", mà phải hướng
-        # user vào Mini App thủ công theo message bên dưới.
         ok = sent if notifier is not None else False
+        if not ok:
+            return {
+                "ok": False,
+                "label": lbl,
+                "card_sent": False,
+                "direct_url": app_url,
+                "message": f"Chưa gửi được thẻ cho '{lbl}'. Vui lòng nhập bí mật cho nhãn này trong Mini App.",
+            }
+
+        if wait_timeout_s > 0.0 and vault_broker is not None:
+            ref = await vault_broker.wait(lbl, timeout_s=wait_timeout_s)
+            if ref:
+                return {
+                    "ok": True,
+                    "label": lbl,
+                    "ref": ref,
+                    "card_sent": True,
+                    "direct_url": app_url,
+                    "message": f"Bí mật cho nhãn '{lbl}' đã được lưu vào Kho an toàn (mã tham chiếu: {ref}). Có thể tiếp tục thực hiện công việc.",
+                }
+            return {
+                "ok": False,
+                "timeout": True,
+                "label": lbl,
+                "card_sent": True,
+                "direct_url": app_url,
+                "message": f"Hết thời gian chờ ({int(wait_timeout_s)}s) người dùng nhập bí mật cho '{lbl}'.",
+            }
+
         return {
-            "ok": ok,
+            "ok": True,
             "label": lbl,
-            "card_sent": sent,
+            "card_sent": True,
             "direct_url": app_url,
             "message": (f"Đã gửi thẻ yêu cầu nhập bí mật cho '{lbl}' vào chat."
                         if sent else f"Chưa gửi được thẻ cho '{lbl}'. "
@@ -538,11 +624,15 @@ def register_vault_tools(registry, cfg, notifier=None) -> None:
                     "type": "string",
                     "description": "Mục đích hoặc hướng dẫn ngắn gọn cho chủ nhân",
                 },
+                "wait_timeout_s": {
+                    "type": "number",
+                    "description": "Số giây chờ người dùng nhập bí mật (0 = không chờ trong tool, nhận qua callback)",
+                },
             },
             "required": ["label"],
         },
         group="vault",
-        timeout_s=15,
+        timeout_s=120,
         handler=request_vault_secret,
     ), overwrite=True)
 

@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## 1.7.3 — 2026-10-27 — Phê duyệt đồng bộ 2 chiều và Thẻ Vault trong chat (T-10.1 Parity F3 + F2)
+
+- **Đồng bộ phê duyệt 2 chiều (Bidirectional Approval Synchronization & In-Chat Status Update):**
+  - Đồng bộ trạng thái thẻ giữa Telegram Chat và màn Phê duyệt Mini App qua ApprovalBroker dùng chung bản ghi duyệt:
+    - Quyết định (Duyệt / Chặn / Duyệt và nhớ) ở bất kỳ bề mặt nào thì bề mặt còn lại được cập nhật trạng thái tức thời.
+    - Trong chat Telegram: Thẻ phê duyệt không bị xóa mất như trước (v1.2 cũ) mà chuyển trạng thái trực quan rõ ràng (`✅ ĐÃ DUYỆT`, `❌ ĐÃ CHẶN`, `⌛ HẾT HẠN PHÊ DUYỆT`) và gỡ bàn phím inline (`reply_markup=None`) để vô hiệu hoá nút bấm hoàn toàn.
+    - Trong Mini App: Quyết định từ Telegram chat lập tức dọn thẻ khỏi danh sách "Đang chờ duyệt" và đưa sang "Lịch sử duyệt" với outcome tương ứng (`✓ Đã duyệt`, `✕ Đã chặn`, `· Hết hạn`). Nút bấm trong Mini App tự động vô hiệu hoá ngay khi bấm.
+    - Cấu hình linh hoạt: bổ sung `approval_card_action` trong `Config` (mặc định `update` theo chuẩn Parity, hỗ trợ `delete` kế thừa), env `APPROVAL_CARD_ACTION` trong `.env.example`.
+- **Tính Idempotent & Xử lý hết hạn an toàn (Idempotent Decisions & Expiry):**
+  - Quyết định trùng lặp hoặc gửi liên tiếp từ 2 bề mặt được xử lý idempotent: chỉ giải quyết `Future` của broker một lần duy nhất, hành động không bị chạy đúp; các lượt gọi sau trả về thông báo an toàn ("Thẻ này đã được xử lý hoặc đã hết hạn.").
+  - Thẻ hết hạn sau `approval_timeout_s`: cập nhật trạng thái `⌛ HẾT HẠN PHÊ DUYỆT` tại chỗ trong chat Telegram và ghi nhận `outcome: expired` trong lịch sử Mini App.
+- **Thẻ Vault trong chat end-to-end (Interactive In-Chat Vault Cards):**
+  - Khi agent thiếu bí mật (API key, client secret, tokens...): tự động gọi tool `request_vault_secret` để gửi thẻ tương tác vào chat kèm nút mở Mini App điền sẵn nhãn và khóa nhãn (`startapp=vault_<label>`).
+  - Tích hợp `VaultBroker` và cơ chế lắng nghe `VaultStore.on_captured`: khi người dùng dán bí mật vào Kho (qua Mini App `/api/vault/capture` hoặc Vault server), hệ thống phát sự kiện tức thời:
+    - Bot gửi thông báo xác nhận NGAY trong chat đã gửi thẻ: `"🔐 ✅ Đã nhận và lưu bí mật cho '<label>' vào Kho an toàn (mã ref: vault:...)."`
+    - Tự động đánh thức và tiếp tục tác vụ đang dở mà không bắt người dùng phải gõ lại yêu cầu từ đầu.
+  - Bảo mật tuyệt đối (Rule 5): Giá trị bí mật lưu thẳng vào file JSON quyền 0600 (hoặc mã hoá Fernet), không bao giờ lọt vào log, trajectory, hay nội dung chat (chỉ truyền `ref` và `label`).
+- **Kiểm chứng:** 484/484 unit tests PASS (bổ sung 6 test toàn diện trong `tests/test_v17_parity_approval_vault.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
+
 ## 1.7.2 — 2026-10-27 — Mở khoá cài đặt và hỗ trợ đa nền tảng (T-15)
 
 - **Mở khoá cài đặt & Quyền sở hữu động (Unlocking Owner Authentication & Allowlist):**

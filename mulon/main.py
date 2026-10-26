@@ -377,6 +377,8 @@ async def _run(cfg: Config) -> int:
                               broker=services["broker"],
                               activity=services["activity"],
                               marketplace=services.get("marketplace"))
+    if "webapp" in services and services["webapp"] is not None:
+        services["webapp"].set_vault_notifier(surface.on_vault_secret_captured)
     # 1.3.0: marketplace — gắn restarter thật (bot tự khởi động
     # lại sau cài/gỡ/cập nhật). Notifier + quyết toán boot do bề
     # mặt Telegram gắn khi bot sẵn sàng (trong run()). Job nền

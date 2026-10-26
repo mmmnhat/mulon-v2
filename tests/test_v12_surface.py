@@ -47,7 +47,8 @@ class FakeBot:
 def _cfg(cfg, **kw):
     base = dict(allowed_user_id=OWNER, telegram_bot_token="t",
                 webapp_url="https://tunnel.example",
-                webapp_app_name="panel")
+                webapp_app_name="panel",
+                approval_card_action="delete")
     base.update(kw)
     return replace(cfg, **base)
 

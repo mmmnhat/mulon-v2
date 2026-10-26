@@ -423,6 +423,7 @@ class WebAppServer:
         self.connectors = connectors
         self.mcp = mcp_manager
         self.vault_store = vault_store
+        self.vault_notifier = None
         self.registry = registry
         self.dossier = dossier
         self.skills = skills
@@ -447,6 +448,10 @@ class WebAppServer:
         self._proxy_cache: Optional[tuple] = None
 
     # ---------- vòng đời ----------
+    def set_vault_notifier(self, fn) -> None:
+        """Gắn callback khi có bí mật được lưu qua Vault (Mini App)."""
+        self.vault_notifier = fn
+
     @property
     def port(self) -> int:
         if self._site is not None:
@@ -1267,8 +1272,12 @@ class WebAppServer:
         approved, remember = mapping[decision]
         resolved = self.broker.resolve(approval_id, approved,
                                        remember=remember)
-        return web.json_response({"ok": resolved,
-                                  "resolved": resolved})
+        if not resolved:
+            return web.json_response(
+                {"ok": False, "resolved": False,
+                 "error": "Thẻ này đã được xử lý hoặc đã hết hạn."})
+        return web.json_response({"ok": True,
+                                  "resolved": True})
 
     async def _handle_theme(self, request):
         body = await self._json_body(request)
@@ -1521,6 +1530,14 @@ class WebAppServer:
                     {"label": label, "ref": ref})
             except Exception:
                 pass
+        notifier = getattr(self, "vault_notifier", None)
+        if notifier is not None:
+            try:
+                res = notifier(label, ref)
+                if asyncio.iscoroutine(res):
+                    asyncio.create_task(res)
+            except Exception as exc:
+                logger.warning("vault_notifier lỗi: %s", exc)
         return web.json_response({"ok": True, "ref": ref})
 
     async def _handle_vault_delete(self, request):

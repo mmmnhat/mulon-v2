@@ -113,7 +113,7 @@ trùng hai nơi. Mỗi mục con: trước khi code phải rà trạng
 thái hiện tại theo ID checklist ghi trong mục, chỉ làm phần
 CÒN THIẾU (nhiều bề mặt đã có nền), không làm lại phần đã đạt.
 
-### [T-10.1] Phê duyệt đồng bộ 2 chiều + thẻ Vault trong chat — Giao: Antigravity — `DOING` (ƯU TIÊN 3)
+### [T-10.1] Phê duyệt đồng bộ 2 chiều + thẻ Vault trong chat — Giao: Antigravity — `DONE` (ƯU TIÊN 3)
 Checklist: F3 + F2 (đều MỘT PHẦN, F3 ghi rõ "chấm lại theo T-10").
 - Thẻ duyệt trong chat <-> màn Phê duyệt trong Mini App dùng
   CHUNG một bản ghi duyệt: quyết (Cho phép/Từ chối) ở bất cứ
@@ -132,6 +132,12 @@ Checklist: F3 + F2 (đều MỘT PHẦN, F3 ghi rõ "chấm lại theo T-10").
   đổi trạng thái, chạy 1 việc thiếu bí mật -> thẻ Vault tới,
   nhập xong việc chạy tiếp. Muse chấm lại bằng test trực
   tiếp qua Telegram.
+- **Kết quả thực hiện (Antigravity 27/10/2026, version 1.7.3):**
+  1. *Đồng bộ phê duyệt 2 chiều:* Đồng bộ trực tiếp giữa Telegram Chat và Mini App qua `ApprovalBroker`. Khi duyệt/chặn/hết hạn: thẻ chat được cập nhật trạng thái rõ ràng tại chỗ (`format_decided_approval_card`: `✅ ĐÃ DUYỆT`, `❌ ĐÃ CHẶN`, `⌛ HẾT HẠN PHÊ DUYỆT`), gỡ bàn phím inline (`reply_markup=None`) để vô hiệu hoá nút bấm thay vì chỉ xoá mất tin nhắn; Mini App nhận kết quả tức thì chuyển thẻ từ "Đang chờ duyệt" sang "Lịch sử duyệt". Cấu hình `approval_card_action` trong `Config` (mặc định `update`, hỗ trợ `delete` kế thừa), env `APPROVAL_CARD_ACTION` trong `.env.example`.
+  2. *Tính Idempotent:* `ApprovalBroker.resolve()` chỉ giải quyết `Future` một lần duy nhất; lần resolve thứ 2 từ bất kỳ bề mặt nào đều trả về `False` an toàn ("Thẻ này đã được xử lý hoặc đã hết hạn."), không chạy hành động hai lần.
+  3. *Hết hạn hiển thị rõ ở 2 nơi:* Khi timeout, `ApprovalBroker.wait()` ghi nhận `outcome="expired"`, phát sự kiện cập nhật thẻ chat sang `⌛ HẾT HẠN PHÊ DUYỆT` (gỡ nút) và hiển thị `outcome: expired` trong lịch sử Mini App.
+  4. *Thẻ Vault trong chat end-to-end:* Thêm `VaultBroker` và cơ chế lắng nghe `VaultStore.on_captured`. Agent thiếu bí mật tự động gọi `request_vault_secret` gửi thẻ chat kèm link Mini App điền sẵn nhãn (`startapp=vault_<label>`). Người dùng dán bí mật xong (qua `/api/vault/capture` hoặc Vault server), bot gửi tin nhắn báo lại NGAY trong chat đã gửi thẻ (`🔐 ✅ Đã nhận và lưu bí mật cho '<label>' vào Kho an toàn`), tự động đánh thức lượt việc đang dở qua `_resume_vault_task` để agent tiếp tục hoàn tất công việc. Bí mật không vào log, trajectory hay chat (Rule 5).
+  5. *Kiểm chứng:* 484/484 tests PASS (thêm 6 test hồi quy toàn diện trong `tests/test_v17_parity_approval_vault.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 
 ### [T-10.2] Tab Hành động + Sắp tới — Giao: Antigravity — `TODO` (ƯU TIÊN 4)
 Checklist: D4 + C6 (MỘT PHẦN) + phần Activity/Upcoming của E8.

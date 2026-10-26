@@ -2110,10 +2110,14 @@ function renderApprovals(){
       b.addEventListener("click", async () => {
         b.disabled = true; haptic("impact");
         try {
-          await api("/api/approve", "POST",
+          const res = await api("/api/approve", "POST",
             {id: b.dataset.id, decision: b.dataset.appr});
-          flashAvatar("done");
-          toast("Đã ghi quyết định — thẻ trong chat sẽ được gỡ.");
+          if (res.resolved || res.ok) {
+            flashAvatar("done");
+            toast("Đã ghi quyết định — thẻ trong chat sẽ cập nhật.");
+          } else {
+            toast(res.error || "Thẻ này đã được xử lý hoặc đã hết hạn.");
+          }
           await load();
         } catch (e) { toast(e.message); b.disabled = false; }
       }));

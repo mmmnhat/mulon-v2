@@ -155,6 +155,7 @@ class ApprovalBroker:
         self.timeout_s = float(timeout_s)
         self._pending: dict[str, dict] = {}
         self._recent: list[dict] = []
+        self._decided: dict[str, dict] = {}
         self._listeners: list[Listener] = []
 
     # ---------- listener (bề mặt tự gỡ thẻ, ghi lịch sử) ----------
@@ -258,6 +259,12 @@ class ApprovalBroker:
                     self.policy.set_session_rule("tool", tool, "allow")
         self._recent.insert(0, record)
         del self._recent[20:]
+        self._decided[approval_id] = record
+        if len(self._decided) > 200:
+            # Dọn bớt cache cũ để tiết kiệm bộ nhớ
+            old_keys = list(self._decided.keys())[:-100]
+            for k in old_keys:
+                self._decided.pop(k, None)
         await self._notify(record)
         return record
 
@@ -266,7 +273,8 @@ class ApprovalBroker:
         out = []
         for e in self._pending.values():
             item = {"id": e["id"], **e["payload"],
-                    "created_at": e["created_at"]}
+                    "created_at": e["created_at"],
+                    "timeout_s": e.get("timeout_s") or self.timeout_s}
             item.setdefault("reason", "")
             scope = approval_scope(item)
             item["scope_once"] = scope["once"]
@@ -291,3 +299,19 @@ class ApprovalBroker:
 
     def is_pending(self, approval_id: str) -> bool:
         return approval_id in self._pending
+
+    def get_status(self, approval_id: str) -> str:
+        """Trả trạng thái của một yêu cầu duyệt: pending, approved, denied, expired, unknown."""
+        if approval_id in self._pending:
+            return "pending"
+        rec = self._decided.get(approval_id)
+        if rec is not None:
+            return rec.get("outcome", "unknown")
+        for r in self._recent:
+            if r.get("id") == approval_id:
+                return r.get("outcome", "unknown")
+        return "unknown"
+
+    def get_record(self, approval_id: str) -> Optional[dict]:
+        """Trả toàn bộ record của yêu cầu duyệt nếu đã có kết quả."""
+        return self._decided.get(approval_id)

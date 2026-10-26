@@ -331,6 +331,9 @@ class Config:
     google_legacy_connectors: bool = False
     # Thẻ duyệt (policy nấc "ask") hết hạn sau ngần này giây.
     approval_timeout_s: float = 60.0
+    # Hành vi thẻ duyệt khi có kết quả: "update" (chuẩn Parity T-10.1: cập nhật
+    # trạng thái thẻ trong chat + gỡ nút) hoặc "delete" (xoá thẻ 1.2 cũ).
+    approval_card_action: str = "update"
 
     # --- 1.3.0: MCP Marketplace (spec marketplace mục 10.7 +
     # quyết định owner 15.3) ---
@@ -519,6 +522,7 @@ class Config:
             google_client_secret=_env("GOOGLE_CLIENT_SECRET", ""),
             google_legacy_connectors=_env_bool("GOOGLE_LEGACY_CONNECTORS", False),
             approval_timeout_s=_env_float("APPROVAL_TIMEOUT_S", 60.0),
+            approval_card_action=_env("APPROVAL_CARD_ACTION", "update").lower().strip() or "update",
             marketplace_enabled=_env_bool("MARKETPLACE_ENABLED", True),
             marketplace_curated_path=_resolve(_env(
                 "MARKETPLACE_CURATED_PATH",
@@ -609,6 +613,7 @@ class Config:
                                       and self.webapp_app_name),
             "webapp_port": self.webapp_port,
             "approval_timeout_s": self.approval_timeout_s,
+            "approval_card_action": self.approval_card_action,
             "marketplace_enabled": self.marketplace_enabled,
             "marketplace_catalog_auto_update":
                 self.marketplace_catalog_auto_update,

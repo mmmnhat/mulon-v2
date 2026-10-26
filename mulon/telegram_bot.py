@@ -543,6 +543,15 @@ class TelegramSurface:
         self._sessions_meta: dict[str, Message] = {}
         self._active_tasks: dict[str, asyncio.Task] = {}
         self.batcher = MessageBatcher(cfg.debounce_seconds, self._on_batch)
+        from .vault import VaultBroker
+        self.vault_broker = VaultBroker()
+        self._pending_vault_cards: dict[str, dict] = {}
+        self._pending_vault_resumes: dict[str, dict] = {}
+        if self.surfaces and "vault_store" in self.surfaces and self.surfaces["vault_store"] is not None:
+            try:
+                self.surfaces["vault_store"].on_captured(self.on_vault_secret_captured)
+            except Exception as exc:
+                logger.warning("đăng ký on_captured vault lỗi: %s", exc)
         self._register_handlers()
 
     # ---- chế độ trả lời bằng giọng (theo session) ----
@@ -755,6 +764,16 @@ class TelegramSurface:
                         progress_steps.append({"icon": "✓", "text": f"Kế hoạch: {t_title[:45]}"})
                         await _render_progress()
                     elif kind == "tool_start":
+                        if payload.get("tool") == "request_vault_secret":
+                            v_args = payload.get("args") or {}
+                            v_lbl = str(v_args.get("label") or "").strip()
+                            if v_lbl:
+                                self._pending_vault_resumes[v_lbl] = {
+                                    "chat_id": chat_id,
+                                    "thread_id": thread_id,
+                                    "session_key": key,
+                                    "user_text": joined,
+                                }
                         progress_steps.append({"icon": "⏳", "text": label or f"Chạy {payload.get('tool', '')}"})
                         await _render_progress()
                     elif kind == "tool_done":
@@ -1344,17 +1363,24 @@ class TelegramSurface:
         return await self.send_approval_card(owner, None, payload)
 
     async def send_vault_card_to_owner(self, info: dict) -> bool:
-        """Gửi thẻ yêu cầu bí mật vào DM của owner (1.6.0)."""
+        """Gửi thẻ yêu cầu bí mật vào chat/DM (1.6.0 + 1.7.3 T-10.1)."""
         owner = int(getattr(self.cfg, "allowed_user_id", 0) or 0)
-        if not owner or self.bot is None:
-            return False
         label = info.get("label", "")
+        target_chat = info.get("chat_id") or owner
+        thread_id = info.get("thread_id")
+        if label in self._pending_vault_resumes:
+            r = self._pending_vault_resumes[label]
+            target_chat = r.get("chat_id") or target_chat
+            thread_id = r.get("thread_id") or thread_id
+
+        if not target_chat or self.bot is None:
+            return False
         desc = info.get("description", "")
         safe_param = info.get("startapp_param") or f"vault_{label.replace(':', '__')}"
         direct_url = webapp_direct_link(self.cfg, self._bot_username(), safe_param)
         lines = [
-            f"🔐 Yêu cầu bí mật vào Kho",
-            f"Agent cần thông tin: {label}",
+            f"🔐 <b>Yêu cầu bí mật vào Kho</b>",
+            f"Agent cần thông tin: <code>{label}</code>",
         ]
         if desc:
             lines.append(f"Mục đích: {desc}")
@@ -1366,12 +1392,91 @@ class TelegramSurface:
                 InlineKeyboardButton(text=f"Nhập {label} vào Kho", url=direct_url)
             ]])
         try:
-            await self.bot.send_message(
-                owner, "\n".join(lines), reply_markup=kb)
+            kwargs: dict = {}
+            if thread_id:
+                kwargs["message_thread_id"] = thread_id
+            msg = await self.bot.send_message(
+                target_chat, "\n".join(lines), parse_mode="HTML", reply_markup=kb, **kwargs)
+            self._pending_vault_cards[label] = {
+                "chat_id": target_chat,
+                "thread_id": thread_id,
+                "message_id": getattr(msg, "message_id", None),
+                "label": label,
+            }
             return True
         except Exception as exc:
             logger.warning("Gửi thẻ Vault vào chat lỗi: %s", exc)
             return False
+
+    async def on_vault_secret_captured(self, label: str, ref: str) -> None:
+        """Được gọi khi bí mật được lưu vào Kho (qua Mini App hoặc form server).
+        Báo lại NGAY trong chat đã gửi thẻ và tiếp tục việc đang dở (chuẩn T-10.1)."""
+        import html as _html
+
+        if hasattr(self, "vault_broker") and self.vault_broker is not None:
+            self.vault_broker.resolve(label, ref)
+
+        pending = self._pending_vault_cards.pop(label, None) or {}
+        owner = int(getattr(self.cfg, "allowed_user_id", 0) or 0)
+        chat_id = pending.get("chat_id") or owner
+        thread_id = pending.get("thread_id")
+
+        if self.bot is not None and chat_id:
+            msg_text = (
+                f"🔐 ✅ <b>Đã nhận và lưu bí mật vào Kho an toàn</b>\n"
+                f"Nhãn: <code>{_html.escape(label)}</code> · Mã tham chiếu: <code>{_html.escape(ref)}</code>\n"
+                f"Giá trị bí mật được bảo vệ trong Kho trên máy, không hiển thị trong chat."
+            )
+            kwargs: dict = {}
+            if thread_id:
+                kwargs["message_thread_id"] = thread_id
+            try:
+                await self.bot.send_message(chat_id, msg_text, parse_mode="HTML", **kwargs)
+            except Exception as exc:
+                logger.warning("Gửi thông báo nhận bí mật Vault lỗi: %s", exc)
+
+        resume = self._pending_vault_resumes.pop(label, None)
+        if resume and self.agent is not None:
+            resume_prompt = (
+                f"Hệ thống: Người dùng đã nhập bí mật cho nhãn '{label}' vào Kho an toàn (mã ref: {ref}). "
+                f"Hãy tiếp tục hoàn tất tác vụ đang dở: {resume.get('user_text', '')}"
+            )
+            asyncio.create_task(
+                self._resume_vault_task(resume["session_key"], resume_prompt, chat_id, thread_id)
+            )
+
+    async def _resume_vault_task(self, session_key: str, prompt: str,
+                                 chat_id: int, thread_id: Optional[int]) -> None:
+        """Tiếp tục lượt hội thoại sau khi nhận bí mật Vault."""
+        try:
+            status_msg = None
+            if self.bot is not None and chat_id:
+                kwargs: dict = {}
+                if thread_id:
+                    kwargs["message_thread_id"] = thread_id
+                try:
+                    status_msg = await self.bot.send_message(
+                        chat_id, "⏳ <i>Đang tiếp tục xử lý công việc...</i>", parse_mode="HTML", **kwargs)
+                except Exception:
+                    pass
+
+            async def on_delta(piece: str):
+                pass
+
+            res = await self.agent.handle(session_key, prompt, on_delta=on_delta)
+            if self.bot is not None and chat_id:
+                kwargs = {}
+                if thread_id:
+                    kwargs["message_thread_id"] = thread_id
+                if status_msg is not None:
+                    try:
+                        await status_msg.edit_text(res, parse_mode="HTML")
+                        return
+                    except Exception:
+                        pass
+                await self.bot.send_message(chat_id, res, parse_mode="HTML", **kwargs)
+        except Exception as exc:
+            logger.warning("tiếp tục tác vụ vault lỗi: %s", exc)
 
     async def handle_approval_callback(self, data: str,
                                        user_id: int) -> tuple[bool, str]:
@@ -1392,30 +1497,90 @@ class TelegramSurface:
             return False, "Thẻ này đã được xử lý hoặc đã hết hạn."
         return True, "Đã duyệt." if approved else "Đã chặn."
 
+    def format_decided_approval_card(self, record: dict) -> str:
+        """Định dạng nội dung thẻ duyệt sau khi đã có quyết định hoặc hết hạn (1.7.3 T-10.1)."""
+        import html as _html
+        from .webapp_server import tool_action_label
+
+        payload = record.get("payload") or {}
+        outcome = record.get("outcome", "")
+        remember = bool(record.get("remember"))
+
+        tool = str(payload.get("tool") or "")
+        group = str(payload.get("group") or "")
+        action = tool_action_label(tool, group)
+
+        if outcome == "approved":
+            status_header = "✅ <b>ĐÃ DUYỆT</b>" + (" (VÀ NHỚ CHO PHIÊN)" if remember else "")
+            status_text = "Đã cho phép thực thi" + (" (đã nhớ cho phiên này)" if remember else " (chỉ lần này)")
+        elif outcome == "denied":
+            status_header = "❌ <b>ĐÃ CHẶN</b>"
+            status_text = "Đã chặn yêu cầu này"
+        elif outcome == "expired":
+            status_header = "⌛ <b>HẾT HẠN PHÊ DUYỆT</b>"
+            status_text = "Thẻ đã hết hạn mà chưa có phản hồi — yêu cầu bị hủy an toàn"
+        else:
+            status_header = f"ℹ️ <b>KẾT QUẢ: {_html.escape(outcome.upper())}</b>"
+            status_text = outcome
+
+        lines = [
+            status_header,
+            f"Hành động: <b>{_html.escape(action)}</b>",
+        ]
+        target = str(payload.get("target") or "")
+        if target:
+            lines.append(f"Đích: <code>{_html.escape(target)}</code>")
+        if payload.get("summary"):
+            lines.append(f"Chi tiết: {_html.escape(str(payload.get('summary')))}")
+        lines.append(f"Công cụ: <code>{_html.escape(tool)}</code>" + (f" · nhóm {_html.escape(group)}" if group else ""))
+        reason = str(payload.get("reason") or "").strip()
+        if reason:
+            lines.append(f"Lý do: {_html.escape(reason)}")
+        lines.append(f"Trạng thái: <b>{_html.escape(status_text)}</b>")
+        return "\n".join(lines)
+
     async def _on_approval_decided(self, record: dict) -> None:
         """Listener của broker: quyết định xong (duyệt/chặn/HẾT
-        HẠN) -> XÓA tin thẻ khỏi chat + ghi 1 dòng vào topic
-        Lịch sử & Hệ thống nếu topic đó tồn tại."""
+        HẠN) -> cập nhật trạng thái thẻ ngay trong chat + vô hiệu
+        hoá nút bấm (chuẩn Parity T-10.1); xoá thẻ nếu cấu hình delete."""
         if self.bot is None:
             return
         card = record.get("card") or {}
         chat_id = card.get("chat_id")
         message_id = card.get("message_id")
         if chat_id and message_id:
-            try:
-                await self.bot.delete_message(chat_id, message_id)
-            except Exception:
-                # Không xóa được (quá cũ/thiếu quyền): sửa thành
-                # đã xử lý + gỡ bàn phím để không bấm lại được.
+            mode = getattr(self.cfg, "approval_card_action", "update")
+            if mode == "delete":
+                try:
+                    await self.bot.delete_message(chat_id, message_id)
+                except Exception:
+                    try:
+                        await self.bot.edit_message_text(
+                            "Đã xử lý thẻ duyệt này.", chat_id=chat_id,
+                            message_id=message_id)
+                        await self.bot.edit_message_reply_markup(
+                            chat_id=chat_id, message_id=message_id,
+                            reply_markup=None)
+                    except Exception:
+                        pass
+            else:
                 try:
                     await self.bot.edit_message_text(
-                        "Đã xử lý thẻ duyệt này.", chat_id=chat_id,
-                        message_id=message_id)
+                        self.format_decided_approval_card(record),
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        parse_mode="HTML"
+                    )
+                except Exception as exc:
+                    logger.warning("cập nhật text thẻ duyệt lỗi: %s", exc)
+                try:
                     await self.bot.edit_message_reply_markup(
-                        chat_id=chat_id, message_id=message_id,
-                        reply_markup=None)
-                except Exception:
-                    pass
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        reply_markup=None
+                    )
+                except Exception as exc:
+                    logger.warning("gỡ bàn phím thẻ duyệt lỗi: %s", exc)
         payload = record.get("payload") or {}
         outcome = record.get("outcome", "")
         label = {"approved": "✅ Đã duyệt",
@@ -3096,7 +3261,9 @@ class TelegramSurface:
         if reg is not None:
             from .vault import register_vault_tools
             register_vault_tools(
-                reg, self.cfg, notifier=self.send_vault_card_to_owner)
+                reg, self.cfg,
+                notifier=self.send_vault_card_to_owner,
+                vault_broker=self.vault_broker)
         # Menu lệnh "/" cho user thấy ngay (Khối 1, 1.2.0). Lỗi
         # đăng ký chỉ log warning — không được làm sập bot.
         try:
