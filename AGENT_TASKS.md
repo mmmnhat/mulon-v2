@@ -99,7 +99,7 @@ trùng hai nơi. Mỗi mục con: trước khi code phải rà trạng
 thái hiện tại theo ID checklist ghi trong mục, chỉ làm phần
 CÒN THIẾU (nhiều bề mặt đã có nền), không làm lại phần đã đạt.
 
-### [T-10.1] Phê duyệt đồng bộ 2 chiều + thẻ Vault trong chat — Giao: Antigravity — `TODO` (ƯU TIÊN 3)
+### [T-10.1] Phê duyệt đồng bộ 2 chiều + thẻ Vault trong chat — Giao: Antigravity — `DOING` (ƯU TIÊN 3)
 Checklist: F3 + F2 (đều MỘT PHẦN, F3 ghi rõ "chấm lại theo T-10").
 - Thẻ duyệt trong chat <-> màn Phê duyệt trong Mini App dùng
   CHUNG một bản ghi duyệt: quyết (Cho phép/Từ chối) ở bất cứ
