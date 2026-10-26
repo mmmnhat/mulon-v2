@@ -19,10 +19,13 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-26 ~23:2x bởi Muse (T-20
-VERIFIED — test sống tự nhận việc ĐÃ ĐẠT: T-09 tự chuyển
-DOING 23:09:57; vòng tự trị hai phía chính thức khép kín;
-đính chính sự cố đẩy file cũ be15e03 — xem mục T-20 đã đóng).
+Cập nhật lần cuối: 2026-10-27 ~00:28 bởi Muse (theo lệnh
+chủ dự án: CHIA NHỎ T-10 thành 5 mục con T-10.1..T-10.5, mỗi
+mục gắn số ƯU TIÊN riêng 3..7 + tiêu chí nghiệm thu, vì bản
+cục cũ không tag ưu tiên nên bị nhảy cóc 2 lượt liên tiếp —
+agy nhận T-15 rồi T-21 thay vì T-10; kèm LUẬT HÀNG ĐỢI ở đầu
+đợt PARITY bên dưới. Trạng thái các mục khác giữ nguyên:
+T-21 đang `DOING`, T-15 về `TODO` (ƯU TIÊN 2)).
 
 ---
 
@@ -36,6 +39,15 @@ Mục tiêu tổng: MuLon phải có cơ chế, thuật toán, logic và hành
 tiên: T-09 trước, rồi T-15, các mục còn lại theo thoả thuận với
 chủ dự án. Mục nào đụng luật trong `AGENTS.md` thì sửa luật trong
 cùng đợt (chủ dự án đã duyệt hướng này).
+
+**LUẬT HÀNG ĐỢI (Muse ghi 2026-10-27, chủ dự án duyệt):**
+khi chọn việc, Antigravity theo đúng thứ tự này, không tự ý
+khác: (1) đang có mục `DOING` giao cho Antigravity thì LÀM
+TIẾP mục đó tới `DONE` trước — không nhận thêm `TODO` mới,
+không tự trả mục `DOING` về `TODO` khi đổi lượt (đã xảy ra
+với T-15 ở commit `04615e1`); (2) hết mục `DOING` mới chọn
+mục `TODO` có số ƯU TIÊN nhỏ nhất; (3) mục `TODO` không có
+số ưu tiên = làm SAU mọi mục có số, theo thứ tự xuất hiện.
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -61,15 +73,98 @@ cùng đợt (chủ dự án đã duyệt hướng này).
   5. *Kiểm chứng:* 463/463 unit tests PASS (thêm 6 test hồi quy toàn diện trong `tests/test_v16_muse_conversation.py`); suite evals vàng đạt cổng 86% (31/36 case); version 1.7.0.
 - **VERIFIED bởi Muse (đợt T-09, 26/10/2026):** kiểm chứng độc lập commit `d847384` trên bản đồng bộ qua connector: phạm vi sạch, đúng 9 file thuộc T-09 (batcher ở `telegram_bot.py`, style nạp qua `load_prompt`, marker ngắt ở `config/cancellation_markers.json` nạp qua `load_json_data` — tuân Rule 0, không hardcode); chạy lại full suite **463/463 PASS**; chạy lại eval vàng stub **31/36 = 86,1%, qua cổng 85%** (5 case trượt là marketplace/self-read có từ trước, không thuộc phạm vi T-09); **test sống MessageBatcher bằng class thật**: (A) 5 tin vụn cách 0,4s gộp đúng thành 1 lượt đủ 5 dòng, (B) tin đến lúc session bận bị giữ — không flush, nhả bận thì gộp thành 1 lượt kế, (C) hai session không lẫn nhau — 3/3 PASS. Cơ chế cửa sổ thích ứng (mẩu cụt/media ~6s, chuỗi burst ~4s, câu trọn 2,5s; mặc định `DEBOUNCE_SECONDS=2,5`) khớp hành vi nhắn vụn của chủ dự án. Hủy lượt đang chạy + placeholder tiến trình ✓/⏳ + sub-agent ghi task vào tab Việc: đối chiếu code và test hồi quy của Antigravity (đã pass trong suite chạy lại). Chuẩn parity đối chiếu: mục T1/T2/T3 của `docs/muse-parity-checklist.md`.
 
-### [T-10] Parity bề mặt tính năng — Giao: Antigravity — `TODO`
-Đưa các bề mặt sau lên ngang Muse (audit parity 24/10 còn ghi
-12 mục YẾU HƠN + 7 CHƯA CÓ): Feed, Goals, Ideas, tab Hành động
-(hoạt động + việc đang chạy), Phê duyệt (thẻ duyệt trong chat và
-màn duyệt trong Mini App phải đồng bộ hai chiều), Sắp tới
-(scheduled/upcoming), Danh tính (tên/avatar/tính cách cấu hình
-được), Chat phụ (luồng phụ tách khỏi chat chính), thẻ Vault gửi
-ngay trong chat khi thiếu bí mật, gửi được mọi loại nội dung
-(file, ảnh, video, voice, tài liệu).
+### [T-10] Parity bề mặt tính năng — `ĐÃ CHIA NHỎ` (mục cha, KHÔNG nhận mục này)
+Muse chia nhỏ 2026-10-27 theo lệnh chủ dự án: bản cục cũ gộp
+9 bề mặt (Feed, Goals, Ideas, tab Hành động, Phê duyệt, Sắp
+tới, Danh tính, Chat phụ, thẻ Vault, gửi mọi loại nội dung —
+audit parity 24/10: 12 mục YẾU HƠN + 7 CHƯA CÓ), không tag
+ưu tiên, không tiêu chí nghiệm thu riêng -> bị nhảy cóc 2
+lượt (agy nhận T-15, rồi T-21). Từ nay CHỈ làm các mục con
+T-10.1..T-10.5 bên dưới, theo số ƯU TIÊN tăng dần và LUẬT
+HÀNG ĐỢI ở đầu đợt. Riêng **Danh tính (checklist E5) KHÔNG
+nằm trong đợt T-10 nữa** — đã thuộc phạm vi T-13, tránh làm
+trùng hai nơi. Mỗi mục con: trước khi code phải rà trạng
+thái hiện tại theo ID checklist ghi trong mục, chỉ làm phần
+CÒN THIẾU (nhiều bề mặt đã có nền), không làm lại phần đã đạt.
+
+### [T-10.1] Phê duyệt đồng bộ 2 chiều + thẻ Vault trong chat — Giao: Antigravity — `TODO` (ƯU TIÊN 3)
+Checklist: F3 + F2 (đều MỘT PHẦN, F3 ghi rõ "chấm lại theo T-10").
+- Thẻ duyệt trong chat <-> màn Phê duyệt trong Mini App dùng
+  CHUNG một bản ghi duyệt: quyết (Cho phép/Từ chối) ở bất cứ
+  bề mặt nào thì bề mặt kia cập nhật trạng thái ngay, nút bấm
+  phía còn lại vô hiệu hoá; quyết trùng/hai lần liên tiếp là
+  idempotent (không chạy hành động hai lần); thẻ hết hạn hiển
+  thị rõ đã hết hạn ở cả hai nơi.
+- Thẻ Vault trong chat end-to-end: agent thiếu bí mật thì tự
+  gửi thẻ nhập ngay trong chat (nhãn điền sẵn đúng bí mật đang
+  thiếu), người dùng nhập xong bot báo lại NGAY trong chat đó
+  và tiếp tục việc đang dở; giá trị bí mật không vào log,
+  trajectory, hay nội dung chat (giữ chốt bảo mật mục 5).
+- Nghiệm thu: test đơn vị cho đồng bộ 2 chiều + idempotent +
+  hết hạn; test sống trên bot thật: duyệt 1 việc từ Mini App
+  -> thẻ chat đổi trạng thái, duyệt 1 việc từ chat -> màn app
+  đổi trạng thái, chạy 1 việc thiếu bí mật -> thẻ Vault tới,
+  nhập xong việc chạy tiếp. Muse chấm lại bằng test trực
+  tiếp qua Telegram.
+
+### [T-10.2] Tab Hành động + Sắp tới — Giao: Antigravity — `TODO` (ƯU TIÊN 4)
+Checklist: D4 + C6 (MỘT PHẦN) + phần Activity/Upcoming của E8.
+- Tab Hành động: mọi việc đang chạy (kể cả sub-agent từ T-09)
+  hiện bước hiện tại + trạng thái thật; có nút Dừng việc đang
+  chạy và dừng là dừng thật (huỷ task), không chỉ đổi nhãn.
+- Sắp tới: MỘT danh sách tổng hợp mọi việc sắp chạy/hạn sắp
+  tới từ dữ liệu thật (job theo lịch, heartbeat, lịch Feed,
+  cam kết đang theo dõi) — không dữ liệu mẫu; mục nào sửa/
+  huỷ được từ chat thì ghi rõ, mục nào chỉ xem thì để chỉ xem.
+- Nghiệm thu: test đơn vị + test sống: tạo 1 việc dài + 1
+  sub-agent -> thấy đủ trong tab Hành động, bấm Dừng -> việc
+  dừng thật; danh sách Sắp tới khớp các job/lịch đang có thật.
+
+### [T-10.3] Feed + Ideas chủ động — Giao: Antigravity — `TODO` (ƯU TIÊN 5)
+Checklist: C1 + C2 + C3/C7 (MỘT PHẦN) + R11.
+- Feed (nền 1.4: tự động 2 bài/ngày): bổ sung phần còn thiếu
+  theo C1 — nguồn ngoài web/social/dịch vụ đã kết nối (không
+  chỉ nguồn official) và taste học từ reaction VÀ thảo luận.
+  Giữ luật R11: bộ phận viết Feed KHÔNG đọc transcript thô,
+  chỉ đọc bản tóm tắt gu (taste summary).
+- Ideas: thẻ ý tưởng sinh nền từ ngữ cảnh thật, mỗi thẻ có
+  rationale + nguồn + chấm feasibility/fit/novelty; người
+  dùng xử lý được trên thẻ (chạy thử/bỏ qua) như Muse.
+- Việc nền vẫn theo luật AGENTS.md mục 3.5 (mặc định tắt,
+  trừ ngoại lệ đã duyệt); trần bài/token + giờ yên lặng giữ.
+- Nghiệm thu: 1 chu kỳ Feed thật dùng nguồn ngoài + taste
+  summary (không transcript thô — kiểm bằng code + log);
+  Ideas sinh >= 1 thẻ thật có đủ rationale/nguồn/điểm.
+
+### [T-10.4] Goals + briefings — Giao: Antigravity — `TODO` (ƯU TIÊN 6)
+Checklist: D1 + D2/C8 (MỘT PHẦN/CHƯA) + D3 (giữ regression).
+- Goals: tạo/sửa/đóng goal qua chat, goal có subgoal lồng
+  1 cấp; Mini App thấy cây goal + tiến triển thật (không
+  phần trăm tự bịa — suy từ subgoal/cam kết đã đóng).
+- Goal briefings: tiến trình nền viết thư briefing gắn vào
+  goal (tiến triển, việc tiếp theo, điểm nghẽn) — người dùng
+  KHÔNG đặt lịch được (đúng chuẩn Muse, checklist C8).
+- Nghiệm thu: test sống: tạo goal + 2 subgoal qua chat ->
+  app hiện đúng cây; đóng 1 subgoal -> tiến triển cập nhật;
+  briefing sinh ra và gắn đúng goal.
+
+### [T-10.5] Gửi/nhận mọi loại nội dung + Chat phụ (regression) — Giao: Antigravity — `TODO` (ƯU TIÊN 7)
+Checklist: E2 (MỘT PHẦN) + E3 (checklist ghi ĐẠT — mục này
+là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
+- Gửi đi: nội dung bot tạo (file, ảnh, video, voice, tài
+  liệu) gửi qua đúng phương thức Telegram theo loại, kèm
+  caption; file lớn/định dạng lạ degrade có báo rõ, không
+  nuốt lỗi im lặng.
+- Nhận vào: MỌI file người dùng gửi đều vào Library, tìm
+  lại được bằng ngôn ngữ tự nhiên; link chia sẻ thật hết
+  hạn <= 48h (theo E2).
+- Chat phụ: kiểm chứng lại luồng phụ tách history, dùng
+  chung ký ức người dùng, kết quả việc của chat nào về đúng
+  chat đó (R15) — có test hồi quy, thiếu đâu vá đó.
+- Nghiệm thu: test sống trên bot thật: gửi đủ 5 loại nội
+  dung; người dùng gửi 1 file -> tìm lại được trong Library;
+  chat phụ không lẫn history chat chính nhưng nhớ đúng
+  thông tin người dùng đã chia sẻ ở chat chính.
 
 ### [T-11] Parity hệ thống: connector/MCP/quyền/model/tự sửa — Giao: Antigravity — `TODO`
 - Rà soát toàn bộ slash command: bỏ trùng, đặt tên nhất quán,
