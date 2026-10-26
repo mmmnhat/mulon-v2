@@ -19,9 +19,10 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-26 ~22:40 bởi Muse (lượt
-autowatch: xác nhận checker cho T-18 + đính chính con dấu
-VERIFIED do phía Mac tự ghi trong e2a45d0; T-09 vẫn TODO).
+Cập nhật lần cuối: 2026-10-26 ~22:55 bởi Muse (repo đã
+chuyển PRIVATE 22:53 — phía Muse từ nay soi qua GitHub
+connector, git fetch trần không còn credential; T-20 chờ
+phía Mac sửa, T-09 vẫn TODO).
 
 ---
 
