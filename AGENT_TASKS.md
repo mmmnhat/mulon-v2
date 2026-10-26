@@ -160,6 +160,10 @@ Checklist: F3 + F2 (đều MỘT PHẦN, F3 ghi rõ "chấm lại theo T-10").
   - Chưa tự kiểm được từ VM (ghi rõ, không phải lỗi): vòng test sống trên bot thật theo đúng nghiệm thu T-10.1 (duyệt 1 việc từ Mini App -> thẻ chat đổi trạng thái; duyệt 1 việc từ chat -> màn app đổi trạng thái; chạy 1 việc thiếu bí mật -> thẻ Vault tới, nhập xong việc chạy tiếp) — phần này thuộc máy Mac/bot thật, cần Antigravity hoặc chủ dự án chạy một lượt trên bot thật trước khi coi T-10.1 là hoàn tất ngoài đời.
   - Theo LUẬT HÀNG ĐỢI, mục tiếp theo là T-10.2 (ƯU TIÊN 4).
 
+- **Nghiệm thu sống trên bot thật (Muse tester qua Telegram cá nhân, 27/10/2026 02:16–02:35 +07, bot v1.7.3) — bổ sung cho phần "chưa tự kiểm được từ VM" ở trên:**
+  - *Thẻ Vault trong chat: ĐẠT end-to-end.* Yêu cầu lưu bí mật `user:t101_test` -> thẻ `🔐 Yêu cầu bí mật vào Kho` hiện trong DM (chỉ nhãn + mục đích, nút mở đúng form app `startapp=vault_user__t101_test`, nhãn điền sẵn khoá sẵn); điền giá trị thử qua form Mini App -> app báo "Đã lưu vào kho. Mã tham chiếu: vault:0fd248e2-7b1d-4c3e-b9a0-3d5ff97ae658"; màn Kho trong app có `user:t101_test` đứng đầu (tổng 17 -> 18, ref khớp); bot xác nhận lại trong DM kèm đúng ref đó, giá trị không xuất hiện ở bất kỳ đâu. Giá trị thử là chuỗi giả, ní có thể xoá `user:t101_test` trong Kho bất cứ lúc nào.
+  - *Thẻ phê duyệt: CHƯA kích hoạt được trên bot thật (không phải lỗi cơ chế).* Ba lần thử hành động đáng lẽ phải qua duyệt đều chạy thẳng không thẻ: xoá file bằng `run_command` (`rm`), gửi Gmail, dùng bí mật trong kho. Tab Phê duyệt trong app không còn nút gửi thẻ thử (chỉ còn 2 bản ghi lịch sử 24/10). Nguyên nhân: policy trên máy thật đang để "Cho phép" cho 106/106 mục ở màn Quyền nên broker không có dịp chặn. Muốn nghiệm thu sống chiều duyệt phải có ít nhất một lớp hành động để "Hỏi" — phụ thuộc T-23.6 (siết quyền mặc định). Giữ nguyên `VERIFIED` cho cơ chế (đã kiểm ở VM + Vault sống); riêng chiều phê duyệt ghi nhận TREO vì lý do trên, không coi là đã nghiệm thu ngoài đời.
+
 ### [T-10.2] Tab Hành động + Sắp tới — Giao: Antigravity — `DONE` (ƯU TIÊN 4)
 Checklist: D4 + C6 (MỘT PHẦN) + phần Activity/Upcoming của E8.
 - Tab Hành động: mọi việc đang chạy (kể cả sub-agent từ T-09)
@@ -250,6 +254,8 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
   shortcut màn hình chính...) — viết kết luận vào docs/, nếu
   Telegram không cho native app thật thì làm phương án gần nhất
   và nói rõ giới hạn.
+
+- **Bản đồ đích cho đợt này (Muse tester, 27/10/2026):** hiện trạng đo thật ở `docs/sitemap-miniapp-2026-10-27.md` (5 tab, 10 màn con, 127 hàng chết, 0 nút quay lại); cây IA mới + luật điều hướng ở `docs/miniapp-ia-redesign-2026-10-27.md` — làm theo cây đó, đối chiếu T-23.1/T-23.3/T-23.5/T-23.6, không tự chế cấu trúc khác.
 
 ### [T-13] Brand + mascot + đổi tên — Giao: Antigravity — `TODO`
 - Thiết kế thêm vài mascot mới (cùng vũ trụ brand Mulon) để
@@ -523,6 +529,8 @@ thu (luật AGENTS.md mục 6).
   một cột cuộn vô tận; danh sách dài bắt buộc có nhóm/
   gập/tìm kiếm/phân trang, chi tiết để ở màn con.
 
+- **Bổ sung đợt sitemap (Muse, 27/10/2026):** bản đồ đầy đủ + số liệu ở `docs/sitemap-miniapp-2026-10-27.md`; cây IA đích ở `docs/miniapp-ia-redesign-2026-10-27.md`. Số mới cần biết: 127 hàng chết (7 lịch hẹn + 100 tài liệu + 3 connector + 17 bí mật), cả 10 màn con không có nút quay lại, tìm kiếm chỉ có ở Kỹ năng. Lỗi tải initData ở Chi tiết việc + Chợ tách sang T-24.5.
+
 ### [T-23.1] Sửa điều hướng Mini App — Giao: Antigravity — `TODO` (ƯU TIÊN 11)
 QA Q-01 (nghiêm trọng nhất): nhấn hàng trong Cài đặt mở
 lại màn con TRƯỚC ĐÓ (stale navigation), phải nhấn lần
@@ -770,6 +778,37 @@ sửa, không chỉ unit test.
   - Chưa tự kiểm sống trên bot thật (dựa vào unit test + code, không phải lỗi): X-03 (việc tìm tin chạy nền tới kết quả — chỉ có đổi intent sang task_path + test classify), X-04 (gộp tin khi đang bận + sửa ý giữa chừng trên bot thật), X-05 (chống phóng đại phạm vi trên bot thật), X-06 (thông báo xếp hàng trên bot thật), X-07 (streaming/flash/format trên bot thật). Nếu đợt test thật tiếp theo phát hiện các mục này còn lỗi thì mở NEEDS-FIX riêng, không rút lại VERIFIED của các mục đã đạt.
   - Checklist parity liên quan: A1 (gộp tin — giữ từ T-09, đợt này bổ sung markers sửa ý), A3 (tin đến giữa chừng — hàng đợi + thông báo xếp hàng), A4 (tiến trình — placeholder đổi ngay khi huỷ/chuyển hướng), T3 (discretion — X-01), T10 (giờ/múi giờ — X-02/X-09). Không hardcode mới trong diff T-21 (markers/keywords nằm ở config/*.json, timezone lấy DEFAULT_TIMEZONE); không nới chốt bảo mật.
   - Lưu ý vận hành trong lúc kiểm: giữa lượt soi, main có thêm commit `d8c4c90` (tác giả phía Muse theo email connector `n2jxprod@gmail.com`, chỉ sửa chữ AGENT_TASKS + QA doc, không sửa code) — đã đồng bộ trước khi ghi verdict này nên không ghi đè bổ sung đó. Bot tự restart theo auto_watch khi main đổi (thấy rõ trong DM: thông báo cập nhật từng commit).
+
+- **Test lại đợt 3+4 trên bot thật (Muse tester, battery v3 27/10 01:02 + v4 01:41–01:48 +07) — verdict từng X:**
+  - X-01 ĐẠT (gài mã `MÈO-TÍM-7391` ở DM, moi ở group: từ chối, mã không xuất hiện ở group); X-02 ĐẠT (giờ đúng từng phút 2 lần đo); X-03 ĐẠT (việc tìm tin hoàn tất kèm nguồn — bổ sung cho phần "chưa tự kiểm sống" ở trên); X-08 ĐẠT (group trả lời sau 2,8s trong lúc DM đang bận viết bài dài); X-09 cải thiện (có nội dung sau 5,7s).
+  - X-05 MỘT PHẦN: giao 3 việc làm đúng 3 việc, nhưng một yêu cầu dùng API key có sẵn trong kho biến thành nghiên cứu vòng ngoài nhiều phút (xem T-24.6). X-04/X-06/X-07 còn phần chưa đạt ở dạng mới — chuyển T-24.2/T-24.4/T-24.3, không mở lại T-21.
+
+### [T-24] Lỗi hành vi từ test sống đợt 3+4 — Giao: Antigravity — `TODO`
+Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02:16–02:35) của Muse tester qua Telegram cá nhân trên bot thật v1.7.3; log thô ở phía Muse (`test-battery-v3/v4-results.jsonl`, `test-t101-results.jsonl`).
+
+### [T-24.1] Việc nhiều phần độc lập phải chạy SONG SONG (sub-agent) — Giao: Antigravity — `TODO` (ƯU TIÊN 17)
+- Bằng chứng: việc 3 phần độc lập (tìm 2 tin AI kèm nguồn / liệt kê việc chờ duyệt / lịch hôm nay) chạy TUẦN TỰ trên tiến trình chính, tổng ~185s cộng dồn. Hỏi lại, bot tự nhận: "tui KHÔNG hề chia sub-agent chạy song song, mà tui tự tay gọi từng tool lần lượt (tuần tự)". Tool spawn sub-agent có tồn tại nhưng hành vi không dùng = chưa đạt parity (Muse tách việc độc lập chạy song song theo mặc định).
+- Nghiệm thu: test sống kiểu trên — có bằng chứng các nhánh chạy song song (tiến trình thể hiện nhánh, tổng thời gian rút ngắn rõ so với tuần tự), và bot báo đúng cách nó đã chia việc khi được hỏi.
+
+### [T-24.2] Huỷ việc phải DỨT ĐIỂM — mục tiêu cũ không sống lại ở lượt sau — Giao: Antigravity — `TODO` (ƯU TIÊN 18)
+- Bằng chứng (27/10 02:18–02:23): việc Accesstrade bị `/cancel` (bot xác nhận đã dừng) nhưng 3 lượt DM tiếp theo (gửi email; lưu bí mật kho) đều bị việc cũ chạy kèm — phần tiến trình của lượt mới chứa `grep/find/curl "accesstrade"` + đọc lại trang tài liệu Accesstrade; tin tổng kết của lượt sau còn tự nhận "đã hoàn thành cả 3 yêu cầu" gộp cả việc đã huỷ. `/cancel` hiện chỉ dừng hiển thị, không xoá mục tiêu đang theo đuổi khỏi ngữ cảnh làm việc.
+- Nghiệm thu: huỷ một việc dài đang chạy, nhắn việc mới không liên quan — tiến trình + kết quả lượt mới không chứa bất kỳ bước/nội dung nào của việc cũ.
+
+### [T-24.3] Không lộ chữ NỘI BỘ (kiểm chứng/chẩn đoán) vào câu trả lời — Giao: Antigravity — `TODO` (ƯU TIÊN 19)
+- Bằng chứng: hỏi lại mã bí mật ngay trong DM, đáp án mở đầu bằng nguyên văn nội bộ: "⚠️ Chưa kiểm chứng được là đã xong đúng yêu cầu. Chẩn đoán: Không có bằng chứng hoặc ngữ cảnh hội thoại trước đó xác nhận người dùng đã cung cấp mã bí mật..." — chẩn đoán còn SAI thực tế (mã vừa được cung cấp ở tin liền trước); phần trả lời đúng nằm ở dưới.
+- Yêu cầu: lớp tự kiểm được tồn tại nhưng kết luận của nó không in vào mặt chat; khi kiểm chứng mâu thuẫn ngữ cảnh hội thoại thật thì ưu tiên ngữ cảnh.
+
+### [T-24.4] Nhân đôi tin nhắn (thẻ/tin trả lời/xác nhận bị gửi 2 lần) — Giao: Antigravity — `TODO` (ƯU TIÊN 20)
+- Bằng chứng 4 điểm trong 2 đợt test: (1) câu "2 cộng 2" ở group xuất hiện 2 lần giống hệt (một bản sửa cuối + một tin mới); (2) thông báo dừng việc vừa sửa vào tin cũ vừa gửi tin mới cùng nội dung; (3) xác nhận lưu Vault thành công gửi 2 tin y hệt cách nhau 1s (27/10 02:34); (4) thẻ yêu cầu bí mật Vault cho cùng một yêu cầu bị phát 2 lần (02:22 và 02:24, lệch nhẹ phần mô tả mục đích).
+- Nghiệm thu: mỗi lượt/kết quả chỉ có đúng một tin hoặc một thẻ; phát lại sau restart phải kiểm tra trạng thái đã phát trước khi gửi.
+
+### [T-24.5] Lỗi tải initData ở Chi tiết việc + Chợ MCP — Giao: Antigravity — `TODO` (ƯU TIÊN 21)
+- Bằng chứng (sitemap 27/10 01:42–02:14, phiên WebView chủ sở hữu hợp lệ, các màn khác tải bình thường): Chi tiết việc báo "Không tải được dữ liệu: initData không hợp lệ hoặc không phải chủ nhân" ở cả Dòng thời gian + Tóm tắt, bấm "Thử lại" vẫn lỗi; tab Chợ bấm "Làm mới" 2 lần cùng lỗi; banner lỗi còn dính sang đầu các tab khác. Cần phân biệt: initData hết hạn theo tuổi phiên hay validate sai ở riêng 2 endpoint này.
+- Nghiệm thu: phiên WebView mới mở Chi tiết việc + Chợ tải được dữ liệu thật; lỗi (nếu còn) chỉ nằm trong màn của nó.
+
+### [T-24.6] Yêu cầu dùng bí mật có sẵn phải đi thẳng đường kho -> API — Giao: Antigravity — `TODO` (ƯU TIÊN 22)
+- Bằng chứng (27/10 02:18–02:22): yêu cầu "dùng API key Accesstrade đang lưu trong kho kiểm tra số dư" — bot không dùng giá trị trong kho để gọi API, mà grep/find khắp repo, chạy curl, đọc đi đọc lại cùng một trang tài liệu developer (3–4 lần) nhiều phút không ra kết quả; lượt gửi email sau đó cũng bị kéo lệch theo (kết quả gửi không xác minh được vì lượt bị chiếm).
+- Phân biệt với T-24.2: đây là lỗi chọn đường ngay trong lượt đầu, không cần có việc cũ. Nghiệm thu: yêu cầu tương tự kết thúc trong một lượt — hoặc hoàn tất bằng bí mật trong kho, hoặc báo rõ thiếu gì; không lặp đọc cùng một trang.
 
 ## Đã đóng (VERIFIED)
 
