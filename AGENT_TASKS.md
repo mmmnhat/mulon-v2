@@ -19,7 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-26 bởi Muse (khởi tạo hàng yêu cầu).
+Cập nhật lần cuối: 2026-10-26 21:07 bởi Muse (thêm đợt
+PARITY + MỞ RỘNG T-09..T-15 theo yêu cầu chủ dự án).
 
 ---
 
@@ -87,6 +88,123 @@ aiosqlite trong `memory.py`; (b) `google_conn.py` tạo
 nhận còn ai dùng trước khi tính. Viết đề xuất vào `docs/`
 (phương án + rủi ro + cách test). KHÔNG tự triển khai, chờ chủ
 dự án duyệt.
+
+---
+
+---
+
+## Đợt PARITY + MỞ RỘNG (chủ dự án yêu cầu 26/10/2026 21:06-21:08)
+
+Mục tiêu tổng: MuLon phải có cơ chế, thuật toán, logic và hành
+động NGANG Muse thật, đồng thời mở ra để AI CÀI CŨNG CHẠY ĐƯỢC
+(không khoá cứng một chủ) trên Windows / macOS / Linux. Thứ tự ưu
+tiên: T-09 trước, rồi T-15, các mục còn lại theo thoả thuận với
+chủ dự án. Mục nào đụng luật trong `AGENTS.md` thì sửa luật trong
+cùng đợt (chủ dự án đã duyệt hướng này).
+
+### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `TODO` (ƯU TIÊN 1)
+- **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
+  vụn liên tiếp cho một ý (ví dụ thực tế của chủ dự án: 5 tin rời
+  trong 1 phút). Bot phải gom các tin liên tiếp trong cửa sổ chờ
+  ngắn (debounce, cấu hình được) thành MỘT lượt xử lý, hiểu như
+  một ý hoàn chỉnh — không trả lời từng mẩu, không ngắt ý giữa
+  chừng. Tin mới đến khi đang xử lý thì xếp hàng/gộp vào lượt kế,
+  có cơ chế ngắt khi người dùng đổi ý rõ ràng.
+- **Trả lời trong lúc đang làm**: việc dài phải có phản hồi tiến
+  trình (đang làm gì, xong bước nào) bằng cách sửa tin nhắn
+  Telegram, không im lặng tới khi xong.
+- **Chia việc cho sub-agent**: việc nhiều bước độc lập thì tách
+  cho sub-agent chạy song song, tổng hợp kết quả về một câu trả
+  lời; trạng thái từng sub-agent nhìn thấy được ở tab Việc.
+- **Cách reply**: ngắn, đúng ý, giữ mạch hội thoại như Muse —
+  tinh chỉnh prompt/dossier theo hướng này, có eval so sánh.
+
+### [T-10] Parity bề mặt tính năng — Giao: Antigravity — `TODO`
+Đưa các bề mặt sau lên ngang Muse (audit parity 24/10 còn ghi
+12 mục YẾU HƠN + 7 CHƯA CÓ): Feed, Goals, Ideas, tab Hành động
+(hoạt động + việc đang chạy), Phê duyệt (thẻ duyệt trong chat và
+màn duyệt trong Mini App phải đồng bộ hai chiều), Sắp tới
+(scheduled/upcoming), Danh tính (tên/avatar/tính cách cấu hình
+được), Chat phụ (luồng phụ tách khỏi chat chính), thẻ Vault gửi
+ngay trong chat khi thiếu bí mật, gửi được mọi loại nội dung
+(file, ảnh, video, voice, tài liệu).
+
+### [T-11] Parity hệ thống: connector/MCP/quyền/model/tự sửa — Giao: Antigravity — `TODO`
+- Rà soát toàn bộ slash command: bỏ trùng, đặt tên nhất quán,
+  mỗi lệnh có mô tả; thêm lệnh còn thiếu so với Muse.
+- Đổi model TRỰC TIẾP trong chat và trong Mini App (đã có nền
+  /model từ 1.6.x — hoàn thiện: lưu theo phiên, hiển thị model
+  đang dùng, cấu hình tier).
+- Thiết lập API từ đầu trong app/chat: nhập endpoint + key qua
+  Vault, kiểm tra kết nối sống rồi mới lưu.
+- Quyền connector theo từng hành động giữ nguyên chuẩn 1.6.
+- Tự sửa chính nó khi chủ dự án yêu cầu (self-evolution đã có
+  nền): sửa xong phải chạy test + tự restart an toàn qua
+  auto_watch, lỗi thì rollback.
+
+### [T-12] Làm lại toàn bộ Mini App theo design system — Giao: Antigravity — `TODO`
+- Xây design system trước: design tokens (màu 60/30/10 tím
+  Mulon, typography tối đa 4 cỡ/2 weight, lưới 8pt), thư viện
+  component + block dùng chung, bộ state chuẩn (loading, empty,
+  error, success...) áp đồng bộ mọi màn.
+- Làm lại CHUẨN CHỈNH tất cả màn hình theo design system đó.
+  Mọi preview phải là render thật từ HTML/CSS của app chụp bằng
+  trình duyệt (luật AGENTS.md mục 6), chủ dự án duyệt từng đợt.
+- Nghiên cứu TRƯỚC khi code: Telegram cho phép Mini App chạy
+  dạng "app" tới đâu (Main Mini App, full-screen, mở từ group,
+  shortcut màn hình chính...) — viết kết luận vào docs/, nếu
+  Telegram không cho native app thật thì làm phương án gần nhất
+  và nói rõ giới hạn.
+
+### [T-13] Brand + mascot + đổi tên — Giao: Antigravity — `TODO`
+- Thiết kế thêm vài mascot mới (cùng vũ trụ brand Mulon) để
+  người dùng chọn; bản chính thức vẫn là sprite v0 tới khi chủ
+  dự án duyệt bộ mới.
+- Cho phép đổi tên hiển thị của bot + chọn mascot trong Mini
+  App (lưu config, không hardcode). Lưu ý giới hạn Telegram:
+  username bot chỉ đổi qua BotFather — ghi rõ trong UI phần nào
+  đổi được ngay, phần nào cần BotFather.
+- Chuẩn hoá brand: logo, màu, giọng văn trong app + bot.
+
+### [T-14] Tích hợp ProxyAPI — Giao: Antigravity — `TODO` (chờ chủ dự án xác nhận dịch vụ)
+Nếu ProxyAPI là nhà cung cấp API tương thích OpenAI: thêm như
+một model provider cấu hình được (endpoint + key qua Vault/
+config, không hardcode key), chọn được trong màn cấu hình model
+của T-11, tôn trọng cơ chế degrade (provider chết thì báo rõ,
+không sập bot). Xác nhận chính xác dịch vụ với chủ dự án trước
+khi code.
+
+### [T-15] Mở khoá cài đặt + đa nền tảng — Giao: Antigravity — `TODO` (ƯU TIÊN 2)
+Quyết định chủ dự án 26/10/2026, THAY luật "một chủ duy nhất"
+trong AGENTS.md mục 3.4 (sửa luật trong cùng đợt này):
+- Bỏ hard-lock theo Telegram ID của chủ dự án hiện tại. Thay
+  bằng cơ chế bản cài tự cấu hình: lần chạy đầu, người cài khai
+  Telegram ID của mình (setup wizard trong terminal hoặc lệnh
+  /setup), allowlist lưu ở config local của bản cài đó. Mặc
+  định vẫn chặn người lạ — chỉ là "chủ" do người cài định.
+- Tách lớp OS: mọi path qua pathlib/platformdirs (không path
+  tuyệt đối theo máy), quản lý tiến trình/dịch vụ theo hệ điều
+  hành (launchd macOS, systemd Linux, Windows service/tray),
+  auto_watch chạy được cả 3 OS.
+- Đóng gói cài đặt cho Windows, macOS, Linux: script cài + tài
+  liệu, máy sạch cài về chạy được (kèm .env.example đầy đủ và
+  wizard nhập token bot + API key).
+- Test trên cả 3 OS (hoặc CI matrix) trước khi ghi DONE.
+
+### [T-16] Tích hợp muse2api — Giao: Antigravity — `TODO`
+Chủ dự án đã fork sẵn: `mmmnhat/muse2api` (gốc czg86389-hub/
+muse2api) — cầu nối đóng gói muse.ai thành API tương thích
+OpenAI: chat completions + responses, sinh ảnh, sinh video,
+pool nhiều tài khoản luân phiên, tự gia hạn phiên 48h.
+- Đọc kỹ README + kiến trúc của fork trước khi thiết kế.
+- Tích hợp như một provider/model source cấu hình được của
+  MuLon (cùng khung với T-14): MuLon gọi muse2api qua endpoint
+  local/do người cài cấu hình, key/phiên nằm ở Vault/config.
+- Muse qua muse2api phải dùng được cho cả chat chính lẫn
+  media (ảnh/video) nếu API hỗ trợ; degrade rõ ràng khi
+  muse2api chết hoặc hết tài khoản trong pool.
+- Không vendor code của muse2api vào repo MuLon trừ khi có lý
+  do rõ và ghi lại; ưu tiên chạy như tiến trình/dịch vụ riêng.
 
 ---
 
