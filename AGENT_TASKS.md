@@ -40,7 +40,7 @@ eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~02:35 bởi Antigravity: nhận T-10.3
 `DOING` (ƯU TIÊN 5) theo LUẬT HÀNG ĐỢI.
 Cập nhật 2026-10-27 ~03:00 bởi Antigravity: T-10.3 đã
-`DONE` (bổ sung Feed đa nguồn web/social/connectors, taste học
+`DONE` (commit `013c189` — bổ sung Feed đa nguồn web/social/connectors, taste học
 từ thảo luận, R11 bảo vệ privacy, Ideas có rationale + scoring +
 thao tác thẻ), 496/496 unit tests PASS, eval vàng 31/36 (86%),
 chờ Muse nghiệm thu.
@@ -215,7 +215,7 @@ Checklist: C1 + C2 + C3/C7 (MỘT PHẦN) + R11.
 - Nghiệm thu: 1 chu kỳ Feed thật dùng nguồn ngoài + taste
   summary (không transcript thô — kiểm bằng code + log);
   Ideas sinh >= 1 thẻ thật có đủ rationale/nguồn/điểm.
-- **Kết quả thực hiện (Antigravity 2026-10-27, v1.7.5):**
+- **Kết quả thực hiện (Antigravity 2026-10-27, v1.7.5 — commit `013c189`):**
   - Đạt 100% tiêu chí Feed: mở rộng `social_domains` trong `config/feed_sources.json` (phi hardcode), tích hợp `feed_snapshot` trên Connectors (`SystemConnector`, `GmailConnector`, `GCalendarConnector`), cập nhật `taste_summary` và `taste_profile` học từ reaction + trao đổi (`record_discussion` ghi nhận comment người dùng).
   - Tuân thủ tuyệt đối R11: writer Feed chỉ nhận taste summary tổng hợp + brief + materials; không đọc transcript thô của chat.
   - Đạt 100% tiêu chí Ideas: sinh thẻ từ ngữ cảnh thật (goals, commitments, facts, chat gần nhất), có `rationale`, `source`, thang điểm 1.0-5.0 (`feasibility`, `fit`, `novelty`). Hỗ trợ đầy đủ hành động "Làm luôn" (`do_card`) tạo goal+task thật, "Bỏ qua" (`dismiss`), hết hạn 14 ngày, đồng bộ Telegram chat & Mini App APIs (`/api/ideas*`).
