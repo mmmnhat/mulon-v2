@@ -145,6 +145,26 @@ pool nhiều tài khoản luân phiên, tự gia hạn phiên 48h.
 - Tích hợp như một provider/model source cấu hình được của
   MuLon (cùng khung với T-14): MuLon gọi muse2api qua endpoint
   local/do người cài cấu hình, key/phiên nằm ở Vault/config.
+- Ghi chú kỹ thuật (Muse khảo sát fork thật 26/10, bản
+  v1.6.3 commit e2b8936): service FastAPI ĐỘC LẬP, cổng mặc
+  định 18610 (env MUSE2API_PORT), CDP 19210, Docker sẵn.
+  Endpoint: /v1/models, /v1/chat/completions (stream, first
+  token 2-3s), /v1/responses, /v1/images/generations|edits|
+  tasks, /v1/videos (async 5/6/8/10s), /v1/media/{name},
+  /healthz, /readyz. Auth Bearer bằng MUSE2API_KEY. Pool
+  tài khoản quản qua /admin/accounts (+ test/relogin/cookies/
+  quota), nạp phiên bằng extension/userscript export cookie
+  có sẵn trong repo, tự gia hạn 48h. Alias model gpt-4o/
+  gpt-5/claude-sonnet-4/deepseek-chat tự map sang upstream.
+- VƯỚNG KIẾN TRÚC phải xử lý khi thiết kế: MuLon đang khoá
+  PROXY_BASE_URL chỉ localhost:8317 (validate fail-fast).
+  Đường A (ưu tiên, giữ nguyên chốt): khai muse2api làm
+  upstream OpenAI-compatible của lớp 8317 (CLIProxyAPI) —
+  MuLon chọn model Muse qua 8317 như model thường.
+  Đường B (chỉ khi cần images/videos trực tiếp): nới
+  validate thành allowlist cổng local {8317, 18610} kèm
+  test hồi quy cho validate_proxy_base_url — KHÔNG dùng
+  MULON_ALLOW_REMOTE_PROXY để đi tắt.
 - Muse qua muse2api phải dùng được cho cả chat chính lẫn
   media (ảnh/video) nếu API hỗ trợ; degrade rõ ràng khi
   muse2api chết hoặc hết tài khoản trong pool.
