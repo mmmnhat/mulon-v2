@@ -19,10 +19,9 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-26 ~22:55 bởi Muse (repo đã
-chuyển PRIVATE 22:53 — phía Muse từ nay soi qua GitHub
-connector, git fetch trần không còn credential; T-20 chờ
-phía Mac sửa, T-09 vẫn TODO).
+Cập nhật lần cuối: 2026-10-26 ~23:0x bởi Muse (T-19
+VERIFIED; T-20 đạt kiểm chứng tĩnh, chờ test sống tự nhận
+T-09; repo private — soi qua connector).
 
 ---
 
@@ -227,13 +226,22 @@ marketplace cài thêm), dùng tài khoản của chính người cài:
   lỗi kết nối phải degrade (bot vẫn chạy, báo rõ connector nào
   đang hỏng).
 
-### [T-19] Vá dev_watch: watermark khi agy lỗi + gỡ hardcode đường dẫn — Giao: Antigravity — `DONE`
-- Đã gộp và xử lý triệt để cùng đợt T-20:
-  1. Watermark chỉ tiến khi `agy` chạy thành công (`returncode == 0`). Khi lỗi, giữ nguyên watermark để thử lại ở chu kỳ sau, kèm trần `MAX_RETRIES = 3` (lưu trạng thái vào `fail_counts.json`) để tránh lặp vô hạn.
-  2. Gỡ bỏ hoàn toàn các đường dẫn hardcode trong [`scripts/dev_watch.sh`](scripts/dev_watch.sh) và [`scripts/dev_watch.py`](scripts/dev_watch.py). Mọi path được suy động từ `$HOME`, `sys.executable`, và `shutil.which`.
-  3. Bổ sung template plist chuẩn hoá [`scripts/com.mulon.devwatch.plist.template`](scripts/com.mulon.devwatch.plist.template) vào repo với placeholder `__HOME__`.
-
 ### [T-20] Sửa LaunchAgent devwatch: exit 126, watcher chưa từng tự chạy — Giao: Antigravity — `DONE`
+- **Kiểm chứng tĩnh của Muse (26/10 ~23:0x, trên đúng nội
+  dung commit 02a42a2 đồng bộ qua connector):** chẩn đoán
+  TCC ổ External (chdir + execve bị chặn trong ngữ cảnh
+  launchd) khớp mọi bằng chứng cũ; bản sửa đúng hướng —
+  WorkingDirectory + trampoline trên ổ hệ thống,
+  ensure_launcher_trampoline tự tạo lại launcher mỗi lượt,
+  template plist đã vào repo. Bằng chứng Mac nó ghi
+  (LastExitStatus 0, runs=3, log lượt chạy do launchd kích
+  22:55:00 thoát êm, watermark tạo đúng b1aab602) mạch lạc
+  và khớp mốc thời gian. Suite Muse tự chạy lại: 457/457
+  PASS, version 1.6.9. CHƯA đóng VERIFIED: còn chờ bằng
+  chứng sống cuối — T-09 tự chuyển DOING trong tối đa 2
+  chu kỳ watcher (mồi: chính commit 02a42a2 + commit ghi
+  chú này). Đạt thì Muse đóng VERIFIED; không đạt thì
+  quay lại NEEDS-FIX kèm log mới.
 - **Chẩn đoán tận gốc lỗi Exit 126 (`Operation not permitted` / `wait status 32256`):**
   1. `WorkingDirectory` trong plist trỏ vào `/Volumes/External/auto`: Khi `launchd` (PID 1) spawn tiến trình con trong user domain, `chdir("/Volumes/External/auto")` bị kernel macOS TCC chặn lại (Removable Volumes isolation) -> sinh lỗi `shell-init: error retrieving current directory: getcwd: cannot access parent directories: Operation not permitted`.
   2. `ProgramArguments` gọi trực tiếp script shell trên ổ gắn ngoài (`/Volumes/External/auto/scripts/dev_watch.sh`): Lệnh `execve` của kernel đối với file script shell nằm trên Volume ngoài bị từ chối thực thi trực tiếp từ daemon context của launchd -> sinh lỗi `/bin/bash: /Volumes/External/auto/scripts/dev_watch.sh: Operation not permitted` (mã thoát POSIX 126).
@@ -374,3 +382,12 @@ marketplace cài thêm), dùng tài khoản của chính người cài:
   từng được ghi, watcher chưa tự chạy lượt nào (xem T-20).
   T-18 giữ VERIFIED cho phần script/cài đặt; phần "tự vận
   hành" chuyển sang T-20 xử lý dứt điểm.
+- T-19 vá dev_watch (watermark/retry + gỡ hardcode) —
+  VERIFIED bởi Muse 26/10 trên commit 02a42a2: watermark
+  chỉ tiến khi agy returncode 0, lỗi thì giữ + đếm vào
+  fail_counts.json, trần MAX_RETRIES=3 mới tiến để tránh
+  lặp vô hạn; dev_watch.py/.sh hết hardcode đường dẫn máy
+  (suy từ $HOME, shutil.which, sys.executable, biến môi
+  trường AGY_BIN/MULON_REPO_DIR/DEV_WATCH_PYTHON); template
+  plist com.mulon.devwatch.plist.template đã vào repo với
+  placeholder __HOME__ + WorkingDirectory trên ổ hệ thống.
