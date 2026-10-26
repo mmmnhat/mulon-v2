@@ -469,7 +469,9 @@ def register_vault_tools(registry, cfg, notifier=None) -> None:
         if not lbl:
             return {"ok": False, "error": "thiếu nhãn (label) bí mật"}
         safe_param = "vault_" + lbl.replace(":", "__")
-        bot_username = getattr(cfg, "_bot_username", "") or "Mulon_bot"
+        bot_username = (getattr(cfg, "bot_username", "")
+                        or getattr(cfg, "_bot_username", "")
+                        or "Mulon_bot")
         app_url = ""
         if getattr(cfg, "webapp_url", "") and getattr(cfg, "webapp_app_name", ""):
             app_url = (f"https://t.me/{bot_username}/{cfg.webapp_app_name}"

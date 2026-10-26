@@ -29,6 +29,7 @@ from typing import Awaitable, Callable, Optional
 
 from .cron import next_run_iso
 from .tools import ToolSpec
+from .config import DEFAULT_TIMEZONE
 
 logger = logging.getLogger("mulon.planning")
 
@@ -195,7 +196,7 @@ def register_planning_tools(registry, cfg, memory) -> None:
                 "tracked_item_id": {"type": "integer"},
                 "timezone": {
                     "type": "string",
-                    "default": "Asia/Ho_Chi_Minh",
+                    "default": DEFAULT_TIMEZONE,
                 },
                 "session_key": {"type": "string", "default": ""},
             },
@@ -207,7 +208,7 @@ def register_planning_tools(registry, cfg, memory) -> None:
                             title: str = "",
                             goal_id: Optional[int] = None,
                             tracked_item_id: Optional[int] = None,
-                            timezone: str = "Asia/Ho_Chi_Minh",
+                            timezone: str = DEFAULT_TIMEZONE,
                             session_key: str = ""):
         tz_name = timezone or cfg.default_timezone
         try:

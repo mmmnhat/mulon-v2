@@ -30,18 +30,11 @@ import re
 from typing import Optional
 
 from .memory import fold_vi
+from .datafiles import load_prompt
 
 logger = logging.getLogger("mulon.consolidation")
 
-EXTRACT_SYSTEM = (
-    "Trích xuất các SỰ KIỆN BỀN đáng nhớ lâu dài từ đoạn hội thoại: "
-    "quyết định đã chốt, cam kết, sở thích bền, thông tin về user "
-    "hoặc người khác, con số/tên riêng quan trọng. Bỏ câu xã giao và "
-    "việc nhất thời. Chỉ trả JSON: {\"facts\": [{\"fact\": \"...\", "
-    "\"subject\": \"chủ đề ngắn\", \"salience\": 0.0-1.0, "
-    "\"source_msg_id\": <id tin nhắn nguồn>}]}. Không có gì đáng nhớ "
-    "thì {\"facts\": []}."
-)
+EXTRACT_SYSTEM = load_prompt("extract_system")
 
 
 class ConsolidationWorker:

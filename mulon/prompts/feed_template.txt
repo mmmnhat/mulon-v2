@@ -1,0 +1,16 @@
+# FEED — brief cho bài Feed
+
+<!-- BRIEF:BEGIN -->
+{brief}
+<!-- BRIEF:END -->
+
+## Taste (tự động — đừng sửa tay)
+
+<!-- TASTE:BEGIN -->
+Chưa có tín hiệu taste nào.
+<!-- TASTE:END -->
+
+## Nguồn bổ sung (tuỳ chọn — nguồn chính của Feed là tự tìm kiếm)
+
+<!-- SOURCES:BEGIN -->
+<!-- SOURCES:END -->

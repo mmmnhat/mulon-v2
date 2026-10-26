@@ -49,6 +49,39 @@ def _safe_name(text: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_-]+", "_", text).strip("_") or "x"
 
 
+_ENV_PLACEHOLDER = re.compile(r"\$\{([A-Z0-9_]+)\}")
+
+
+def _expand_env_placeholders(entry: dict) -> dict:
+    """Mở rộng ``${VAR}`` trong ``env`` của entry từ os.environ.
+
+    Vá audit hardcode 2026-10-26: trước đây GOOGLE_OAUTH_REDIRECT_URI
+    để chết một URL trycloudflare tạm trong mcp_servers.json — tunnel
+    đổi là OAuth chết. Nay file cấu hình chỉ giữ ``${WEBAPP_URL}``;
+    biến chưa set thì BỎ key đó (server tự dùng mặc định của nó) thay
+    vì truyền chuỗi rỗng/placeholder thô xuống MCP server.
+    """
+    env = entry.get("env")
+    if not isinstance(env, dict):
+        return entry
+    out = {}
+    for key, value in env.items():
+        if isinstance(value, str) and "${" in value:
+            missing = [v for v in _ENV_PLACEHOLDER.findall(value)
+                       if not os.environ.get(v)]
+            if missing:
+                logger.warning(
+                    "bỏ env %s của MCP server %s: thiếu biến %s",
+                    key, entry.get("name"), ", ".join(missing))
+                continue
+            value = _ENV_PLACEHOLDER.sub(
+                lambda m: os.environ.get(m.group(1), ""), value)
+        out[key] = value
+    entry = dict(entry)
+    entry["env"] = out
+    return entry
+
+
 def load_server_configs(path: str | Path) -> list[dict]:
     """Đọc file cấu hình MCP. Mọi lỗi đều trả [] (degrade)."""
     p = Path(path)
@@ -72,11 +105,12 @@ def load_server_configs(path: str | Path) -> list[dict]:
                 item["name"] = item.get("name") or name
                 if "enabled" not in item:
                     item["enabled"] = True
-                out.append(item)
+                out.append(_expand_env_placeholders(item))
         return out
     if not isinstance(servers, list):
         return []
-    return [s for s in servers if isinstance(s, dict) and s.get("name")]
+    return [_expand_env_placeholders(s) for s in servers
+            if isinstance(s, dict) and s.get("name")]
 
 
 def _result_to_dict(result) -> dict:
@@ -172,6 +206,12 @@ class MCPManager:
     def __init__(self, cfg, config_path: str | Path):
         self.cfg = cfg
         self.config_path = Path(config_path)
+        # Cầu WEBAPP_URL từ Config vào environ để load_server_configs
+        # mở rộng ${WEBAPP_URL} trong env của MCP server (vd OAuth
+        # redirect) kể cả khi URL được đặt qua Mini App thay vì .env.
+        _wu = str(getattr(cfg, "webapp_url", "") or "").rstrip("/")
+        if _wu and not os.environ.get("WEBAPP_URL"):
+            os.environ["WEBAPP_URL"] = _wu
         self.entries = load_server_configs(self.config_path)
         self._conns: dict[str, _Connection] = {}
         self._lock = asyncio.Lock()

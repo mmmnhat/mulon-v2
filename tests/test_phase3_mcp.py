@@ -94,3 +94,22 @@ async def test_mcp_disabled_server_not_started(cfg, tmp_path):
         assert manager.status() == {}
     finally:
         await manager.close()
+
+
+def test_mcp_env_placeholder_expansion(tmp_path, monkeypatch):
+    """Vá audit hardcode 2026-10-26: ${VAR} trong env của mcp config
+    được mở rộng từ environ; biến thiếu thì bỏ key, không để URL
+    tunnel chết cứng lọt xuống MCP server."""
+    cfg_file = tmp_path / "mcp_servers.json"
+    cfg_file.write_text(json.dumps({"servers": {"gw": {
+        "command": "uvx",
+        "env": {"GOOGLE_OAUTH_REDIRECT_URI": "${WEBAPP_URL}/oauth2callback",
+                "OTHER": "${MISSING_VAR_XYZ}/x", "PLAIN": "ok"}}}}),
+        encoding="utf-8")
+    monkeypatch.setenv("WEBAPP_URL", "https://abc.trycloudflare.com")
+    monkeypatch.delenv("MISSING_VAR_XYZ", raising=False)
+    entries = load_server_configs(cfg_file)
+    env = entries[0]["env"]
+    assert env["GOOGLE_OAUTH_REDIRECT_URI"] == "https://abc.trycloudflare.com/oauth2callback"
+    assert "OTHER" not in env
+    assert env["PLAIN"] == "ok"

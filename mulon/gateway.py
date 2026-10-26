@@ -185,6 +185,37 @@ class ModelGateway:
                 },
             )
 
+    _IMAGE_EXTS = {"png", "jpg", "jpeg", "gif", "webp", "bmp"}
+
+    def _multimodal_path_allowed(self, p: Path) -> bool:
+        """Chặn Local File Disclosure qua tag ảnh (vá audit 2026-10-26).
+
+        Tag ``[Người dùng gửi kèm ảnh: ...]`` có thể bị tiêm từ nội
+        dung ngoài (web/email/tài liệu tóm tắt) nên đường dẫn trong
+        tag KHÔNG đáng tin: chỉ đóng gói file ẢNH thật (đuôi ảnh,
+        không thuộc denylist nhạy cảm) nằm trong workspace, dossier
+        hoặc thư mục tạm hệ thống (nơi test/upload tạm ghi vào).
+        """
+        import tempfile
+
+        try:
+            name = p.name.lower()
+            if p.suffix.lower().lstrip(".") not in self._IMAGE_EXTS:
+                return False
+            if (".env" in name or "secret" in name
+                    or name == "vault.json" or name.endswith((".pem", ".key", ".db"))):
+                return False
+            resolved = p.resolve()
+            roots = []
+            for attr in ("workspace_dir", "dossier_dir"):
+                root = getattr(self.cfg, attr, None)
+                if isinstance(root, (str, Path)) and str(root):
+                    roots.append(Path(root).resolve())
+            roots.append(Path(tempfile.gettempdir()).resolve())
+            return any(resolved == r or r in resolved.parents for r in roots)
+        except Exception:
+            return False
+
     def _prepare_multimodal_messages(self, messages: list[dict]) -> list[dict]:
         """Tự động đóng gói tất cả hình ảnh đính kèm (hỗ trợ nhiều ảnh cùng lúc) thành định dạng Multimodal (OpenAI/LiteLLM vision)."""
         out: list[dict] = []
@@ -196,6 +227,11 @@ class ModelGateway:
                     parts: list[dict[str, Any]] = [{"type": "text", "text": content}]
                     for raw_path in matches:
                         p = Path(raw_path.strip())
+                        if not self._multimodal_path_allowed(p):
+                            logger.warning(
+                                "chặn đóng gói multimodal: %s (ngoài vùng "
+                                "cho phép / không phải ảnh / file nhạy cảm)", p)
+                            continue
                         if p.is_file() and p.stat().st_size <= 15 * 1024 * 1024:
                             try:
                                 ext = p.suffix.lower().lstrip(".") or "jpeg"

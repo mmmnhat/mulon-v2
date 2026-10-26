@@ -76,6 +76,11 @@ def _env_float(name: str, default: float) -> float:
 _LOCAL_PROXY_HOSTS = {"127.0.0.1", "localhost", "::1"}
 _LOCAL_PROXY_PORT = 8317
 
+# Múi giờ mặc định DUY NHẤT của hệ thống (vá audit hardcode
+# 2026-10-26: trước đây chuỗi này rải 6+ chỗ). Module khác cần
+# thì import hằng này, không gõ lại chuỗi.
+DEFAULT_TIMEZONE = "Asia/Ho_Chi_Minh"
+
 
 def validate_proxy_base_url(url: str) -> None:
     """Fail-fast nếu PROXY_BASE_URL không phải proxy local.
@@ -121,8 +126,11 @@ class Config:
     proxy_base_url: str = "http://127.0.0.1:8317/v1"
     proxy_api_key: str = "local-proxy"
     model_brain: str = "gemini-3.8-flash"
-    model_cheap: str = "gemini-3.8-flash"
-    model_escalated: str = "gemini-3.8-flash"
+    # Vá audit hardcode 2026-10-26: trước đây cả 3 tier cùng một
+    # model — phân tầng vô nghĩa. Cheap = bản lite, escalated = bản
+    # high của cùng họ (tên khớp bản đồ alias ở gateway.py).
+    model_cheap: str = "gemini-3.5-flash-lite"
+    model_escalated: str = "gemini-3.8-flash-high"
 
     # --- Telegram ---
     telegram_bot_token: str = ""
@@ -174,7 +182,7 @@ class Config:
     evals_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "evals")
 
     # --- Phase 3: tay chân (mục 6, 7) ---
-    default_timezone: str = "Asia/Ho_Chi_Minh"
+    default_timezone: str = DEFAULT_TIMEZONE
     # MCP client: file cấu hình server stdio (config/mcp_servers.json).
     mcp_config_path: Path = field(
         default_factory=lambda: PROJECT_ROOT / "config" / "mcp_servers.json"
@@ -296,6 +304,12 @@ class Config:
     # google:client_id / google:client_secret (env thắng).
     # Refresh token KHÔNG qua env — chỉ ở Vault.
     google_client_id: str = ""
+    google_user_email: str = ""
+    bot_username: str = "Mulon_bot"
+    # Endpoint/model sinh ảnh ngoài proxy (Agnes AI) — qua env, không
+    # hardcode trong media_tools (vá audit hardcode 2026-10-26).
+    image_gen_endpoint: str = "https://apihub.agnes-ai.com/v1/images/generations"
+    image_gen_model: str = "agnes-image-2.1-flash"
     google_client_secret: str = ""
     google_legacy_connectors: bool = False
     # Thẻ duyệt (policy nấc "ask") hết hạn sau ngần này giây.
@@ -349,8 +363,8 @@ class Config:
             proxy_base_url=_env("PROXY_BASE_URL", "http://127.0.0.1:8317/v1"),
             proxy_api_key=_env("PROXY_API_KEY", "local-proxy"),
             model_brain=_env("MODEL_BRAIN", "gemini-3.8-flash"),
-            model_cheap=_env("MODEL_CHEAP", "gemini-3.8-flash"),
-            model_escalated=_env("MODEL_ESCALATED", "gemini-3.8-flash"),
+            model_cheap=_env("MODEL_CHEAP", "gemini-3.5-flash-lite"),
+            model_escalated=_env("MODEL_ESCALATED", "gemini-3.8-flash-high"),
             telegram_bot_token=_env("TELEGRAM_BOT_TOKEN", ""),
             allowed_user_id=_env_int("ALLOWED_USER_ID", 0),
             group_mention_only=_env_bool("GROUP_MENTION_ONLY", True),
@@ -383,7 +397,7 @@ class Config:
             consolidation_interval_s=_env_int("CONSOLIDATION_INTERVAL_S", 900),
             consolidation_batch=_env_int("CONSOLIDATION_BATCH", 50),
             evals_dir=_resolve(_env("MULON_EVALS_DIR", "evals")),
-            default_timezone=_env("DEFAULT_TIMEZONE", "Asia/Ho_Chi_Minh"),
+            default_timezone=_env("DEFAULT_TIMEZONE", DEFAULT_TIMEZONE),
             mcp_config_path=_resolve(
                 _env("MCP_CONFIG_PATH", "config/mcp_servers.json")
             ),
@@ -443,6 +457,12 @@ class Config:
             webapp_app_name=_env("WEBAPP_APP_NAME", ""),
             webapp_port=_env_int("WEBAPP_PORT", 8320),
             google_client_id=_env("GOOGLE_CLIENT_ID", ""),
+            google_user_email=_env("GOOGLE_USER_EMAIL", ""),
+            bot_username=_env("BOT_USERNAME", "Mulon_bot"),
+            image_gen_endpoint=_env(
+                "IMAGE_GEN_ENDPOINT",
+                "https://apihub.agnes-ai.com/v1/images/generations"),
+            image_gen_model=_env("IMAGE_GEN_MODEL", "agnes-image-2.1-flash"),
             google_client_secret=_env("GOOGLE_CLIENT_SECRET", ""),
             google_legacy_connectors=_env_bool("GOOGLE_LEGACY_CONNECTORS", False),
             approval_timeout_s=_env_float("APPROVAL_TIMEOUT_S", 60.0),

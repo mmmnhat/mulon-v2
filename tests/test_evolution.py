@@ -29,3 +29,15 @@ def test_codebase_file_resolution(cfg):
     # Thử escape ngoài vùng cho phép vẫn bị chặn
     with pytest.raises(PermissionError):
         _resolve_for_file_tool(cfg, "../escape.txt")
+
+
+def test_file_tool_denylist_sensitive(cfg):
+    """Vá audit 2026-10-26: file tool chặn .env/key/db kể cả trong
+    project_root (self-evolution không cần đọc bí mật)."""
+    for raw in (".env", "mulon/../.env", "client_secret.json",
+                "cert.pem", "mulon.db", "vault.json"):
+        with pytest.raises(PermissionError):
+            _resolve_for_file_tool(cfg, raw)
+    # .env.example là template công khai — vẫn đọc được
+    p = _resolve_for_file_tool(cfg, ".env.example")
+    assert p.name == ".env.example"

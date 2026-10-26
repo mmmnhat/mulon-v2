@@ -291,12 +291,16 @@ async def generate_image(cfg, prompt: str, model: str = "muse-image",
             "error": "Chưa có API key để sinh ảnh. Hãy kiểm tra PROXY_API_KEY hoặc gọi tool request_vault_secret(label='agnes_ai:api_key') để lưu key vào Kho an toàn (Vault).",
         }
 
+    # Endpoint/model ngoài proxy lấy từ Config/env (vá audit
+    # hardcode 2026-10-26), không để chết trong code.
+    _img_endpoint = (getattr(cfg, "image_gen_endpoint", "") or "").strip()
+    _img_model = (getattr(cfg, "image_gen_model", "") or "").strip()
     if proxy_base:
         endpoint = f"{proxy_base.rstrip('/')}/images/generations"
-        if not model or model == "agnes-image-2.1-flash":
+        if not model or (_img_model and model == _img_model):
             model = "muse-image"
     else:
-        endpoint = "https://apihub.agnes-ai.com/v1/images/generations"
+        endpoint = _img_endpoint
 
     extra_body = None
     ref_data_uri = ""

@@ -124,3 +124,33 @@ async def test_generate_image_i2i_payload(tmp_path: Path, monkeypatch):
     assert "image" in p["extra_body"]
     assert p["extra_body"]["image"][0].startswith("data:image/")
 
+
+
+def test_multimodal_blocks_sensitive_and_nonimage(tmp_path: Path):
+    """Vá audit 2026-10-26: tag ảnh tiêm đường dẫn file nhạy cảm /
+    không phải ảnh thì không được đóng gói gửi lên model."""
+    cfg = Config()
+    gw = ModelGateway(cfg)
+
+    env_file = tmp_path / ".env"
+    env_file.write_bytes(b"TOKEN=secret")
+    secret_png = tmp_path / "my_secret.png"
+    secret_png.write_bytes(b"\x89PNG fake")
+
+    for target in (env_file, secret_png):
+        msgs = [{"role": "user",
+                 "content": f"[Người dùng gửi kèm ảnh: {target}]\nhi"}]
+        out = gw._prepare_multimodal_messages(msgs)
+        assert isinstance(out[0]["content"], str), target
+
+
+def test_multimodal_blocks_outside_roots(tmp_path: Path):
+    """File ảnh thật nhưng nằm ngoài workspace/dossier/temp vẫn chặn."""
+    cfg = Config()
+    gw = ModelGateway(cfg)
+    outside = Path(__file__).resolve().parent.parent / "mulon" / "x.jpg"
+    # mulon/ nằm trong project root, không thuộc 3 root cho phép
+    msgs = [{"role": "user",
+             "content": f"[Người dùng gửi kèm ảnh: {outside}]\nhi"}]
+    out = gw._prepare_multimodal_messages(msgs)
+    assert isinstance(out[0]["content"], str)

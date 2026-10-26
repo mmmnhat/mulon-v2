@@ -29,6 +29,7 @@ from typing import Awaitable, Callable, Optional
 from .memory import fold_vi
 from .websearch import domain_of, fetch_page_text, is_shortener, \
     looks_like_feed, parse_feed_items, search_web
+from .datafiles import load_json_data, load_prompt
 
 logger = logging.getLogger("mulon.feed")
 
@@ -54,45 +55,20 @@ TOPIC_OVERLAP_THRESHOLD = 0.6
 # Độ dài tối thiểu của thân bài sau khi gọt (spec mục 6).
 MIN_POST_CHARS = 40
 
-DEFAULT_BRIEF = (
-    "Mỗi bài Feed: một đoạn ngắn về điều đáng chú ý nhất trong việc "
-    "của user hôm nay, kết bằng một việc nhỏ làm được ngay."
-)
+# Vá audit hardcode 2026-10-26: brief/template/prompt Feed nằm ở
+# mulon/prompts/*.txt, danh sách nguồn ở config/feed_sources.json.
+DEFAULT_BRIEF = load_prompt("feed_default_brief")
 
-_FEED_TEMPLATE = """# FEED — brief cho bài Feed
-
-<!-- BRIEF:BEGIN -->
-{brief}
-<!-- BRIEF:END -->
-
-## Taste (tự động — đừng sửa tay)
-
-<!-- TASTE:BEGIN -->
-Chưa có tín hiệu taste nào.
-<!-- TASTE:END -->
-
-## Nguồn bổ sung (tuỳ chọn — nguồn chính của Feed là tự tìm kiếm)
-
-<!-- SOURCES:BEGIN -->
-<!-- SOURCES:END -->
-"""
+_FEED_TEMPLATE = load_prompt("feed_template")
 
 # ---------------------------------------------------------------------------
 # Chấm độ tin cậy nguồn web (spec mục 7.2 + quyết định 0.2b)
 # ---------------------------------------------------------------------------
 
-_OFFICIAL_SUFFIXES = (".gov", ".gov.vn", ".edu", ".edu.vn",
-                      ".mil", ".mil.vn")
-_NEWS_DOMAINS = {
-    "vnexpress.net", "tuoitre.vn", "thanhnien.vn",
-    "vietnamnet.vn", "dantri.com.vn", "laodong.vn",
-    "nhandan.vn", "zingnews.vn", "reuters.com", "apnews.com",
-    "bbc.com", "bbc.co.uk", "nytimes.com", "theguardian.com",
-    "bloomberg.com", "wsj.com", "ft.com", "techcrunch.com",
-    "theverge.com", "arstechnica.com", "wired.com",
-}
-_LOW_SIGNAL_TLDS = (".xyz", ".top", ".click", ".buzz", ".icu",
-                    ".work", ".club", ".live", ".fun")
+_FEED_SOURCES = load_json_data("feed_sources.json", {})
+_OFFICIAL_SUFFIXES = tuple(_FEED_SOURCES.get("official_suffixes", ()))
+_NEWS_DOMAINS = set(_FEED_SOURCES.get("news_domains", ()))
+_LOW_SIGNAL_TLDS = tuple(_FEED_SOURCES.get("low_signal_tlds", ()))
 
 
 def assess_trust(url: str, denylist=()) -> Optional[str]:
@@ -129,12 +105,7 @@ _TRUST_WEIGHT = {"high": 3.0, "normal": 2.0, "low": 1.0}
 
 _URL_RE = re.compile(r"https?://[^\s\)\]\>\"'“”]+")
 _CITE_RE = re.compile(r"\[(\d{1,2})\]")
-_STOPWORDS = {
-    "cua", "cho", "cac", "mot", "nhung", "trong", "duoc", "khong",
-    "nguoi", "the", "and", "voi", "nay", "khi", "da", "se", "la",
-    "co", "ve", "tu", "den", "tren", "theo", "nhu", "hon", "sau",
-    "truoc", "viec", "bai", "feed", "user", "hom", "day", "ra",
-}
+_STOPWORDS = set(_FEED_SOURCES.get("stopwords", ()))
 
 
 def keyword_set(text: str) -> set:
@@ -843,19 +814,9 @@ class FeedEngine:
         return {"items": final, "stats": stats}
 
     # ---------- sinh + đăng ----------
-    _LEGACY_SYSTEM = (
-        "Bạn là biên tập viên Bảng Feed Công nghệ & AI cá nhân (phong cách Muse.ai/feed). "
-        "Viết ĐÚNG một bài Feed ngắn bằng tiếng Việt theo brief. Mở đầu bằng tiêu đề nổi bật kèm icon (🛡️, 🐙, ⚡, 💡), "
-        "nêu bật điểm mới quan trọng hoặc mẹo áp dụng thực tiễn, kèm link nguồn [tên nguồn](url). "
-        "Tuyệt đối KHÔNG viết nhật ký xưng hô về bản thân kiểu 'hôm nay tui với user đã làm...'.")
+    _LEGACY_SYSTEM = load_prompt("feed_legacy_system")
 
-    _PIPELINE_SYSTEM = (
-        "Bạn là biên tập viên Bảng Feed Công nghệ & AI cá nhân (phong cách Muse.ai/feed). "
-        "Viết ĐÚNG một bài Feed ngắn bằng tiếng Việt theo brief.\n"
-        "ĐỊNH DẠNG BẮT BUỘC: dòng đầu tiên là 'Chủ đề: <chủ đề ngắn gọn>', một dòng trống, rồi tới thân bài.\n"
-        "Thân bài mở đầu bằng tiêu đề đậm kèm icon và link nguồn [tên nguồn](url), tiếp theo là tóm tắt "
-        "điểm mới, số liệu hoặc mẹo áp dụng thực tiễn.\n"
-        "Tuyệt đối KHÔNG viết nhật ký xưng hô về bản thân.")
+    _PIPELINE_SYSTEM = load_prompt("feed_pipeline_system")
 
     def _writer_messages(self, material: dict,
                          external: list[dict],

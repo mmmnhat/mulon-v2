@@ -16,7 +16,7 @@
       ],
       "env": {
         "WORKSPACE_MCP_PORT": "8001",
-        "GOOGLE_OAUTH_REDIRECT_URI": "https://refinance-displayed-wing-approximate.trycloudflare.com/oauth2callback"
+        "GOOGLE_OAUTH_REDIRECT_URI": "${WEBAPP_URL}/oauth2callback"
       },
       "env_vault_refs": {
         "GOOGLE_OAUTH_CLIENT_ID": "google:client_id",

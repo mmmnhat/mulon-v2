@@ -21,6 +21,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .memory import fold_vi, now_iso
+from .config import DEFAULT_TIMEZONE
 
 logger = logging.getLogger("mulon.surfaces")
 
@@ -375,7 +376,7 @@ def sanitize_sidechat_title(raw_title: str) -> str:
     return " ".join(cleaned.split())[:SIDECHAT_MAX_TITLE_CHARS].strip()
 
 
-def default_sidechat_title(timezone_name: str = "Asia/Ho_Chi_Minh",
+def default_sidechat_title(timezone_name: str = DEFAULT_TIMEZONE,
                            now: Optional[datetime] = None) -> str:
     if now is None:
         try:
@@ -489,7 +490,7 @@ class SideChatRegistry:
 
     async def create(self, bot, memory, chat_id: int, raw_title: str,
                      is_forum: bool,
-                     timezone_name: str = "Asia/Ho_Chi_Minh") -> dict:
+                     timezone_name: str = DEFAULT_TIMEZONE) -> dict:
         """Tạo topic phụ + gửi tin mở đầu; chỉ ghi registry khi
         cả hai bước Telegram đều thành công."""
         result: dict = {"ok": False, "record": None, "error": ""}

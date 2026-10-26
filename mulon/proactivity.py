@@ -36,6 +36,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 from .memory import fold_vi
+from .datafiles import load_prompt
 
 logger = logging.getLogger("mulon.proactivity")
 
@@ -57,17 +58,7 @@ async def effective_enabled(memory, cfg) -> bool:
         return v == "1"
     return bool(cfg.proactivity_enabled)
 
-_CHECK_SYSTEM = (
-    "Bạn là lượt quét chủ động (heartbeat) của một trợ lý cá nhân. "
-    "Dưới đây là CHECKLIST cần kiểm tra và NGỮ CẢNH NHẸ (fact gần "
-    "đây, cam kết đang mở, lịch đang bật). Chỉ nêu những việc THẬT "
-    "SỰ đáng để ý: sắp tới hạn, bị kẹt/lỗi, thay đổi quan trọng, cơ "
-    "hội rõ ràng. Thà im lặng còn hơn làm phiền: không có gì đáng "
-    "nói thì trả mảng rỗng. Chỉ trả JSON đúng dạng: {\"notes\": "
-    "[{\"content\": \"việc đáng nói, gọn 1-2 câu\", \"reason\": "
-    "\"vì sao đáng nói\", \"topic\": \"chủ đề ngắn\"}]}. Không thêm "
-    "chữ nào ngoài JSON."
-)
+_CHECK_SYSTEM = load_prompt("proactivity_check_system")
 
 
 # ---------------------------------------------------------------------------

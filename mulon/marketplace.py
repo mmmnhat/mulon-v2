@@ -55,6 +55,7 @@ from .marketplace_providers import (
 )
 from .marketplace_store import MarketplaceStore
 from .mcp_client import load_server_configs
+from .datafiles import load_json_data
 
 logger = logging.getLogger("mulon.marketplace")
 
@@ -79,109 +80,9 @@ ACTIVE_STAGES = {"draft", "awaiting_secret",
                  "awaiting_commit_approval", "committing",
                  "pending_restart"}
 
-KNOWN_MCP_FALLBACKS: dict[str, dict] = {
-    "google-workspace-mcp": {
-        "command": "uvx",
-        "args": ["--python", "3.12", "workspace-mcp", "--single-user", "--tool-tier", "core"],
-        "package": {"ecosystem": "pypi", "name": "workspace-mcp", "version": "2.2.0", "pinned": False},
-        "setup_requirements": [],
-        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'uvx' tải và chạy Google Workspace MCP từ PyPI."}],
-    },
-    "github": {
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-github"],
-        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-github", "version": None, "pinned": False},
-        "setup_requirements": [{"name": "GITHUB_PERSONAL_ACCESS_TOKEN", "location": "stdio_env", "label": "GitHub Personal Access Token", "required": True}],
-        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy GitHub MCP server."}],
-    },
-    "brave-search": {
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-brave-search"],
-        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-brave-search", "version": None, "pinned": False},
-        "setup_requirements": [{"name": "BRAVE_API_KEY", "location": "stdio_env", "label": "Brave Search API Key", "required": True}],
-        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Brave Search MCP server."}],
-    },
-    "postgres": {
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-postgres", "{{POSTGRES_URL}}"],
-        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-postgres", "version": None, "pinned": False},
-        "setup_requirements": [{"name": "POSTGRES_URL", "location": "stdio_env", "label": "PostgreSQL Connection String", "required": True}],
-        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy PostgreSQL MCP server."}],
-    },
-    "slack": {
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-slack"],
-        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-slack", "version": None, "pinned": False},
-        "setup_requirements": [
-            {"name": "SLACK_BOT_TOKEN", "location": "stdio_env", "label": "Slack Bot Token", "required": True},
-            {"name": "SLACK_TEAM_ID", "location": "stdio_env", "label": "Slack Team ID", "required": True},
-        ],
-        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Slack MCP server."}],
-    },
-    "sqlite": {
-        "command": "uvx",
-        "args": ["mcp-server-sqlite", "--db-path", "{{workspace_dir}}/data.db"],
-        "package": {"ecosystem": "pypi", "name": "mcp-server-sqlite", "version": None, "pinned": False},
-        "setup_requirements": [],
-        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'uvx' tải và chạy SQLite MCP server."}],
-    },
-    "google-maps": {
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-google-maps"],
-        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-google-maps", "version": None, "pinned": False},
-        "setup_requirements": [{"name": "GOOGLE_MAPS_API_KEY", "location": "stdio_env", "label": "Google Maps API Key", "required": True}],
-        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Google Maps MCP server."}],
-    },
-    "puppeteer": {
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
-        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-puppeteer", "version": None, "pinned": False},
-        "setup_requirements": [],
-        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Puppeteer MCP server."}],
-    },
-    "gitlab": {
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-gitlab"],
-        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-gitlab", "version": None, "pinned": False},
-        "setup_requirements": [{"name": "GITLAB_PERSONAL_ACCESS_TOKEN", "location": "stdio_env", "label": "GitLab Personal Access Token", "required": True}],
-        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy GitLab MCP server."}],
-    },
-    "sentry": {
-        "command": "uvx",
-        "args": ["mcp-server-sentry", "--auth-token", "{{SENTRY_AUTH_TOKEN}}"],
-        "package": {"ecosystem": "pypi", "name": "mcp-server-sentry", "version": None, "pinned": False},
-        "setup_requirements": [{"name": "SENTRY_AUTH_TOKEN", "location": "stdio_env", "label": "Sentry Auth Token", "required": True}],
-        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'uvx' tải và chạy Sentry MCP server."}],
-    },
-    "notion": {
-        "command": "npx",
-        "args": ["-y", "@notionhq/mcp-server-notion"],
-        "package": {"ecosystem": "npm", "name": "@notionhq/mcp-server-notion", "version": None, "pinned": False},
-        "setup_requirements": [{"name": "NOTION_API_KEY", "location": "stdio_env", "label": "Notion API Key", "required": True}],
-        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Notion MCP server."}],
-    },
-    "linear": {
-        "command": "npx",
-        "args": ["-y", "@linear/mcp-server"],
-        "package": {"ecosystem": "npm", "name": "@linear/mcp-server", "version": None, "pinned": False},
-        "setup_requirements": [{"name": "LINEAR_API_KEY", "location": "stdio_env", "label": "Linear API Key", "required": True}],
-        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Linear MCP server."}],
-    },
-    "cloudflare": {
-        "command": "npx",
-        "args": ["-y", "@cloudflare/mcp-server-cloudflare"],
-        "package": {"ecosystem": "npm", "name": "@cloudflare/mcp-server-cloudflare", "version": None, "pinned": False},
-        "setup_requirements": [{"name": "CLOUDFLARE_API_TOKEN", "location": "stdio_env", "label": "Cloudflare API Token", "required": True}],
-        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Cloudflare MCP server."}],
-    },
-    "everything": {
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-everything"],
-        "package": {"ecosystem": "npm", "name": "@modelcontextprotocol/server-everything", "version": None, "pinned": False},
-        "setup_requirements": [],
-        "warnings": [{"code": "download_and_run", "severity": "medium", "text": "'npx' tải và chạy Everything MCP server."}],
-    },
-}
+# Vá audit hardcode 2026-10-26: công thức cài MCP quen thuộc nằm ở
+# config/mcp_fallbacks.json — thêm/sửa server không cần sửa code.
+KNOWN_MCP_FALLBACKS: dict[str, dict] = load_json_data("mcp_fallbacks.json", {})
 
 
 class MarketplaceError(Exception):

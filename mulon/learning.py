@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Optional
 
 from .memory import fold_vi
+from .datafiles import load_json_data, load_prompt
 
 logger = logging.getLogger("mulon.learning")
 
@@ -34,60 +35,19 @@ logger = logging.getLogger("mulon.learning")
 TAXONOMY = ("du_kien", "quy_trinh", "giong_format", "tool", "tri_nho")
 
 # Dấu hiệu sửa RÕ RÀNG — trúng là ứng viên explicit.
-STRONG_MARKERS = (
-    "sai rồi", "sai roi", "không phải", "khong phai",
-    "ý tao là", "y tao la", "ý mình là", "y minh la",
-    "sửa lại", "sua lai", "nhầm rồi", "nham roi",
-    "không đúng", "khong dung", "đâu phải", "dau phai",
-    "trật rồi", "trat roi", "sai hẳn", "sai be bét",
-    "sao không", "sao khong", "sao chưa", "sao chua", "sao ko",
-    "sao hổng", "sao hong", "không cập nhật", "chưa cập nhật",
-    "chưa lưu", "không lưu",
-)
+# Vá audit hardcode 2026-10-26: marker học tập ở
+# config/learning_markers.json.
+_LEARNING_DATA = load_json_data("learning_markers.json", {})
+STRONG_MARKERS = tuple(_LEARNING_DATA.get("strong_markers", ()))
 # Dấu hiệu sửa NHẸ — vẫn là tín hiệu correction, chờ phân loại.
-WEAK_MARKERS = (
-    "lần sau", "lan sau", "đáng lẽ", "dang le",
-    "phải là", "phai la", "nên là", "nen la",
-    "thay vì", "thay vi", "đừng có", "dung co",
-    "làm lại", "lam lai", "nói lại", "noi lai",
-    "không cần", "khong can", "đừng gọi", "dung goi",
-    "kêu tôi là", "keu toi la", "kêu tui là", "keu tui la",
-    "gọi tôi là", "goi toi la", "gọi tui là", "goi tui la",
-)
+WEAK_MARKERS = tuple(_LEARNING_DATA.get("weak_markers", ()))
 # Từ khoá đụng tiền bạc / an toàn -> severity critical (1 lần là đủ học).
-CRITICAL_HINTS = (
-    "tiền", "tien", "stk", "số tài khoản", "so tai khoan",
-    "chuyển khoản", "chuyen khoan", "mật khẩu", "mat khau",
-    "an toàn", "an toan", "bảo mật", "bao mat", "thanh toán",
-    "thanh toan", "ngân hàng", "ngan hang",
-)
+CRITICAL_HINTS = tuple(_LEARNING_DATA.get("critical_hints", ()))
 # Fallback đoán loại lỗi bằng từ khoá khi model rẻ không dùng được.
-_CATEGORY_HINTS = {
-    "tri_nho": ("nhớ", "nho", "quên", "quen", "đã nói", "da noi",
-                "nhắc rồi", "nhac roi", "cập nhật", "cap nhat",
-                "hồ sơ", "ho so", "dossier", "xưng hô", "xung ho"),
-    "giong_format": ("giọng", "giong", "dài quá", "dai qua", "ngắn gọn",
-                     "emoji", "format", "định dạng", "dinh dang",
-                     "văn phong", "van phong"),
-    "tool": ("file", "lệnh", "lenh", "tool", "chạy", "chay",
-             "đọc", "doc", "ghi nhầm", "sai file"),
-    "quy_trinh": ("bước", "buoc", "quy trình", "quy trinh",
-                  "lần lượt", "trước tiên", "phải hỏi trước"),
-    "du_kien": ("giá", "gia", "số liệu", "so lieu", "sai số",
-                "tên", "ngày", "giờ", "địa chỉ", "dia chi"),
-}
+_CATEGORY_HINTS = {k: tuple(v) for k, v in
+                   _LEARNING_DATA.get("category_hints", {}).items()}
 
-CLASSIFY_SYSTEM = (
-    "Bạn phân loại tin nhắn của user trong hội thoại với AI assistant. "
-    "User có đang SỬA/PHÀN NÀN về câu trả lời ngay trước của assistant "
-    "không? Chỉ trả JSON: {\"is_correction\": true|false, "
-    "\"explicit\": true|false, \"category\": \"du_kien|quy_trinh|"
-    "giong_format|tool|tri_nho\", \"severity\": \"normal|critical\", "
-    "\"corrected\": \"bản đúng theo user, tóm gọn\"}. "
-    "explicit=true khi user nói rõ ràng cái sai và cái đúng. "
-    "severity=critical khi lỗi đụng tiền bạc, tài khoản, an toàn. "
-    "Không chắc có phải correction không thì is_correction=false."
-)
+CLASSIFY_SYSTEM = load_prompt("classify_system")
 
 
 def detect_correction(text: str) -> bool:

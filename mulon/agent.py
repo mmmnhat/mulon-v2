@@ -29,6 +29,7 @@ from .context import frame_external, trim_tool_result
 from .gateway import GatewayError, estimate_tokens
 from .learning import detect_and_record
 from .tools import result_to_text
+from .datafiles import load_json_data, load_prompt
 
 logger = logging.getLogger("mulon.agent")
 
@@ -42,51 +43,13 @@ class Intent(str, Enum):
     LONG = "long"
 
 
-_TOOL_HINTS = (
-    "đọc file", "ghi file", "sửa file", "tạo file", "chạy lệnh", "chạy thử",
-    # Web, URLs & Docs
-    "tìm trên web", "tra cứu", "mở link", "xem link", "kiểm tra trong",
-    "http://", "https://", "docs", "doc ", "tài liệu", "tai lieu",
-    "đọc web", "xem web", "đọc link", "link",
-    "liệt kê", "list file", "read file", "run ", "search ", "fetch ",
-    "nhớ giúp", "lưu lại là", "ghi nhớ",
-    # Tìm kiếm — user hay nói ngắn gọn "tìm X" thay vì "tìm trên web X"
-    "tìm kiếm", "tìm thông tin", "tìm sản phẩm", "tìm giá", "tìm hiểu",
-    # Memory save — user hay nói "nhớ là..." / "nhớ rằng..."
-    "nhớ là", "nhớ rằng", "ghi là", "ghi rằng", "lưu là", "note lại",
-    # Scheduling
-    "đặt lịch", "hẹn lịch", "tạo lịch", "thêm lịch", "đặt hẹn", "hẹn",
-    "nhắc tui", "nhắc tôi", "nhắc mình", "schedule",
-    # Short action confirms — "triển" "thực hiện" thường là xác nhận làm
-    "triển", "thực hiện", "bắt đầu đi", "tiến hành ngay",
-    # Service usage — "xài X", "dùng X" thường chỉ gọi tool
-    "xài ", "dùng ", "sử dụng ",
-    # Vault / secrets
-    "vault", "két", "secret", "bí mật", "sk-", "api key", "apikey", "token",
-    "lưu key", "cất key", "lưu vào vault", "cất vào vault",
-    "cất rồi", "đã cất", "lưu rồi", "đã lưu", "xong rồi", "đã xong", "rồi nè",
-    "làm đi", "chạy đi", "triển đi", "tiến hành", "làm luôn", "ok làm đi",
-    # Media, creative & APIs
-    "tạo ảnh", "sinh ảnh", "vẽ ảnh", "làm ảnh", "chỉnh ảnh", "sửa ảnh", "ảnh",
-    "hình ảnh", "picture", "image", "photo", "tạo video", "sinh video", "làm video",
-    "video", "clip", "audio", "nhạc", "âm thanh", "voice", "thu âm", "lồng tiếng",
-    "agnes", "agnes ai", "api", "gọi api", "call api", "endpoint", "webhook",
-    # Folder / file / directory / project / dossier
-    "folder", "thư mục", "tập tin", "tệp tin", "dự án", "codebase", "dossier",
-    "cập nhật", "cap nhat", "vô file", "vao file", "vào file", "hồ sơ", "ho so",
-    "xưng hô", "xung ho", "kêu tui", "kêu tôi", "gọi tui", "gọi tôi", "đổi tên",
-    # Test / check / inspect
-    "check", "kiểm tra", "soát", "test", "thử nghiệm",
-    # Connectors & tools
-    "gmail", "email", "gửi mail", "đọc mail", "hộp thư", "lịch", "calendar",
-    "sự kiện", "cuộc hẹn", "mcp", "connector", "công cụ", "tool",
-    # Library & share
-    "share link", "chia sẻ link", "ghim vào kho", "pin library",
-)
-_LONG_HINTS = (
-    "báo cáo", "tổng hợp", "phân tích", "nghiên cứu", "so sánh", "lập kế hoạch",
-    "từng bước", "toàn bộ", "tất cả các",
-)
+# Vá audit hardcode 2026-10-26: bảng từ khóa intent nằm ở
+# config/intent_hints.json — sửa hành vi router không cần sửa code.
+_INTENT_DATA = load_json_data("intent_hints.json", {})
+_TOOL_HINTS = tuple(_INTENT_DATA.get("tool_hints", ()))
+_LONG_HINTS = tuple(_INTENT_DATA.get("long_hints", ()))
+_ACTION_PROMISES = tuple(_INTENT_DATA.get("action_promises", ()))
+_FOLLOWUP_HINTS = tuple(_INTENT_DATA.get("followup_hints", ()))
 
 
 def clean_task_title(text: str) -> str:
@@ -121,7 +84,7 @@ def classify_intent(text: str, messages: Optional[list[dict]] = None) -> Intent:
     if messages:
         last_asst = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "assistant"), "")
         last_low = last_asst.lower() if isinstance(last_asst, str) else ""
-        if any(w in last_low for w in ("vault", "kho an toàn", "cất key", "lưu key", "api key", "thẻ", "gọi api", "sinh ảnh", "tạo ảnh", "triển")):
+        if any(w in last_low for w in _FOLLOWUP_HINTS):
             if len(text.strip().split()) <= 6:
                 return Intent.TOOL
     return Intent.CHAT
@@ -226,12 +189,7 @@ class TurnResult:
     verified: Optional[bool] = None
 
 
-VERIFY_SYSTEM = (
-    "Bạn là NGƯỜI KIỂM CHỨNG độc lập. Đối chiếu KẾT QUẢ với YÊU CẦU GỐC "
-    "dựa trên BẰNG CHỨNG (output tool, nội dung cuối). Chỉ trả JSON: "
-    "{\"ok\": true|false, \"diagnosis\": \"...\"}. ok=true chỉ khi yêu cầu "
-    "đã được đáp ứng thật bằng bằng chứng; thiếu bằng chứng thì ok=false."
-)
+VERIFY_SYSTEM = load_prompt("verify_system")
 
 
 def _roster_label(spec) -> str:
@@ -421,11 +379,7 @@ class Agent:
             # Lưới an toàn chống nói suông (Hallucination escape hatch):
             # Nếu fast path lỡ rơi vào câu trả lời hứa hẹn hành động mà không gọi tool thật,
             # tự động nâng cấp lượt này lên task path để tool thật sự được chạy.
-            _ACTION_PROMISES = (
-                "chờ tui chút", "chờ tui xíu", "chờ tui tí", "để tui gọi",
-                "đang gọi api", "đang tạo ảnh", "đang sinh ảnh", "đang xử lý",
-                "tui sẽ gọi", "tui sẽ tạo", "tui sẽ sinh", "đang chạy lệnh",
-            )
+            # _ACTION_PROMISES: hằng module (config/intent_hints.json)
             low_res = (result.text or "").lower()
             if any(p in low_res for p in _ACTION_PROMISES):
                 logger.info("Phát hiện fast_path trả lời hứa hẹn hành động, tự động nâng cấp sang task_path")

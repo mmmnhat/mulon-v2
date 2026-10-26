@@ -148,6 +148,21 @@ def _resolve_for_file_tool(cfg, raw: str) -> Path:
         else:
             resolved = (base / p).resolve()
 
+    # Denylist cứng (vá audit 2026-10-26): file tool không bao giờ
+    # được đọc/ghi file bí mật, kể cả khi nằm trong project_root
+    # (self-evolution) hay bật ALLOW_OUTSIDE_WORKSPACE. .env.example
+    # là template công khai nên được phép.
+    _lname = resolved.name.lower()
+    if (
+        (_lname.startswith(".env") and _lname != ".env.example")
+        or _lname.endswith((".pem", ".key"))
+        or "secret" in _lname
+        or _lname == "vault.json"
+        or _lname.endswith((".db", ".sqlite", ".sqlite3"))
+    ):
+        raise PermissionError(
+            f"file nhạy cảm bị chặn với file tool: {raw}")
+
     if cfg.allow_outside_workspace:
         return resolved
 

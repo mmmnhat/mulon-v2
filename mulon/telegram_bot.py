@@ -1506,9 +1506,15 @@ class TelegramSurface:
         if not tool_name:
             return None
         try:
+            # Email lấy từ cấu hình (GOOGLE_USER_EMAIL), KHÔNG hardcode
+            # email cá nhân trong code (vá audit hardcode 2026-10-26).
+            user_email = str(getattr(self.cfg, "google_user_email", "") or "").strip()
+            if not user_email:
+                logger.warning("chưa cấu hình GOOGLE_USER_EMAIL — bỏ qua auth_probe Google")
+                return None
             res = await self.agent.registry.execute(
                 tool_name,
-                {"user_google_email": "mmmnhat.1810@gmail.com", "query": "auth_probe"}
+                {"user_google_email": user_email, "query": "auth_probe"}
             )
             raw = str(res.get("result", ""))
             m = re.search(r'https://accounts\.google\.com/o/oauth2/auth\?[^\s\n\)]+', raw)

@@ -18,6 +18,7 @@ Không ghi secret vào log/kết quả ở module này.
 """
 
 from __future__ import annotations
+from .datafiles import load_prompt
 
 import asyncio
 import json
@@ -32,14 +33,7 @@ logger = logging.getLogger("mulon.voice")
 
 SttFn = Callable[..., tuple[str, list[dict]]]
 
-_UNDERSTAND_SYSTEM = (
-    "Bạn nhận bản chép lời THÔ từ nhận diện giọng nói (có thể sai "
-    "chữ, thiếu dấu, lẫn tiếng Anh). Hãy: 1) sửa lỗi nhận diện theo "
-    "ngữ cảnh tiếng Việt tự nhiên, khôi phục dấu câu và tên riêng; "
-    "2) trích ý định chính của người nói. Chỉ trả JSON: "
-    "{\"text_da_hieu\": \"bản đã sửa\", \"y_dinh\": \"ý định ngắn\"}. "
-    "Không thêm chữ nào ngoài JSON."
-)
+_UNDERSTAND_SYSTEM = load_prompt("voice_understand_system")
 
 _FORMAT_EXT = {"opus": "ogg", "mp3": "mp3", "wav": "wav",
                "aac": "aac", "flac": "flac", "pcm": "pcm"}

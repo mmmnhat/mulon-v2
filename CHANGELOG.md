@@ -1,5 +1,35 @@
 # CHANGELOG
 
+## 1.6.4 — 2026-10-26 — Gỡ hardcode theo audit toàn diện
+
+- **Bảo mật:** gateway multimodal chỉ đóng gói file ảnh thật nằm
+  trong workspace/dossier/temp, chặn denylist (.env/secret/*.pem/
+  *.key/*.db) — đóng lỗ Local File Disclosure qua tag ảnh bị tiêm.
+  File tool thêm denylist cứng tương tự trong `_resolve_for_file_tool`
+  (.env.example vẫn đọc được).
+- **Dữ liệu cá nhân ra khỏi repo:** gỡ 93 symlink `skills/*` trỏ
+  tuyệt đối `/Users/<user>/.agents/skills/*` (SkillCatalog đã tự quét
+  kho máy khi chạy); email Google của chủ bot chuyển sang env
+  `GOOGLE_USER_EMAIL`; gỡ hook cá nhân `shopee_price_watch` khỏi
+  repo (hooks là runtime, thêm .gitignore + hooks/README.md).
+- **OAuth:** `GOOGLE_OAUTH_REDIRECT_URI` trong mcp_servers.json
+  không còn chết cứng URL trycloudflare tạm — dùng `${WEBAPP_URL}`
+  và `load_server_configs` tự mở rộng placeholder từ environ/Config.
+- **Hardcode -> dữ liệu:** bảng intent (`_TOOL_HINTS` 155 +
+  `_LONG_HINTS` + `_ACTION_PROMISES` + followup) ra
+  `config/intent_hints.json`; marker học tập ra
+  `config/learning_markers.json`; nguồn/stopwords Feed ra
+  `config/feed_sources.json`; `KNOWN_MCP_FALLBACKS` ra
+  `config/mcp_fallbacks.json`; 9 prompt hệ thống ra
+  `mulon/prompts/*.txt` (loader `mulon/datafiles.py`).
+- **Config:** 3 tier model hết trùng default (cheap =
+  gemini-3.5-flash-lite, escalated = gemini-3.8-flash-high);
+  endpoint/model sinh ảnh (Agnes) qua `IMAGE_GEN_ENDPOINT`/
+  `IMAGE_GEN_MODEL`; username bot qua `BOT_USERNAME`; hằng
+  `DEFAULT_TIMEZONE` dùng chung thay cho chuỗi rải rác.
+- Test: 446 passed (thêm 4 test hồi quy cho các vá trên).
+
+
 ## 1.6.3 — 2026-10-24 — Sửa P0 của audit toàn dự án (injection, SSRF, privacy, auto_watch, CI)
 
 - **Injection (sửa 1.6.3):** vòng evidence của agent loop đóng khung
