@@ -489,9 +489,11 @@ class BotSupervisor:
                     time.sleep(3)
                     self.start_bot()
 
-                # Kiểm tra commit trên remote (chỉ update nếu remote có commit mới mà local chưa có)
+                # Kiểm tra commit trên remote (update khi remote có commit mới mà local chưa có,
+                # hoặc khi local đã push commit mới lên remote nhưng tiến trình bot chưa restart)
                 remote_sha = get_remote_commit(self.remote, self.branch)
-                if remote_sha and remote_sha != self.current_sha and is_remote_ahead(remote_sha):
+                local_sha = get_local_commit()
+                if remote_sha and remote_sha != self.current_sha and (is_remote_ahead(remote_sha) or remote_sha == local_sha):
                     self.update_and_restart(remote_sha)
 
             except Exception as e:
