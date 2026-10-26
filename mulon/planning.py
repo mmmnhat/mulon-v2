@@ -185,7 +185,8 @@ def register_planning_tools(registry, cfg, memory) -> None:
         "schedule_task",
         "Hẹn giờ 1 việc lặp lại theo cron 5 trường (phút giờ ngày tháng "
         "thứ), múi giờ tường minh. Phải gắn với goal_id hoặc tracked_item_id "
-        "nếu là việc theo dõi mục tiêu. Trả về lịch đã tạo kèm lần chạy kế tiếp.",
+        "nếu là việc theo dõi mục tiêu. Trả về lịch đã tạo kèm lần chạy kế tiếp. "
+        "Lưu ý: Thư briefing cho goal do hệ thống nền tạo tự động, không thể đặt lịch thủ công.",
         {
             "type": "object",
             "properties": {
@@ -210,6 +211,14 @@ def register_planning_tools(registry, cfg, memory) -> None:
                             tracked_item_id: Optional[int] = None,
                             timezone: str = DEFAULT_TIMEZONE,
                             session_key: str = ""):
+        # Checklist C8: Goal briefings user không đặt lịch được
+        lower_payload = (payload or "").lower()
+        lower_title = (title or "").lower()
+        if "briefing" in lower_payload or "briefing" in lower_title or "goal_briefing" in lower_payload:
+            return {
+                "ok": False,
+                "error": "Goal briefings do tiến trình nền của hệ thống tự động sinh và đính kèm vào mục tiêu, người dùng không thể đặt lịch thủ công (chuẩn Muse C8)."
+            }
         tz_name = timezone or cfg.default_timezone
         try:
             nxt = next_run_iso(cron, datetime.now(_UTC), tz_name)
@@ -261,26 +270,73 @@ def register_planning_tools(registry, cfg, memory) -> None:
 
     @spec(
         "create_goal",
-        "Tạo mục tiêu dài hạn (goal). Goal có activity log riêng và "
-        "không bao giờ tự đóng.",
+        "Tạo mục tiêu (goal) mới. Có thể tạo subgoal (mục tiêu con lồng 1 cấp) bằng cách truyền parent_id.",
         {
             "type": "object",
             "properties": {
                 "title": {"type": "string"},
                 "description": {"type": "string", "default": ""},
+                "parent_id": {"type": "integer", "description": "ID của goal cha nếu là subgoal (chỉ lồng 1 cấp)"},
+                "category": {"type": "string", "default": "productivity"},
+                "goal_kind": {"type": "string", "default": "outcome"},
             },
             "required": ["title"],
         },
         "goals", 10,
     )
-    async def create_goal(title: str, description: str = ""):
-        goal = await memory.create_goal(title, description)
-        return {"ok": True, "goal": goal}
+    async def create_goal(title: str, description: str = "",
+                          parent_id: Optional[int] = None,
+                          category: str = "productivity",
+                          goal_kind: str = "outcome"):
+        try:
+            goal = await memory.create_goal(
+                title=title, description=description,
+                parent_id=parent_id, category=category, goal_kind=goal_kind
+            )
+            return {"ok": True, "goal": goal}
+        except ValueError as err:
+            return {"ok": False, "error": str(err)}
+
+    @spec(
+        "update_goal",
+        "Cập nhật thông tin của goal (tiêu đề, mô tả, trạng thái tiến độ hiện tại, nhóm, hoặc gán parent_id lồng 1 cấp).",
+        {
+            "type": "object",
+            "properties": {
+                "goal_id": {"type": "integer"},
+                "title": {"type": "string"},
+                "description": {"type": "string"},
+                "current_state": {"type": "string"},
+                "category": {"type": "string"},
+                "goal_kind": {"type": "string"},
+                "parent_id": {"type": "integer"},
+            },
+            "required": ["goal_id"],
+        },
+        "goals", 10,
+    )
+    async def update_goal(goal_id: int, title: Optional[str] = None,
+                          description: Optional[str] = None,
+                          current_state: Optional[str] = None,
+                          category: Optional[str] = None,
+                          goal_kind: Optional[str] = None,
+                          parent_id: Optional[int] = None):
+        try:
+            goal = await memory.update_goal(
+                goal_id=int(goal_id), title=title, description=description,
+                current_state=current_state, category=category,
+                goal_kind=goal_kind, parent_id=parent_id
+            )
+            if goal is None:
+                return {"ok": False, "error": f"Không tìm thấy goal #{goal_id}"}
+            return {"ok": True, "goal": goal}
+        except ValueError as err:
+            return {"ok": False, "error": str(err)}
 
     @spec(
         "list_goals",
-        "Liệt kê goals. status rỗng = mọi trạng thái; 'active' hoặc "
-        "'completed' để lọc. Kèm tracked items đang mở của từng goal.",
+        "Liệt kê goals theo cây phân cấp. status rỗng = mọi trạng thái; 'active' hoặc "
+        "'completed' để lọc. Kèm subgoals, tracked items và tiến triển thật của từng goal.",
         {
             "type": "object",
             "properties": {
@@ -291,12 +347,29 @@ def register_planning_tools(registry, cfg, memory) -> None:
         "goals", 10,
     )
     async def list_goals(status: str = ""):
-        goals = await memory.list_goals(status=status or None)
-        for goal in goals:
+        tree = await memory.get_goal_tree(status=status or None)
+        # Giữ open_items cho tương thích ngược
+        for goal in tree:
             goal["open_items"] = await memory.list_tracked_items(
                 goal_id=goal["id"], status="open"
             )
-        return {"ok": True, "goals": goals}
+        return {"ok": True, "goals": tree}
+
+    @spec(
+        "get_goal_detail",
+        "Xem chi tiết đầy đủ của 1 goal kèm subgoals, tiến triển thật, cam kết, nhật ký và thư briefings.",
+        {
+            "type": "object",
+            "properties": {"goal_id": {"type": "integer"}},
+            "required": ["goal_id"],
+        },
+        "goals", 10,
+    )
+    async def get_goal_detail(goal_id: int):
+        detail = await memory.get_goal_detail(int(goal_id))
+        if detail is None:
+            return {"ok": False, "error": f"Không tìm thấy goal #{goal_id}"}
+        return {"ok": True, "goal": detail}
 
     @spec(
         "log_goal_activity",
@@ -320,7 +393,7 @@ def register_planning_tools(registry, cfg, memory) -> None:
 
     @spec(
         "close_goal",
-        "Đóng goal (chuyển sang completed) — chỉ khi việc đã thật sự xong.",
+        "Đóng goal hoặc subgoal (chuyển sang completed) — chỉ khi việc đã thật sự xong. Đóng subgoal sẽ tự động cập nhật tiến độ thật của goal cha.",
         {
             "type": "object",
             "properties": {"goal_id": {"type": "integer"}},
@@ -334,6 +407,42 @@ def register_planning_tools(registry, cfg, memory) -> None:
             return {"ok": False,
                     "error": f"goal {goal_id} không tồn tại hoặc đã đóng"}
         return {"ok": True, "goal": goal}
+
+    @spec(
+        "generate_goal_briefing",
+        "Tiến trình nền tự nghiên cứu và tạo thư briefing (Letter) đính kèm vào goal. Thư gồm: Tiến triển thật, Việc tiếp theo, và Điểm nghẽn.",
+        {
+            "type": "object",
+            "properties": {"goal_id": {"type": "integer"}},
+            "required": ["goal_id"],
+        },
+        "goals", 10,
+    )
+    async def generate_goal_briefing(goal_id: int):
+        from .goal_briefing import GoalBriefingService
+        svc = GoalBriefingService(cfg, memory, gateway=None)
+        try:
+            briefing = await svc.generate_briefing(int(goal_id))
+            return {"ok": True, "briefing": briefing}
+        except ValueError as err:
+            return {"ok": False, "error": str(err)}
+
+    @spec(
+        "list_goal_briefings",
+        "Liệt kê các thư briefing đã phát cho goal.",
+        {
+            "type": "object",
+            "properties": {
+                "goal_id": {"type": "integer"},
+                "limit": {"type": "integer", "default": 10},
+            },
+            "required": ["goal_id"],
+        },
+        "goals", 10,
+    )
+    async def list_goal_briefings(goal_id: int, limit: int = 10):
+        items = await memory.list_goal_briefings(int(goal_id), limit=limit)
+        return {"ok": True, "briefings": items}
 
 
 async def ensure_seed_goals(memory) -> list[dict]:

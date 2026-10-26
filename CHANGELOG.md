@@ -1,6 +1,33 @@
 # CHANGELOG
 
-## 1.7.5 — 2026-10-27 — Feed đa nguồn, học gu từ thảo luận và Thẻ ý tưởng chủ động có rationale & scoring (T-10.3 Parity C1 + C2 + C3/C7 + R11)
+## 1.7.6 — 2026-10-27 — Goals lồng 1 cấp, tiến triển thật và Goal Briefings dạng Letter (T-10.4 Parity D1 + D2/C8 + D3)
+
+- **Mục tiêu & Mục tiêu con lồng 1 cấp (Goals & Subgoals - Parity D1):**
+  - Hỗ trợ tạo mục tiêu chính (`root goal`, `parent_id=None`) và mục tiêu con (`subgoal`, `parent_id=<root_id>`).
+  - Kiểm soát cấu trúc phân cấp nghiêm ngặt: giới hạn đúng 1 cấp lồng (chặn tạo con của subgoal, chặn chu trình tự gán cha).
+  - Tích hợp đầy đủ bộ công cụ quản lý mục tiêu qua chat & agent loop (`create_goal`, `update_goal`, `close_goal`, `list_goals`, `get_goal_detail`).
+  - Đóng subgoal tự động roll up ghi nhật ký hoạt động (`goal_activity`) lên mục tiêu cha.
+- **Tiến triển thật tính toán tất định (Factual Progress Tracking - No Fake Percentages):**
+  - Tuyệt đối không bịa phần trăm hoặc để agent tự đoán mò; tiến triển được suy diễn trực tiếp từ các đơn vị thực tế đã hoàn thành:
+    - `completed_subgoals / total_subgoals` (số subgoal đã đóng / tổng số subgoal).
+    - `completed_tracked_items / total_tracked_items` (số cam kết đã giải quyết / tổng số cam kết).
+    - Tỷ lệ hoàn thành tổng thể: `round((completed_units / total_units) * 100)`.
+    - Nhãn minh bạch: ví dụ `"1/2 subgoal, 0/1 cam kết (33%)"`, `"100% (Hoàn thành)"`, `"0% (Đang thực hiện)"`.
+- **Thư Briefing mục tiêu dạng Letter (Goal Briefings - Parity D2 & C8):**
+  - Tiến trình nền tự động nghiên cứu dữ liệu thực tế và soạn thư briefing dạng Letter đính kèm mục tiêu (`mulon/goal_briefing.py`, `GoalBriefingService`).
+  - Thư briefing gồm 3 phần trọng tâm:
+    1. *Tiến triển (Progress Summary):* Tóm tắt tỷ lệ hoàn thành thực tế và trạng thái gần nhất.
+    2. *Việc tiếp theo (Next Steps):* Danh sách các hành động cụ thể cho các subgoal hoặc cam kết còn đang chạy.
+    3. *Điểm nghẽn & Rủi ro (Bottlenecks):* Các nút thắt cần giải quyết hoặc mốc hạn chót cần lưu ý.
+  - Tuân thủ chuẩn Muse C8: Người dùng **KHÔNG** đặt lịch được cho Goal Briefings (`schedule_task` từ chối nếu yêu cầu đặt lịch cho briefing; tiến trình nền của hệ thống tự quản lý).
+  - Bảng lưu trữ `goal_briefings` trong SQLite, hỗ trợ tra cứu qua công cụ `generate_goal_briefing`, `list_goal_briefings`.
+  - Prompt hệ thống tách bạch tại `mulon/prompts/goal_briefing_system.txt` (tuân thủ Rule 0, phi hardcode).
+- **Trải nghiệm hội thoại Telegram & Mini App:**
+  - Lệnh chat Telegram: `/goal create <tiêu đề> [--parent <id>] [--desc <mô tả>]`, `/goal update <id> ...`, `/goal close <id>`, `/goal briefing <id>`, `/goals` (hiển thị cây phân cấp phân nhánh trực quan `├─`, `└─` kèm tiến triển thật).
+  - Giao diện Mini App:
+    - Bổ sung khối "Mục tiêu & Cây tiến triển" trên tab Việc (`#tab-viec`), hiển thị cây mục tiêu phân cấp 1 level, thanh tiến trình tỷ lệ thật, thẻ subgoal và trích đoạn thư briefing mới nhất.
+    - REST APIs cho Mini App: `GET /api/goals`, `GET /api/goals/{id}`, `POST /api/goals/create`, `POST /api/goals/update`, `POST /api/goals/close`, `POST /api/goals/{id}/briefing`, nạp cây goal vào `/api/state` (`goals`).
+- **Kiểm chứng:** 503/503 unit tests PASS (thêm 7 test hồi quy toàn diện trong `tests/test_v17_goals_briefings_parity.py`); golden eval stub đạt 31/36 (86%, qua cổng 85%).
 
 - **Feed đa nguồn & Adapter dịch vụ kết nối (External Sources Web, Social & Connectors - Parity C1):**
   - Mở rộng nguồn tin tức ngoài không chỉ gói gọn trong các trang báo chính thống mà bao gồm các mạng xã hội & kho tri thức: GitHub, X/Twitter, Threads, Substack, Medium, HuggingFace, ArXiv, Dev.to, Reddit... (khai báo phi hardcode qua `config/feed_sources.json` thuộc tính `social_domains`).

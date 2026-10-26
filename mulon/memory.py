@@ -307,6 +307,19 @@ CREATE TABLE IF NOT EXISTS goal_activity (
 );
 CREATE INDEX IF NOT EXISTS idx_goal_activity ON goal_activity(goal_id, id);
 
+-- Thư briefing định kỳ gắn vào goal (chuẩn Muse C8 + D2).
+CREATE TABLE IF NOT EXISTS goal_briefings (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    goal_id          INTEGER NOT NULL REFERENCES goals(id),
+    title            TEXT NOT NULL,
+    progress_summary TEXT NOT NULL DEFAULT '',
+    next_steps       TEXT NOT NULL DEFAULT '',
+    bottlenecks      TEXT NOT NULL DEFAULT '',
+    letter_body      TEXT NOT NULL DEFAULT '',
+    created_at       TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_goal_briefings_goal ON goal_briefings(goal_id, id DESC);
+
 -- Cam kết cụ thể (đặt chỗ, đơn hàng, hạn chót...), gắn goal hoặc độc lập.
 CREATE TABLE IF NOT EXISTS tracked_items (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -542,6 +555,24 @@ async def _migrate_feed_signals(db) -> None:
     await db.commit()
 
 
+async def _migrate_goal_briefings(db) -> None:
+    """Migration Goal Briefings theo chuẩn Muse Letter."""
+    await db.execute("""
+    CREATE TABLE IF NOT EXISTS goal_briefings (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        goal_id          INTEGER NOT NULL REFERENCES goals(id),
+        title            TEXT NOT NULL,
+        progress_summary TEXT NOT NULL DEFAULT '',
+        next_steps       TEXT NOT NULL DEFAULT '',
+        bottlenecks      TEXT NOT NULL DEFAULT '',
+        letter_body      TEXT NOT NULL DEFAULT '',
+        created_at       TEXT NOT NULL
+    )
+    """)
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_goal_briefings_goal ON goal_briefings(goal_id, id DESC)")
+    await db.commit()
+
+
 def ensure_goal_workspace(cfg, goal_id: int) -> dict[str, Path]:
     """Tạo cấu trúc workspace phân ngăn cho Goal theo chuẩn Muse: files/ và hidden_files/."""
     base = Path(cfg.workspace_dir) / "goals" / str(goal_id)
@@ -593,6 +624,7 @@ class Memory:
         await _migrate_schedules_muse(db)
         await _migrate_ideas_muse(db)
         await _migrate_feed_signals(db)
+        await _migrate_goal_briefings(db)
         mem = cls(db)
         mem.vector_enabled = await mem._try_enable_vector()
         return mem
@@ -1537,6 +1569,12 @@ class Memory:
                           category: str = "productivity",
                           goal_kind: str = "outcome",
                           parent_id: Optional[int] = None) -> dict:
+        if parent_id is not None:
+            parent = await self.get_goal(parent_id)
+            if parent is None:
+                raise ValueError(f"Không tìm thấy goal cha #{parent_id}")
+            if parent.get("parent_id") is not None:
+                raise ValueError(f"Chỉ hỗ trợ subgoal lồng 1 cấp: goal #{parent_id} đã là subgoal của #{parent['parent_id']}")
         ts = now_iso()
         cur = await self.db.execute(
             "INSERT INTO goals(title, description, current_state, category, goal_kind, parent_id, status, created_at,"
@@ -1561,6 +1599,234 @@ class Memory:
         else:
             cur = await self.db.execute("SELECT * FROM goals ORDER BY id")
         return [dict(r) for r in await cur.fetchall()]
+
+    async def list_subgoals(self, parent_id: int, status: Optional[str] = None) -> list[dict]:
+        """Liệt kê các mục tiêu con (subgoals lồng 1 cấp) của goal cha."""
+        if status:
+            cur = await self.db.execute(
+                "SELECT * FROM goals WHERE parent_id=? AND status=? ORDER BY id",
+                (parent_id, status)
+            )
+        else:
+            cur = await self.db.execute(
+                "SELECT * FROM goals WHERE parent_id=? ORDER BY id",
+                (parent_id,)
+            )
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def update_goal(self, goal_id: int,
+                          title: Optional[str] = None,
+                          description: Optional[str] = None,
+                          current_state: Optional[str] = None,
+                          category: Optional[str] = None,
+                          goal_kind: Optional[str] = None,
+                          parent_id: Optional[int] = None) -> Optional[dict]:
+        """Cập nhật các trường thông tin của Goal."""
+        goal = await self.get_goal(goal_id)
+        if goal is None:
+            return None
+        fields, params = [], []
+        if title is not None:
+            fields.append("title=?")
+            params.append(title.strip())
+        if description is not None:
+            fields.append("description=?")
+            params.append(description.strip())
+        if current_state is not None:
+            fields.append("current_state=?")
+            params.append(current_state.strip())
+        if category is not None:
+            fields.append("category=?")
+            params.append(category.strip())
+        if goal_kind is not None:
+            fields.append("goal_kind=?")
+            params.append(goal_kind.strip())
+        if parent_id is not None:
+            if parent_id == goal_id:
+                raise ValueError("Goal không thể làm cha của chính nó")
+            parent = await self.get_goal(parent_id)
+            if parent is None:
+                raise ValueError(f"Không tìm thấy goal cha #{parent_id}")
+            if parent.get("parent_id") is not None:
+                raise ValueError(f"Chỉ hỗ trợ subgoal lồng 1 cấp: goal #{parent_id} đã là subgoal của #{parent['parent_id']}")
+            subs = await self.list_subgoals(goal_id)
+            if subs:
+                raise ValueError(f"Goal #{goal_id} đang có {len(subs)} subgoal con, không thể chuyển thành subgoal")
+            fields.append("parent_id=?")
+            params.append(parent_id)
+
+        if not fields:
+            return goal
+        ts = now_iso()
+        fields.append("updated_at=?")
+        params.append(ts)
+        params.append(goal_id)
+        await self.db.execute(
+            f"UPDATE goals SET {', '.join(fields)} WHERE id=?",
+            tuple(params)
+        )
+        await self.db.commit()
+        return await self.get_goal(goal_id)
+
+    @staticmethod
+    def calculate_goal_progress(goal: dict, subgoals: list[dict], tracked_items: list[dict]) -> dict:
+        """Tính tiến triển thật của Goal theo chuẩn Muse:
+        Suy từ số subgoal và cam kết đã đóng, tuyệt đối không bịa phần trăm."""
+        total_subgoals = len(subgoals)
+        completed_subgoals = sum(1 for s in subgoals if s.get("status") == "completed")
+        total_tracked = len(tracked_items)
+        completed_tracked = sum(1 for t in tracked_items if t.get("status") in ("completed", "done", "closed"))
+
+        total_units = total_subgoals + total_tracked
+        completed_units = completed_subgoals + completed_tracked
+
+        if total_units > 0:
+            pct = int(round((completed_units / total_units) * 100))
+            parts = []
+            if total_subgoals > 0:
+                parts.append(f"{completed_subgoals}/{total_subgoals} subgoal")
+            if total_tracked > 0:
+                parts.append(f"{completed_tracked}/{total_tracked} cam kết")
+            label = ", ".join(parts) + f" ({pct}%)"
+        else:
+            if goal.get("status") == "completed":
+                pct = 100
+                label = "100% (Hoàn thành)"
+            else:
+                pct = 0
+                label = "0% (Đang thực hiện)"
+
+        return {
+            "total_subgoals": total_subgoals,
+            "completed_subgoals": completed_subgoals,
+            "total_tracked_items": total_tracked,
+            "completed_tracked_items": completed_tracked,
+            "total_units": total_units,
+            "completed_units": completed_units,
+            "progress_pct": pct,
+            "progress_label": label,
+        }
+
+    async def get_goal_tree(self, status: Optional[str] = None) -> list[dict]:
+        """Lấy toàn bộ cây Goals phân cấp 1 level:
+        Root goals (parent_id IS NULL), mỗi root chứa subgoals, tracked_items,
+        thư briefings, và tiến triển thật (không bịa phần trăm)."""
+        if status:
+            cur = await self.db.execute(
+                "SELECT * FROM goals WHERE parent_id IS NULL AND status=? ORDER BY id",
+                (status,)
+            )
+        else:
+            cur = await self.db.execute(
+                "SELECT * FROM goals WHERE parent_id IS NULL ORDER BY id"
+            )
+        roots = [dict(r) for r in await cur.fetchall()]
+        tree = []
+        for root in roots:
+            subgoals = await self.list_subgoals(root["id"])
+            for sub in subgoals:
+                sub_items = await self.list_tracked_items(goal_id=sub["id"])
+                sub["tracked_items"] = sub_items
+                sub["progress"] = self.calculate_goal_progress(sub, [], sub_items)
+            tracked_items = await self.list_tracked_items(goal_id=root["id"])
+            briefings = await self.list_goal_briefings(root["id"], limit=3)
+            progress = self.calculate_goal_progress(root, subgoals, tracked_items)
+            root["subgoals"] = subgoals
+            root["tracked_items"] = tracked_items
+            root["briefings"] = briefings
+            root["progress"] = progress
+            tree.append(root)
+        return tree
+
+    async def get_goal_detail(self, goal_id: int) -> Optional[dict]:
+        """Chi tiết đầy đủ của 1 Goal kèm subgoals, tracked_items, activities, briefings, progress."""
+        goal = await self.get_goal(goal_id)
+        if goal is None:
+            return None
+        subgoals = await self.list_subgoals(goal_id)
+        for sub in subgoals:
+            sub_items = await self.list_tracked_items(goal_id=sub["id"])
+            sub["tracked_items"] = sub_items
+            sub["progress"] = self.calculate_goal_progress(sub, [], sub_items)
+        tracked_items = await self.list_tracked_items(goal_id=goal_id)
+        activities = await self.list_goal_activity(goal_id, limit=20)
+        briefings = await self.list_goal_briefings(goal_id, limit=10)
+        progress = self.calculate_goal_progress(goal, subgoals, tracked_items)
+        goal["subgoals"] = subgoals
+        goal["tracked_items"] = tracked_items
+        goal["activities"] = activities
+        goal["briefings"] = briefings
+        goal["progress"] = progress
+        return goal
+
+    async def close_goal(self, goal_id: int) -> Optional[dict]:
+        goal = await self.get_goal(goal_id)
+        if goal is None or goal.get("status") == "completed":
+            return None
+        ts = now_iso()
+        cur = await self.db.execute(
+            "UPDATE goals SET status='completed', closed_at=?,"
+            " updated_at=? WHERE id=? AND status='active'",
+            (ts, ts, goal_id),
+        )
+        await self.db.commit()
+        if (cur.rowcount or 0) == 0:
+            return None
+
+        # Nếu là subgoal thì roll up ghi activity hoàn thành cho goal cha
+        if goal.get("parent_id"):
+            parent_id = goal["parent_id"]
+            rollup_note = f"Subgoal #{goal_id} '{goal['title']}' đã hoàn thành"
+            await self.log_goal_activity(parent_id, rollup_note, update_state=True)
+
+        return await self.get_goal(goal_id)
+
+    # ---------- goal briefings (chuẩn Muse C8 + D2) ----------
+    async def create_goal_briefing(self, goal_id: int, title: str,
+                                   progress_summary: str = "",
+                                   next_steps: str = "",
+                                   bottlenecks: str = "",
+                                   letter_body: str = "") -> dict:
+        ts = now_iso()
+        cur = await self.db.execute(
+            "INSERT INTO goal_briefings(goal_id, title, progress_summary, next_steps, bottlenecks, letter_body, created_at)"
+            " VALUES (?,?,?,?,?,?,?)",
+            (goal_id, title, progress_summary, next_steps, bottlenecks, letter_body, ts),
+        )
+        await self.db.commit()
+        return {
+            "id": int(cur.lastrowid),
+            "goal_id": goal_id,
+            "title": title,
+            "progress_summary": progress_summary,
+            "next_steps": next_steps,
+            "bottlenecks": bottlenecks,
+            "letter_body": letter_body,
+            "created_at": ts,
+        }
+
+    async def list_goal_briefings(self, goal_id: int, limit: int = 20) -> list[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM goal_briefings WHERE goal_id=? ORDER BY id DESC LIMIT ?",
+            (goal_id, limit),
+        )
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def get_latest_goal_briefing(self, goal_id: int) -> Optional[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM goal_briefings WHERE goal_id=? ORDER BY id DESC LIMIT 1",
+            (goal_id,),
+        )
+        row = await cur.fetchone()
+        return dict(row) if row else None
+
+    async def get_goal_briefing(self, briefing_id: int) -> Optional[dict]:
+        cur = await self.db.execute(
+            "SELECT * FROM goal_briefings WHERE id=?",
+            (briefing_id,),
+        )
+        row = await cur.fetchone()
+        return dict(row) if row else None
 
     async def update_goal_state(self, goal_id: int, current_state: str) -> None:
         """Cập nhật trực tiếp dòng current_state của Goal theo chuẩn state machine."""
@@ -1635,18 +1901,6 @@ class Memory:
             (goal_id, limit),
         )
         return [dict(r) for r in await cur.fetchall()]
-
-    async def close_goal(self, goal_id: int) -> Optional[dict]:
-        ts = now_iso()
-        cur = await self.db.execute(
-            "UPDATE goals SET status='completed', closed_at=?,"
-            " updated_at=? WHERE id=? AND status='active'",
-            (ts, ts, goal_id),
-        )
-        await self.db.commit()
-        if (cur.rowcount or 0) == 0:
-            return None
-        return await self.get_goal(goal_id)
 
     async def create_tracked_item(self, title: str, detail: str = "",
                                   goal_id: Optional[int] = None,

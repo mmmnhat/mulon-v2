@@ -557,6 +557,13 @@ class WebAppServer:
         app.router.add_post("/api/ideas/generate", self._handle_ideas_generate)
         app.router.add_post("/api/ideas/do", self._handle_ideas_do)
         app.router.add_post("/api/ideas/dismiss", self._handle_ideas_dismiss)
+        # Mục tiêu & Thư Briefings (Goals + Briefings theo T-10.4)
+        app.router.add_get("/api/goals", self._handle_goals_list)
+        app.router.add_get("/api/goals/{id}", self._handle_goal_detail)
+        app.router.add_post("/api/goals/create", self._handle_goal_create)
+        app.router.add_post("/api/goals/update", self._handle_goal_update)
+        app.router.add_post("/api/goals/close", self._handle_goal_close)
+        app.router.add_post("/api/goals/{id}/briefing", self._handle_goal_briefing)
         app.router.add_post("/api/profile/theme", self._handle_theme)
         # 1.3.0 (gói vá Mini App): kỹ năng đọc được + Vault nhập
         # ngay trong app — cùng middleware auth initData.
@@ -1259,6 +1266,7 @@ class WebAppServer:
                      if self.feed_auto is not None else None),
             "ideas": (await self.memory.list_idea_cards(status="open")
                       if self.memory is not None else []),
+            "goals": await self._goals_state(),
             "library": await self._library_state(),
             "heartbeat_history": (await self.memory.get_heartbeat_history(limit=5)
                                   if self.memory is not None else []),
@@ -1716,6 +1724,108 @@ class WebAppServer:
             return web.json_response({"ok": False, "error": "card_id không hợp lệ"}, status=400)
         res = await self.ideas.dismiss(card_id)
         return web.json_response({"ok": bool(res.get("ok")), **res})
+
+    # ---------- Goals + Briefings (T-10.4) ----------
+    async def _goals_state(self) -> dict:
+        if self.memory is None:
+            return {"tree": [], "count": 0, "active_count": 0}
+        tree = await self.memory.get_goal_tree()
+        active = sum(1 for g in tree if g.get("status") == "active")
+        return {"tree": tree, "count": len(tree), "active_count": active}
+
+    async def _handle_goals_list(self, request):
+        if self.memory is None:
+            return web.json_response({"ok": False, "error": "Chưa có database"}, status=503)
+        status = request.query.get("status", "")
+        tree = await self.memory.get_goal_tree(status=status or None)
+        return web.json_response({"ok": True, "goals": tree})
+
+    async def _handle_goal_detail(self, request):
+        if self.memory is None:
+            return web.json_response({"ok": False, "error": "Chưa có database"}, status=503)
+        gid_str = request.match_info.get("id", "")
+        try:
+            gid = int(gid_str)
+        except ValueError:
+            return web.json_response({"ok": False, "error": "goal id không hợp lệ"}, status=400)
+        detail = await self.memory.get_goal_detail(gid)
+        if detail is None:
+            return web.json_response({"ok": False, "error": f"Không tìm thấy goal #{gid}"}, status=404)
+        return web.json_response({"ok": True, "goal": detail})
+
+    async def _handle_goal_create(self, request):
+        if self.memory is None:
+            return web.json_response({"ok": False, "error": "Chưa có database"}, status=503)
+        body = await self._json_body(request)
+        title = (body.get("title") or "").strip()
+        if not title:
+            return web.json_response({"ok": False, "error": "Thiếu tiêu đề goal"}, status=400)
+        desc = (body.get("description") or "").strip()
+        cat = (body.get("category") or "productivity").strip()
+        kind = (body.get("goal_kind") or "outcome").strip()
+        pid = body.get("parent_id")
+        try:
+            goal = await self.memory.create_goal(
+                title=title, description=desc, parent_id=int(pid) if pid is not None else None,
+                category=cat, goal_kind=kind
+            )
+            return web.json_response({"ok": True, "goal": goal})
+        except ValueError as err:
+            return web.json_response({"ok": False, "error": str(err)}, status=400)
+
+    async def _handle_goal_update(self, request):
+        if self.memory is None:
+            return web.json_response({"ok": False, "error": "Chưa có database"}, status=503)
+        body = await self._json_body(request)
+        gid = body.get("goal_id") or body.get("id")
+        if not gid:
+            return web.json_response({"ok": False, "error": "Thiếu goal_id"}, status=400)
+        try:
+            pid = int(body["parent_id"]) if "parent_id" in body and body["parent_id"] is not None else None
+            updated = await self.memory.update_goal(
+                goal_id=int(gid),
+                title=body.get("title"),
+                description=body.get("description"),
+                current_state=body.get("current_state"),
+                category=body.get("category"),
+                goal_kind=body.get("goal_kind"),
+                parent_id=pid,
+            )
+            if updated is None:
+                return web.json_response({"ok": False, "error": f"Không tìm thấy goal #{gid}"}, status=404)
+            return web.json_response({"ok": True, "goal": updated})
+        except ValueError as err:
+            return web.json_response({"ok": False, "error": str(err)}, status=400)
+
+    async def _handle_goal_close(self, request):
+        if self.memory is None:
+            return web.json_response({"ok": False, "error": "Chưa có database"}, status=503)
+        body = await self._json_body(request)
+        gid = body.get("goal_id") or body.get("id")
+        if not gid:
+            return web.json_response({"ok": False, "error": "Thiếu goal_id"}, status=400)
+        goal = await self.memory.close_goal(int(gid))
+        if goal is None:
+            return web.json_response({"ok": False, "error": f"Không tìm thấy goal #{gid} hoặc đã đóng"}, status=404)
+        return web.json_response({"ok": True, "goal": goal})
+
+    async def _handle_goal_briefing(self, request):
+        if self.memory is None:
+            return web.json_response({"ok": False, "error": "Chưa có database"}, status=503)
+        gid_str = request.match_info.get("id", "")
+        try:
+            gid = int(gid_str)
+        except ValueError:
+            return web.json_response({"ok": False, "error": "goal id không hợp lệ"}, status=400)
+        from .goal_briefing import GoalBriefingService
+        svc = GoalBriefingService(self.cfg, self.memory, getattr(self, "gateway", None))
+        try:
+            briefing = await svc.generate_briefing(gid)
+            return web.json_response({"ok": True, "briefing": briefing})
+        except ValueError as err:
+            return web.json_response({"ok": False, "error": str(err)}, status=400)
+        except Exception as exc:
+            return web.json_response({"ok": False, "error": str(exc)}, status=500)
 
     # ---------- 1.3.0 (gói vá Mini App): kỹ năng + Vault ----------
     async def _handle_skills(self, request):

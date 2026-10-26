@@ -46,6 +46,11 @@ thao tác thẻ), 496/496 unit tests PASS, eval vàng 31/36 (86%),
 chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~03:10 bởi Antigravity: nhận T-10.4
 `DOING` (ƯU TIÊN 6) theo LUẬT HÀNG ĐỢI.
+Cập nhật 2026-10-27 ~03:35 bởi Antigravity: T-10.4 đã
+`DONE` (commit `46b7d37`: bổ sung Goals & Subgoals lồng 1 cấp,
+tiến triển thật không bịa phần trăm, Goal Briefings dạng Letter
+đính kèm goal và chặn đặt lịch theo C8), 503/503 unit tests PASS,
+eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~02:00 bởi Muse (autowatch): T-10.1
 `VERIFIED` (full suite 484/484 + eval 31/36 + test sống VM
 15/15; vòng test sống trên bot thật theo nghiệm thu vẫn chờ
@@ -236,7 +241,7 @@ Checklist: C1 + C2 + C3/C7 (MỘT PHẦN) + R11.
   - Chưa tự kiểm được từ VM (ghi rõ, không phải lỗi): 1 chu kỳ Feed thật trên bot thật dùng nguồn ngoài + taste summary và 1 thẻ Ideas thật hiện trên Mini App/bot thật theo đúng nghiệm thu T-10.3 — phần này thuộc máy Mac/bot thật, cần Antigravity hoặc chủ dự án chạy một lượt trước khi coi T-10.3 là hoàn tất ngoài đời.
   - T-10.4 đã `DOING` phía Mac (commit `787094b`) — theo LUẬT HÀNG ĐỢI, lượt autowatch này không chạm vào T-10.4; T-25 xếp cuối hàng đợi (ƯU TIÊN 23).
 
-### [T-10.4] Goals + briefings — Giao: Antigravity — `DOING` (ƯU TIÊN 6)
+### [T-10.4] Goals + briefings — Giao: Antigravity — `DONE` (ƯU TIÊN 6)
 Checklist: D1 + D2/C8 (MỘT PHẦN/CHƯA) + D3 (giữ regression).
 - Goals: tạo/sửa/đóng goal qua chat, goal có subgoal lồng
   1 cấp; Mini App thấy cây goal + tiến triển thật (không
@@ -247,6 +252,14 @@ Checklist: D1 + D2/C8 (MỘT PHẦN/CHƯA) + D3 (giữ regression).
 - Nghiệm thu: test sống: tạo goal + 2 subgoal qua chat ->
   app hiện đúng cây; đóng 1 subgoal -> tiến triển cập nhật;
   briefing sinh ra và gắn đúng goal.
+- **Kết quả thực hiện (Antigravity 27/10/2026, version 1.7.6, commit `46b7d37`):**
+  1. *Goals & Subgoals lồng 1 cấp (Parity D1):* Quản lý phân cấp mục tiêu trong `mulon/memory.py` với `parent_id`. Ràng buộc nghiêm ngặt đúng 1 cấp lồng (chặn tạo con của subgoal và chặn chu trình tự gán cha). Bổ sung các công cụ `create_goal`, `update_goal`, `close_goal`, `list_goals`, `get_goal_detail` trong `mulon/planning.py`. Khi đóng subgoal, hệ thống tự động roll up ghi nhật ký `goal_activity` lên goal cha.
+  2. *Tiến triển thật tính toán tất định (No fake percentages):* `Memory.calculate_goal_progress` suy diễn trực tiếp từ các đơn vị thực tế đã hoàn thành: `completed_subgoals / total_subgoals` và `completed_tracked_items / total_tracked_items`. Tỷ lệ % và nhãn hiển thị hoàn toàn minh bạch (ví dụ: `1/2 subgoal, 0/1 cam kết (33%)`), không bịa đặt hay đoán mò.
+  3. *Goal Briefings dạng Letter (Parity D2 & C8):* Bổ sung `mulon/goal_briefing.py` (`GoalBriefingService`) tự động nghiên cứu dữ liệu thực tế (subgoals, cam kết, nhật ký) và soạn thư briefing dạng Letter chuẩn Muse gồm: Tiến triển (Progress Summary), Việc tiếp theo (Next Steps), Điểm nghẽn & Rủi ro (Bottlenecks). Tuân thủ nghiêm ngặt checklist C8: chặn người dùng đặt lịch thủ công bằng `schedule_task` (do hệ thống nền tự quản lý). Prompt hệ thống phi hardcode nạp qua `mulon/prompts/goal_briefing_system.txt` (Rule 0). Bảng SQLite `goal_briefings` lưu trữ lịch sử thư.
+  4. *Đồng bộ Telegram Chat & Mini App:*
+     - Telegram chat: Hỗ trợ cú pháp lệnh đa năng `/goal create <tiêu đề> [--parent <id>] [--desc <mô tả>]`, `/goal update <id> ...`, `/goal close <id>`, `/goal briefing <id>` và `/goals` hiển thị cây phân nhánh trực quan (`├─`, `└─`) kèm tiến triển thật.
+     - Mini App: Thêm khối "Mục tiêu & Cây tiến triển" trên tab Việc (`#tab-viec` trong `mulon/webapp/index.html`), nạp dữ liệu cây phân cấp và tiến triển thật qua `/api/state` (`goals`) và các REST endpoints (`/api/goals`, `/api/goals/{id}`, `/api/goals/create`, `/api/goals/update`, `/api/goals/close`, `/api/goals/{id}/briefing`).
+  5. *Kiểm chứng:* 503/503 unit tests PASS (thêm 7 test toàn diện trong `tests/test_v17_goals_briefings_parity.py`); golden eval stub đạt 31/36 (86%, qua cổng 85%).
 
 ### [T-10.5] Gửi/nhận mọi loại nội dung + Chat phụ (regression) — Giao: Antigravity — `TODO` (ƯU TIÊN 7)
 Checklist: E2 (MỘT PHẦN) + E3 (checklist ghi ĐẠT — mục này

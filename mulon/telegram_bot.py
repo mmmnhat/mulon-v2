@@ -76,6 +76,7 @@ BOT_COMMANDS: list[tuple[str, str]] = MENU_COMMANDS + [
     ("quyen", "Quyền của agent bằng lời thường"),
     ("approvals", "Lịch sử quyết định quyền"),
     ("goals", "Xem mục tiêu đang theo dõi (Goals)"),
+    ("goal", "Quản lý mục tiêu (/goal create, close, briefing)"),
     ("ideas", "Sinh thẻ ý tưởng mới"),
     ("feed_now", "Đăng bài Feed công nghệ & AI"),
     ("library", "Xem Thư viện & kho ảnh visual"),
@@ -2530,33 +2531,210 @@ class TelegramSurface:
                     f"Đã đăng {len(cards)} thẻ ý tưởng vào topic "
                     "Ideas.")
 
-        @dp.message(F.text.startswith("/goals"))
-        async def cmd_goals(message: Message) -> None:
+        @dp.message(F.text.startswith("/goal"))
+        async def cmd_goal_router(message: Message) -> None:
             if not self._is_allowed(message):
                 return
             if self.memory is None or self.bot is None:
                 return
-            from .planning import ensure_seed_goals
-            goals = await ensure_seed_goals(self.memory)
+            raw_text = (message.text or "").strip()
+            parts = raw_text.split()
+            cmd = parts[0].lower() if parts else "/goal"
+            subcmd = parts[1].lower() if len(parts) > 1 else ""
+
+            # Hỗ trợ /goal_close, /goal_create, /goal_update, /goal_briefing
+            if cmd == "/goal_close":
+                subcmd = "close"
+                parts = ["/goal", "close"] + parts[1:]
+            elif cmd == "/goal_create":
+                subcmd = "create"
+                parts = ["/goal", "create"] + parts[1:]
+            elif cmd == "/goal_update":
+                subcmd = "update"
+                parts = ["/goal", "update"] + parts[1:]
+            elif cmd == "/goal_briefing":
+                subcmd = "briefing"
+                parts = ["/goal", "briefing"] + parts[1:]
+
             thread = await self._topic_thread(message, "goals")
-            lines = ["🎯 <b>Mục tiêu đang theo dõi (Goals)</b>\n"]
-            for g in goals:
-                cat = g.get("category") or "productivity"
-                kind = g.get("goal_kind") or "outcome"
-                curr = g.get("current_state") or ""
-                if not curr:
-                    acts = await self.memory.list_goal_activity(g["id"], limit=1)
-                    curr = acts[0]["note"] if acts else "Đang theo dõi"
-                lines.append(
-                    f"▫️ <b>{g['title']}</b> (#{g['id']} · <i>{cat} / {kind}</i>)\n"
-                    f"   {g.get('description', '')}\n"
-                    f"   📍 <b>Trạng thái:</b> <i>{curr}</i>\n"
-                )
-            lines.append("💡 <i>Tiến trình tự cập nhật khi bạn báo kết quả trong chat. Bấm 'Làm luôn' trên Thẻ ý tưởng để sinh task.</i>")
-            text = "\n".join(lines)
             kwargs = {}
             if thread:
                 kwargs["message_thread_id"] = thread
+
+            if subcmd in ("create", "new", "add"):
+                args_str = raw_text[raw_text.lower().find(subcmd) + len(subcmd):].strip()
+                parent_id = None
+                desc = ""
+                parent_match = re.search(r'(?:--parent|-p)\s+(\d+)', args_str, re.IGNORECASE)
+                if parent_match:
+                    parent_id = int(parent_match.group(1))
+                    args_str = args_str[:parent_match.start()] + args_str[parent_match.end():]
+                desc_match = re.search(r'(?:--desc|-d)\s+(?:"([^"]+)"|\'([^\']+)\'|(\S+))', args_str, re.IGNORECASE)
+                if desc_match:
+                    desc = desc_match.group(1) or desc_match.group(2) or desc_match.group(3) or ""
+                    args_str = args_str[:desc_match.start()] + args_str[desc_match.end():]
+                title = args_str.strip()
+                if not title:
+                    await message.answer("⚠️ Cú pháp: <code>/goal create &lt;tiêu đề&gt; [--parent &lt;id&gt;] [--desc &lt;mô tả&gt;]</code>", parse_mode="HTML")
+                    return
+                try:
+                    goal = await self.memory.create_goal(title=title, description=desc, parent_id=parent_id)
+                    if parent_id:
+                        parent = await self.memory.get_goal(parent_id)
+                        p_title = parent['title'] if parent else str(parent_id)
+                        text = (
+                            f"🎯 <b>Đã tạo mục tiêu con (Subgoal) thành công!</b>\n"
+                            f"• Mã: <code>#{goal['id']}</code>\n"
+                            f"• Tiêu đề: <b>{html.escape(goal['title'])}</b>\n"
+                            f"• Trực thuộc mục tiêu cha: <b>{html.escape(p_title)}</b> (<code>#{parent_id}</code>)\n\n"
+                            f"💡 <i>Xem toàn bộ cây mục tiêu: /goals</i>"
+                        )
+                    else:
+                        text = (
+                            f"🎯 <b>Đã tạo mục tiêu (Goal) thành công!</b>\n"
+                            f"• Mã: <code>#{goal['id']}</code>\n"
+                            f"• Tiêu đề: <b>{html.escape(goal['title'])}</b>\n\n"
+                            f"💡 <i>Xem toàn bộ cây mục tiêu: /goals</i>"
+                        )
+                    await self.bot.send_message(message.chat.id, text, parse_mode="HTML", **kwargs)
+                except ValueError as exc:
+                    await message.answer(f"❌ Không tạo được mục tiêu: {exc}")
+                return
+
+            elif subcmd in ("close", "done"):
+                goal_id = None
+                for p in parts[2:]:
+                    p_clean = p.lstrip("#")
+                    if p_clean.isdigit():
+                        goal_id = int(p_clean)
+                        break
+                if goal_id is None:
+                    await message.answer("⚠️ Cú pháp: <code>/goal close &lt;id&gt;</code>", parse_mode="HTML")
+                    return
+                target_goal = await self.memory.get_goal(goal_id)
+                if not target_goal:
+                    await message.answer(f"❌ Không tìm thấy mục tiêu #{goal_id}")
+                    return
+                parent_id = target_goal.get("parent_id")
+                closed = await self.memory.close_goal(goal_id)
+                if closed is None:
+                    await message.answer(f"ℹ️ Mục tiêu #{goal_id} đã ở trạng thái hoàn thành từ trước.")
+                    return
+                if parent_id:
+                    parent_detail = await self.memory.get_goal_detail(parent_id)
+                    prog_label = parent_detail["progress"]["progress_label"] if parent_detail else "đã cập nhật"
+                    text = (
+                        f"🎯 <b>Đã hoàn thành mục tiêu con (Subgoal) #{goal_id}!</b>\n"
+                        f"• Tiêu đề: <b>{html.escape(target_goal['title'])}</b>\n"
+                        f"• Tiến độ mục tiêu cha (#{parent_id}): <b>{html.escape(prog_label)}</b>\n\n"
+                        f"💡 <i>Xem toàn bộ cây mục tiêu: /goals</i>"
+                    )
+                else:
+                    text = (
+                        f"🎯 <b>Đã hoàn thành mục tiêu #{goal_id}!</b>\n"
+                        f"• Tiêu đề: <b>{html.escape(target_goal['title'])}</b>\n\n"
+                        f"💡 <i>Xem toàn bộ cây mục tiêu: /goals</i>"
+                    )
+                await self.bot.send_message(message.chat.id, text, parse_mode="HTML", **kwargs)
+                return
+
+            elif subcmd in ("update", "edit"):
+                goal_id = None
+                for p in parts[2:]:
+                    p_clean = p.lstrip("#")
+                    if p_clean.isdigit():
+                        goal_id = int(p_clean)
+                        break
+                if goal_id is None:
+                    await message.answer("⚠️ Cú pháp: <code>/goal update &lt;id&gt; [--title ...] [--desc ...] [--state ...]</code>", parse_mode="HTML")
+                    return
+                args_str = raw_text[raw_text.find(str(goal_id)) + len(str(goal_id)):].strip()
+                new_title = None
+                new_desc = None
+                new_state = None
+                t_match = re.search(r'(?:--title|-t)\s+(?:"([^"]+)"|\'([^\']+)\'|(\S+))', args_str)
+                if t_match:
+                    new_title = t_match.group(1) or t_match.group(2) or t_match.group(3)
+                d_match = re.search(r'(?:--desc|-d)\s+(?:"([^"]+)"|\'([^\']+)\'|(\S+))', args_str)
+                if d_match:
+                    new_desc = d_match.group(1) or d_match.group(2) or d_match.group(3)
+                s_match = re.search(r'(?:--state|-s)\s+(?:"([^"]+)"|\'([^\']+)\'|(\S+))', args_str)
+                if s_match:
+                    new_state = s_match.group(1) or s_match.group(2) or s_match.group(3)
+                if not (new_title or new_desc or new_state):
+                    new_state = args_str.strip()
+                try:
+                    updated = await self.memory.update_goal(
+                        goal_id=goal_id, title=new_title, description=new_desc, current_state=new_state
+                    )
+                    if updated is None:
+                        await message.answer(f"❌ Không tìm thấy goal #{goal_id}")
+                        return
+                    await message.answer(f"✅ Đã cập nhật mục tiêu #{goal_id}: <b>{html.escape(updated['title'])}</b>", parse_mode="HTML")
+                except ValueError as exc:
+                    await message.answer(f"❌ Lỗi cập nhật mục tiêu: {exc}")
+                return
+
+            elif subcmd in ("briefing", "letter"):
+                goal_id = None
+                for p in parts[2:]:
+                    p_clean = p.lstrip("#")
+                    if p_clean.isdigit():
+                        goal_id = int(p_clean)
+                        break
+                if goal_id is None:
+                    await message.answer("⚠️ Cú pháp: <code>/goal briefing &lt;id&gt;</code>", parse_mode="HTML")
+                    return
+                from .goal_briefing import GoalBriefingService
+                svc = GoalBriefingService(self.cfg, self.memory, getattr(self, "gateway", None))
+                try:
+                    briefing = await svc.generate_briefing(goal_id)
+                    text = f"📬 <b>THƯ BRIEFING MỤC TIÊU #{goal_id}</b>\n\n{html.escape(briefing['letter_body'])}"
+                    await self.bot.send_message(message.chat.id, text, parse_mode="HTML", **kwargs)
+                except Exception as exc:
+                    await message.answer(f"❌ Lỗi tạo thư briefing: {exc}")
+                return
+
+            # Mặc định: Hiển thị cây Goal phân cấp kèm subgoals và tiến triển thật
+            from .planning import ensure_seed_goals
+            await ensure_seed_goals(self.memory)
+            tree = await self.memory.get_goal_tree()
+            lines = ["🎯 <b>Mục tiêu đang theo dõi (Goals)</b>\n"]
+            if not tree:
+                lines.append("<i>Chưa có mục tiêu nào. Tạo bằng: /goal create &lt;tiêu đề&gt;</i>")
+            for g in tree:
+                cat = g.get("category") or "productivity"
+                kind = g.get("goal_kind") or "outcome"
+                curr = g.get("current_state") or "Đang theo dõi"
+                prog = g.get("progress") or {}
+                prog_label = prog.get("progress_label") or "0%"
+                is_done = g.get("status") == "completed"
+                st_icon = "✓ Đã xong" if is_done else "Đang chạy"
+
+                lines.append(
+                    f"▫️ <b>{html.escape(g['title'])}</b> (#{g['id']} · <i>{cat} / {kind}</i>)\n"
+                    f"   📊 <b>Tiến triển:</b> <code>{html.escape(prog_label)}</code> · <i>{st_icon}</i>\n"
+                    f"   📍 <b>Trạng thái:</b> <i>{html.escape(curr)}</i>"
+                )
+
+                subgoals = g.get("subgoals") or []
+                if subgoals:
+                    for idx, sub in enumerate(subgoals):
+                        branch = "└─" if idx == len(subgoals) - 1 else "├─"
+                        sub_done = sub.get("status") == "completed"
+                        sub_icon = "✓ Đã xong" if sub_done else "⏳ Đang chạy"
+                        lines.append(
+                            f"   {branch} ▫️ <b>{html.escape(sub['title'])}</b> (#{sub['id']} · <i>{sub_icon}</i>)"
+                        )
+
+                briefings = g.get("briefings") or []
+                if briefings:
+                    b = briefings[0]
+                    lines.append(f"   📬 <i>Thư briefing #{b['id']}: {html.escape(b.get('progress_summary', '')[:80])}...</i>")
+                lines.append("")
+
+            lines.append("💡 <i>Lệnh: /goal create &lt;tiêu đề&gt; [--parent &lt;id&gt;], /goal update &lt;id&gt;, /goal close &lt;id&gt;, /goal briefing &lt;id&gt;</i>")
+            text = "\n".join(lines)
             await self.bot.send_message(message.chat.id, text, parse_mode="HTML", **kwargs)
             if thread != getattr(message, "message_thread_id", None):
                 await message.answer("Đã gửi danh sách mục tiêu vào topic Goals.")
