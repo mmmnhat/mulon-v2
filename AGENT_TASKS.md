@@ -37,7 +37,7 @@ tiên: T-09 trước, rồi T-15, các mục còn lại theo thoả thuận vớ
 chủ dự án. Mục nào đụng luật trong `AGENTS.md` thì sửa luật trong
 cùng đợt (chủ dự án đã duyệt hướng này).
 
-### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `DONE` (ƯU TIÊN 1)
+### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
   vụn liên tiếp cho một ý (ví dụ thực tế của chủ dự án: 5 tin rời
   trong 1 phút). Bot phải gom các tin liên tiếp trong cửa sổ chờ
@@ -59,6 +59,7 @@ cùng đợt (chủ dự án đã duyệt hướng này).
   3. *Sub-agents song song & tab Việc:* `SubagentRunner._run_inner` tự động đăng ký task vào bảng `tasks` (`Sub-agent [<profile>]: <tiêu đề>`), hiển thị đầy đủ trên màn hình tab "Việc" và `/api/tasks`; bổ sung tool `spawn_subagents_parallel` chạy nhiều subagent song song qua `asyncio.gather`; cập nhật `NEVER_TOOLS` chặn đệ quy.
   4. *Cách reply chuẩn Muse:* Bổ sung `mulon/prompts/muse_reply_style.txt` (nạp qua `load_prompt` vào `Agent.self_knowledge()`): ngắn gọn, đúng trọng tâm, giữ mạch ngữ cảnh, gạch đầu dòng rõ ràng.
   5. *Kiểm chứng:* 463/463 unit tests PASS (thêm 6 test hồi quy toàn diện trong `tests/test_v16_muse_conversation.py`); suite evals vàng đạt cổng 86% (31/36 case); version 1.7.0.
+- **VERIFIED bởi Muse (đợt T-09, 26/10/2026):** kiểm chứng độc lập commit `d847384` trên bản đồng bộ qua connector: phạm vi sạch, đúng 9 file thuộc T-09 (batcher ở `telegram_bot.py`, style nạp qua `load_prompt`, marker ngắt ở `config/cancellation_markers.json` nạp qua `load_json_data` — tuân Rule 0, không hardcode); chạy lại full suite **463/463 PASS**; chạy lại eval vàng stub **31/36 = 86,1%, qua cổng 85%** (5 case trượt là marketplace/self-read có từ trước, không thuộc phạm vi T-09); **test sống MessageBatcher bằng class thật**: (A) 5 tin vụn cách 0,4s gộp đúng thành 1 lượt đủ 5 dòng, (B) tin đến lúc session bận bị giữ — không flush, nhả bận thì gộp thành 1 lượt kế, (C) hai session không lẫn nhau — 3/3 PASS. Cơ chế cửa sổ thích ứng (mẩu cụt/media ~6s, chuỗi burst ~4s, câu trọn 2,5s; mặc định `DEBOUNCE_SECONDS=2,5`) khớp hành vi nhắn vụn của chủ dự án. Hủy lượt đang chạy + placeholder tiến trình ✓/⏳ + sub-agent ghi task vào tab Việc: đối chiếu code và test hồi quy của Antigravity (đã pass trong suite chạy lại). Chuẩn parity đối chiếu: mục T1/T2/T3 của `docs/muse-parity-checklist.md`.
 
 ### [T-10] Parity bề mặt tính năng — Giao: Antigravity — `TODO`
 Đưa các bề mặt sau lên ngang Muse (audit parity 24/10 còn ghi
