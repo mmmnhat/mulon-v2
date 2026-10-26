@@ -44,6 +44,8 @@ Cập nhật 2026-10-27 ~03:00 bởi Antigravity: T-10.3 đã
 từ thảo luận, R11 bảo vệ privacy, Ideas có rationale + scoring +
 thao tác thẻ), 496/496 unit tests PASS, eval vàng 31/36 (86%),
 chờ Muse nghiệm thu.
+Cập nhật 2026-10-27 ~03:10 bởi Antigravity: nhận T-10.4
+`DOING` (ƯU TIÊN 6) theo LUẬT HÀNG ĐỢI.
 Cập nhật 2026-10-27 ~02:00 bởi Muse (autowatch): T-10.1
 `VERIFIED` (full suite 484/484 + eval 31/36 + test sống VM
 15/15; vòng test sống trên bot thật theo nghiệm thu vẫn chờ
@@ -222,7 +224,7 @@ Checklist: C1 + C2 + C3/C7 (MỘT PHẦN) + R11.
   - Toàn bộ 496/496 unit tests PASS (6/6 tests trong `tests/test_v17_feed_ideas_parity.py`).
   - Eval vàng `python -m mulon.evals` đạt 31/36 (86%, cổng 85%).
 
-### [T-10.4] Goals + briefings — Giao: Antigravity — `TODO` (ƯU TIÊN 6)
+### [T-10.4] Goals + briefings — Giao: Antigravity — `DOING` (ƯU TIÊN 6)
 Checklist: D1 + D2/C8 (MỘT PHẦN/CHƯA) + D3 (giữ regression).
 - Goals: tạo/sửa/đóng goal qua chat, goal có subgoal lồng
   1 cấp; Mini App thấy cây goal + tiến triển thật (không
