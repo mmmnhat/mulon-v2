@@ -19,9 +19,10 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-26 ~23:0x bởi Muse (T-19
-VERIFIED; T-20 đạt kiểm chứng tĩnh, chờ test sống tự nhận
-T-09; repo private — soi qua connector).
+Cập nhật lần cuối: 2026-10-26 ~23:2x bởi Muse (T-20
+VERIFIED — test sống tự nhận việc ĐÃ ĐẠT: T-09 tự chuyển
+DOING 23:09:57; vòng tự trị hai phía chính thức khép kín;
+đính chính sự cố đẩy file cũ be15e03 — xem mục T-20 đã đóng).
 
 ---
 
@@ -36,7 +37,7 @@ tiên: T-09 trước, rồi T-15, các mục còn lại theo thoả thuận vớ
 chủ dự án. Mục nào đụng luật trong `AGENTS.md` thì sửa luật trong
 cùng đợt (chủ dự án đã duyệt hướng này).
 
-### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `TODO` (ƯU TIÊN 1)
+### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `DOING` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
   vụn liên tiếp cho một ý (ví dụ thực tế của chủ dự án: 5 tin rời
   trong 1 phút). Bot phải gom các tin liên tiếp trong cửa sổ chờ
@@ -226,55 +227,6 @@ marketplace cài thêm), dùng tài khoản của chính người cài:
   lỗi kết nối phải degrade (bot vẫn chạy, báo rõ connector nào
   đang hỏng).
 
-### [T-20] Sửa LaunchAgent devwatch: exit 126, watcher chưa từng tự chạy — Giao: Antigravity — `DONE`
-- **Kiểm chứng tĩnh của Muse (26/10 ~23:0x, trên đúng nội
-  dung commit 02a42a2 đồng bộ qua connector):** chẩn đoán
-  TCC ổ External (chdir + execve bị chặn trong ngữ cảnh
-  launchd) khớp mọi bằng chứng cũ; bản sửa đúng hướng —
-  WorkingDirectory + trampoline trên ổ hệ thống,
-  ensure_launcher_trampoline tự tạo lại launcher mỗi lượt,
-  template plist đã vào repo. Bằng chứng Mac nó ghi
-  (LastExitStatus 0, runs=3, log lượt chạy do launchd kích
-  22:55:00 thoát êm, watermark tạo đúng b1aab602) mạch lạc
-  và khớp mốc thời gian. Suite Muse tự chạy lại: 457/457
-  PASS, version 1.6.9. CHƯA đóng VERIFIED: còn chờ bằng
-  chứng sống cuối — T-09 tự chuyển DOING trong tối đa 2
-  chu kỳ watcher (mồi: chính commit 02a42a2 + commit ghi
-  chú này). Đạt thì Muse đóng VERIFIED; không đạt thì
-  quay lại NEEDS-FIX kèm log mới.
-- **Chẩn đoán tận gốc lỗi Exit 126 (`Operation not permitted` / `wait status 32256`):**
-  1. `WorkingDirectory` trong plist trỏ vào `/Volumes/External/auto`: Khi `launchd` (PID 1) spawn tiến trình con trong user domain, `chdir("/Volumes/External/auto")` bị kernel macOS TCC chặn lại (Removable Volumes isolation) -> sinh lỗi `shell-init: error retrieving current directory: getcwd: cannot access parent directories: Operation not permitted`.
-  2. `ProgramArguments` gọi trực tiếp script shell trên ổ gắn ngoài (`/Volumes/External/auto/scripts/dev_watch.sh`): Lệnh `execve` của kernel đối với file script shell nằm trên Volume ngoài bị từ chối thực thi trực tiếp từ daemon context của launchd -> sinh lỗi `/bin/bash: /Volumes/External/auto/scripts/dev_watch.sh: Operation not permitted` (mã thoát POSIX 126).
-- **Phương án khắc phục dứt điểm:**
-  1. Đưa `WorkingDirectory` của LaunchAgent về `~/.mulon-dev-watch` (nằm trên ổ SSD hệ thống `Macintosh HD`), nơi `launchd` có đầy đủ quyền traversal.
-  2. Tạo trampoline launcher tại `~/.mulon-dev-watch/dev_watch_launcher.sh` trên ổ hệ thống.
-  3. Trong trampoline, gọi trực tiếp `python3 "$REPO_DIR/scripts/dev_watch.py"` (thông dịch viên Python đọc file code qua file read, hoàn toàn không bị chặn bởi kernel execve của external volume).
-- **Bằng chứng kiểm chứng thành công:**
-  1. `launchctl list com.mulon.devwatch`:
-     ```text
-     {
-         "StandardOutPath" = "/Users/mmmnhat/.mulon-dev-watch/log/launchd_stdout.log";
-         "LimitLoadToSessionType" = "Aqua";
-         "StandardErrorPath" = "/Users/mmmnhat/.mulon-dev-watch/log/launchd_stderr.log";
-         "Label" = "com.mulon.devwatch";
-         "OnDemand" = true;
-         "LastExitStatus" = 0;
-         "Program" = "/bin/bash";
-         "ProgramArguments" = (
-             "/bin/bash";
-             "/Users/mmmnhat/.mulon-dev-watch/dev_watch_launcher.sh";
-         );
-     };
-     ```
-  2. `launchctl print gui/501/com.mulon.devwatch` xác nhận `runs = 3`, `last exit code = 0`.
-  3. Log stderr rỗng hoàn toàn, log stdout và `dev_watch_20261026.log` ghi nhận lượt chạy thành công do `launchd` kích:
-     ```text
-     2026-10-26 22:55:00 [dev_watch] INFO: Kiểm tra git remote tại /Volumes/External/auto...
-     2026-10-26 22:55:01 [dev_watch] INFO: Không có commit mới trên remote (SHA không đổi: b1aab602). Thoát chu kỳ.
-     ```
-  4. Watermark `~/.mulon-dev-watch/last_seen_sha` đã được tạo và chứa đúng SHA HEAD hiện tại của `origin/main` (`b1aab602fc6696ac0e81efa8a74d99d734e6f061`).
-- **Ghi chú chuyển giao:** Đã giữ nguyên watermark bằng đúng commit remote hiện tại để LaunchAgent KHÔNG tự động nhận T-09 trước, sẵn sàng cho Muse đẩy commit mồi test sống từ đầu.
-
 ## Đã đóng (VERIFIED)
 
 - Đợt vá hardcode 1.6.4 (gateway containment, denylist file tool,
@@ -391,3 +343,21 @@ marketplace cài thêm), dùng tài khoản của chính người cài:
   trường AGY_BIN/MULON_REPO_DIR/DEV_WATCH_PYTHON); template
   plist com.mulon.devwatch.plist.template đã vào repo với
   placeholder __HOME__ + WorkingDirectory trên ổ hệ thống.
+- T-20 sửa LaunchAgent devwatch (exit 126) — VERIFIED
+  bởi Muse 26/10 với BẰNG CHỨNG SỐNG ĐẦY ĐỦ: sau commit
+  mồi a393ad5 (23:03:39), watcher tự quét, gọi agy và
+  T-09 tự chuyển DOING bằng commit 89f5c2a lúc 23:09:57
+  +07 (tác giả phía Mac) — KHÔNG ai dán prompt. Trước đó
+  kiểm chứng tĩnh đã đạt: chẩn đoán TCC ổ External đúng
+  gốc, trampoline + WorkingDirectory trên ổ hệ thống,
+  LastExitStatus 0, log lượt chạy do launchd kích thật,
+  watermark tạo đúng. Vòng tự trị Muse <-> Antigravity
+  qua git chính thức vận hành từ 26/10 23:09 +07.
+  Sự cố phía Muse 23:13: một lượt đẩy AGENT_TASKS dùng
+  bản file cũ (script đồng bộ ở /tmp bị xoá sau restart
+  dịch vụ) đã vô tình đưa T-09 về TODO (commit be15e03,
+  đúng 1 dòng); Muse tự phát hiện từ output, khôi phục
+  DOING + đóng T-20 trong commit sửa ngay sau đó. Bài
+  học: script phụ trợ để ở ~/workspace/mulon-clone/,
+  không để /tmp; luôn đồng bộ file qua connector TRƯỚC
+  khi sửa và kiểm tra output từng bước trong chuỗi lệnh.
