@@ -156,6 +156,37 @@ pool nhiều tài khoản luân phiên, tự gia hạn phiên 48h.
   quota), nạp phiên bằng extension/userscript export cookie
   có sẵn trong repo, tự gia hạn 48h. Alias model gpt-4o/
   gpt-5/claude-sonnet-4/deepseek-chat tự map sang upstream.
+- CHỦ DỰ ÁN CHỐT ĐƯỜNG A (26/10 22:05): muse2api làm
+  upstream của CLIProxyAPI, MuLon KHÔNG gọi thẳng 18610,
+  KHÔNG nới validate_proxy_base_url (Đường B bỏ hẳn).
+  Cấu hình cụ thể (đã đối chiếu config.example.yaml của
+  CLIProxyAPI + app.py của muse2api):
+  ```yaml
+  openai-compatibility:
+    - name: "muse2api"
+      prefix: "muse"
+      base-url: "http://127.0.0.1:18610/v1"
+      keys:
+        - api-key: "<MUSE2API_KEY — lấy từ Vault bản cài>"
+      models:
+        - name: "muse-spark"
+          alias: "muse-spark"
+  ```
+  Model chat của muse2api chỉ có 1 id thật: `muse-spark`
+  (muse-image/muse-video là media, đợt này CHƯA nối —
+  media qua muse2api để đợt sau nếu chủ dự án yêu cầu).
+  Việc của MuLon: model `muse/muse-spark` hiện trong danh
+  sách chọn model như model thường (đi cùng khung T-14);
+  ghi cấu hình upstream qua cơ chế quản lý gateway của
+  T-14, key chỉ ở Vault/file cấu hình máy cài — TUYỆT ĐỐI
+  không commit key thật, chỉ placeholder.
+  Điều kiện chạy thật: muse2api chạy riêng (Docker) trên
+  máy cài + ít nhất 1 tài khoản Muse trong pool của nó.
+  Nghiệm thu (test sống, không chỉ unit): (1) GET 8317
+  /v1/models thấy muse-spark; (2) một lượt chat MuLon với
+  model muse trả lời thật từ muse.ai; (3) tắt muse2api:
+  MuLon vẫn chạy model khác, chọn model muse thì báo lỗi
+  rõ ràng (degrade); (4) grep repo không có key thật.
 - VƯỚNG KIẾN TRÚC phải xử lý khi thiết kế: MuLon đang khoá
   PROXY_BASE_URL chỉ localhost:8317 (validate fail-fast).
   Đường A (ưu tiên, giữ nguyên chốt): khai muse2api làm
