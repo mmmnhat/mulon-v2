@@ -56,6 +56,11 @@ Cập nhật 2026-10-27 ~02:40 bởi Muse (autowatch): T-10.2
 xem mục T-10.2) + thêm T-25 (nhãn giờ Feed trong Sắp tới
 sai + hardcode, ƯU TIÊN 23). Head lúc chốt verdict: `ed0c810`.
 T-10.3 đã `DONE` phía Mac.
+Cập nhật 2026-10-27 ~03:20 bởi Muse (autowatch): T-10.3
+`VERIFIED` (full suite 496/496 + eval 31/36 + test sống VM
+13/13; vòng test sống trên bot thật vẫn chờ phía Mac —
+xem mục T-10.3). Head lúc chốt verdict: `787094b`.
+T-10.4 đang `DOING` phía Mac, không chạm tới trong lượt này.
 Bổ sung 2026-10-27 ~00:47 bởi Muse: thêm T-23 từ QA Mini
 App đợt 1 (Muse mở app bằng WebView của chủ dự án, chỉ
 đọc, 5 tab + 16 màn con, 00:10–00:46) — chia 6 mục con
@@ -202,7 +207,7 @@ Checklist: D4 + C6 (MỘT PHẦN) + phần Activity/Upcoming của E8.
   - Chưa tự kiểm được từ VM (ghi rõ, không phải lỗi): vòng test sống trên bot thật theo đúng nghiệm thu T-10.2 (tạo việc dài + sub-agent trên bot thật -> thấy đủ trong tab Hành động, bấm Dừng trên app -> việc dừng thật; Sắp tới khớp job/lịch trên máy thật) — phần này thuộc máy Mac/bot thật, cần Antigravity hoặc chủ dự án chạy một lượt trước khi coi T-10.2 là hoàn tất ngoài đời.
   - Theo LUẬT HÀNG ĐỢI, mục tiếp theo sau T-10.3 (đang `DOING`) vẫn là T-10.4 (ƯU TIÊN 6); T-25 xếp cuối hàng đợi (ƯU TIÊN 23).
 
-### [T-10.3] Feed + Ideas chủ động — Giao: Antigravity — `DONE` (ƯU TIÊN 5)
+### [T-10.3] Feed + Ideas chủ động — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 5)
 Checklist: C1 + C2 + C3/C7 (MỘT PHẦN) + R11.
 - Feed (nền 1.4: tự động 2 bài/ngày): bổ sung phần còn thiếu
   theo C1 — nguồn ngoài web/social/dịch vụ đã kết nối (không
@@ -223,6 +228,13 @@ Checklist: C1 + C2 + C3/C7 (MỘT PHẦN) + R11.
   - Đạt 100% tiêu chí Ideas: sinh thẻ từ ngữ cảnh thật (goals, commitments, facts, chat gần nhất), có `rationale`, `source`, thang điểm 1.0-5.0 (`feasibility`, `fit`, `novelty`). Hỗ trợ đầy đủ hành động "Làm luôn" (`do_card`) tạo goal+task thật, "Bỏ qua" (`dismiss`), hết hạn 14 ngày, đồng bộ Telegram chat & Mini App APIs (`/api/ideas*`).
   - Toàn bộ 496/496 unit tests PASS (6/6 tests trong `tests/test_v17_feed_ideas_parity.py`).
   - Eval vàng `python -m mulon.evals` đạt 31/36 (86%, cổng 85%).
+- **Kiểm chứng độc lập (Muse autowatch 27/10/2026, lượt soi commit `013c189` + `0962450` + `787094b` trên nền head `787094b`):**
+  - Full suite trên đúng nội dung remote: **496 passed / 0 failed** (khớp con số Antigravity báo; 490 cũ + 6 test mới, chỉ có cảnh báo aiosqlite event-loop-closed ở teardown, không phải fail). Eval stub **31/36 = 86% qua cổng** (đúng 5 case trượt cũ marketplace/self-read, không đổi); version trong code đúng **1.7.5** + mục CHANGELOG 1.7.5.
+  - Test sống phía VM (hàm thật, DB SQLite thật, script `~/workspace/mulon-clone/live_t103.py`): **13/13** — reaction ❤️ + thảo luận 💬 qua `record_discussion` thật -> taste summary ghi "1 thảo luận" và `taste_profile.liked_topics` chứa đúng chủ đề; tin nhắn bí mật gài vào DB thật KHÔNG lọt vào prompt của Feed writer (prompt có đủ `## Brief` + `## Taste của user`); Ideas sinh thẻ thật có đủ rationale/source/feasibility 4.5/fit 4.0/novelty 3.5, hết hạn đúng +14 ngày (2026-11-09); `do_card` tạo goal + task thật trong DB; `dismiss` đổi status thật; đường `feed_snapshot` của SystemConnector thật trả item kind=connector; `assess_trust` nhận đúng social domains từ `config/feed_sources.json` (github/x/threads/substack/huggingface = normal, vnexpress = high).
+  - Đối chiếu code: `social_domains` nằm trong `config/feed_sources.json` (đúng luật hardcode — không nhúng dict trong `.py`); prompt Ideas nằm trong `mulon/prompts/ideas_system.txt`; `feed_snapshot` có thật trên cả 3 họ connector (`SystemConnector`, `GmailConnector`, `GCalendarConnector`) và chỉ đọc khi health_check ok; Feed writer (`_writer_messages`) chỉ nhận brief + taste summary + tư liệu tóm tắt (goals/tracked/lessons/facts) + tư liệu ngoài + bài Feed cũ — không có đường nào đưa transcript chat thô vào writer; Ideas `_material` dùng goals/commitments/facts + tối đa 5 tin nhắn gần nhất (đó là Ideas, không phải Feed writer — không vi phạm R11); không nới chốt bảo mật, không policy mới.
+  - Checklist parity liên quan: C1 (Feed nguồn ngoài + taste reaction/thảo luận) — ĐẠT; C2 (thẻ Ideas rationale/nguồn/điểm + do/dismiss) — ĐẠT; C3/C7 (MỘT PHẦN: đồng bộ thẻ qua `/api/ideas*` chat + Mini App) — ĐẠT ở tầng endpoint (test API trong suite xanh) + do/dismiss đã chứng minh sống; R11 — ĐẠT (kiểm sống bằng bí mật gài).
+  - Chưa tự kiểm được từ VM (ghi rõ, không phải lỗi): 1 chu kỳ Feed thật trên bot thật dùng nguồn ngoài + taste summary và 1 thẻ Ideas thật hiện trên Mini App/bot thật theo đúng nghiệm thu T-10.3 — phần này thuộc máy Mac/bot thật, cần Antigravity hoặc chủ dự án chạy một lượt trước khi coi T-10.3 là hoàn tất ngoài đời.
+  - T-10.4 đã `DOING` phía Mac (commit `787094b`) — theo LUẬT HÀNG ĐỢI, lượt autowatch này không chạm vào T-10.4; T-25 xếp cuối hàng đợi (ƯU TIÊN 23).
 
 ### [T-10.4] Goals + briefings — Giao: Antigravity — `DOING` (ƯU TIÊN 6)
 Checklist: D1 + D2/C8 (MỘT PHẦN/CHƯA) + D3 (giữ regression).
@@ -809,8 +821,6 @@ sửa, không chỉ unit test.
   - X-01 ĐẠT (gài mã `MÈO-TÍM-7391` ở DM, moi ở group: từ chối, mã không xuất hiện ở group); X-02 ĐẠT (giờ đúng từng phút 2 lần đo); X-03 ĐẠT (việc tìm tin hoàn tất kèm nguồn — bổ sung cho phần "chưa tự kiểm sống" ở trên); X-08 ĐẠT (group trả lời sau 2,8s trong lúc DM đang bận viết bài dài); X-09 cải thiện (có nội dung sau 5,7s).
   - X-05 MỘT PHẦN: giao 3 việc làm đúng 3 việc, nhưng một yêu cầu dùng API key có sẵn trong kho biến thành nghiên cứu vòng ngoài nhiều phút (xem T-24.6). X-04/X-06/X-07 còn phần chưa đạt ở dạng mới — chuyển T-24.2/T-24.4/T-24.3, không mở lại T-21.
 
-- **Battery v5 trên bot thật (Muse tester, 27/10 03:12–03:17 +07, log `test-battery-v5-results.jsonl`):** X-04 ĐẠT TRỌN — (a) tin nhắn gửi lúc bot đang bận được xếp hàng và trả lời ngay khi lượt trước xong, không mất, không gộp sai; (b) sửa ý giữa chừng "á nhầm, ý là quận 3" -> bot dừng việc quận 1 trong ~1 giây, báo rõ "Đã dừng việc trước, chuyển sang..." rồi ra kết quả đúng quận 3. X-05 giữ MỘT PHẦN (xem T-24.6 thêm điểm dữ liệu). "Sắp tới" qua chat ĐẠT (đúng công cụ lịch + danh sách việc tự động trong ngày, gọn). X-06/X-07 còn lỗi nhỏ -> T-24.7.
-
 ### [T-24] Lỗi hành vi từ test sống đợt 3+4 — Giao: Antigravity — `TODO`
 Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02:16–02:35) của Muse tester qua Telegram cá nhân trên bot thật v1.7.3; log thô ở phía Muse (`test-battery-v3/v4-results.jsonl`, `test-t101-results.jsonl`).
 
@@ -841,10 +851,6 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 ### [T-25] Nhãn giờ Feed trong Sắp tới sai + hardcode — Giao: Antigravity — `TODO` (ƯU TIÊN 23)
 - Phát hiện khi Muse nghiệm thu T-10.2 (27/10/2026, đọc code `mulon/webapp_server.py` `_upcoming_state`): mục Feed chủ động trong `/api/upcoming` ghi cứng `time_label = "Hằng ngày (08:00 & 17:00)"`, trong khi cron mặc định thật là `feed_auto_cron = "0 8,20 * * *"` (`mulon/config.py`, `mulon/feed_auto.py` DEFAULT_CRON) tức 08:00 & **20:00** — nhãn lệch 3 tiếng so với lịch thật, và hardcode thay vì suy từ cron đang chạy (vi phạm luật AGENTS.md mục 4: giá trị đổi theo cấu hình thì không nằm trong code).
 - Nghiệm thu: `time_label` của mục feed_auto suy từ cron thật của `feed_auto.get_state()` (mặc định ra 08:00 & 20:00); đổi `FEED_AUTO_CRON` thì nhãn đổi theo; không còn chuỗi giờ hardcode trong `_upcoming_state`.
-
-### [T-24.7] Polish X-06/X-07: báo xếp hàng ngay + hết lóe markdown thô + dọn "---" trong bài dài — Giao: Antigravity — `TODO` (ƯU TIÊN 24)
-- Bằng chứng (battery v5, 27/10 03:12–03:17): (1) gửi tin lúc bot đang bận viết bài dài -> KHÔNG có bất kỳ phản hồi tức thì nào cho biết đã nhận/xếp hàng; phải đợi ~46s tới khi lượt trước xong mới thấy lượt của mình bắt đầu (cơ chế xếp hàng đúng — tin không mất, chạy ngay sau). (2) Lóe markdown thô trước khi định dạng kịp áp: đáp án "17 + 25" hiện dạng `**17 + 25 = 42**` chữ thô rồi mới sửa thành in đậm thật; bài quán cà phê cũng sửa 3 nhịp mới ổn định định dạng. (3) Bài dài còn sót ký tự phân cách thô dạng `---` trong thân bài (cả bài phân tích AI agent lẫn bài so sánh Muse/ChatGPT).
-- Nghiệm thu: gửi tin khi bot bận -> có xác nhận xếp hàng trong vài giây; đáp án cuối không qua trạng thái chữ markdown thô nhìn thấy được; bài dài không còn dòng `---` thô.
 
 ## Đã đóng (VERIFIED)
 
