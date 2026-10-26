@@ -69,8 +69,11 @@ Không được phá, dù để "làm cho tiện":
    bot vẫn chạy, chỉ mất phần đó, có log + status rõ ràng.
 4. **Một chủ duy nhất**: `_is_allowed` chặn mọi Telegram user lạ.
    Không nới lỏng auth của bot lẫn Mini App (HMAC initData).
-5. **Việc nền mặc định tắt**: heartbeat/feed/auto-watch chỉ chạy
-   khi chủ dự án bật tường minh. Không tự ý bật job nền mới.
+5. **Việc nền mặc định tắt**: heartbeat/feed chỉ chạy khi chủ
+   dự án bật tường minh. Không tự ý bật job nền mới. Ngoại lệ duy
+   nhất đã được chủ dự án quyết (26/10/2026): **auto_watch ĐƯỢC
+   bật** trên máy chạy bot — bot chạy dưới `scripts/auto_watch.py
+   --enable` để tự pull + restart khi `main` có commit mới.
 6. **Dossier là dữ liệu của chủ dự án** (`dossier/*.md`: SOUL,
    USER, MEMORY...): agent dev không tự sửa nội dung cá nhân trong
    đó. Bot khi chạy được sửa theo cơ chế của nó, agent dev thì không.
