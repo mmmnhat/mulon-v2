@@ -46,6 +46,7 @@ from aiogram.types import (BotCommand, CallbackQuery, FSInputFile,
 
 from . import surfaces as surf
 from .agent import clean_task_title
+from .datafiles import load_json_data
 from .ideas import format_idea_card, parse_do_reply
 from .proactivity import effective_enabled as heartbeat_effective
 from .webapp_server import ActivityTracker, plain_step_label, \
@@ -63,6 +64,7 @@ MENU_COMMANDS: list[tuple[str, str]] = [
     ("status", "Trạng thái hệ thống"),
     ("vault", "Nhập API Key & Khóa bảo mật"),
     ("new", "Chốt phiên, bắt đầu ngữ cảnh mới"),
+    ("cancel", "Dừng tác vụ đang chạy"),
 ]
 
 # Danh sách đầy đủ cho tương thích ngược & các công cụ kiểm thử
@@ -437,6 +439,53 @@ def pick_chat_reaction(text: str) -> str:
     return "👀"
 
 
+_CANCELLATION_DATA = load_json_data("cancellation_markers.json", {})
+_STOP_KEYWORDS = tuple(_CANCELLATION_DATA.get("stop_keywords", (
+    "thôi", "thoi", "dừng", "dung", "dừng lại", "dung lai", "ngừng", "ngung",
+    "stop", "cancel", "hủy", "huy", "bỏ qua", "bo qua", "đừng làm nữa",
+    "dung lam nua", "khoan đã", "khoan da", "thôi khỏi", "thoi khoi", "đổi ý", "doi y",
+    "/cancel", "/stop",
+)))
+_REDIRECT_MARKERS = tuple(_CANCELLATION_DATA.get("redirect_markers", (
+    "thôi đừng", "thay vì vậy", "thay vì thế", "chuyển sang", "đổi sang",
+    "làm cái này đi", "không làm cái đó nữa",
+)))
+
+
+def is_cancellation_intent(text: str) -> tuple[bool, str]:
+    """Phát hiện ý định huỷ / dừng / chuyển hướng lượt đang chạy.
+    Trả về (is_cancel, remaining_text).
+    """
+    clean = (text or "").strip()
+    lowered = clean.lower()
+    if not lowered:
+        return False, ""
+
+    # 1. Chuyển hướng: e.g. "thôi đừng làm A nữa, làm B đi"
+    for marker in _REDIRECT_MARKERS:
+        if marker in lowered:
+            idx = lowered.find(marker)
+            rest = clean[idx + len(marker):].strip()
+            rest = re.sub(r"^(nữa|mà|hãy|thì|,|\.|\s)+", "", rest, flags=re.IGNORECASE).strip()
+            return True, rest
+
+    # 2. Dừng hẳn: so khớp từ khoá dừng ngắn hoặc câu bắt đầu bằng từ dừng
+    tokens = lowered.split()
+    first_two = " ".join(tokens[:2]) if len(tokens) >= 2 else (tokens[0] if tokens else "")
+    first_word = tokens[0] if tokens else ""
+
+    if clean.lower() in _STOP_KEYWORDS:
+        return True, ""
+    if first_two in _STOP_KEYWORDS or first_word in _STOP_KEYWORDS:
+        if len(tokens) <= 5:
+            return True, ""
+        rest = " ".join(tokens[2:] if first_two in _STOP_KEYWORDS else tokens[1:]).strip()
+        rest = re.sub(r"^(đừng|không|hãy|nữa|,|\.|\s)+", "", rest, flags=re.IGNORECASE).strip()
+        return True, rest
+
+    return False, ""
+
+
 class TelegramSurface:
     def __init__(self, cfg, agent, memory, dossier, consolidator=None,
                  voice=None, policy=None, surfaces=None, broker=None,
@@ -473,6 +522,7 @@ class TelegramSurface:
         self.dp = Dispatcher()
         self._locks: dict[str, asyncio.Lock] = {}
         self._sessions_meta: dict[str, Message] = {}
+        self._active_tasks: dict[str, asyncio.Task] = {}
         self.batcher = MessageBatcher(cfg.debounce_seconds, self._on_batch)
         self._register_handlers()
 
@@ -577,6 +627,7 @@ class TelegramSurface:
         # 16.1). try/finally bảo đảm luôn nhả bận kể cả khi
         # agent.handle ném lỗi — session không kẹt bận vĩnh viễn.
         self.batcher.mark_busy(key)
+        self._active_tasks[key] = asyncio.current_task()
         chat = getattr(anchor, "chat", None)
         chat_id = getattr(chat, "id", None)
         thread_id = None
@@ -629,28 +680,31 @@ class TelegramSurface:
                     self.dossier is not None
                     and self.dossier.bootstrap_pending()
                 )
-                # 1.2.0: tiến trình MỘT DÒNG trên placeholder (chi
-                # tiết đầy đủ ở Mini App) + thẻ duyệt khi policy
-                # nấc "ask". Chống flood: tối đa 1 edit/1,2s và
-                # không đè lên text đang stream của fast path.
+                # Tiến trình trực quan chuẩn Muse: hiển thị các bước đã xong (✓)
+                # và bước đang chạy (⏳) trên placeholder tin nhắn Telegram.
+                # Chống flood: tối đa 1 edit/1.2s và không đè lên text đang stream.
+                progress_steps: list[dict[str, str]] = []
                 status_state = {"last": 0.0}
 
-                async def _edit_status(label: str) -> None:
+                async def _render_progress() -> None:
                     if placeholder is None or state["shown"]:
                         return
                     now = asyncio.get_event_loop().time()
                     if now - status_state["last"] < 1.2:
                         return
                     status_state["last"] = now
+                    lines = ["<b>⏳ Đang xử lý:</b>"]
+                    for step in progress_steps[-4:]:
+                        icon = step.get("icon", "•")
+                        stext = html.escape(step.get("text", ""))
+                        lines.append(f"{icon} {stext}")
+                    msg_text = "\n".join(lines)
                     try:
-                        await placeholder.edit_text(label)
+                        await placeholder.edit_text(msg_text, parse_mode="HTML")
                     except Exception:
                         pass
 
                 async def on_event(kind: str, payload: dict) -> None:
-                    # Nhãn lời thường DÙNG CHUNG cho chat + Mini
-                    # App (plain_step_label) — mặt chat không lộ
-                    # tên tool thô.
                     label = plain_step_label(kind, payload)
                     if label:
                         self.activity.set_step(label)
@@ -660,14 +714,50 @@ class TelegramSurface:
                             thread_id = anchor.message_thread_id
                         await self.send_approval_card(
                             anchor.chat.id, thread_id, payload)
+                    elif kind == "task_start":
+                        t_title = payload.get("title") or "Lập kế hoạch tác vụ"
+                        progress_steps.append({"icon": "✓", "text": f"Kế hoạch: {t_title[:45]}"})
+                        await _render_progress()
+                    elif kind == "tool_start":
+                        progress_steps.append({"icon": "⏳", "text": label or f"Chạy {payload.get('tool', '')}"})
+                        await _render_progress()
+                    elif kind == "tool_done":
+                        step_t = payload.get("step_title") or label or "Đã xong bước"
+                        updated = False
+                        for s in reversed(progress_steps):
+                            if s.get("icon") == "⏳":
+                                s["icon"] = "✓"
+                                s["text"] = step_t
+                                updated = True
+                                break
+                        if not updated:
+                            progress_steps.append({"icon": "✓", "text": step_t})
+                        await _render_progress()
+                    elif kind == "verify":
+                        progress_steps.append({"icon": "⏳", "text": "Kiểm chứng kết quả..."})
+                        await _render_progress()
                     elif label:
-                        await _edit_status(label + "…")
+                        progress_steps.append({"icon": "⏳", "text": label})
+                        await _render_progress()
 
                 self.activity.start_turn(key, clean_task_title(joined))
                 try:
                     result = await self.agent.handle(
                         key, joined, on_delta=on_delta,
                         on_event=on_event)
+                except asyncio.CancelledError:
+                    logger.info("Lượt xử lý %s đã bị hủy theo yêu cầu user", key)
+                    try:
+                        await self.memory.log_trajectory(
+                            key, "turn_cancelled", {"reason": "user_cancelled"})
+                    except Exception:
+                        pass
+                    if placeholder is not None:
+                        try:
+                            await placeholder.edit_text("⚠️ <i>Đã dừng tác vụ theo yêu cầu.</i>", parse_mode="HTML")
+                        except Exception:
+                            pass
+                    raise
                 except Exception as exc:
                     # HT-1: lỗi ở task path (gateway/proxy sập
                     # giữa lượt) KHÔNG được treo placeholder "…"
@@ -715,6 +805,7 @@ class TelegramSurface:
                             "nạp lại dossier sau lượt bootstrap lỗi: %s",
                             exc)
         finally:
+            self._active_tasks.pop(key, None)
             typing_stop.set()
             if typing_task is not None:
                 typing_task.cancel()
@@ -2695,6 +2786,21 @@ class TelegramSurface:
             await self._send_typing(message)
             await self._process_voice_message(message)
 
+        @dp.message(F.text.startswith("/cancel") | F.text.startswith("/stop"))
+        async def cmd_cancel(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            key = session_key_for(message)
+            if self.batcher.is_busy(key):
+                running_task = self._active_tasks.get(key)
+                if running_task and not running_task.done():
+                    running_task.cancel()
+                self.batcher.drain(key)
+                await message.answer("Đã dừng tác vụ đang chạy theo yêu cầu.")
+            else:
+                self.batcher.drain(key)
+                await message.answer("Hiện không có tác vụ nào đang chạy.")
+
         @dp.message(F.text)
         async def on_text(message: Message) -> None:
             if not self._is_allowed(message):
@@ -2720,6 +2826,21 @@ class TelegramSurface:
             await self._send_typing(message)
             key = session_key_for(message)
             self._sessions_meta[key] = message
+
+            # Cơ chế ngắt khi người dùng đổi ý rõ ràng trong lúc bot đang bận (T-09)
+            if self.batcher.is_busy(key):
+                is_cancel, redirect = is_cancellation_intent(message.text or "")
+                if is_cancel:
+                    running_task = self._active_tasks.get(key)
+                    if running_task and not running_task.done():
+                        running_task.cancel()
+                    self.batcher.drain(key)
+                    if redirect:
+                        await message.answer(f"Đã dừng việc trước, chuyển sang: {redirect}")
+                        await self.batcher.add(key, redirect)
+                    else:
+                        await message.answer("Đã dừng tác vụ đang chạy theo yêu cầu.")
+                    return
 
             text = format_reply_context(message, message.text or "")
             await self.batcher.add(key, text)

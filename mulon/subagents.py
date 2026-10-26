@@ -19,7 +19,7 @@ import uuid
 from dataclasses import replace
 from typing import Callable
 
-from .agent import Agent
+from .agent import Agent, clean_task_title
 from .gateway import Completion
 from .tools import ToolRegistry, ToolSpec
 
@@ -47,7 +47,7 @@ PROFILES: dict[str, dict] = {
     },
 }
 
-NEVER_TOOLS = {"spawn_subagent"}
+NEVER_TOOLS = {"spawn_subagent", "spawn_subagents_parallel"}
 
 
 class _CountingGateway:
@@ -120,6 +120,16 @@ class SubagentRunner:
                          parent_session: str) -> dict:
         sub_id = uuid.uuid4().hex[:8]
         session_key = f"subagent:{profile}:{sub_id}"
+        sub_task_id = f"sub_{sub_id}"
+        sub_task_title = f"Sub-agent [{profile}]: {clean_task_title(task)}"
+        sub_steps = [f"Khởi động ({profile})", "Thực thi tác vụ con", "Tổng hợp digest"]
+        try:
+            await self.memory.create_task(sub_task_id, session_key, sub_task_title, sub_steps)
+            await self.memory.update_step(sub_task_id, 0, "done")
+            await self.memory.update_step(sub_task_id, 1, "doing")
+        except Exception as exc:
+            logger.warning("tạo task cho subagent trong memory lỗi: %s", exc)
+
         counting = _CountingGateway(self.gateway,
                                     self.cfg.subagent_token_budget)
         child_cfg = replace(
@@ -156,6 +166,15 @@ class SubagentRunner:
             summary = "subagent chạm trần thời gian, đã dừng an toàn"
         except Exception as exc:
             summary = f"subagent lỗi: {type(exc).__name__}: {exc}"
+        finally:
+            try:
+                final_step_status = "done" if status == "done" else "failed"
+                await self.memory.update_step(sub_task_id, 1, final_step_status)
+                await self.memory.update_step(sub_task_id, 2, final_step_status)
+                await self.memory.finish_task(sub_task_id, status, result=summary)
+            except Exception:
+                pass
+
         digest = {
             "ok": status == "done",
             "subagent_id": sub_id,
@@ -181,6 +200,25 @@ def register_subagent_tool(registry, runner: SubagentRunner,
         return await runner.run(task, profile=profile,
                                 parent_session=parent_session)
 
+    async def spawn_subagents_parallel(tasks: list[dict]):
+        if not isinstance(tasks, list):
+            return {"ok": False, "error": "tasks phải là danh sách [{'task': '...', 'profile': '...'}]"}
+
+        async def _run_single(item: dict) -> dict:
+            if not isinstance(item, dict):
+                return {"ok": False, "error": "mỗi item phải là dict"}
+            t_text = str(item.get("task") or "")
+            t_prof = str(item.get("profile") or "default")
+            return await runner.run(t_text, profile=t_prof, parent_session=parent_session)
+
+        results = await asyncio.gather(*[_run_single(item) for item in tasks])
+        all_ok = all(r.get("ok", False) for r in results)
+        return {
+            "ok": all_ok,
+            "count": len(results),
+            "results": list(results),
+        }
+
     registry.register(ToolSpec(
         name="spawn_subagent",
         description=(
@@ -204,4 +242,37 @@ def register_subagent_tool(registry, runner: SubagentRunner,
         group="agent",
         timeout_s=runner.cfg.subagent_max_seconds + 60,
         handler=spawn_subagent,
+    ))
+
+    registry.register(ToolSpec(
+        name="spawn_subagents_parallel",
+        description=(
+            "Giao nhiều việc con độc lập cho các subagent chạy song song, "
+            "tổng hợp danh sách digest nén trả về. Dùng khi cần tra cứu hoặc "
+            "xử lý nhiều nguồn/nhiệm vụ độc lập cùng một lúc."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "task": {"type": "string"},
+                            "profile": {
+                                "type": "string",
+                                "enum": sorted(PROFILES),
+                                "default": "default",
+                            },
+                        },
+                        "required": ["task"],
+                    },
+                },
+            },
+            "required": ["tasks"],
+        },
+        group="agent",
+        timeout_s=runner.cfg.subagent_max_seconds + 60,
+        handler=spawn_subagents_parallel,
     ))

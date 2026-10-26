@@ -1,0 +1,37 @@
+{
+  "stop_keywords": [
+    "thôi",
+    "thoi",
+    "dừng",
+    "dung",
+    "dừng lại",
+    "dung lai",
+    "ngừng",
+    "ngung",
+    "stop",
+    "cancel",
+    "hủy",
+    "huy",
+    "bỏ qua",
+    "bo qua",
+    "đừng làm nữa",
+    "dung lam nua",
+    "khoan đã",
+    "khoan da",
+    "thôi khỏi",
+    "thoi khoi",
+    "đổi ý",
+    "doi y",
+    "/cancel",
+    "/stop"
+  ],
+  "redirect_markers": [
+    "thôi đừng",
+    "thay vì vậy",
+    "thay vì thế",
+    "chuyển sang",
+    "đổi sang",
+    "làm cái này đi",
+    "không làm cái đó nữa"
+  ]
+}

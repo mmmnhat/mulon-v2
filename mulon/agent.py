@@ -227,7 +227,7 @@ def build_self_knowledge(cfg, registry) -> str:
         for spec in specs)
     if not roster:
         roster = "- (registry trống ở bản chạy này)"
-    return (
+    knowledge = (
         "## TỰ NHẬN THỨC — SỰ THẬT VỀ CHÍNH BẠN\n"
         "Đối chiếu khối này TRƯỚC khi nói bất cứ điều gì về khả "
         "năng của chính mình.\n"
@@ -300,6 +300,10 @@ def build_self_knowledge(cfg, registry) -> str:
         "truyền đường dẫn file ảnh đính kèm vào tham số image_path của tool generate_image "
         "để thực hiện Image-to-Image (i2i) giữ nguyên nét khuôn mặt và phong cách."
     )
+    style = load_prompt("muse_reply_style", "")
+    if style:
+        knowledge = f"{knowledge}\n\n{style}"
+    return knowledge
 
 
 class Agent:
@@ -753,6 +757,10 @@ class Agent:
                     session_key, "tool_call",
                     {"task_id": task_id, "tool": tc.name, "args": args,
                      "ok": result.get("ok")},
+                )
+                await self._emit(
+                    on_event, "tool_done", task_id=task_id, tool=tc.name,
+                    ok=result.get("ok"), step_title=step_title,
                 )
                 return tc, result
 

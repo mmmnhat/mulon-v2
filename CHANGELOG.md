@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 1.7.0 — 2026-10-26 — Cơ chế hội thoại ngang Muse (T-09)
+
+- **Gộp tin (Message batching) & Cơ chế ngắt (Cancellation / Queueing):**
+  - Cửa sổ chờ debounce động dựa theo loại tin (câu mở đầu, câu cụt, ảnh, chuỗi tin dồn dập).
+  - Tin mới tới khi bot đang bận được giữ trong buffer và gộp vào lượt kế tiếp theo thứ tự.
+  - Cơ chế ngắt khi đổi ý rõ ràng: phát hiện các từ khóa/marker hủy (`config/cancellation_markers.json`, nạp qua `load_json_data` không hardcode) để ngắt ngay tác vụ đang chạy (`task.cancel()`), dọn sạch buffer hoặc chuyển hướng ngay sang ý mới nếu người dùng kèm theo yêu cầu khác.
+  - Bổ sung lệnh `/cancel` và `/stop` trên Telegram bot menu.
+- **Trả lời trong lúc đang làm (Progress updates via live message editing):**
+  - Placeholder tin nhắn Telegram cập nhật trực tiếp tiến trình theo phong cách Muse: hiển thị rõ ràng các bước đã hoàn tất (`✓`) và bước đang chạy (`⏳`).
+  - Lưới an toàn chống flood: giới hạn tần suất chỉnh sửa tin nhắn Telegram tối thiểu 1.2s mỗi lượt.
+  - Phát sự kiện `tool_done` từ `Agent._act_loop` để cập nhật bước xong theo thời gian thực.
+- **Chia việc cho Sub-agents song song & hiển thị ở tab Việc:**
+  - `SubagentRunner._run_inner` tự động đăng ký bản ghi task trong bảng `tasks` (`memory.create_task`) với định danh rõ ràng `Sub-agent [<profile>]: <tiêu đề>`, hiển thị đầy đủ trên màn hình tab "Việc" (Mini App) và `/api/tasks`.
+  - Bổ sung công cụ `spawn_subagents_parallel` cho phép chia nhiều việc con độc lập chạy song song qua `asyncio.gather` và tổng hợp digest nén trả về.
+  - Cập nhật `NEVER_TOOLS` chặn cả `spawn_subagent` và `spawn_subagents_parallel` để chống đệ quy trong agent con.
+- **Cách reply chuẩn Muse:**
+  - Thêm prompt chỉ dẫn phong cách `mulon/prompts/muse_reply_style.txt` (nạp qua `load_prompt` vào khối tự nhận thức): trả lời ngắn gọn, đúng trọng tâm, giữ mạch ngữ cảnh, không mở bài sáo rỗng.
+
 ## 1.6.9 — 2026-10-26 — Khắc phục tận gốc LaunchAgent devwatch exit 126 (T-20, T-19)
 
 - **Sửa LaunchAgent devwatch (T-20):**

@@ -37,7 +37,7 @@ tiên: T-09 trước, rồi T-15, các mục còn lại theo thoả thuận vớ
 chủ dự án. Mục nào đụng luật trong `AGENTS.md` thì sửa luật trong
 cùng đợt (chủ dự án đã duyệt hướng này).
 
-### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `DOING` (ƯU TIÊN 1)
+### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `DONE` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
   vụn liên tiếp cho một ý (ví dụ thực tế của chủ dự án: 5 tin rời
   trong 1 phút). Bot phải gom các tin liên tiếp trong cửa sổ chờ
@@ -53,6 +53,12 @@ cùng đợt (chủ dự án đã duyệt hướng này).
   lời; trạng thái từng sub-agent nhìn thấy được ở tab Việc.
 - **Cách reply**: ngắn, đúng ý, giữ mạch hội thoại như Muse —
   tinh chỉnh prompt/dossier theo hướng này, có eval so sánh.
+- **Kết quả thực hiện (Antigravity 26/10/2026):**
+  1. *Gộp tin & Cơ chế ngắt:* `MessageBatcher` gom tin vụn theo cửa sổ cấu hình được; phát hiện ý định dừng / chuyển hướng qua `config/cancellation_markers.json` (nạp qua `load_json_data`, Rule 0), hủy `asyncio.Task` đang chạy khi user đổi ý, dọn buffer và chuyển hướng ngay sang ý mới nếu có; bổ sung lệnh `/cancel` và `/stop`.
+  2. *Tiến trình Telegram:* Placeholder tin nhắn cập nhật trực quan thời gian thực các bước hoàn thành (`✓`) và bước đang chạy (`⏳`), kèm lưới rate-limit an toàn (1.2s/edit) tránh lỗi flood 429 của Telegram; phát sự kiện `tool_done` từ `Agent._act_loop`.
+  3. *Sub-agents song song & tab Việc:* `SubagentRunner._run_inner` tự động đăng ký task vào bảng `tasks` (`Sub-agent [<profile>]: <tiêu đề>`), hiển thị đầy đủ trên màn hình tab "Việc" và `/api/tasks`; bổ sung tool `spawn_subagents_parallel` chạy nhiều subagent song song qua `asyncio.gather`; cập nhật `NEVER_TOOLS` chặn đệ quy.
+  4. *Cách reply chuẩn Muse:* Bổ sung `mulon/prompts/muse_reply_style.txt` (nạp qua `load_prompt` vào `Agent.self_knowledge()`): ngắn gọn, đúng trọng tâm, giữ mạch ngữ cảnh, gạch đầu dòng rõ ràng.
+  5. *Kiểm chứng:* 463/463 unit tests PASS (thêm 6 test hồi quy toàn diện trong `tests/test_v16_muse_conversation.py`); suite evals vàng đạt cổng 86% (31/36 case); version 1.7.0.
 
 ### [T-10] Parity bề mặt tính năng — Giao: Antigravity — `TODO`
 Đưa các bề mặt sau lên ngang Muse (audit parity 24/10 còn ghi
