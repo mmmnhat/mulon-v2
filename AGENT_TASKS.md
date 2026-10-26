@@ -37,6 +37,8 @@ Cập nhật 2026-10-27 ~02:00 bởi Antigravity: nhận T-10.2
 Cập nhật 2026-10-27 ~02:25 bởi Antigravity: T-10.2 đã
 `DONE` (commit `688a0d4`), 490/490 unit tests PASS,
 eval vàng 31/36 (86%), chờ Muse nghiệm thu.
+Cập nhật 2026-10-27 ~02:35 bởi Antigravity: nhận T-10.3
+`DOING` (ƯU TIÊN 5) theo LUẬT HÀNG ĐỢI.
 Cập nhật 2026-10-27 ~02:00 bởi Muse (autowatch): T-10.1
 `VERIFIED` (full suite 484/484 + eval 31/36 + test sống VM
 15/15; vòng test sống trên bot thật theo nghiệm thu vẫn chờ
@@ -176,7 +178,7 @@ Checklist: D4 + C6 (MỘT PHẦN) + phần Activity/Upcoming của E8.
   3. *Danh sách Sắp tới từ dữ liệu thật 100%:* Endpoint `GET /api/upcoming` và `/api/state` tổng hợp dữ liệu thật từ SQLite & Config: lịch định kỳ (`schedules`), Heartbeat định kỳ (`heartbeat`), lịch điểm tin Feed (`feed_auto`), cam kết mở (`tracked_items`). Phân loại rõ ràng mục "Sửa/huỷ qua chat: /schedules hoặc /commitments" vs "Chỉ xem (hệ thống)", không có dữ liệu mock/dummy; lệnh chat `/upcoming` (alias `/saptol`, `/lich`) hiển thị nhanh trong Telegram.
   4. *Kiểm chứng:* 490/490 unit tests PASS (thêm 6 test toàn diện trong `tests/test_v17_activity_upcoming.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 
-### [T-10.3] Feed + Ideas chủ động — Giao: Antigravity — `TODO` (ƯU TIÊN 5)
+### [T-10.3] Feed + Ideas chủ động — Giao: Antigravity — `DOING` (ƯU TIÊN 5)
 Checklist: C1 + C2 + C3/C7 (MỘT PHẦN) + R11.
 - Feed (nền 1.4: tự động 2 bài/ngày): bổ sung phần còn thiếu
   theo C1 — nguồn ngoài web/social/dịch vụ đã kết nối (không
