@@ -5,6 +5,14 @@
 > `dossier/AGENTS.md` là file khác — đó là chỉ thị runtime của bot
 > MuLon, không phải luật cho agent dev. Đừng nhầm hai file.
 
+> **Bắt buộc đọc kèm: `docs/technical-reference.md`** — sổ tay kỹ
+> thuật chi tiết (bản đồ module, config 104 field/89 env, dữ liệu
+> nằm ở đâu, công thức cho việc hay gặp, checklist tự kiểm trước
+> commit). Nguyên tắc số 0 của dự án: **KHÔNG HARDCODE BẤT CỨ GÌ**
+> — giá trị đổi theo máy/người/phiên/quyết định của chủ dự án thì
+> không bao giờ nằm trong file `.py` (chi tiết + bảng tra ở
+> `docs/technical-reference.md` mục 0 và 5).
+
 ## 1. Dự án là gì
 
 - **MuLon**: bản clone Muse AI chạy trên Telegram (bot
