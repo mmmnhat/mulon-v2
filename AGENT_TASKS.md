@@ -251,6 +251,39 @@ lượt agy là rộng hơn spec (spec: quyền scoped trong repo);
 nếu agy có cấu hình quyền theo thư mục thì chuyển sang,
 không có thì ghi rõ chấp nhận rủi ro này trong docs.
 
+### [T-20] Sửa LaunchAgent devwatch: exit 126, watcher chưa từng tự chạy — Giao: Antigravity — `TODO` (ƯU TIÊN CAO — chặn cả vòng tự trị)
+Bằng chứng từ máy Mac của chủ dự án (chụp màn hình terminal
+26/10 ~22:41, Muse đối chiếu):
+- `launchctl list | grep devwatch` -> com.mulon.devwatch
+  LastExitStatus = **126** (launchd không thực thi được
+  chương trình của job ở các lượt hẹn giờ).
+- `~/.mulon-dev-watch/last_seen_sha` **KHÔNG TỒN TẠI** —
+  chưa một lượt watcher nào chạy tới cuối để ghi watermark.
+- Log `dev_watch_20261026.log` chỉ có đúng 1 lượt lúc
+  22:28:52 (lượt chạy TAY trong lúc setup, bị chính phiên
+  đó cancel/kill giữa chừng khi đang gọi agy) — sau đó
+  không thêm dòng nào, dù chu kỳ 5 phút phải có lượt
+  ~22:33 và ~22:38. Hệ quả: commit mồi e2a45d0 (22:36)
+  không bao giờ được watcher thấy; T-18 mới đạt ở mức
+  "script + cài đặt", test sống tự nhận việc ĐÃ THẤT BẠI.
+Việc phải làm:
+1. Chẩn đoán tận gốc exit 126: `plutil -p` plist, chạy tay
+   đúng ProgramArguments, `launchctl kickstart -p
+   gui/<uid>/com.mulon.devwatch` rồi xem LastExitStatus +
+   log. Nghi vấn chính: quyền thực thi/truy cập trên ổ
+   /Volumes/External đối với tiến trình launchd (TCC) hoặc
+   đường dẫn interpreter. Đúng nguyên nhân nào ghi rõ
+   nguyên nhân đó vào mục này — không sửa mò.
+2. Sửa tới khi đạt CẢ 3: LastExitStatus = 0 sau kickstart;
+   log có dòng của lượt chạy do launchd kích (không phải
+   chạy tay); watermark được tạo và đúng SHA origin/main.
+3. Ghi vào mục này cách sửa + bằng chứng (output launchctl
+   sau sửa). Muse sẽ đẩy commit mồi mới để test sống lại:
+   đạt khi T-09 (hoặc mục thử) tự chuyển DOING trong 2 chu
+   kỳ mà không ai dán prompt. Chưa đạt thì giữ TODO.
+Gộp luôn khi sửa: mục 1 của T-19 (watermark chỉ tiến khi
+agy thành công) — đang sửa đúng chỗ này.
+
 ## Đã đóng (VERIFIED)
 
 - Đợt vá hardcode 1.6.4 (gateway containment, denylist file tool,
@@ -344,3 +377,8 @@ không có thì ghi rõ chấp nhận rủi ro này trong docs.
   cho T-09 — việc watcher tự nhận T-09 còn phải chờ chu kỳ
   sau chứng minh, chưa phải bằng chứng sống. Hai lỗi phụ
   giữ nguyên T-19 (không chặn T-18).
+  ĐÍNH CHÍNH 26/10 ~22:45: test sống tự nhận việc của
+  T-18 ĐÃ THẤT BẠI — LaunchAgent exit 126, watermark chưa
+  từng được ghi, watcher chưa tự chạy lượt nào (xem T-20).
+  T-18 giữ VERIFIED cho phần script/cài đặt; phần "tự vận
+  hành" chuyển sang T-20 xử lý dứt điểm.
