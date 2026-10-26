@@ -19,8 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-26 21:07 bởi Muse (thêm đợt
-PARITY + MỞ RỘNG T-09..T-15 theo yêu cầu chủ dự án).
+Cập nhật lần cuối: 2026-10-26 21:13 bởi Muse (T-14 chốt
+CLIProxyAPI + thêm T-17 connector tích hợp sẵn).
 
 ---
 
@@ -166,13 +166,24 @@ ngay trong chat khi thiếu bí mật, gửi được mọi loại nội dung
   đổi được ngay, phần nào cần BotFather.
 - Chuẩn hoá brand: logo, màu, giọng văn trong app + bot.
 
-### [T-14] Tích hợp ProxyAPI — Giao: Antigravity — `TODO` (chờ chủ dự án xác nhận dịch vụ)
-Nếu ProxyAPI là nhà cung cấp API tương thích OpenAI: thêm như
-một model provider cấu hình được (endpoint + key qua Vault/
-config, không hardcode key), chọn được trong màn cấu hình model
-của T-11, tôn trọng cơ chế degrade (provider chết thì báo rõ,
-không sập bot). Xác nhận chính xác dịch vụ với chủ dự án trước
-khi code.
+### [T-14] Tích hợp CLIProxyAPI làm cổng model chính thức — Giao: Antigravity — `TODO`
+Chủ dự án xác nhận 26/10: "ProxyAPI" = **CLIProxyAPI**
+(`github.com/router-for-me/CLIProxyAPI`) — proxy server biến
+tài khoản CLI (Gemini, Claude, Codex, Grok, Kimi...) thành API
+tương thích OpenAI/Gemini/Claude, chạy local, hỗ trợ nhiều tài
+khoản. Đây cũng là lớp đứng sau proxy `127.0.0.1:8317` hiện tại
+của MuLon — đợt này FORMAL HOÁ nó thành bộ phận chính thức:
+- MuLon nhận diện/quản lý CLIProxyAPI như tiến trình đi kèm:
+  kiểm tra sống/chết, tự khởi chạy khi bản cài có cấu hình, báo
+  trạng thái trong Mini App (màn model ở T-11).
+- Màn cấu hình: chọn provider + model qua CLIProxyAPI, quản lý
+  danh sách tài khoản CLI đã đăng nhập (chỉ hiển thị trạng thái,
+  bí mật nằm ngoài repo).
+- Giữ luật proxy-only: model vẫn CHỈ gọi qua proxy local; đổi
+  provider là đổi phía sau proxy, không gọi thẳng API ngoài.
+- Degrade: proxy chết => báo rõ cho người dùng, bot không sập.
+- Đa nền tảng theo T-15: dùng bản CLIProxyAPI phù hợp từng OS
+  (hoặc EasyCLIProxyAPI desktop nếu hợp), không hardcode path.
 
 ### [T-15] Mở khoá cài đặt + đa nền tảng — Giao: Antigravity — `TODO` (ƯU TIÊN 2)
 Quyết định chủ dự án 26/10/2026, THAY luật "một chủ duy nhất"
@@ -205,6 +216,30 @@ pool nhiều tài khoản luân phiên, tự gia hạn phiên 48h.
   muse2api chết hoặc hết tài khoản trong pool.
 - Không vendor code của muse2api vào repo MuLon trừ khi có lý
   do rõ và ghi lại; ưu tiên chạy như tiến trình/dịch vụ riêng.
+
+---
+
+### [T-17] Connector tích hợp sẵn: TikTok, Facebook Page, Threads, Instagram, Google Workspace — Giao: Antigravity — `TODO`
+Yêu cầu chủ dự án 26/10: năm nền tảng này phải thành CONNECTOR
+CÓ SẴN trong MuLon (built-in, cài MuLon là có — không phải hàng
+marketplace cài thêm), dùng tài khoản của chính người cài:
+- **Google Workspace** (Gmail, Calendar, Drive, Docs, Sheets):
+  nâng connector google-workspace hiện có (1.5/1.6) thành
+  built-in chính thức, OAuth của người cài.
+- **Facebook Page, Threads, Instagram**: qua Meta API /
+  Accounts Center theo quyền từng nền tảng cho phép; đọc +
+  đăng bài + trả lời theo policy quyền từng hành động hiện có.
+- **TikTok**: qua API chính thức nếu đủ điều kiện; phần nào API
+  không cho thì ghi rõ giới hạn trong docs, không lách bằng
+  cơ chế rủi ro khoá tài khoản mà không báo trước.
+- Chuẩn chung cho cả 5: màn Kết nối trong Mini App (đăng nhập,
+  trạng thái, ngắt kết nối), bí mật/OAuth token chỉ ở Vault của
+  bản cài, không hardcode app id/secret của riêng ai — người
+  cài dùng app/credential của họ hoặc cấu hình mặc định được
+  tài liệu hoá rõ.
+- Mỗi connector có test + mục trạng thái trong màn Connector;
+  lỗi kết nối phải degrade (bot vẫn chạy, báo rõ connector nào
+  đang hỏng).
 
 ---
 
