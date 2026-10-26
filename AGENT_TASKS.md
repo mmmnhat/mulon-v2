@@ -26,6 +26,9 @@ HÀNG ĐỢI — bản cục cũ không tag nên bị nhảy cóc 2 lượt;
 chủ dự án — Zalo, Telegram cá nhân, Facebook cá nhân, tin
 nhắn Instagram, tin nhắn Threads, chia 3 mục con ƯU TIÊN
 8..10. T-21 đang `DOING`, T-15 `TODO` (ƯU TIÊN 2)).
+Cập nhật 2026-10-27 ~01:30 bởi Muse (autowatch): T-21
+và T-15 đều `VERIFIED` (chi tiết trong từng mục);
+T-10.1 `DOING` phía Mac.
 Bổ sung 2026-10-27 ~00:47 bởi Muse: thêm T-23 từ QA Mini
 App đợt 1 (Muse mở app bằng WebView của chủ dự án, chỉ
 đọc, 5 tab + 16 màn con, 00:10–00:46) — chia 6 mục con
@@ -38,6 +41,17 @@ vào T-23 từ dùng thật — quyền connector phải nằm TRONG
 màn chi tiết connector (ghi vào T-23.6), list kỹ năng
 dài phải gom nhóm/gập (T-23.3), tiêu chí xuyên suốt:
 tổng thể gọn gàng (mục cha T-23).
+Bổ sung 2026-10-27 ~01:30 bởi Muse (autowatch): T-21
+`VERIFIED` (full suite 469/469 + eval 31/36 + test sống
+VM 11/11 + test sống bot thật X-01/X-02/X-08/X-09 đạt)
+và T-15 `VERIFIED` (full suite 478/478 sau khi đồng bộ
+platformdirs cho venv VM + eval 31/36 + test sống VM
+11/11; phần cài thật 3 OS chưa tự kiểm được từ VM —
+xem mục T-15); Mac đã nhận T-10.1 `DOING` theo LUẬT
+HÀNG ĐỢI. Head lúc chốt verdict: `cdc94f4`, lúc đẩy
+lại có thêm `2c7e536` (Mac claim T-10.1 DOING; nội
+dung AGENT_TASKS ở đó giống hệt `cdc94f4` nên verdict
+này không ghi đè gì) + commit verdict này.
 
 ---
 
@@ -234,7 +248,7 @@ của MuLon — đợt này FORMAL HOÁ nó thành bộ phận chính thức:
 - Đa nền tảng theo T-15: dùng bản CLIProxyAPI phù hợp từng OS
   (hoặc EasyCLIProxyAPI desktop nếu hợp), không hardcode path.
 
-### [T-15] Mở khoá cài đặt + đa nền tảng — Giao: Antigravity — `DONE` (ƯU TIÊN 2)
+### [T-15] Mở khoá cài đặt + đa nền tảng — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 2)
 Quyết định chủ dự án 26/10/2026, THAY luật "một chủ duy nhất"
 trong AGENTS.md mục 3.4 (sửa luật trong cùng đợt này):
 - Bỏ hard-lock theo Telegram ID của chủ dự án hiện tại. Thay
@@ -267,6 +281,13 @@ trong AGENTS.md mục 3.4 (sửa luật trong cùng đợt này):
      - Cập nhật `.github/workflows/ci.yml` kiểm thử matrix trên cả 3 OS: `ubuntu-latest`, `macos-latest`, `windows-latest` với Python 3.12.
      - Cập nhật điều 3.4 trong `AGENTS.md` theo quyết định của chủ dự án.
   6. *Kiểm chứng:* 478/478 unit tests PASS (thêm 9 test toàn diện trong `tests/test_v17_cross_platform_setup.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%); version 1.7.2.
+- **Kiểm chứng độc lập (Muse autowatch 27/10/2026, lượt soi commit `cdc94f4` trên nền head `d8c4c90`):**
+  - Full suite trên đúng nội dung remote: lượt đầu **476 passed / 2 failed** (`test_paths_default_structure` + `test_v13_e2e`), nguyên nhân là venv VM thiếu `platformdirs` (dependency mới của T-15, đã thêm vào requirements.txt nhưng venv cũ chưa cài) — sau khi `pip install platformdirs==4.13.5` vào venv VM, chạy lại: **478 passed / 0 failed** (khớp con số Antigravity báo). Bài học: venv VM phải đồng bộ requirements sau mỗi đợt đổi dependency. Eval stub vẫn **31/36 = 86% qua cổng** (5 case trượt cũ, không đổi); version trong code đúng **1.7.2**.
+  - Test sống phía VM (hàm thật, dữ liệu thật, script `~/workspace/mulon-clone/live_t15.py`): **11/11** — allowlist rỗng = chặn hết, claim token 8 ký tự, token sai bị từ chối, claim đúng thành owner + tự xoá token, không xoá được owner, thêm user vào allowlist, paths mặc định project-local (không Library/AppData), resolve/expanduser đúng.
+  - Đối chiếu code: `_is_allowed` mặc định chặn khi chưa có allowlist; `Config.load` gộp env `ALLOWED_USER_ID` + file allowlist (env làm owner, tương thích ngược — bản cài đang chạy không bị khoá); Mini App auth đối chiếu `allowed_user_ids` từ allowlist; `paths.py` dùng platformdirs chỉ khi bật cờ (mặc định project-local); `os_service.py` chỉ chạy khi gọi CLI (không tác dụng phụ lúc import); CI matrix khai đủ 3 OS (ubuntu/macos/windows, Python 3.12) — kết quả chạy CI trên remote không kiểm được từ VM; AGENTS.md mục 3.4 đã sửa đúng quyết định chủ dự án (nit: mục 1 vẫn ghi "một chủ duy nhất" — lệch chữ, không ảnh hưởng code).
+  - Chưa tự kiểm được từ VM (ghi rõ, không phải lỗi): chạy script cài thật trên máy sạch Windows/macOS/Linux, service manager thật (launchd/systemd/schtasks), wizard tương tác, claim `/setup` trên bot thật. Nếu Antigravity chưa chạy các bước đó trên máy thật thì phần này vẫn là VERIFIED-theo-báo-cáo + unit test, và cần một lượt test cài thật trước khi coi T-15 là hoàn tất ngoài đời.
+  - Checklist parity liên quan: K2 (tách lớp OS), H3 (CLIProxyAPI — không đụng), M (tác vụ đời thật — bản cài tự định chủ). Không hardcode mới (không `/Users/`, `/Volumes/`, ID cá nhân trong code mới); không nới chốt bảo mật (auth bot + Mini App đều đối chiếu allowlist).
+  - Trong cùng commit này Mac cũng nhận T-10.1 `DOING` (theo LUẬT HÀNG ĐỢI: T-15 DONE xong thì mục ƯU TIÊN 3 là tiếp theo — đúng thứ tự).
 
 ### [T-16] Tích hợp muse2api — Giao: Antigravity — `TODO`
 Chủ dự án đã fork sẵn: `mmmnhat/muse2api` (gốc czg86389-hub/
@@ -618,7 +639,7 @@ ghi/xoá = HỎI).
   tool nguy hiểm = "Hỏi"; test đơn vị policy + test
   sống bấm Xoá thử phải hiện xác nhận.
 
-### [T-21] Lỗi trải nghiệm từ test thật qua Telegram (đợt 1) — Giao: Antigravity — `DONE` (ƯU TIÊN CAO)
+### [T-21] Lỗi trải nghiệm từ test thật qua Telegram (đợt 1) — Giao: Antigravity — `VERIFIED` (ƯU TIÊN CAO)
 Nguồn: Muse đóng vai tester khó tính, test TRỰC TIẾP bằng acc
 Telegram của chủ dự án qua connector `custom.telegram` (đợt
 v1 26/10 23:54 + v2 27/10 00:03–00:07, timeline đầy đủ ở
@@ -710,6 +731,13 @@ sửa, không chỉ unit test.
   7. *X-07 (Chất lượng hiển thị):* Tách dòng tiêu đề `md_to_html` bằng ngắt dòng rõ ràng, `on_delta` áp ngưỡng độ dài (15 ký tự) và rate limit 1.2s tránh flash 1 ký tự. Thêm quy tắc trong `muse_reply_style.txt` tránh lặp mẫu câu chào hiện diện cứng nhắc ("Tui đây tui đây ní ơi!...").
   8. *X-08 (Trải nghiệm trong Group):* `TelegramSurface._should_respond` cho phép gộp tin tiếp nối trong chuỗi tin vụn của cùng một user mà không bắt buộc phải lặp lại `@bot` trên từng tin nhỏ.
   9. *Kiểm chứng:* 469/469 unit tests PASS (thêm 6 test hồi quy trong `tests/test_v17_experience_fixes.py`); golden eval stub đạt 31/36 (86%, qua cổng 85%); version 1.7.1.
+- **Kiểm chứng độc lập (Muse autowatch 27/10/2026, lượt soi commit `f0e2c25` + `5f99f79` + `2f58e49`; head lúc soi `2f58e49`, sau đó main có thêm `d8c4c90` chỉ sửa chữ trong AGENT_TASKS/QA nên không ảnh hưởng code — đã đồng bộ trước khi ghi verdict này):**
+  - Full suite trên đúng nội dung remote: **469 passed / 0 failed** (khớp con số Antigravity báo); eval stub: **31/36 = 86% qua cổng 85%** (5 case trượt marketplace/self-read có từ trước, không phải do đợt này); version trong code đúng **1.7.1**.
+  - Test sống phía VM (hàm thật, dữ liệu thật, script `~/workspace/mulon-clone/live_t21.py`): **11/11** — recall group không lọt DM (canary), group build tiêm GROUP PRIVACY GUARD, giờ tiêm khớp giờ thật Asia/Ho_Chi_Minh trong 2 phút, markers sửa ý "á nhầm"/"ý là", batcher gộp 1 chùm thành 1 flush, md heading giữ ngắt dòng.
+  - Test sống trên bot thật qua Telegram acc chủ dự án (27/10 ~01:00–01:13 +07): X-02/X-09 **ĐẠT** — hỏi DM "mấy giờ rồi" trả lời sau ~5s, đúng "01:00 sáng, Thứ Ba, ngày 27/10/2026"; X-01 **ĐẠT** — canary DM "vịt vàng bơi ngược 24680" được bot xác nhận đã nhớ ở DM, hỏi lại trong group thì bot từ chối tiết lộ và không nhắc lại canary (trả lời sau ~3s); cùng thời điểm chủ dự án tự hỏi tương tự trong group cũng bị từ chối — 2 bằng chứng độc lập; X-08 **ĐẠT** — tin nối tiếp không mention ("nay có gì hot không") được trả lời đúng câu hỏi sau ~5s, không rơi câu, không còn mẫu hiện diện chung chung.
+  - Chưa tự kiểm sống trên bot thật (dựa vào unit test + code, không phải lỗi): X-03 (việc tìm tin chạy nền tới kết quả — chỉ có đổi intent sang task_path + test classify), X-04 (gộp tin khi đang bận + sửa ý giữa chừng trên bot thật), X-05 (chống phóng đại phạm vi trên bot thật), X-06 (thông báo xếp hàng trên bot thật), X-07 (streaming/flash/format trên bot thật). Nếu đợt test thật tiếp theo phát hiện các mục này còn lỗi thì mở NEEDS-FIX riêng, không rút lại VERIFIED của các mục đã đạt.
+  - Checklist parity liên quan: A1 (gộp tin — giữ từ T-09, đợt này bổ sung markers sửa ý), A3 (tin đến giữa chừng — hàng đợi + thông báo xếp hàng), A4 (tiến trình — placeholder đổi ngay khi huỷ/chuyển hướng), T3 (discretion — X-01), T10 (giờ/múi giờ — X-02/X-09). Không hardcode mới trong diff T-21 (markers/keywords nằm ở config/*.json, timezone lấy DEFAULT_TIMEZONE); không nới chốt bảo mật.
+  - Lưu ý vận hành trong lúc kiểm: giữa lượt soi, main có thêm commit `d8c4c90` (tác giả phía Muse theo email connector `n2jxprod@gmail.com`, chỉ sửa chữ AGENT_TASKS + QA doc, không sửa code) — đã đồng bộ trước khi ghi verdict này nên không ghi đè bổ sung đó. Bot tự restart theo auto_watch khi main đổi (thấy rõ trong DM: thông báo cập nhật từng commit).
 
 ## Đã đóng (VERIFIED)
 
