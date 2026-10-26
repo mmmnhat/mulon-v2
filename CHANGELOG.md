@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 1.6.7 — 2026-10-26 — Khảo sát hiệu năng DB/Connectors (T-08) & Cập nhật trạng thái
+
+- **Khảo sát hiệu năng (T-08):** Đã hoàn tất tài liệu khảo sát kỹ thuật tại
+  `docs/de-xuat-hieu-nang-2026-10-26.md` phân tích hai điểm nghẽn:
+  (1) Nghẽn single connection `aiosqlite` trong `mulon/memory.py` (đề xuất Reader Pool + Single Writer);
+  (2) Khởi tạo `ClientSession` mỗi request trong `mulon/google_conn.py` (đề xuất giữ nguyên do legacy,
+  dồn nguồn lực tối ưu vào Built-in Connector Google Workspace theo T-17).
+  Không tự ý sửa code DB/Connectors, chờ chủ dự án phê duyệt.
+- **Hoàn tất Backlog Audit 26/10 (T-01 -> T-08):** Toàn bộ 8 nhiệm vụ ban đầu đã đạt trạng thái `DONE`.
+
 ## 1.6.6 — 2026-10-26 — Vá DNS rebinding TOCTOU (T-06) & Dọn code thừa (T-07)
 
 - **Bảo mật mạng (SSRF - T-06):** Vá lỗ hổng TOCTOU DNS rebinding trong

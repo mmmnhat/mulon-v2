@@ -68,13 +68,14 @@ Mini App đang fallback ảnh tĩnh.
 - 2 file nháp `threads_scanner.py`, `threads_auth_server.py` trong `workspace/`: giữ nguyên cục bộ trong workspace đã gitignore, không commit.
 - Commit SHA: Xem đợt commit 1.6.6. 457/457 tests passed.
 
-### [T-08] Đề xuất hiệu năng (chỉ khảo sát) — Giao: Antigravity — `TODO`
+### [T-08] Đề xuất hiệu năng (chỉ khảo sát) — Giao: Antigravity — `DONE`
 Hai điểm nghẽn từ audit 26/10: (a) toàn bộ DB qua 1 connection
 aiosqlite trong `memory.py`; (b) `google_conn.py` tạo
-`ClientSession` mới mỗi request — lưu ý file này là legacy, xác
-nhận còn ai dùng trước khi tính. Viết đề xuất vào `docs/`
-(phương án + rủi ro + cách test). KHÔNG tự triển khai, chờ chủ
-dự án duyệt.
+`ClientSession` mới mỗi request.
+- Kết quả: Đã hoàn thành tài liệu khảo sát chi tiết tại `docs/de-xuat-hieu-nang-2026-10-26.md`.
+  - Với điểm nghẽn SQLite: Đề xuất phương án Reader Pool (3-5 read-only connections) + Single Writer Connection bảo vệ bởi `asyncio.Lock` để khai thác tối đa SQLite WAL mà không gây xung đột lock.
+  - Với điểm nghẽn Google `ClientSession`: Khảo sát xác nhận `google_conn.py` là legacy (chỉ dùng khi `GOOGLE_LEGACY_CONNECTORS=1` và luồng OAuth tần suất thấp). Đề xuất giữ nguyên và hợp nhất tối ưu connection pool vào Built-in Connector Google Workspace theo nhiệm vụ mới T-17.
+- Cam kết: KHÔNG tự ý sửa code DB/Connectors, chờ chủ dự án phê duyệt phương án.
 
 ---
 
