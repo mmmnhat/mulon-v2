@@ -29,6 +29,9 @@ nhắn Instagram, tin nhắn Threads, chia 3 mục con ƯU TIÊN
 Cập nhật 2026-10-27 ~01:30 bởi Muse (autowatch): T-21
 và T-15 đều `VERIFIED` (chi tiết trong từng mục);
 T-10.1 `DOING` phía Mac.
+Cập nhật 2026-10-27 ~01:50 bởi Antigravity: T-10.1 đã
+`DONE` (commit `25772ee`), 484/484 unit tests PASS,
+eval vàng 31/36, chờ Muse nghiệm thu.
 Bổ sung 2026-10-27 ~00:47 bởi Muse: thêm T-23 từ QA Mini
 App đợt 1 (Muse mở app bằng WebView của chủ dự án, chỉ
 đọc, 5 tab + 16 màn con, 00:10–00:46) — chia 6 mục con
@@ -132,7 +135,7 @@ Checklist: F3 + F2 (đều MỘT PHẦN, F3 ghi rõ "chấm lại theo T-10").
   đổi trạng thái, chạy 1 việc thiếu bí mật -> thẻ Vault tới,
   nhập xong việc chạy tiếp. Muse chấm lại bằng test trực
   tiếp qua Telegram.
-- **Kết quả thực hiện (Antigravity 27/10/2026, version 1.7.3):**
+- **Kết quả thực hiện (Antigravity 27/10/2026, version 1.7.3, commit `25772ee`):**
   1. *Đồng bộ phê duyệt 2 chiều:* Đồng bộ trực tiếp giữa Telegram Chat và Mini App qua `ApprovalBroker`. Khi duyệt/chặn/hết hạn: thẻ chat được cập nhật trạng thái rõ ràng tại chỗ (`format_decided_approval_card`: `✅ ĐÃ DUYỆT`, `❌ ĐÃ CHẶN`, `⌛ HẾT HẠN PHÊ DUYỆT`), gỡ bàn phím inline (`reply_markup=None`) để vô hiệu hoá nút bấm thay vì chỉ xoá mất tin nhắn; Mini App nhận kết quả tức thì chuyển thẻ từ "Đang chờ duyệt" sang "Lịch sử duyệt". Cấu hình `approval_card_action` trong `Config` (mặc định `update`, hỗ trợ `delete` kế thừa), env `APPROVAL_CARD_ACTION` trong `.env.example`.
   2. *Tính Idempotent:* `ApprovalBroker.resolve()` chỉ giải quyết `Future` một lần duy nhất; lần resolve thứ 2 từ bất kỳ bề mặt nào đều trả về `False` an toàn ("Thẻ này đã được xử lý hoặc đã hết hạn."), không chạy hành động hai lần.
   3. *Hết hạn hiển thị rõ ở 2 nơi:* Khi timeout, `ApprovalBroker.wait()` ghi nhận `outcome="expired"`, phát sự kiện cập nhật thẻ chat sang `⌛ HẾT HẠN PHÊ DUYỆT` (gỡ nút) và hiển thị `outcome: expired` trong lịch sử Mini App.
