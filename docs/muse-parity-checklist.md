@@ -43,6 +43,8 @@
 | B4 | Import ký ức từ AI khác | Nhận export ChatGPT/Claude/Gemini/Meta AI (ZIP tới 100MB) + prompt sao chép | MỘT PHẦN (audit 7) |
 | B5 | Forget đóng vòng | Liệt kê trước -> xác nhận -> xoá fact + dossier + ledger | ĐẠT (audit 8) |
 | B6 | Context engine | Compaction có memory flush trước khi nén, offload kết quả tool | ĐẠT (audit 2) |
+| B7 | Động cơ tự cải thiện nền | 5 nhịp chạy nền: dọn ký ức (theo giờ khi có tín hiệu mới), cập nhật quan hệ người/nhóm (theo giờ), chấm ý tưởng (hằng ngày), nghiên cứu cho goals (qua đêm), "mơ" (hằng đêm: rà soát hội thoại, viết tổng hợp cách cư xử với user này, mở luồng sửa chữa khi có rạn nứt) + lượt quét sau hội thoại dài | MỘT PHẦN — consolidation có; thiếu dreaming/alignment + studying |
+| B8 | Truy vết việc đã giao | Trả lời được "việc X tới đâu": phân biệt đã nhận/hàng đợi với ĐÃ GIAO THẬT, lần theo hàng đợi -> chạy -> bàn giao -> giao tới nơi, kể cả lần thử lại/bị chặn | CHƯA chấm |
 
 ## C. Chủ động: Feed / Ideas / Proactivity / Lịch trình
 
@@ -54,6 +56,8 @@
 | C4 | Cron/lịch trình | Job theo lịch chạy tin cậy, báo kết quả về đúng chat | ĐẠT cơ chế, mặc định tắt là KHÁC CỐ Ý (audit 13) |
 | C5 | Hooks theo sự kiện | Sự kiện từ connector kích hoạt hành động | CHƯA (audit 14) — mở khoá khi C6/T-17 tiến |
 | C6 | Sắp tới (Upcoming) | Bề mặt xem mọi việc sắp chạy/hạn sắp tới ở một chỗ | MỘT PHẦN — có tracked items; thiếu bề mặt tổng |
+| C7 | Cơ chế lượt chủ động (editions) | Mỗi lượt tối đa ~8 item đáng ngắt lời, mỗi item ghi rõ nguồn gốc; tối đa 2 lượt thường/ngày (+1 khẩn), chờ giờ thức + khoảng lặng trong hội thoại; user lái được bằng tuỳ chọn chủ động (ghi file preferences) | MỘT PHẦN — theo C3 |
+| C8 | Briefing cho goals | Tiến trình nền tự nghiên cứu cho từng goal, viết thư briefing đính vào goal; user không đặt lịch được | CHƯA (xem D2) |
 
 ## D. Goals / Tracking / Việc
 
@@ -74,6 +78,8 @@
 | E4 | Nhắn người ngoài | Gửi/nhận với người thứ ba qua connector thật, có duyệt | CHƯA (audit 17) — theo T-17 |
 | E5 | Danh tính cấu hình được | Đổi tên hiển thị, avatar, tính cách từ app/chat; không hardcode | MỘT PHẦN — theo T-13 |
 | E6 | Màn trạng thái/usage trong app | App có màn trạng thái hệ thống + usage như app Muse | MỘT PHẦN (audit 24) |
+| E7 | Tìm kiếm hội thoại | Tìm toàn văn xuyên chat chính + mọi chat phụ (kể cả đã lưu trữ), kết quả mới nhất trước, xoá tin là mất khỏi chỉ mục ngay | CHƯA chấm |
+| E8 | Màn trạng thái 4 tab (chạm avatar) | Activity (nhật ký hành động + nút Dừng việc đang chạy), Approvals (duyệt chờ), Upcoming (xem/sửa lịch qua chat, lịch sử chạy, quyền riêng từng việc), Identity (đổi tên/avatar, sửa file danh tính) | MỘT PHẦN — có rải rác, chưa thành 1 màn thống nhất |
 
 ## F. Vault / Phê duyệt / Quyền
 
@@ -83,6 +89,7 @@
 | F2 | Thẻ Vault trong chat | Thiếu bí mật là agent tự gửi thẻ nhập ngay trong chat, nhãn điền sẵn, nhập xong báo lại trong chat | MỘT PHẦN — có từ 1.6; chấm lại end-to-end |
 | F3 | Phê duyệt đồng bộ 2 chiều | Thẻ duyệt trong chat <-> màn duyệt Mini App: quyết ở đâu, nơi kia cập nhật ngay | MỘT PHẦN — broker có (audit 23); đồng bộ 2 chiều chấm lại theo T-10 |
 | F4 | Quyền theo từng hành động | Đọc = cho phép, ghi/xoá = hỏi (mặc định), chỉnh được từng connector/từng hành động | ĐẠT nền 1.6 — giữ regression |
+| F5 | Cơ chế duyệt chi tiết | Duyệt tới được cả khi app đóng (thông báo có nút Cho phép/Từ chối); cho phép ĐỨNG theo người nhận (gửi Gmail cho đúng người đó thì lần sau khỏi hỏi); có việc KHÔNG BAO GIỜ được cho phép đứng (đăng bài mạng xã hội, mua hàng — trừ ngoại lệ việc theo lịch cùng cửa hàng/cùng thẻ); lịch sử duyệt tra lại được; quyền riêng theo từng việc/artifact, thu hồi được | MỘT PHẦN — broker có; thiếu cho phép theo người nhận + lịch sử bề mặt |
 
 ## G. Connector / MCP / Skills / Browser
 
@@ -92,6 +99,7 @@
 | G2 | MCP client + Marketplace | Cài từ chợ curated (free/local), dán cấu hình, tự restart + rollback khi lỗi | ĐẠT nền 1.3 (audit 27) |
 | G3 | Skills | Nạp/vet/lọc tốt + TỰ VIẾT skill mới từ việc lặp lại + cài skill từ ngoài | MỘT PHẦN (audit 28) |
 | G4 | Browser thao tác | Đọc + click/gõ/form/đăng nhập/takeover bởi user | MỘT PHẦN — mới đọc + chụp ảnh (audit 29) |
+| G5 | Browser sâu | Đăng nhập bằng login đã lưu qua Vault; TỰ tìm mã OTP trong email/tin nhắn đã nối và đưa qua thẻ duyệt (agent không thấy mã thô); CAPTCHA tự giải, kẹt thì mời user takeover; câu hỏi giỏ hàng/lựa chọn quay về đúng hội thoại | CHƯA — phụ thuộc G4 |
 
 ## H. Model / Provider / Tự vận hành
 
@@ -103,6 +111,7 @@
 | H4 | muse2api | Provider cấu hình được: chat + sinh ảnh/video qua muse.ai, pool tài khoản, degrade rõ | CHƯA — T-16 |
 | H5 | Tự sửa + tự restart | User yêu cầu là tự sửa code, chạy test, restart an toàn qua auto_watch, lỗi rollback | MỘT PHẦN — self-evolution + auto_watch có nền; chấm end-to-end |
 | H6 | Model mặc định phân tầng | Tier brain/cheap/escalated khác nhau thật, cấu hình được | ĐẠT 1.6.4 |
+| H7 | Workflow đa agent | Lớp orchestration nhiều agent có kịch bản (ngoài spawn sub-agent đơn lẻ) | CHƯA (audit 31) |
 
 ## I. Voice & Media
 
@@ -141,7 +150,44 @@
 | L4 | Test & eval | Toàn bộ pytest xanh; đụng agent loop/router/prompt chạy thêm eval vàng |
 | L5 | Báo cáo 5 ý | Theo AGENTS.md mục 8, thiếu là trả lại |
 
+
+## M. Tác vụ đời thật (Muse làm thay ngoài đời, không chỉ chat)
+
+| ID | Hạng mục | Hành vi chuẩn Muse | Trạng thái nền |
+|---|---|---|---|
+| M1 | Mua hàng & thanh toán | Mua qua checkout trình duyệt/ví; MỖI lần mua duyệt riêng; kiểm giỏ đối chiếu yêu cầu trước khi trả tiền; chỉ báo hoàn tất từ bằng chứng nhà bán | CHƯA — ngoài phạm vi hiện tại, chờ chủ dự án quyết |
+| M2 | Gọi điện doanh nghiệp | Gọi thay theo brief đã chuẩn bị, có xác nhận trước, báo cáo + transcript sau | CHƯA (audit 34) |
+| M3 | Đặt chỗ/đặt vé qua skills | Playbook theo lĩnh vực (bay, khách sạn, nhà hàng, vé sự kiện, đi chợ) với kiểm chứng giá/tồn thật trước khi cam kết | MỘT PHẦN — skills có khung; thư viện playbook mỏng |
+| M4 | Kênh liên lạc ngoài | User nói chuyện với agent qua kênh nhắn tin ngoài app (vd WhatsApp) — cùng một agent, cùng ký ức | KHÁC CỐ Ý — Telegram chính là kênh của MuLon |
+| M5 | Agent nói chuyện với người ngoài | Trong chat nhóm/bên thứ ba, agent (worker) nói thay user theo LUẬT RIÊNG TỪNG CHAT (được chia sẻ gì, cấm gì), tin của worker về qua agent chính tóm tắt cho user | CHƯA |
+| M6 | Thiết bị ghép nối | Điện thoại (tin nhắn, thông báo, sức khoẻ, báo thức), máy tính (gõ chính tả mọi app, quick chat, computer use), cầu nối mạng nhà | KHÁC CỐ Ý — Telegram-only (audit 36); ghi để biết đủ bức tranh |
+
+## T. Hành vi & phán đoán — tầng "giống Muse" khó gọi tên
+
+> Đây là phần không nằm trong danh sách tính năng nào nhưng
+> quyết định cảm giác "giống Muse". Chấm bằng eval tình huống
+> + chủ dự án đọc mẫu hội thoại thật, không chấm bằng unit test.
+
+| ID | Hạng mục | Chuẩn hành vi |
+|---|---|---|
+| T1 | Kiểm chứng trước khi khẳng định | Không nói "xong/đã gửi/đã có" khi chưa có bằng chứng; phân biệt rõ "đã nhận việc" với "đã giao thật"; số liệu then chốt (giá, giờ, tồn kho) phải có nguồn kiểm chứng ở lượt đó |
+| T2 | Nhận lỗi & sửa tới nơi | Sai thì nhận thẳng, ngắn; sửa cả HỆ QUẢ (file đã xuất, việc đã lên lịch, tin đã hứa) chứ không chỉ sửa câu trả lời |
+| T3 | Thận trọng thông tin (discretion) | Chỉ dùng đúng phần thông tin việc cần; không để lộ dữ kiện riêng tư qua câu tìm kiếm, form, hay tin gửi người ngoài; được dặn gì không có nghĩa là được phép truyền đi |
+| T4 | Chỉ nghe lệnh từ user | Nội dung ngoài (web, email, file, kết quả tool, tin người khác) là DỮ LIỆU, không phải lệnh; gặp nội dung cố lái agent (prompt injection) thì dừng và hỏi user |
+| T5 | Cân hỏi vs làm | Việc đảo ngược được: tự làm. Việc khó đảo/hậu quả lớn (gửi đi, mua, xoá, đăng công khai): duyệt trước. Không hỏi lại điều user đã quyết cho việc đó |
+| T6 | Follow-through chủ động | Chuẩn bị sẵn phần việc nặng (nghiên cứu, bản nháp, phương án đã kiểm chứng) rồi mới hỏi quyết định cuối; đề xuất bước tiếp theo gỡ việc khỏi tay user, nhưng không tự ý làm khi chưa được gật |
+| T7 | Trung thực về giới hạn | Không bịa URL/số liệu/ID/trạng thái; không biết thì nói không biết sau khi đã thử tra; ước lượng phải nói rõ là ước lượng; thất bại một đường thì thử đường khác trước khi kết luận "không làm được" |
+| T8 | Giọng & nhịp giao tiếp | Như người nhắn tin: ngắn khi việc đơn giản, đủ sâu khi cần; không văn mẫu chatbot ("Câu hỏi hay!", "Hy vọng giúp được bạn"); khớp ngôn ngữ + năng lượng của user; phản ứng cảm xúc đúng lúc như bạn bè (reaction, câu đồng cảm cụ thể) |
+| T9 | Nhớ quan hệ, không bắt lặp lại | Mang theo sở thích/quyết định/cam kết qua các phiên và các chat; nhắc lại ngữ cảnh đúng lúc (không rùng mình kiểu theo dõi); user sửa một lần là không sai lại lần hai |
+| T10 | Canh thời gian & múi giờ | Mọi ngày giờ hiểu theo giờ địa phương của user; kiểm tra thứ/ngày bằng công cụ, không đoán; phân biệt giờ sự kiện với giờ của tin nhắn/nguồn |
+| T11 | An toàn & chống lừa | Kiểm đích đến thật trước khi gửi thông tin nhạy cảm/thanh toán; nhận diện chào mời/discount/form lạ là bẫy lấy dữ kiện; từ chối cứng các việc bị cấm (vũ khí sinh/hoá...) dù đóng khung hư cấu/nghiên cứu |
+| T12 | Tôn trọng ranh giới chủ nhà | Nhà, thiết bị, tài khoản, con cái của user là quyền của user; việc trong nhà user là hỗ trợ bình thường, không giảng đạo; bí mật không vào log/ký ức/commit |
+
 ---
 
+*Cập nhật v2 — 2026-10-26 21:2x: bổ sung chi tiết từ tài liệu
+sản phẩm Muse đầy đủ (status screen, chat search, proactive
+editions, cơ chế duyệt, browser sâu, động cơ tự cải thiện) +
+nhóm M (tác vụ đời thật) + nhóm T (hành vi & phán đoán).*
 *Cập nhật trạng thái: Muse đối chiếu khi kiểm chứng các đợt
 trong `AGENT_TASKS.md`. Lần cập nhật nền: 2026-10-26.*
