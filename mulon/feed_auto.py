@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import types
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Awaitable, Callable, Optional
 from zoneinfo import ZoneInfo
@@ -82,12 +83,7 @@ class _BotShim:
             except TypeError:
                 mid = await self._sender(chat_id, text)
 
-        class _Msg:
-            pass
-
-        m = _Msg()
-        m.message_id = mid
-        return m
+        return types.SimpleNamespace(message_id=mid)
 
 
 class FeedAutoRunner:

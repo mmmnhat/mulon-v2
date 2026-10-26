@@ -27,7 +27,7 @@ import re
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Awaitable, Callable, Optional
+from typing import Callable, Optional
 
 logger = logging.getLogger("mulon.voice")
 

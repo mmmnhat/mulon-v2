@@ -24,7 +24,7 @@ import logging
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Awaitable, Callable, Optional
+from typing import Callable, Optional
 
 from .memory import fold_vi
 from .websearch import domain_of, fetch_page_text, is_shortener, \

@@ -12,9 +12,6 @@ công khai có version). Nguồn sự thật là:
   sống trong MarketplaceService, provider chỉ đọc snapshot hợp
   lệ đã được ghi vào ``marketplace_catalog.json``).
 - ``ManualImportProvider``: owner dán cấu hình; không có catalog.
-- ``McpMarketplaceCatalogProvider``: lớp dự phòng cho tương lai —
-  mặc định TẮT và báo ``unavailable_unverified``; marketplace
-  không được phụ thuộc nó ở 1.3.
 
 Provider chỉ cung cấp DỮ KIỆN niêm yết. Cài đặt luôn đi qua
 MarketplaceService (chuẩn hoá -> phân tích rủi ro -> probe ->
@@ -277,21 +274,3 @@ class ManualImportProvider:
     provider_id = MANUAL_PROVIDER_ID
     display_name = "Nhập thủ công"
 
-
-class McpMarketplaceCatalogProvider:
-    """Dự phòng tương lai (spec 4.2 cổng A). Mặc định TẮT:
-    mcp-marketplace.io chưa có API client công khai có version
-    nên provider này chỉ báo trạng thái, không trả dữ kiện."""
-
-    provider_id = "mcp-marketplace"
-    display_name = "mcp-marketplace.io"
-
-    def __init__(self, enabled: bool = False):
-        self.enabled = enabled
-
-    def status(self) -> dict:
-        return {"provider_id": self.provider_id,
-                "status": "unavailable_unverified",
-                "detail": "chưa có API client công khai đã kiểm "
-                          "chứng; marketplace không phụ thuộc "
-                          "nguồn này ở bản 1.3"}

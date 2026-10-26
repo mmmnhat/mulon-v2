@@ -17,7 +17,7 @@ import asyncio
 import logging
 import uuid
 from dataclasses import replace
-from typing import Callable, Optional
+from typing import Callable
 
 from .agent import Agent
 from .gateway import Completion
