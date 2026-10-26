@@ -43,6 +43,12 @@ Cập nhật 2026-10-27 ~02:00 bởi Muse (autowatch): T-10.1
 `VERIFIED` (full suite 484/484 + eval 31/36 + test sống VM
 15/15; vòng test sống trên bot thật theo nghiệm thu vẫn chờ
 phía Mac — xem mục T-10.1). Head lúc chốt verdict: `14ccae9`.
+Cập nhật 2026-10-27 ~02:40 bởi Muse (autowatch): T-10.2
+`VERIFIED` (full suite 490/490 + eval 31/36 + test sống VM
+12/12; vòng test sống trên bot thật vẫn chờ phía Mac —
+xem mục T-10.2) + thêm T-25 (nhãn giờ Feed trong Sắp tới
+sai + hardcode, ƯU TIÊN 23). Head lúc chốt verdict: `ed0c810`.
+T-10.3 đang `DOING` phía Mac.
 Bổ sung 2026-10-27 ~00:47 bởi Muse: thêm T-23 từ QA Mini
 App đợt 1 (Muse mở app bằng WebView của chủ dự án, chỉ
 đọc, 5 tab + 16 màn con, 00:10–00:46) — chia 6 mục con
@@ -164,7 +170,7 @@ Checklist: F3 + F2 (đều MỘT PHẦN, F3 ghi rõ "chấm lại theo T-10").
   - *Thẻ Vault trong chat: ĐẠT end-to-end.* Yêu cầu lưu bí mật `user:t101_test` -> thẻ `🔐 Yêu cầu bí mật vào Kho` hiện trong DM (chỉ nhãn + mục đích, nút mở đúng form app `startapp=vault_user__t101_test`, nhãn điền sẵn khoá sẵn); điền giá trị thử qua form Mini App -> app báo "Đã lưu vào kho. Mã tham chiếu: vault:0fd248e2-7b1d-4c3e-b9a0-3d5ff97ae658"; màn Kho trong app có `user:t101_test` đứng đầu (tổng 17 -> 18, ref khớp); bot xác nhận lại trong DM kèm đúng ref đó, giá trị không xuất hiện ở bất kỳ đâu. Giá trị thử là chuỗi giả, ní có thể xoá `user:t101_test` trong Kho bất cứ lúc nào.
   - *Thẻ phê duyệt: CHƯA kích hoạt được trên bot thật (không phải lỗi cơ chế).* Ba lần thử hành động đáng lẽ phải qua duyệt đều chạy thẳng không thẻ: xoá file bằng `run_command` (`rm`), gửi Gmail, dùng bí mật trong kho. Tab Phê duyệt trong app không còn nút gửi thẻ thử (chỉ còn 2 bản ghi lịch sử 24/10). Nguyên nhân: policy trên máy thật đang để "Cho phép" cho 106/106 mục ở màn Quyền nên broker không có dịp chặn. Muốn nghiệm thu sống chiều duyệt phải có ít nhất một lớp hành động để "Hỏi" — phụ thuộc T-23.6 (siết quyền mặc định). Giữ nguyên `VERIFIED` cho cơ chế (đã kiểm ở VM + Vault sống); riêng chiều phê duyệt ghi nhận TREO vì lý do trên, không coi là đã nghiệm thu ngoài đời.
 
-### [T-10.2] Tab Hành động + Sắp tới — Giao: Antigravity — `DONE` (ƯU TIÊN 4)
+### [T-10.2] Tab Hành động + Sắp tới — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 4)
 Checklist: D4 + C6 (MỘT PHẦN) + phần Activity/Upcoming của E8.
 - Tab Hành động: mọi việc đang chạy (kể cả sub-agent từ T-09)
   hiện bước hiện tại + trạng thái thật; có nút Dừng việc đang
@@ -181,6 +187,13 @@ Checklist: D4 + C6 (MỘT PHẦN) + phần Activity/Upcoming của E8.
   2. *Nút Dừng việc thực chất (True cancellation):* Thêm nút "Dừng" ở từng dòng tác vụ đang chạy trong tab Hành động và nút "Dừng tác vụ này" trong màn chi tiết tác vụ. Endpoint `POST /api/task/stop` huỷ trực tiếp `asyncio.Task` (`activity.stop_task`) và cập nhật DB trạng thái `cancelled` (`memory.cancel_task`). `Agent._task_path` và `SubagentRunner` bắt chuẩn `asyncio.CancelledError`, dọn dẹp task an toàn; hỗ trợ huỷ nhanh qua chat Telegram với `/stop <task_id>` hoặc `/cancel <task_id>`.
   3. *Danh sách Sắp tới từ dữ liệu thật 100%:* Endpoint `GET /api/upcoming` và `/api/state` tổng hợp dữ liệu thật từ SQLite & Config: lịch định kỳ (`schedules`), Heartbeat định kỳ (`heartbeat`), lịch điểm tin Feed (`feed_auto`), cam kết mở (`tracked_items`). Phân loại rõ ràng mục "Sửa/huỷ qua chat: /schedules hoặc /commitments" vs "Chỉ xem (hệ thống)", không có dữ liệu mock/dummy; lệnh chat `/upcoming` (alias `/saptol`, `/lich`) hiển thị nhanh trong Telegram.
   4. *Kiểm chứng:* 490/490 unit tests PASS (thêm 6 test toàn diện trong `tests/test_v17_activity_upcoming.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
+- **Kiểm chứng độc lập (Muse autowatch 27/10/2026, lượt soi commit `688a0d4` + `11b4cb9` + `ed0c810` trên nền head `ed0c810`):**
+  - Full suite trên đúng nội dung remote: **490 passed / 0 failed** (khớp con số Antigravity báo; 484 cũ + 6 test mới, chỉ có cảnh báo aiosqlite event-loop-closed ở teardown, không phải fail). Eval stub **31/36 = 86% qua cổng** (đúng 5 case trượt cũ marketplace/self-read, không đổi); version trong code đúng **1.7.4**.
+  - Test sống phía VM (hàm thật, dữ liệu thật, script `~/workspace/mulon-clone/live_t102.py`, server thật qua HTTP thật): **12/12** — đăng ký 1 việc dài + 1 sub-agent (cả hai đều có row DB như luồng thật) -> `/api/state` thấy đủ, bước hiện tại đúng; `/api/upcoming` tổng hợp từ schedule + tracked_item thật trong DB + heartbeat; `POST /api/task/stop` trả `stopped_live: true`, asyncio task bị huỷ thật, DB sang `cancelled`, việc còn lại vẫn chạy (dừng có chọn lọc, không giết cả lô); dừng sub-agent qua API cũng huỷ thật.
+  - Đối chiếu code: `ActivityTracker.stop_task` huỷ `asyncio.Task` thật (không chỉ đổi nhãn); `SubagentRunner._run_inner` tạo row DB + đăng ký activity với `kind="subagent"`; `Agent._task_path` + `SubagentRunner` bắt `asyncio.CancelledError`; `/api/task/stop` + `/stop` + `/cancel` đều đi qua cùng đường huỷ; `_upcoming_state` lấy 100% từ schedules/heartbeat/feed_auto/tracked_items, phân loại rõ sửa/huỷ qua chat vs chỉ xem; tab Hành động + màn chi tiết trong Mini App có nút Dừng gọi đúng endpoint; không hardcode mới, không nới chốt bảo mật.
+  - Checklist parity liên quan: D4 (tab Hành động: việc đang chạy + bước + sub-agent + nút Dừng thật) — ĐẠT ở tầng code + server thật; C6 (Sắp tới) — ĐẠT, trừ 1 khuyết điểm nhãn đã tách thành T-25; E8 — ĐẠT MỘT PHẦN (Activity + Upcoming của màn trạng thái 4 tab; Approvals đã xong ở T-10.1, Identity thuộc T-13).
+  - Chưa tự kiểm được từ VM (ghi rõ, không phải lỗi): vòng test sống trên bot thật theo đúng nghiệm thu T-10.2 (tạo việc dài + sub-agent trên bot thật -> thấy đủ trong tab Hành động, bấm Dừng trên app -> việc dừng thật; Sắp tới khớp job/lịch trên máy thật) — phần này thuộc máy Mac/bot thật, cần Antigravity hoặc chủ dự án chạy một lượt trước khi coi T-10.2 là hoàn tất ngoài đời.
+  - Theo LUẬT HÀNG ĐỢI, mục tiếp theo sau T-10.3 (đang `DOING`) vẫn là T-10.4 (ƯU TIÊN 6); T-25 xếp cuối hàng đợi (ƯU TIÊN 23).
 
 ### [T-10.3] Feed + Ideas chủ động — Giao: Antigravity — `DOING` (ƯU TIÊN 5)
 Checklist: C1 + C2 + C3/C7 (MỘT PHẦN) + R11.
@@ -809,6 +822,10 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 ### [T-24.6] Yêu cầu dùng bí mật có sẵn phải đi thẳng đường kho -> API — Giao: Antigravity — `TODO` (ƯU TIÊN 22)
 - Bằng chứng (27/10 02:18–02:22): yêu cầu "dùng API key Accesstrade đang lưu trong kho kiểm tra số dư" — bot không dùng giá trị trong kho để gọi API, mà grep/find khắp repo, chạy curl, đọc đi đọc lại cùng một trang tài liệu developer (3–4 lần) nhiều phút không ra kết quả; lượt gửi email sau đó cũng bị kéo lệch theo (kết quả gửi không xác minh được vì lượt bị chiếm).
 - Phân biệt với T-24.2: đây là lỗi chọn đường ngay trong lượt đầu, không cần có việc cũ. Nghiệm thu: yêu cầu tương tự kết thúc trong một lượt — hoặc hoàn tất bằng bí mật trong kho, hoặc báo rõ thiếu gì; không lặp đọc cùng một trang.
+
+### [T-25] Nhãn giờ Feed trong Sắp tới sai + hardcode — Giao: Antigravity — `TODO` (ƯU TIÊN 23)
+- Phát hiện khi Muse nghiệm thu T-10.2 (27/10/2026, đọc code `mulon/webapp_server.py` `_upcoming_state`): mục Feed chủ động trong `/api/upcoming` ghi cứng `time_label = "Hằng ngày (08:00 & 17:00)"`, trong khi cron mặc định thật là `feed_auto_cron = "0 8,20 * * *"` (`mulon/config.py`, `mulon/feed_auto.py` DEFAULT_CRON) tức 08:00 & **20:00** — nhãn lệch 3 tiếng so với lịch thật, và hardcode thay vì suy từ cron đang chạy (vi phạm luật AGENTS.md mục 4: giá trị đổi theo cấu hình thì không nằm trong code).
+- Nghiệm thu: `time_label` của mục feed_auto suy từ cron thật của `feed_auto.get_state()` (mặc định ra 08:00 & 20:00); đổi `FEED_AUTO_CRON` thì nhãn đổi theo; không còn chuỗi giờ hardcode trong `_upcoming_state`.
 
 ## Đã đóng (VERIFIED)
 
