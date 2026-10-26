@@ -255,7 +255,7 @@ async def generate_image(cfg, prompt: str, model: str = "muse-image",
     proxy_base = getattr(cfg, "proxy_base_url", "") or os.environ.get("PROXY_BASE_URL", "")
     proxy_key = getattr(cfg, "proxy_api_key", "") or os.environ.get("PROXY_API_KEY", "")
 
-    # Tìm API key trong Vault
+    # Tìm API key: Vault -> Env -> Proxy key (nếu khác placeholder local-proxy)
     api_key = ""
     if vault_store is not None:
         try:
@@ -278,13 +278,17 @@ async def generate_image(cfg, prompt: str, model: str = "muse-image",
 
     if not api_key:
         api_key = os.environ.get("AGNES_AI_API_KEY", "") or os.environ.get("OPENAI_API_KEY", "")
-        if not api_key and proxy_key and proxy_key != "local-proxy":
-            api_key = proxy_key
+        if not api_key:
+            env_proxy_key = os.environ.get("PROXY_API_KEY", "")
+            if env_proxy_key and env_proxy_key != "local-proxy":
+                api_key = env_proxy_key
+            elif proxy_key and proxy_key != "local-proxy":
+                api_key = proxy_key
 
     if not api_key:
         return {
             "ok": False,
-            "error": "Chưa có API key để sinh ảnh. Hãy gọi tool request_vault_secret(label='agnes_ai:api_key') để yêu cầu chủ nhân lưu key vào Kho an toàn (Vault).",
+            "error": "Chưa có API key để sinh ảnh. Hãy kiểm tra PROXY_API_KEY hoặc gọi tool request_vault_secret(label='agnes_ai:api_key') để lưu key vào Kho an toàn (Vault).",
         }
 
     if proxy_base:
