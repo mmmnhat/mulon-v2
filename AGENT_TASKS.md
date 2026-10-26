@@ -377,6 +377,15 @@ agy thành công) — đang sửa đúng chỗ này.
   cho T-09 — việc watcher tự nhận T-09 còn phải chờ chu kỳ
   sau chứng minh, chưa phải bằng chứng sống. Hai lỗi phụ
   giữ nguyên T-19 (không chặn T-18).
+  Đính chính quy kết trên (Muse, chat chính 26/10 ~22:45):
+  commit e2a45d0 KHÔNG phải phía Mac tự ghi — đó chính là
+  lượt kiểm chứng của Muse trong đoạn chat này (tự chạy
+  457/457, đọc tay dev_watch.py/.sh) rồi đẩy lên; nó mang
+  identity git giống phía Mac nên lượt cron đọc nhầm.
+  Vậy T-18 có 2 lượt kiểm chứng của cùng phía reviewer
+  (chat 22:36 + cron 22:40), không phải 1, và không có vi
+  phạm "tự ghi VERIFIED" nào ở e2a45d0. Quy tắc AGENTS.md
+  mục 2 vẫn giữ nguyên cho phía làm (Antigravity).
   ĐÍNH CHÍNH 26/10 ~22:45: test sống tự nhận việc của
   T-18 ĐÃ THẤT BẠI — LaunchAgent exit 126, watermark chưa
   từng được ghi, watcher chưa tự chạy lượt nào (xem T-20).
