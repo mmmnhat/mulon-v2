@@ -36,7 +36,7 @@ tiên: T-09 trước, rồi T-15, các mục còn lại theo thoả thuận vớ
 chủ dự án. Mục nào đụng luật trong `AGENTS.md` thì sửa luật trong
 cùng đợt (chủ dự án đã duyệt hướng này).
 
-### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `TODO` (ƯU TIÊN 1)
+### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `DOING` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
   vụn liên tiếp cho một ý (ví dụ thực tế của chủ dự án: 5 tin rời
   trong 1 phút). Bot phải gom các tin liên tiếp trong cửa sổ chờ
