@@ -81,7 +81,7 @@ PROXY_CACHE_TTL_S = 5.0
 # ---------------------------------------------------------------------------
 
 def validate_init_data(init_data: str, bot_token: str,
-                       allowed_user_id: int,
+                       allowed_user_id: int | Collection[int],
                        max_age_s: int = INIT_DATA_MAX_AGE_S,
                        now: Optional[float] = None) -> Optional[dict]:
     """Kiểm initData của Telegram WebApp. Hợp lệ -> dict user;
@@ -116,9 +116,15 @@ def validate_init_data(init_data: str, bot_token: str,
         user = json.loads(data.get("user") or "{}")
     except Exception:
         return None
-    if not isinstance(user, dict) or int(user.get("id") or 0) \
-            != int(allowed_user_id):
+    if not isinstance(user, dict):
         return None
+    uid = int(user.get("id") or 0)
+    if isinstance(allowed_user_id, (list, tuple, set)):
+        if uid not in allowed_user_id:
+            return None
+    else:
+        if uid != int(allowed_user_id):
+            return None
     return user
 
 
@@ -600,9 +606,12 @@ class WebAppServer:
     async def _auth_middleware(self, request, handler):
         if request.path.startswith("/api/"):
             init_data = request.headers.get("X-Telegram-Init-Data", "")
+            allowed_ids = set(getattr(self.cfg, "allowed_user_ids", ()))
+            if self.cfg.allowed_user_id:
+                allowed_ids.add(self.cfg.allowed_user_id)
             user = validate_init_data(
                 init_data, self.cfg.telegram_bot_token,
-                self.cfg.allowed_user_id)
+                allowed_ids or self.cfg.allowed_user_id)
             if user is None:
                 return web.json_response(
                     {"ok": False, "error": "initData không hợp lệ "

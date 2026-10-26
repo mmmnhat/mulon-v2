@@ -46,6 +46,7 @@ from aiogram.types import (BotCommand, CallbackQuery, FSInputFile,
 
 from . import surfaces as surf
 from .agent import clean_task_title
+from .config import PROJECT_ROOT
 from .datafiles import load_json_data
 from .ideas import format_idea_card, parse_do_reply
 from .proactivity import effective_enabled as heartbeat_effective
@@ -602,9 +603,14 @@ class TelegramSurface:
         return False
 
     def _is_allowed(self, message: Message) -> bool:
-        if not self.cfg.allowed_user_id:
+        if not self.cfg.allowed_user_id and not getattr(self.cfg, "allowed_user_ids", ()):
             return False  # chưa cấu hình allowlist -> không phục vụ ai
-        return bool(message.from_user and message.from_user.id == self.cfg.allowed_user_id)
+        from_user = getattr(message, "from_user", None)
+        if not from_user:
+            return False
+        if hasattr(self.cfg, "is_user_allowed"):
+            return self.cfg.is_user_allowed(from_user.id)
+        return bool(from_user.id == self.cfg.allowed_user_id)
 
     async def _send_typing(self, message: Any) -> None:
         """Gửi ngay tín hiệu 'đang nhập...' tới Telegram khi vừa nhận tin."""
@@ -1703,9 +1709,129 @@ class TelegramSurface:
             )
             return True
 
+    async def _handle_setup_command(self, message: Message) -> None:
+        """Xử lý lệnh /setup và /claim ghép nối chủ sở hữu hoặc quản lý allowlist."""
+        from_user = getattr(message, "from_user", None)
+        if not from_user:
+            return
+        user_id = from_user.id
+        raw_text = (message.text or message.caption or "").strip()
+        parts = raw_text.split()
+        subcmd = parts[1].strip() if len(parts) > 1 else ""
+
+        # Case 1: Bot chưa có chủ sở hữu (allowed_user_id == 0)
+        if not self.cfg.allowed_user_id:
+            from mulon.allowlist import claim_ownership, get_or_create_claim_token
+            claim_file = getattr(self.cfg, "claim_token_path", PROJECT_ROOT / "data" / "claim_token.txt")
+            allow_file = getattr(self.cfg, "allowlist_path", PROJECT_ROOT / "data" / "allowlist.json")
+
+            if not subcmd:
+                tok = get_or_create_claim_token(claim_file)
+                await message.answer(
+                    "⚠️ <b>Bot này chưa có chủ sở hữu!</b>\n\n"
+                    "Để nhận quyền chủ nhân của bot, vui lòng kiểm tra mã xác thực (Claim Token) "
+                    "trong log máy chủ / terminal chạy bot, rồi gửi lệnh:\n"
+                    "<code>/setup &lt;mã_token&gt;</code>",
+                    parse_mode="HTML",
+                )
+                return
+
+            ok, msg = claim_ownership(claim_file, allow_file, subcmd, user_id)
+            if ok:
+                from dataclasses import replace
+                self.cfg = replace(
+                    self.cfg,
+                    allowed_user_id=user_id,
+                    allowed_user_ids=(user_id, *[u for u in getattr(self.cfg, "allowed_user_ids", ()) if u != user_id]),
+                )
+                await message.answer(
+                    f"🎉 <b>Ghép nối thành công!</b>\n\n"
+                    f"Tài khoản Telegram của bạn (<code>{user_id}</code>) đã trở thành <b>Chủ sở hữu (Owner)</b> của MuLon.\n\n"
+                    f"Từ bây giờ bot sẽ phục vụ bạn. Hãy gõ /menu hoặc gửi tin nhắn để bắt đầu!",
+                    parse_mode="HTML",
+                )
+            else:
+                await message.answer(
+                    f"❌ <b>Xác thực thất bại:</b> {msg}.\n"
+                    f"Vui lòng kiểm tra lại claim token trong log máy chủ.",
+                    parse_mode="HTML",
+                )
+            return
+
+        # Case 2: Bot đã có chủ sở hữu -> chỉ chủ sở hữu hoặc allowlist mới được xem/quản lý
+        if not self._is_allowed(message):
+            return  # Chặn người lạ theo Rule 4
+
+        # Chỉ owner mới có quyền quản trị thêm/bớt allowlist
+        is_owner = (user_id == self.cfg.allowed_user_id)
+        from mulon.allowlist import add_allowed_user, remove_allowed_user, load_allowlist
+        allow_file = getattr(self.cfg, "allowlist_path", PROJECT_ROOT / "data" / "allowlist.json")
+
+        if subcmd.lower() in ("add", "them"):
+            if not is_owner:
+                await message.answer("⛔ Chỉ chủ sở hữu (Owner) mới có quyền thêm người dùng.")
+                return
+            if len(parts) < 3 or not parts[2].isdigit():
+                await message.answer("Cú pháp: <code>/setup add &lt;user_id&gt;</code>", parse_mode="HTML")
+                return
+            target_id = int(parts[2])
+            ok, msg = add_allowed_user(allow_file, target_id)
+            if ok:
+                _, users = load_allowlist(allow_file)
+                from dataclasses import replace
+                self.cfg = replace(self.cfg, allowed_user_ids=tuple(users))
+                await message.answer(f"✅ Đã thêm người dùng <code>{target_id}</code> vào danh sách cho phép.", parse_mode="HTML")
+            else:
+                await message.answer(f"❌ Không thể thêm: {msg}")
+            return
+
+        if subcmd.lower() in ("remove", "xoa", "del"):
+            if not is_owner:
+                await message.answer("⛔ Chỉ chủ sở hữu (Owner) mới có quyền xóa người dùng.")
+                return
+            if len(parts) < 3 or not parts[2].isdigit():
+                await message.answer("Cú pháp: <code>/setup remove &lt;user_id&gt;</code>", parse_mode="HTML")
+                return
+            target_id = int(parts[2])
+            ok, msg = remove_allowed_user(allow_file, target_id)
+            if ok:
+                _, users = load_allowlist(allow_file)
+                from dataclasses import replace
+                self.cfg = replace(self.cfg, allowed_user_ids=tuple(users))
+                await message.answer(f"✅ Đã xóa người dùng <code>{target_id}</code> khỏi danh sách.", parse_mode="HTML")
+            else:
+                await message.answer(f"❌ Không thể xóa: {msg}")
+            return
+
+        # Xem trạng thái cấu hình
+        import platform
+        owner_id, users = load_allowlist(allow_file)
+        if not users and self.cfg.allowed_user_id:
+            users = [self.cfg.allowed_user_id]
+        user_list_str = ", ".join(f"<code>{u}</code>" for u in users) if users else "(chưa có)"
+
+        info_lines = [
+            "⚙️ <b>Cấu hình bản cài MuLon</b>",
+            f"• <b>Chủ sở hữu (Owner):</b> <code>{self.cfg.allowed_user_id}</code>",
+            f"• <b>Allowlist ({len(users)} người):</b> {user_list_str}",
+            f"• <b>Hệ điều hành:</b> {platform.system()} {platform.release()}",
+            f"• <b>Model Brain:</b> <code>{self.cfg.model_brain}</code>",
+            f"• <b>Proxy:</b> <code>{self.cfg.proxy_base_url}</code>",
+            f"• <b>Thư mục dữ liệu:</b> <code>{self.cfg.db_path.parent}</code>",
+            "",
+            "<b>Lệnh quản lý allowlist (dành cho Chủ sở hữu):</b>",
+            "• <code>/setup add &lt;user_id&gt;</code>: Thêm người dùng",
+            "• <code>/setup remove &lt;user_id&gt;</code>: Xóa người dùng",
+        ]
+        await message.answer("\n".join(info_lines), parse_mode="HTML")
+
     # ---- handlers ----
     def _register_handlers(self) -> None:
         dp = self.dp
+
+        @dp.message(F.text.startswith("/setup") | F.text.startswith("/claim"))
+        async def cmd_setup(message: Message) -> None:
+            await self._handle_setup_command(message)
 
         @dp.message(F.text.startswith("/start"))
         async def cmd_start(message: Message) -> None:
@@ -3019,5 +3145,19 @@ class TelegramSurface:
                     await self.bot.send_message(**kws)
         except Exception as exc:
             logger.warning("Lỗi gửi thông báo restart: %s", exc)
+
+        if not self.cfg.allowed_user_id and not getattr(self.cfg, "allowed_user_ids", ()):
+            from mulon.allowlist import get_or_create_claim_token
+            claim_file = getattr(self.cfg, "claim_token_path", PROJECT_ROOT / "data" / "claim_token.txt")
+            tok = get_or_create_claim_token(claim_file)
+            logger.warning(
+                "\n================================================================================\n"
+                " [MULON SETUP] BOT CHƯA CÓ CHỦ SỞ HỮU (ALLOWED_USER_ID = 0)!\n"
+                " Mã Claim Token: %s\n"
+                " Để nhận quyền sở hữu bot, hãy nhắn cho bot trên Telegram:\n"
+                "     /setup %s\n"
+                "================================================================================",
+                tok, tok
+            )
 
         await self.dp.start_polling(self.bot)

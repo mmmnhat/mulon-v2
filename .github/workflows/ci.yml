@@ -1,9 +1,4 @@
-# CI thật cho MuLon (sửa 1.6.3).
-# Trước đợt này repo không có file này, nên mọi badge/claim "CI đang
-# chạy" đều sai — chỉ được nói CI chạy sau khi file này đã merge.
-# Lưu ý: pytest nằm trong requirements-dev.txt, không phải
-# requirements.txt, nên CI cài cả hai; chỉ cài requirements.txt thì
-# lệnh pytest sẽ không tìm thấy pytest và CI fail ngay.
+# CI đa nền tảng cho MuLon (T-15 mở khoá cài đặt: Ubuntu, macOS, Windows).
 name: CI
 
 on:
@@ -14,7 +9,12 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

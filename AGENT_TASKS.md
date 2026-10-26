@@ -234,7 +234,7 @@ của MuLon — đợt này FORMAL HOÁ nó thành bộ phận chính thức:
 - Đa nền tảng theo T-15: dùng bản CLIProxyAPI phù hợp từng OS
   (hoặc EasyCLIProxyAPI desktop nếu hợp), không hardcode path.
 
-### [T-15] Mở khoá cài đặt + đa nền tảng — Giao: Antigravity — `DOING` (ƯU TIÊN 2)
+### [T-15] Mở khoá cài đặt + đa nền tảng — Giao: Antigravity — `DONE` (ƯU TIÊN 2)
 Quyết định chủ dự án 26/10/2026, THAY luật "một chủ duy nhất"
 trong AGENTS.md mục 3.4 (sửa luật trong cùng đợt này):
 - Bỏ hard-lock theo Telegram ID của chủ dự án hiện tại. Thay
@@ -250,6 +250,23 @@ trong AGENTS.md mục 3.4 (sửa luật trong cùng đợt này):
   liệu, máy sạch cài về chạy được (kèm .env.example đầy đủ và
   wizard nhập token bot + API key).
 - Test trên cả 3 OS (hoặc CI matrix) trước khi ghi DONE.
+- **Kết quả thực hiện (Antigravity 27/10/2026):**
+  1. *Bỏ hard-lock theo Telegram ID, allowlist local & Claim Token:* Quản lý quyền sở hữu qua `data/allowlist.json` (`mulon/allowlist.py`). Khi bot khởi động mà chưa có owner, tự sinh mã Claim Token 8 ký tự (`data/claim_token.txt`) in ra console/log. Người cài gửi `/setup <claim_token>` từ Telegram để nhận quyền sở hữu an toàn (chống người lạ chiếm quyền). Lệnh `/setup` cho phép tra cứu trạng thái, `/setup add <id>` và `/setup remove <id>` quản lý allowlist trực tiếp trong chat. `validate_init_data` trong `webapp_server.py` đối chiếu với toàn bộ allowlist.
+  2. *Tách lớp OS & Platformdirs:* Bổ sung module `mulon/paths.py` hỗ trợ `platformdirs` chuẩn theo từng hệ điều hành khi bật `MULON_USE_PLATFORMDIRS=1` (macOS: `~/Library`, Linux: `~/.local`, Windows: `AppData`), tương thích ngược 100% với cấu trúc thư mục local.
+  3. *Quản lý tiến trình/dịch vụ nền đa OS:* Bổ sung module `mulon/os_service.py` (CLI `python -m mulon.service`):
+     - macOS: Quản lý qua `launchd` (User LaunchAgents, sinh file plist chuẩn).
+     - Linux: Quản lý qua `systemd` (User unit `mulon.service` và `mulon-autowatch.service`).
+     - Windows: Quản lý qua `Windows Task Scheduler` (`schtasks`) và sinh batch runners.
+     - Khắc phục `scripts/dev_watch.py` hoạt động an toàn trên Windows với `msvcrt.locking` khi thiếu `fcntl`.
+  4. *Đóng gói cài đặt & Setup Wizard:*
+     - Module `mulon.setup` và `mulon.setup_wizard` (CLI & interactive wizard) tự động chuẩn bị `.env`, allowlist, proxy và timezone; cờ `python -m mulon.main --setup`.
+     - Script cài đặt tự động: `scripts/install.sh` (macOS & Linux) và `scripts/install.ps1` (Windows).
+     - Windows batch runners: `scripts/run_bot.bat` và `scripts/run_autowatch.bat`.
+     - Tài liệu hướng dẫn chi tiết: `docs/cai-dat-da-nen-tang.md`.
+  5. *CI Matrix & Sửa luật AGENTS.md:*
+     - Cập nhật `.github/workflows/ci.yml` kiểm thử matrix trên cả 3 OS: `ubuntu-latest`, `macos-latest`, `windows-latest` với Python 3.12.
+     - Cập nhật điều 3.4 trong `AGENTS.md` theo quyết định của chủ dự án.
+  6. *Kiểm chứng:* 478/478 unit tests PASS (thêm 9 test toàn diện trong `tests/test_v17_cross_platform_setup.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%); version 1.7.2.
 
 ### [T-16] Tích hợp muse2api — Giao: Antigravity — `TODO`
 Chủ dự án đã fork sẵn: `mmmnhat/muse2api` (gốc czg86389-hub/

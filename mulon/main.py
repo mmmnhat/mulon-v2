@@ -452,8 +452,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="mulon")
     parser.add_argument("--dry-run", action="store_true",
                         help="smoke test không cần token Telegram")
+    parser.add_argument("--setup", action="store_true",
+                        help="chạy trình hướng dẫn thiết lập bản cài (setup wizard)")
     parser.add_argument("--env-file", default=None)
     args = parser.parse_args(argv)
+    if args.setup:
+        from .setup_wizard import run_setup
+        run_setup()
+        return 0
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",

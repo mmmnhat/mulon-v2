@@ -90,8 +90,12 @@ Không được phá, dù để "làm cho tiện":
 3. **Degrade, không sập**: thiếu gói tuỳ chọn (mcp, sqlite-vec,
    cryptography...), thiếu file cấu hình, một MCP server chết —
    bot vẫn chạy, chỉ mất phần đó, có log + status rõ ràng.
-4. **Một chủ duy nhất**: `_is_allowed` chặn mọi Telegram user lạ.
-   Không nới lỏng auth của bot lẫn Mini App (HMAC initData).
+4. **Chủ do bản cài tự định (mở khoá cài đặt từ 1.7.2, T-15)**:
+   `_is_allowed` chặn mọi Telegram user lạ, mặc định chỉ phục vụ
+   chủ sở hữu và allowlist do bản cài đó tự cấu hình (qua setup
+   wizard trong terminal hoặc lệnh `/setup` lần chạy đầu). Không
+   nới lỏng auth của bot lẫn Mini App (HMAC initData đối chiếu
+   allowlist bản cài).
 5. **Việc nền mặc định tắt**: heartbeat/feed chỉ chạy khi chủ
    dự án bật tường minh. Không tự ý bật job nền mới. Ngoại lệ duy
    nhất đã được chủ dự án quyết (26/10/2026): **auto_watch ĐƯỢC

@@ -16,7 +16,15 @@ Quy định theo T-18, T-19, T-20 trong AGENT_TASKS.md:
 from __future__ import annotations
 
 import argparse
-import fcntl
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None
 import json
 import logging
 import os
@@ -105,11 +113,14 @@ def setup_logger() -> logging.Logger:
 
 
 def acquire_lock(logger: logging.Logger):
-    """Mở khóa đơn bằng fcntl.flock non-blocking. Tự nhả khi process thoát."""
+    """Mở khóa đơn cross-platform (flock trên POSIX, msvcrt trên Windows). Tự nhả khi process thoát."""
     LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
     try:
         lock_fd = open(LOCK_FILE, "a+")
-        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if fcntl is not None:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        elif msvcrt is not None:
+            msvcrt.locking(lock_fd.fileno(), msvcrt.LK_NBLCK, 1)
         lock_fd.seek(0)
         lock_fd.truncate()
         lock_fd.write(f"PID: {os.getpid()}\nStarted: {datetime.now().isoformat()}\n")

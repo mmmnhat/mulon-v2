@@ -132,18 +132,35 @@ class Config:
     model_cheap: str = "gemini-3.5-flash-lite"
     model_escalated: str = "gemini-3.8-flash-high"
 
-    # --- Telegram ---
+    # --- Telegram & Xác thực quyền (T-15 mở khoá cài đặt) ---
     telegram_bot_token: str = ""
     allowed_user_id: int = 0
+    allowed_user_ids: tuple[int, ...] = field(default_factory=tuple)
     group_mention_only: bool = True
     debounce_seconds: float = 2.5
 
-    # --- Đường dẫn ---
+    # --- Đường dẫn đa nền tảng (T-15) ---
+    use_platformdirs: bool = False
     db_path: Path = field(default_factory=lambda: PROJECT_ROOT / "data" / "mulon.db")
     dossier_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "dossier")
     workspace_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "workspace")
     artifact_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "data" / "artifacts")
     policy_path: Path = field(default_factory=lambda: PROJECT_ROOT / "config" / "policy.json")
+    allowlist_path: Path = field(default_factory=lambda: PROJECT_ROOT / "data" / "allowlist.json")
+    claim_token_path: Path = field(default_factory=lambda: PROJECT_ROOT / "data" / "claim_token.txt")
+
+    def is_user_allowed(self, user_id: int | None) -> bool:
+        """Kiểm tra quyền truy cập Telegram user ID (chủ sở hữu hoặc trong allowlist)."""
+        if not user_id:
+            return False
+        uid = int(user_id)
+        if uid <= 0:
+            return False
+        if self.allowed_user_id and uid == int(self.allowed_user_id):
+            return True
+        if self.allowed_user_ids and uid in self.allowed_user_ids:
+            return True
+        return False
 
     # --- Ngân sách ngữ cảnh (thiết kế mục 3.2) ---
     context_window_tokens: int = 200_000
@@ -359,14 +376,50 @@ class Config:
             load_dotenv(dotenv_path=env_file)  # mặc định: .env ở thư mục chạy
         except Exception:
             pass
+
+        use_platformdirs = _env_bool("MULON_USE_PLATFORMDIRS", False)
+        if use_platformdirs:
+            try:
+                from mulon.paths import get_default_paths
+                def_paths = get_default_paths(use_platformdirs=True)
+                default_data = def_paths["data_dir"]
+                default_config = def_paths["config_dir"]
+            except Exception:
+                default_data = PROJECT_ROOT / "data"
+                default_config = PROJECT_ROOT / "config"
+        else:
+            default_data = PROJECT_ROOT / "data"
+            default_config = PROJECT_ROOT / "config"
+
+        allowlist_path = _resolve(_env("MULON_ALLOWLIST_PATH", str(default_data / "allowlist.json")))
+        claim_token_path = _resolve(_env("MULON_CLAIM_TOKEN_PATH", str(default_data / "claim_token.txt")))
+
+        # T-15: Đọc allowlist local nếu có
+        file_owner_id = 0
+        allowed_list: list[int] = []
+        try:
+            from mulon.allowlist import load_allowlist
+            file_owner_id, allowed_list = load_allowlist(allowlist_path)
+        except Exception:
+            pass
+
+        env_owner_id = _env_int("ALLOWED_USER_ID", 0)
+        final_owner_id = env_owner_id if env_owner_id > 0 else file_owner_id
+        if final_owner_id > 0 and final_owner_id not in allowed_list:
+            allowed_list.insert(0, final_owner_id)
+
         cfg = cls(
+            use_platformdirs=use_platformdirs,
             proxy_base_url=_env("PROXY_BASE_URL", "http://127.0.0.1:8317/v1"),
             proxy_api_key=_env("PROXY_API_KEY", "local-proxy"),
             model_brain=_env("MODEL_BRAIN", "gemini-3.8-flash"),
             model_cheap=_env("MODEL_CHEAP", "gemini-3.5-flash-lite"),
             model_escalated=_env("MODEL_ESCALATED", "gemini-3.8-flash-high"),
             telegram_bot_token=_env("TELEGRAM_BOT_TOKEN", ""),
-            allowed_user_id=_env_int("ALLOWED_USER_ID", 0),
+            allowed_user_id=final_owner_id,
+            allowed_user_ids=tuple(allowed_list),
+            allowlist_path=allowlist_path,
+            claim_token_path=claim_token_path,
             group_mention_only=_env_bool("GROUP_MENTION_ONLY", True),
             debounce_seconds=float(_env("DEBOUNCE_SECONDS", "2.5")),
             db_path=_resolve(_env("MULON_DB_PATH", "data/mulon.db")),
@@ -506,6 +559,8 @@ class Config:
             "model_escalated": self.model_escalated,
             "telegram_bot_token": "***" if self.telegram_bot_token else "(missing)",
             "allowed_user_id": self.allowed_user_id if self.allowed_user_id else "(unset)",
+            "allowed_user_ids": list(self.allowed_user_ids),
+            "use_platformdirs": self.use_platformdirs,
             "group_mention_only": self.group_mention_only,
             "debounce_seconds": self.debounce_seconds,
             "db_path": str(self.db_path),

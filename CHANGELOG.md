@@ -1,6 +1,33 @@
 # CHANGELOG
 
-## 1.7.1 — 2026-10-27 — Vá triệt để các lỗi trải nghiệm Telegram thực tế đợt 1 (T-21: X-01..X-09)
+## 1.7.2 — 2026-10-27 — Mở khoá cài đặt và hỗ trợ đa nền tảng (T-15)
+
+- **Mở khoá cài đặt & Quyền sở hữu động (Unlocking Owner Authentication & Allowlist):**
+  - Bỏ hard-lock theo ID Telegram cố định: bản cài đặt tự quản lý quyền sở hữu thông qua file allowlist local (`data/allowlist.json` hoặc thư mục cấu hình chuẩn OS).
+  - Khởi tạo lần đầu an toàn: khi chạy chưa có `ALLOWED_USER_ID`, bot sinh mã **Claim Token** ngẫu nhiên hiển thị trên terminal/log. Người cài chỉ cần gửi `/setup <claim_token>` từ Telegram để nhận quyền chủ sở hữu (Owner) mà không sợ bị người lạ chiếm quyền.
+  - Quản trị quyền trong chat Telegram (`/setup`): Chủ sở hữu có thể tra cứu thông tin cấu hình hệ thống, bổ sung (`/setup add <user_id>`) hoặc thu hồi (`/setup remove <user_id>`) quyền tương tác của các tài khoản khác; chặn hoàn toàn người lạ theo Rule 4.
+  - Mini App đồng bộ: `validate_init_data` hỗ trợ đối chiếu với toàn bộ danh sách `allowed_user_ids` của bản cài.
+- **Trình hướng dẫn thiết lập (Setup Wizard):**
+  - Bổ sung module `mulon.setup` và `mulon.setup_wizard` (hỗ trợ cả CLI cờ tham số và wizard tương tác trực quan qua terminal).
+  - Tự động hướng dẫn khai báo Bot Token, Owner ID, Proxy URL, Model Brain, Timezone và khởi tạo cấu trúc thư mục hoàn chỉnh cho máy mới.
+  - Tích hợp cờ `python -m mulon.main --setup`.
+- **Tách lớp OS & Hỗ trợ đa nền tảng (pathlib, platformdirs & process supervisor):**
+  - Bổ sung module `mulon.paths`: chuẩn hoá đường dẫn dữ liệu cross-platform qua `platformdirs` khi bật `MULON_USE_PLATFORMDIRS=1`, đồng thời giữ nguyên tính tương thích project-local cho các bản cài hiện có.
+  - Bổ sung `mulon.os_service` (CLI `python -m mulon.service`): quản lý tiến trình nền tự động chuẩn theo từng hệ điều hành:
+    - **macOS**: Quản lý qua `launchd` (User LaunchAgents, sinh file plist chuẩn).
+    - **Linux**: Quản lý qua `systemd` (User unit `mulon.service` và `mulon-autowatch.service`).
+    - **Windows**: Quản lý qua `Windows Task Scheduler` (`schtasks`) và sinh sẵn các file khởi chạy `.bat`.
+  - Khắc phục `scripts/dev_watch.py` hoạt động an toàn trên Windows thông qua `msvcrt.locking` khi thiếu `fcntl`.
+- **Đóng gói cài đặt & Tài liệu hướng dẫn (Packaging & Documentation):**
+  - Script cài đặt tự động one-click cho macOS/Linux: `scripts/install.sh`.
+  - Script cài đặt tự động PowerShell cho Windows: `scripts/install.ps1`.
+  - Batch runners khởi động nhanh trên Windows: `scripts/run_bot.bat`, `scripts/run_autowatch.bat`.
+  - Tài liệu chi tiết: `docs/cai-dat-da-nen-tang.md`.
+  - CI Matrix GitHub Actions (`.github/workflows/ci.yml`): Tự động kiểm thử song song trên cả 3 hệ điều hành `ubuntu-latest`, `macos-latest`, `windows-latest` với Python 3.12.
+- **Sửa luật AGENTS.md:**
+  - Cập nhật điều 3.4 từ "Một chủ duy nhất" thành "Chủ do bản cài tự định (mở khoá cài đặt từ 1.7.2, T-15)" theo quyết định của chủ dự án.
+- **Kiểm chứng:** 478/478 unit tests PASS (bổ sung 9 test toàn diện trong `tests/test_v17_cross_platform_setup.py`); golden eval stub đạt 31/36 (86%, qua cổng 85%).
+
 
 - **X-01 (Bảo mật & Phân tách ngữ cảnh DM và Group):**
   - Tách bạch episodic memory và recall theo loại session: bổ sung tham số `exclude_dm` trong `Memory.recall()` và `Memory.session_search()` (chặn hoàn toàn các bản ghi có `session_key` thuộc `:dm:` trong cả nhánh BM25/FTS và vector search khi truy vấn từ nhóm).
