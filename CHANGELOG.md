@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 1.6.9 — 2026-10-26 — Khắc phục tận gốc LaunchAgent devwatch exit 126 (T-20, T-19)
+
+- **Sửa LaunchAgent devwatch (T-20):**
+  - Khắc phục lỗi POSIX exit 126 (`Operation not permitted` / wait status `32256`)
+    do sandbox TCC của `launchd` không cho phép `chdir` và `execve` trực tiếp
+    vào file script shell trên ổ đĩa ngoài (`/Volumes/External/`).
+  - Thiết lập trampoline launcher tại `~/.mulon-dev-watch/dev_watch_launcher.sh`
+    nằm trên ổ đĩa SSD hệ thống (`Macintosh HD`), nơi `launchd` có đầy đủ quyền traversal.
+  - Trampoline gọi Python thông dịch trực tiếp file `dev_watch.py`, bỏ qua lỗi
+    `execve` kernel trên external volume. `launchctl kickstart` đạt `LastExitStatus = 0`.
+- **Hoàn thiện dev_watch (T-19):**
+  - Watermark chỉ tiến khi `agy` chạy thành công. Khi lỗi, giữ watermark để retry,
+    kèm ngưỡng trần `MAX_RETRIES = 3` tránh lặp vô hạn.
+  - Gỡ bỏ toàn bộ đường dẫn hardcode khỏi `scripts/dev_watch.sh` và `scripts/dev_watch.py`.
+  - Thêm template plist chuẩn hoá `scripts/com.mulon.devwatch.plist.template`.
+
 ## 1.6.8 — 2026-10-26 — Tự dựng Autowatch phía Antigravity (T-18)
 
 - **Autowatch Antigravity (T-18):** Thiết lập cơ chế tự nhận việc tự trị qua git

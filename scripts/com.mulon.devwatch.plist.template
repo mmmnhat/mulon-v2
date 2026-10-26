@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template LaunchAgent cho Mulon Dev-Watcher trên macOS.
+  Đặt tại: ~/Library/LaunchAgents/com.mulon.devwatch.plist
+  Thay thế:
+    __HOME__ : Thư mục Home của người dùng (ví dụ: /Users/username)
+  Lưu ý kiến trúc:
+    Để tránh lỗi TCC/getcwd (exit 126: Operation not permitted) khi repo nằm trên ổ gắn ngoài (/Volumes/...),
+    chương trình đích và WorkingDirectory phải nằm trong ổ đĩa hệ thống local (__HOME__/.mulon-dev-watch).
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.mulon.devwatch</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>__HOME__/.mulon-dev-watch/dev_watch_launcher.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__HOME__/.mulon-dev-watch</string>
+
+    <key>StartInterval</key>
+    <integer>300</integer>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>__HOME__/.mulon-dev-watch/log/launchd_stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__HOME__/.mulon-dev-watch/log/launchd_stderr.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>__HOME__/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>__HOME__</string>
+    </dict>
+</dict>
+</plist>
