@@ -68,6 +68,7 @@ _FEED_TEMPLATE = load_prompt("feed_template")
 _FEED_SOURCES = load_json_data("feed_sources.json", {})
 _OFFICIAL_SUFFIXES = tuple(_FEED_SOURCES.get("official_suffixes", ()))
 _NEWS_DOMAINS = set(_FEED_SOURCES.get("news_domains", ()))
+_SOCIAL_DOMAINS = set(_FEED_SOURCES.get("social_domains", ()))
 _LOW_SIGNAL_TLDS = tuple(_FEED_SOURCES.get("low_signal_tlds", ()))
 
 
@@ -91,6 +92,8 @@ def assess_trust(url: str, denylist=()) -> Optional[str]:
         return "high"
     if domain in _NEWS_DOMAINS or domain.endswith("wikipedia.org"):
         return "high"
+    if domain in _SOCIAL_DOMAINS or any(domain.endswith("." + d) for d in _SOCIAL_DOMAINS):
+        return "normal"
     if any(domain.endswith(tld) for tld in _LOW_SIGNAL_TLDS):
         return "low"
     return "normal"
@@ -219,8 +222,9 @@ def rank_materials(items: list[dict], profile: dict) -> list[dict]:
 
     return sorted(items, key=score, reverse=True)
 
-_POSITIVE = {"👍", "❤️", "🔥", "😍", "🎉"}
+_POSITIVE = {"👍", "❤️", "🔥", "😍", "🎉", "💬", "discuss"}
 _NEGATIVE = {"👎", "💩", "😡", "🖕"}
+_DISCUSS = {"💬", "discuss"}
 
 
 def _section(text: str, begin: str, end: str) -> str:
@@ -268,30 +272,33 @@ def taste_verdict(slot: dict) -> str:
 
 def taste_summary(counts: list[dict], total_posts: int = 0,
                   source_stats: Optional[dict] = None,
-                  topic_stats: Optional[dict] = None) -> str:
-    """Bản tóm tắt gu từ tín hiệu reaction — tất định, không qua LLM,
-    writer đọc bản này chứ không đọc transcript thô (mục 16.4).
+                  topic_stats: Optional[dict] = None,
+                  discussion_stats: Optional[list[dict]] = None) -> str:
+    """Bản tóm tắt gu từ tín hiệu reaction VÀ thảo luận — tất định, không qua LLM,
+    writer đọc bản này chứ không đọc transcript thô (luật R11 + mục 16.4).
 
     Taste v2 (1.4): thêm hai lát cắt từ dữ kiện đã có — reaction
     gộp THEO NGUỒN tư liệu và THEO CHỦ ĐỀ bài — để taste đổi được
     khâu CHỌN ĐỀ TÀI/tư liệu, không chỉ giọng văn (spec mục 9).
+    Học từ THẢO LUẬN: tổng hợp các chủ đề người dùng chủ động trao đổi/bình luận.
     """
-    if not counts and not source_stats and not topic_stats:
+    if not counts and not source_stats and not topic_stats and not discussion_stats:
         return "Chưa có tín hiệu taste nào."
     lines: list[str] = []
     if counts:
         pos = sum(c["n"] for c in counts if c["reaction"] in _POSITIVE)
         neg = sum(c["n"] for c in counts if c["reaction"] in _NEGATIVE)
+        disc_n = sum(c["n"] for c in counts if c["reaction"] in _DISCUSS)
         total = sum(c["n"] for c in counts)
         detail = ", ".join(f"{c['reaction']} ×{c['n']}" for c in counts)
         lines.append(
             f"Tín hiệu taste đã ghi: {detail} (tổng {total}"
             + (f" trên {total_posts} bài" if total_posts else "") + ").")
-        lines.append(f"Tích cực {pos} · tiêu cực {neg}.")
+        lines.append(f"Tích cực {pos}" + (f" (bao gồm {disc_n} thảo luận)" if disc_n else "") + f" · tiêu cực {neg}.")
         if pos > neg:
             lines.append(
                 "Writer: tiếp tục ưu tiên dạng bài/nội dung được reaction "
-                "tích cực; né dạng từng bị reaction tiêu cực.")
+                "tích cực và thảo luận; né dạng từng bị reaction tiêu cực.")
         elif neg > pos:
             lines.append(
                 "Writer: user đang không hưởng ứng dạng bài gần đây — đổi "
@@ -319,6 +326,17 @@ def taste_summary(counts: list[dict], total_posts: int = 0,
         if concluded:
             lines.append(f"{title} ({noun} có ≥2 tín hiệu):")
             lines.extend(concluded)
+    if discussion_stats:
+        topic_disc = {}
+        for r in discussion_stats:
+            top = str(r.get("topic") or "").strip()
+            if top:
+                topic_disc[top] = topic_disc.get(top, 0) + int(r.get("n") or 1)
+        if topic_disc:
+            lines.append("Theo phản hồi & thảo luận của user:")
+            for top, n in sorted(topic_disc.items(), key=lambda x: x[1], reverse=True)[:3]:
+                lines.append(f"- Chủ đề '{top}': {n} lượt thảo luận -> ưu tiên khai thác sâu.")
+            lines.append("Writer: ưu tiên khai thác sâu các chủ đề được thảo luận nhiều; kết hợp góc nhìn thực tế.")
     lines.append(
         "Cập nhật: "
         + datetime.now(timezone.utc).isoformat(timespec="seconds"))
@@ -429,12 +447,15 @@ class FeedEngine:
     async def taste_profile(self) -> dict:
         """Hồ sơ gu cho khâu XẾP HẠNG tư liệu (tất định):
         verdict theo nguồn (cửa sổ 14 ngày — luật 'rất xấu' của
-        spec mục 9.3) + chủ đề được/không được hưởng ứng (30 ngày).
+        spec mục 9.3) + chủ đề được/không được hưởng ứng (30 ngày)
+        kết hợp phản hồi thảo luận thực tế của user.
         """
         now = datetime.now(timezone.utc)
         src_rows = await self.memory.feed_source_signal_stats(
             (now - timedelta(days=14)).isoformat(timespec="seconds"))
         topic_rows = await self.memory.feed_topic_signal_stats(
+            (now - timedelta(days=30)).isoformat(timespec="seconds"))
+        disc_rows = await self.memory.feed_discussion_stats(
             (now - timedelta(days=30)).isoformat(timespec="seconds"))
         sources = {}
         for name, slot in _agg_stats(src_rows, "source").items():
@@ -443,11 +464,16 @@ class FeedEngine:
                 "distrusted": slot["neg"] >= 3 and slot["pos"] == 0,
             }
         topics = _agg_stats(topic_rows, "topic")
+        liked = {t for t, s in topics.items()
+                 if taste_verdict(s) == "liked"}
+        for r in disc_rows:
+            top = str(r.get("topic") or "").strip()
+            if top:
+                liked.add(top)
         return {
             "sources": sources,
             "topics": topics,
-            "liked_topics": {t for t, s in topics.items()
-                             if taste_verdict(s) == "liked"},
+            "liked_topics": liked,
             "disliked_topics": {t for t, s in topics.items()
                                 if taste_verdict(s) == "disliked"},
         }
@@ -462,14 +488,28 @@ class FeedEngine:
             (now - timedelta(days=14)).isoformat(timespec="seconds"))
         topic_rows = await self.memory.feed_topic_signal_stats(
             (now - timedelta(days=30)).isoformat(timespec="seconds"))
+        disc_rows = await self.memory.feed_discussion_stats(
+            (now - timedelta(days=30)).isoformat(timespec="seconds"))
         summary = taste_summary(
             counts, posts,
             source_stats=_agg_stats(src_rows, "source"),
-            topic_stats=_agg_stats(topic_rows, "topic"))
+            topic_stats=_agg_stats(topic_rows, "topic"),
+            discussion_stats=disc_rows)
         text = self._read_file()
         self._write_file(
             _replace_section(text, TASTE_BEGIN, TASTE_END, summary))
         return summary
+
+    async def record_discussion(self, chat_id: int, message_id: int,
+                                comment: str = "") -> bool:
+        """Ghi nhận thảo luận của người dùng về một bài Feed đã đăng."""
+        post = await self.memory.get_feed_post(chat_id, message_id)
+        if post is None:
+            return False
+        await self.memory.add_feed_signal(
+            chat_id, message_id, "💬", comment=comment[:300])
+        await self.update_taste()
+        return True
 
     # ---------- tư liệu nội bộ ----------
     async def collect_material(self) -> dict:

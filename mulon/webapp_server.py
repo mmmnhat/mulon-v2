@@ -473,7 +473,7 @@ class WebAppServer:
                  mcp_manager, vault_store, registry, dossier=None,
                  skills=None, activity: Optional[ActivityTracker] = None,
                  marketplace=None, feed_auto=None, google_auth=None,
-                 library=None):
+                 library=None, ideas=None):
         self.cfg = cfg
         self.memory = memory
         self.policy = policy
@@ -486,6 +486,7 @@ class WebAppServer:
         self.dossier = dossier
         self.skills = skills
         self.library = library
+        self.ideas = ideas
         # Marketplace 1.3.0 (mulon.marketplace) — None thì toàn bộ
         # /api/marketplace/* trả 503 sạch, màn Kết nối giữ hành vi cũ.
         self.marketplace = marketplace
@@ -551,6 +552,11 @@ class WebAppServer:
         app.router.add_post("/api/schedule", self._handle_schedule)
         # 1.4.0: điều khiển Feed chủ động (không có action tắt).
         app.router.add_post("/api/feed", self._handle_feed)
+        # Thẻ ý tưởng chủ động (Ideas) theo chuẩn Muse (T-10.3)
+        app.router.add_get("/api/ideas", self._handle_ideas_list)
+        app.router.add_post("/api/ideas/generate", self._handle_ideas_generate)
+        app.router.add_post("/api/ideas/do", self._handle_ideas_do)
+        app.router.add_post("/api/ideas/dismiss", self._handle_ideas_dismiss)
         app.router.add_post("/api/profile/theme", self._handle_theme)
         # 1.3.0 (gói vá Mini App): kỹ năng đọc được + Vault nhập
         # ngay trong app — cùng middleware auth initData.
@@ -1251,6 +1257,8 @@ class WebAppServer:
             # Feed chủ động. None khi bản chạy chưa nối runner.
             "feed": (await self.feed_auto.get_state()
                      if self.feed_auto is not None else None),
+            "ideas": (await self.memory.list_idea_cards(status="open")
+                      if self.memory is not None else []),
             "library": await self._library_state(),
             "heartbeat_history": (await self.memory.get_heartbeat_history(limit=5)
                                   if self.memory is not None else []),
@@ -1664,6 +1672,50 @@ class WebAppServer:
             return _bad(f"action không hỗ trợ: {action or '(trống)'}")
         return web.json_response(
             {"ok": True, "feed": await runner.get_state()})
+
+    # ---------- Ideas chủ động theo chuẩn Muse (T-10.3) ----------
+    async def _handle_ideas_list(self, request):
+        if self.memory is None:
+            return web.json_response({"ok": False, "error": "Chưa có database"}, status=503)
+        status = request.query.get("status", "open")
+        limit = 50
+        try:
+            limit = int(request.query.get("limit", 50))
+        except ValueError:
+            pass
+        items = await self.memory.list_idea_cards(status=status, limit=limit)
+        return web.json_response({"ok": True, "ideas": items})
+
+    async def _handle_ideas_generate(self, request):
+        if self.ideas is None:
+            return web.json_response({"ok": False, "error": "Ideas chưa sẵn sàng ở bản này"}, status=503)
+        try:
+            cards = await self.ideas.generate()
+            return web.json_response({"ok": True, "ideas": cards})
+        except Exception as exc:
+            return web.json_response({"ok": False, "error": str(exc)}, status=500)
+
+    async def _handle_ideas_do(self, request):
+        if self.ideas is None:
+            return web.json_response({"ok": False, "error": "Ideas chưa sẵn sàng ở bản này"}, status=503)
+        body = await self._json_body(request)
+        try:
+            card_id = int(body.get("card_id") or 0)
+        except ValueError:
+            return web.json_response({"ok": False, "error": "card_id không hợp lệ"}, status=400)
+        res = await self.ideas.do_card(card_id, session_key="webapp:ideas")
+        return web.json_response({"ok": bool(res.get("ok")), **res})
+
+    async def _handle_ideas_dismiss(self, request):
+        if self.ideas is None:
+            return web.json_response({"ok": False, "error": "Ideas chưa sẵn sàng ở bản này"}, status=503)
+        body = await self._json_body(request)
+        try:
+            card_id = int(body.get("card_id") or 0)
+        except ValueError:
+            return web.json_response({"ok": False, "error": "card_id không hợp lệ"}, status=400)
+        res = await self.ideas.dismiss(card_id)
+        return web.json_response({"ok": bool(res.get("ok")), **res})
 
     # ---------- 1.3.0 (gói vá Mini App): kỹ năng + Vault ----------
     async def _handle_skills(self, request):

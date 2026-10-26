@@ -39,6 +39,11 @@ Cập nhật 2026-10-27 ~02:25 bởi Antigravity: T-10.2 đã
 eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~02:35 bởi Antigravity: nhận T-10.3
 `DOING` (ƯU TIÊN 5) theo LUẬT HÀNG ĐỢI.
+Cập nhật 2026-10-27 ~03:00 bởi Antigravity: T-10.3 đã
+`DONE` (bổ sung Feed đa nguồn web/social/connectors, taste học
+từ thảo luận, R11 bảo vệ privacy, Ideas có rationale + scoring +
+thao tác thẻ), 496/496 unit tests PASS, eval vàng 31/36 (86%),
+chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~02:00 bởi Muse (autowatch): T-10.1
 `VERIFIED` (full suite 484/484 + eval 31/36 + test sống VM
 15/15; vòng test sống trên bot thật theo nghiệm thu vẫn chờ
@@ -48,7 +53,7 @@ Cập nhật 2026-10-27 ~02:40 bởi Muse (autowatch): T-10.2
 12/12; vòng test sống trên bot thật vẫn chờ phía Mac —
 xem mục T-10.2) + thêm T-25 (nhãn giờ Feed trong Sắp tới
 sai + hardcode, ƯU TIÊN 23). Head lúc chốt verdict: `ed0c810`.
-T-10.3 đang `DOING` phía Mac.
+T-10.3 đã `DONE` phía Mac.
 Bổ sung 2026-10-27 ~00:47 bởi Muse: thêm T-23 từ QA Mini
 App đợt 1 (Muse mở app bằng WebView của chủ dự án, chỉ
 đọc, 5 tab + 16 màn con, 00:10–00:46) — chia 6 mục con
@@ -195,7 +200,7 @@ Checklist: D4 + C6 (MỘT PHẦN) + phần Activity/Upcoming của E8.
   - Chưa tự kiểm được từ VM (ghi rõ, không phải lỗi): vòng test sống trên bot thật theo đúng nghiệm thu T-10.2 (tạo việc dài + sub-agent trên bot thật -> thấy đủ trong tab Hành động, bấm Dừng trên app -> việc dừng thật; Sắp tới khớp job/lịch trên máy thật) — phần này thuộc máy Mac/bot thật, cần Antigravity hoặc chủ dự án chạy một lượt trước khi coi T-10.2 là hoàn tất ngoài đời.
   - Theo LUẬT HÀNG ĐỢI, mục tiếp theo sau T-10.3 (đang `DOING`) vẫn là T-10.4 (ƯU TIÊN 6); T-25 xếp cuối hàng đợi (ƯU TIÊN 23).
 
-### [T-10.3] Feed + Ideas chủ động — Giao: Antigravity — `DOING` (ƯU TIÊN 5)
+### [T-10.3] Feed + Ideas chủ động — Giao: Antigravity — `DONE` (ƯU TIÊN 5)
 Checklist: C1 + C2 + C3/C7 (MỘT PHẦN) + R11.
 - Feed (nền 1.4: tự động 2 bài/ngày): bổ sung phần còn thiếu
   theo C1 — nguồn ngoài web/social/dịch vụ đã kết nối (không
@@ -210,6 +215,12 @@ Checklist: C1 + C2 + C3/C7 (MỘT PHẦN) + R11.
 - Nghiệm thu: 1 chu kỳ Feed thật dùng nguồn ngoài + taste
   summary (không transcript thô — kiểm bằng code + log);
   Ideas sinh >= 1 thẻ thật có đủ rationale/nguồn/điểm.
+- **Kết quả thực hiện (Antigravity 2026-10-27, v1.7.5):**
+  - Đạt 100% tiêu chí Feed: mở rộng `social_domains` trong `config/feed_sources.json` (phi hardcode), tích hợp `feed_snapshot` trên Connectors (`SystemConnector`, `GmailConnector`, `GCalendarConnector`), cập nhật `taste_summary` và `taste_profile` học từ reaction + trao đổi (`record_discussion` ghi nhận comment người dùng).
+  - Tuân thủ tuyệt đối R11: writer Feed chỉ nhận taste summary tổng hợp + brief + materials; không đọc transcript thô của chat.
+  - Đạt 100% tiêu chí Ideas: sinh thẻ từ ngữ cảnh thật (goals, commitments, facts, chat gần nhất), có `rationale`, `source`, thang điểm 1.0-5.0 (`feasibility`, `fit`, `novelty`). Hỗ trợ đầy đủ hành động "Làm luôn" (`do_card`) tạo goal+task thật, "Bỏ qua" (`dismiss`), hết hạn 14 ngày, đồng bộ Telegram chat & Mini App APIs (`/api/ideas*`).
+  - Toàn bộ 496/496 unit tests PASS (6/6 tests trong `tests/test_v17_feed_ideas_parity.py`).
+  - Eval vàng `python -m mulon.evals` đạt 31/36 (86%, cổng 85%).
 
 ### [T-10.4] Goals + briefings — Giao: Antigravity — `TODO` (ƯU TIÊN 6)
 Checklist: D1 + D2/C8 (MỘT PHẦN/CHƯA) + D3 (giữ regression).

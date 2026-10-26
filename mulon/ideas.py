@@ -29,7 +29,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from .datafiles import load_prompt
+
 logger = logging.getLogger("mulon.ideas")
+
+IDEAS_SYSTEM = load_prompt("ideas_system")
 
 # sửa 1.6.2: công tắc Ideas tự sinh trong Mini App (kv thắng env).
 IDEAS_AUTO_KV_KEY = "ideas_auto_enabled_override"
@@ -76,9 +80,20 @@ def _parse_ideas(text: str) -> list[dict]:
                 continue
             title = str(it.get("title") or "").strip()
             if title:
+                def _to_float(v, default=3.0):
+                    try:
+                        return float(v)
+                    except (ValueError, TypeError):
+                        return default
+
                 out.append({
                     "title": title[:200],
                     "description": str(it.get("description") or "")[:1000],
+                    "rationale": str(it.get("rationale") or "")[:1000],
+                    "source": str(it.get("source") or "")[:200],
+                    "feasibility": _to_float(it.get("feasibility"), 3.0),
+                    "fit": _to_float(it.get("fit"), 3.0),
+                    "novelty": _to_float(it.get("novelty"), 3.0),
                 })
         if out:
             return out
@@ -116,6 +131,17 @@ class IdeaEngine:
         facts = await self.memory.active_facts(limit=12)
         for f in facts[:6]:
             lines.append(f"- Fact: {f['fact']}")
+        try:
+            recent_msgs = await self.memory.recent_messages("", limit=5)
+            if recent_msgs:
+                lines.append("- Ngữ cảnh trao đổi gần đây:")
+                for m in recent_msgs:
+                    r = m.get("role", "")
+                    content = (m.get("content") or "").strip().replace("\n", " ")
+                    if content:
+                        lines.append(f"  * {r}: {content[:150]}")
+        except Exception:
+            pass
         return "\n".join(lines) or "(chưa có dữ liệu nền)"
 
     async def generate(self) -> list[dict]:
@@ -124,13 +150,7 @@ class IdeaEngine:
         material = await self._material()
         comp = await self.gateway.complete(
             [
-                {"role": "system", "content": (
-                    "Bạn đề xuất các việc cụ thể agent có thể làm cho "
-                    "user, suy từ goals và ký ức được cấp. Trả JSON "
-                    "thuần dạng {\"ideas\": [{\"title\": \"...\", "
-                    "\"description\": \"...\"}]} với 3-5 ý tưởng, mỗi "
-                    "ý tưởng làm được trong một phiên làm việc, không "
-                    "lặp việc đã có sẵn trong dữ liệu.")},
+                {"role": "system", "content": IDEAS_SYSTEM},
                 {"role": "user", "content": material},
             ],
             model=self.cfg.model_cheap,
@@ -140,9 +160,14 @@ class IdeaEngine:
         cards = []
         for idea in _parse_ideas(comp.text or ""):
             card = await self.memory.add_idea_card(
-                idea["title"], idea["description"],
-                source="goals+memory",
+                idea["title"],
+                description=idea.get("description", ""),
+                source=idea.get("source") or "goals+memory",
                 expires_at=_expiry(self.cfg.idea_ttl_days),
+                rationale=idea.get("rationale") or "",
+                feasibility=idea.get("feasibility", 3.0),
+                fit=idea.get("fit", 3.0),
+                novelty=idea.get("novelty", 3.0),
             )
             cards.append(card)
         if cards:
@@ -225,6 +250,19 @@ def format_idea_card(card: dict) -> str:
     lines = [f"💡 Thẻ ý tưởng #{card['id']}: {card['title']}"]
     if card.get("description"):
         lines.append(card["description"])
+    if card.get("rationale"):
+        lines.append(f"🎯 Lý do: {card['rationale']}")
+    if card.get("source"):
+        lines.append(f"📌 Nguồn: {card['source']}")
+    scores = []
+    if card.get("feasibility"):
+        scores.append(f"Khả thi: {float(card['feasibility']):.1f}/5")
+    if card.get("fit"):
+        scores.append(f"Phù hợp: {float(card['fit']):.1f}/5")
+    if card.get("novelty"):
+        scores.append(f"Mới: {float(card['novelty']):.1f}/5")
+    if scores:
+        lines.append(" · ".join(scores))
     if expires:
         lines.append(f"(hết hạn {expires})")
     return "\n\n".join(lines)

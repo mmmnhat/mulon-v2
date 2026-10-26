@@ -210,7 +210,7 @@ async def build_system(cfg: Config):
         vault_store=vault_store, registry=registry, dossier=dossier,
         skills=catalog, activity=activity, marketplace=marketplace,
         feed_auto=feed_auto, google_auth=google_auth,
-        library=phase6["library"])
+        library=phase6["library"], ideas=phase6["ideas"])
     services = {
         "mcp": mcp_manager,
         "connectors": connectors,

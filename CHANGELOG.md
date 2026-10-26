@@ -1,5 +1,36 @@
 # CHANGELOG
 
+## 1.7.5 — 2026-10-27 — Feed đa nguồn, học gu từ thảo luận và Thẻ ý tưởng chủ động có rationale & scoring (T-10.3 Parity C1 + C2 + C3/C7 + R11)
+
+- **Feed đa nguồn & Adapter dịch vụ kết nối (External Sources Web, Social & Connectors - Parity C1):**
+  - Mở rộng nguồn tin tức ngoài không chỉ gói gọn trong các trang báo chính thống mà bao gồm các mạng xã hội & kho tri thức: GitHub, X/Twitter, Threads, Substack, Medium, HuggingFace, ArXiv, Dev.to, Reddit... (khai báo phi hardcode qua `config/feed_sources.json` thuộc tính `social_domains`).
+  - Hỗ trợ chuẩn thu thập dữ liệu `feed_snapshot` từ các dịch vụ kết nối (Connectors):
+    - `SystemConnector`: Cung cấp thông tin môi trường và trạng thái hệ thống.
+    - `GmailConnector`: Cung cấp tóm tắt email chưa đọc / gắn dấu sao gần nhất (`feed_snapshot`).
+    - `GCalendarConnector`: Cung cấp sự kiện lịch sắp tới trong 3 ngày (`feed_snapshot`).
+    - Cơ chế tổng hợp tự động trong `FeedEngine.collect_external_material` giúp tư liệu phong phú, đa chiều và bám sát ngữ cảnh làm việc thực tế của người dùng.
+- **Học gu (Taste Learning) từ Phản ứng VÀ Thảo luận (Discussion Signals - Parity C1 + C3/C7):**
+  - Cơ chế Taste không chỉ tính điểm số từ reaction đơn thuần (`👍`, `❤️`, `🔥` / `👎`) mà học trực tiếp từ các cuộc trao đổi, bình luận, và thảo luận thực tế của người dùng:
+    - Khi người dùng phản hồi (reply) vào bài Feed hoặc bấm nút thảo luận, `FeedEngine.record_discussion` ghi nhận tín hiệu thảo luận kèm trích đoạn nội dung bình luận vào bảng `feed_signals` (cột `comment`).
+    - `Memory.feed_discussion_stats` thống kê tần suất các chủ đề được người dùng thảo luận nhiều nhất.
+    - `taste_summary` và `taste_profile` tự động đưa các chủ đề thảo luận tích cực vào danh sách `liked_topics`, giúp khâu xếp hạng tư liệu (`rank_materials`) ưu tiên các chủ đề người dùng quan tâm sâu.
+- **Tuân thủ nghiêm ngặt Luật R11 (Strict Separation - No Raw Transcripts):**
+  - Khâu viết Feed (`FeedEngine.compose`) TUYỆT ĐỐI không đọc transcript chat thô của người dùng.
+  - Writer chỉ nhận văn bản tổng hợp gu tất định (`taste_summary`), tài liệu đề cương (`DEFAULT_BRIEF`), và danh sách tư liệu ngoài đã qua chọn lọc; bảo vệ hoàn toàn dữ liệu nhạy cảm và sự riêng tư của người dùng.
+- **Thẻ Ý tưởng (Ideas) chủ động sinh từ ngữ cảnh thật kèm Rationale & Scoring (Parity C2):**
+  - Sinh thẻ ý tưởng từ ngữ cảnh thực tế: mục tiêu (`goals`), cam kết đang mở (`tracked_items`), tri thức (`active_facts`), và ngữ cảnh trao đổi gần đây.
+  - Mỗi thẻ ý tưởng được chấm điểm chi tiết và gắn nguồn gốc rõ ràng:
+    - `rationale`: Lý do vì sao đề xuất ý tưởng này từ bối cảnh thực tế của người dùng.
+    - `source`: Nguồn ngữ cảnh dẫn tới ý tưởng (ví dụ: `Goal #...`, `Cam kết...`, `Fact...`).
+    - Hệ thống thang điểm 1.0 - 5.0 phản ánh chất lượng đề xuất: `feasibility` (tính khả thi), `fit` (độ phù hợp với gu), `novelty` (tính mới mẻ/đột phá).
+  - Tương tác trực tiếp trên thẻ:
+    - Nút "Làm luôn" (`do_card`): Tự động chuyển thẻ thành Goal và Task thực thi thật sự, chuyển thẻ sang trạng thái `done`.
+    - Nút "Bỏ qua" (`dismiss`): Đánh dấu thẻ là `dismissed`.
+    - Hết hạn tự động sau 14 ngày (`expired`).
+    - Hỗ trợ đầy đủ tương tác qua Telegram (Inline buttons & Reply chat) và Mini App REST APIs (`/api/ideas`, `/api/ideas/generate`, `/api/ideas/do`, `/api/ideas/dismiss`, `/api/state`).
+  - Chạy nền an toàn: Mặc định TẮT (`effective_auto_enabled`), tuân thủ hạn mức tài nguyên và giờ yên tĩnh (quiet hours).
+- **Kiểm chứng:** 496/496 unit tests PASS (bổ sung 6 test toàn diện trong `tests/test_v17_feed_ideas_parity.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
+
 ## 1.7.4 — 2026-10-27 — Tab Hành động thời gian thực và Danh sách Sắp tới (T-10.2 Parity D4 + C6 + E8)
 
 - **Tab Hành động thời gian thực (Realtime Action & Subagent Step Tracking):**

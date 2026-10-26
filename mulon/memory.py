@@ -369,6 +369,7 @@ CREATE TABLE IF NOT EXISTS feed_signals (
     chat_id         INTEGER NOT NULL DEFAULT 0,
     post_message_id INTEGER NOT NULL,
     reaction        TEXT NOT NULL DEFAULT '',
+    comment         TEXT NOT NULL DEFAULT '',
     created_at      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_feed_signals_post
@@ -517,6 +518,30 @@ async def _migrate_schedules_muse(db) -> None:
     await db.commit()
 
 
+async def _migrate_ideas_muse(db) -> None:
+    """Migration Idea Cards theo chuẩn Muse: rationale, feasibility, fit, novelty."""
+    cur = await db.execute("PRAGMA table_info(idea_cards)")
+    cols = {row[1] for row in await cur.fetchall()}
+    if "rationale" not in cols:
+        await db.execute("ALTER TABLE idea_cards ADD COLUMN rationale TEXT NOT NULL DEFAULT ''")
+    if "feasibility" not in cols:
+        await db.execute("ALTER TABLE idea_cards ADD COLUMN feasibility REAL NOT NULL DEFAULT 0.0")
+    if "fit" not in cols:
+        await db.execute("ALTER TABLE idea_cards ADD COLUMN fit REAL NOT NULL DEFAULT 0.0")
+    if "novelty" not in cols:
+        await db.execute("ALTER TABLE idea_cards ADD COLUMN novelty REAL NOT NULL DEFAULT 0.0")
+    await db.commit()
+
+
+async def _migrate_feed_signals(db) -> None:
+    """Migration Feed Signals: hỗ trợ comment/thảo luận kèm theo reaction."""
+    cur = await db.execute("PRAGMA table_info(feed_signals)")
+    cols = {row[1] for row in await cur.fetchall()}
+    if "comment" not in cols:
+        await db.execute("ALTER TABLE feed_signals ADD COLUMN comment TEXT NOT NULL DEFAULT ''")
+    await db.commit()
+
+
 def ensure_goal_workspace(cfg, goal_id: int) -> dict[str, Path]:
     """Tạo cấu trúc workspace phân ngăn cho Goal theo chuẩn Muse: files/ và hidden_files/."""
     base = Path(cfg.workspace_dir) / "goals" / str(goal_id)
@@ -566,6 +591,8 @@ class Memory:
         await _migrate_library_16(db)
         await _migrate_goals_muse(db)
         await _migrate_schedules_muse(db)
+        await _migrate_ideas_muse(db)
+        await _migrate_feed_signals(db)
         mem = cls(db)
         mem.vector_enabled = await mem._try_enable_vector()
         return mem
@@ -1716,11 +1743,11 @@ class Memory:
         return dict(row) if row else None
 
     async def add_feed_signal(self, chat_id: int, post_message_id: int,
-                              reaction: str) -> int:
+                              reaction: str, comment: str = "") -> int:
         cur = await self.db.execute(
             "INSERT INTO feed_signals(chat_id, post_message_id, reaction,"
-            " created_at) VALUES (?,?,?,?)",
-            (chat_id, post_message_id, reaction, now_iso()),
+            " comment, created_at) VALUES (?,?,?,?,?)",
+            (chat_id, post_message_id, reaction, comment, now_iso()),
         )
         await self.db.commit()
         return int(cur.lastrowid)
@@ -1729,6 +1756,21 @@ class Memory:
         cur = await self.db.execute(
             "SELECT reaction, COUNT(*) AS n FROM feed_signals"
             " GROUP BY reaction ORDER BY n DESC, reaction"
+        )
+        return [dict(r) for r in await cur.fetchall()]
+
+    async def feed_discussion_stats(self, since_iso: str) -> list[dict]:
+        """Tín hiệu thảo luận (taste v2): join signals -> posts -> sources
+        để lấy chủ đề, phản hồi và bình luận thảo luận."""
+        cur = await self.db.execute(
+            "SELECT p.topic AS topic, s.source AS source, fs.reaction AS reaction,"
+            " fs.comment AS comment, COUNT(*) AS n FROM feed_signals fs"
+            " JOIN feed_posts p ON p.chat_id = fs.chat_id"
+            " AND p.message_id = fs.post_message_id"
+            " LEFT JOIN feed_post_sources s ON s.post_id = p.id"
+            " WHERE fs.created_at>=? AND (fs.reaction = '💬' OR fs.reaction = 'discuss' OR fs.comment != '')"
+            " GROUP BY p.topic, fs.reaction, fs.comment",
+            (since_iso,),
         )
         return [dict(r) for r in await cur.fetchall()]
 
@@ -1905,13 +1947,19 @@ class Memory:
     # --- ideas ---
     async def add_idea_card(self, title: str, description: str = "",
                             source: str = "",
-                            expires_at: str = "") -> dict:
+                            expires_at: str = "",
+                            rationale: str = "",
+                            feasibility: float = 0.0,
+                            fit: float = 0.0,
+                            novelty: float = 0.0) -> dict:
         ts = now_iso()
         cur = await self.db.execute(
             "INSERT INTO idea_cards(title, description, source, status,"
+            " rationale, feasibility, fit, novelty,"
             " created_at, expires_at, updated_at)"
-            " VALUES (?,?,?,'open',?,?,?)",
-            (title, description, source, ts, expires_at or ts, ts),
+            " VALUES (?,?,?,'open',?,?,?,?,?,?,?)",
+            (title, description, source, rationale, float(feasibility), float(fit), float(novelty),
+             ts, expires_at or ts, ts),
         )
         await self.db.commit()
         return await self.get_idea_card(int(cur.lastrowid))  # type: ignore[return-value]

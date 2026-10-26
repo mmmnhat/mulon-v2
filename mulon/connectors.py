@@ -168,6 +168,16 @@ class SystemConnector(Connector):
             }
         if action == "status":
             return {"ok": True, **self._status()}
+        if action == "feed_snapshot":
+            st = self._status()
+            return {
+                "ok": True,
+                "items": [{
+                    "title": f"Môi trường máy {st.get('hostname', 'localhost')}",
+                    "snippet": f"Hệ điều hành {st.get('platform', '')}, Python {st.get('python', '')}",
+                    "url": None,
+                }]
+            }
         return {"ok": False,
                 "error": f"system không hỗ trợ action: {action}"}
 

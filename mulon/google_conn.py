@@ -347,6 +347,18 @@ class GmailConnector:
             return await self._read(args)
         if action == "send":
             return await self._send(args)
+        if action == "feed_snapshot":
+            s_res = await self._search({"query": "is:starred OR is:unread", "max_results": 5})
+            if not s_res.get("ok"):
+                return {"ok": True, "items": []}
+            items = []
+            for m in s_res.get("items") or []:
+                items.append({
+                    "title": f"Email từ {m.get('from', '')}: {m.get('subject', '')}",
+                    "snippet": str(m.get("snippet") or "")[:300],
+                    "url": None,
+                })
+            return {"ok": True, "items": items}
         return {"ok": False,
                 "error": f"gmail không hỗ trợ action: {action}"}
 
@@ -446,6 +458,20 @@ class GCalendarConnector:
             return await self._create(args)
         if action == "delete_event":
             return await self._delete(args)
+        if action == "feed_snapshot":
+            l_res = await self._list({"days": 3})
+            if not l_res.get("ok"):
+                return {"ok": True, "items": []}
+            items = []
+            for ev in l_res.get("items") or []:
+                summary = ev.get("summary") or "Sự kiện"
+                start = ev.get("start", {}).get("dateTime") or ev.get("start", {}).get("date") or ""
+                items.append({
+                    "title": f"Lịch: {summary}",
+                    "snippet": f"Thời gian: {start}",
+                    "url": None,
+                })
+            return {"ok": True, "items": items}
         return {"ok": False,
                 "error": f"gcalendar không hỗ trợ action: {action}"}
 

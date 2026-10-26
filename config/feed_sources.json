@@ -22,6 +22,18 @@
   "wsj.com",
   "zingnews.vn"
  ],
+ "social_domains": [
+  "arxiv.org",
+  "dev.to",
+  "github.com",
+  "huggingface.co",
+  "medium.com",
+  "reddit.com",
+  "substack.com",
+  "threads.net",
+  "twitter.com",
+  "x.com"
+ ],
  "official_suffixes": [
   ".gov",
   ".gov.vn",
