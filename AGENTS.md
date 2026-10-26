@@ -54,6 +54,29 @@ Hệ quả bắt buộc:
   và restart bot khi có commit mới — **push lên main = triển khai
   thật**. Không push bản dở dang lên main.
 
+### Vòng lặp yêu cầu qua git (autowatch hai phía)
+
+Từ 26/10/2026, hai agent làm việc qua file **`AGENT_TASKS.md`** ở
+gốc repo thay vì truyền yêu cầu qua chat:
+
+- **Antigravity autowatch**: mỗi lần bắt đầu làm việc (và trước
+  mỗi commit) đều `git pull` rồi **đọc `AGENT_TASKS.md`**. Chỉ
+  làm mục `TODO` ghi "Giao: Antigravity". Làm xong: cập nhật
+  trạng thái `DONE` + ghi kết quả/commit SHA ngay trong mục đó,
+  push cùng đợt. Không chờ chủ dự án paste yêu cầu nữa — yêu cầu
+  nằm sẵn trong repo.
+- **Muse autowatch**: một job nền soi `main` định kỳ. Thấy
+  commit mới: pull về, chạy lại toàn bộ test, đối chiếu diff với
+  từng mục trong `AGENT_TASKS.md`, rồi cập nhật trạng thái
+  `VERIFIED` (đạt) hoặc `NEEDS-FIX` (kèm lý do cụ thể), đồng
+  thời ghi yêu cầu mới phát sinh vào file và push lại. Báo cáo
+  tóm tắt cho chủ dự án trong chat.
+- Trạng thái nhiệm vụ chỉ di chuyển một chiều:
+  `TODO -> DOING -> DONE -> VERIFIED | NEEDS-FIX`. Phía làm thì
+  ghi `DONE`, chỉ phía kiểm chứng mới được ghi `VERIFIED`.
+- Không sửa mục/trạng thái của phía còn lại. Bất đồng thì ghi ý
+  kiến vào mục đó và báo chủ dự án quyết.
+
 ## 3. Nguyên tắc kiến trúc bất biến
 
 Không được phá, dù để "làm cho tiện":
