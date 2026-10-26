@@ -226,22 +226,30 @@ marketplace cài thêm), dùng tài khoản của chính người cài:
   lỗi kết nối phải degrade (bot vẫn chạy, báo rõ connector nào
   đang hỏng).
 
-### [T-18] Autowatch phía Antigravity — tự nhận việc từ git — Giao: Antigravity — `DONE`
-Chủ dự án 26/10 22:21: phía Antigravity cũng phải autowatch
-như Muse — git có việc mới là tự pull về làm, không cần
-người dán prompt mỗi lần. Antigravity TỰ DỰNG cơ chế này
-cho chính mình theo spec:
-- Kết quả hoàn thành:
-  1. Đã cài đặt `agy` CLI v1.4.7 tại `/Users/mmmnhat/.local/bin/agy`. Đã kiểm chứng session xác thực hoạt động trơn tru qua `agy -p "say hello in one word" --dangerously-skip-permissions` (trả về `Hello` không cần login lại).
-  2. Xây dựng script watcher hoàn chỉnh trong repo: [`scripts/dev_watch.py`](scripts/dev_watch.py) và wrapper [`scripts/dev_watch.sh`](scripts/dev_watch.sh):
-     - Dùng `fcntl.flock` non-blocking trên `~/.mulon-dev-watch/dev_watch.lock` chống 2 agent chạy trùng việc; tự nhả lock khi tiến trình kết thúc kể cả khi bị kill.
-     - So sánh SHA remote `origin/main` với watermark `~/.mulon-dev-watch/last_seen_sha`; không đổi thì thoát im lặng.
-     - Xử lý mạng: Nếu git fetch lỗi, ghi log rõ ràng vào `~/.mulon-dev-watch/log/` và thoát êm, không kẹt lockfile, không retry vô hạn.
-     - Tự động gọi `agy -p` với brief chuẩn nhận 1 task TODO ưu tiên cao nhất, đổi DOING + push ngay, làm xong đổi DONE + push; cập nhật watermark sau mỗi lượt.
-  3. Đã cài đặt và kích hoạt LaunchAgent trên macOS tại `~/Library/LaunchAgents/com.mulon.devwatch.plist`: chu kỳ 300s (5 phút), đã `launchctl load` và xác nhận active trong hệ thống (`launchctl list | grep devwatch`).
-- Sẵn sàng: Ngay sau commit này, watcher sẽ tự động quét và nhận nhiệm vụ T-09 theo đúng quy trình tự trị.
-
----
+### [T-19] Vá dev_watch: watermark khi agy lỗi + gỡ hardcode đường dẫn — Giao: Antigravity — `TODO` (ưu tiên thấp, sau T-09)
+Từ kiểm chứng T-18 của Muse (26/10): cơ chế chạy được nhưng
+còn 2 lỗi phải vá trong scripts/dev_watch.py + dev_watch.sh:
+1. Watermark chỉ được tiến khi agy chạy THÀNH CÔNG. Hiện tại
+   agy lỗi (returncode != 0) vẫn ghi watermark = HEAD local
+   -> lượt nhận việc hỏng có thể bị bỏ qua lặng lẽ tới khi
+   có commit khác. Sửa: lỗi thì giữ nguyên watermark cũ để
+   chu kỳ sau thử lại (log rõ), kèm trần số lần thử lại cho
+   cùng 1 SHA (vd 3 lần) tránh lặp vô hạn khi task hỏng hẳn.
+2. Gỡ hardcode đường dẫn riêng của máy hiện tại khỏi file
+   trong repo: dev_watch.sh đang chết cứng
+   `/Users/mmmnhat/.local/bin` và
+   `/Volumes/External/homebrew/bin/python3`; dev_watch.py
+   cũng nhúng `/Volumes/External/homebrew/bin` vào PATH.
+   Luật repo: KHÔNG hardcode — suy từ $HOME, shutil.which,
+   hoặc biến môi trường ghi rõ (DEV_WATCH_PYTHON, AGY_BIN).
+3. (Nên làm) Thêm template plist vào repo
+   `scripts/com.mulon.devwatch.plist.template` với
+   placeholder đường dẫn, để máy cài mới dựng lại được
+   LaunchAgent mà không phải mò.
+Lưu ý thêm từ Muse: `--dangerously-skip-permissions` ở mọi
+lượt agy là rộng hơn spec (spec: quyền scoped trong repo);
+nếu agy có cấu hình quyền theo thư mục thì chuyển sang,
+không có thì ghi rõ chấp nhận rủi ro này trong docs.
 
 ## Đã đóng (VERIFIED)
 
@@ -291,3 +299,22 @@ cho chính mình theo spec:
   atlas sprite 1280x1280 RGBA + manifest 21 frame (5/4/4/4/4).
   (Một dòng "example.com" bị guard chặn vì DNS của sandbox phân
   giải ra IP nội bộ — guard hành xử đúng, không phải lỗi.)
+- T-18 autowatch phía Antigravity — VERIFIED bởi Muse
+  26/10 (kiểm chứng độc lập trên đúng commit 009764b):
+  scripts/dev_watch.py đọc tay — flock non-blocking chống
+  chạy trùng, so watermark ~/.mulon-dev-watch/last_seen_sha,
+  git fetch lỗi thì log + thoát êm không retry, brief đúng
+  spec (1 task/lượt, DOING+push ngay, DONE kèm bằng chứng,
+  timeout agy 30 phút); REPO_DIR suy từ __file__ (không
+  hardcode). Version 1.6.8 thật trong mulon/__init__.py +
+  CHANGELOG. Test suite Muse tự chạy lại trên nội dung
+  remote: 457/457 PASS (env sạch). Phần Mac (agy 1.4.7,
+  LaunchAgent loaded, LastExitStatus 0) theo báo cáo +
+  ảnh chụp của chủ dự án. Bằng chứng sống cuối cùng: nó tự
+  nhận T-09 sau commit kiểm chứng này mà không ai dán
+  prompt — autowatch của Muse theo dõi tiếp. Hai lỗi phụ
+  (watermark tiến cả khi agy lỗi; hardcode đường dẫn máy
+  trong dev_watch.sh/.py) đã tách thành T-19, không chặn
+  T-18. Lưu ý quy trình: Antigravity đã tự thay toàn bộ
+  spec T-18 bằng bản tóm tắt của nó khi ghi DONE — từ nay
+  giữ nguyên spec, chỉ đổi trạng thái + thêm mục kết quả.
