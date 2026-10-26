@@ -33,6 +33,11 @@ T-23.1..T-23.6, ƯU TIÊN 11..16; báo cáo đầy đủ:
 `docs/qa-miniapp-2026-10-27.md`. T-21 đã `DONE` (commit
 `f0e2c25`), chờ Muse nghiệm thu riêng; T-15 đã được
 Mac nhận `DOING` (commit `5f99f79`) theo đúng LUẬT HÀNG ĐỢI.
+Bổ sung 2026-10-27 ~00:58 bởi Muse: chủ dự án góp thêm
+vào T-23 từ dùng thật — quyền connector phải nằm TRONG
+màn chi tiết connector (ghi vào T-23.6), list kỹ năng
+dài phải gom nhóm/gập (T-23.3), tiêu chí xuyên suốt:
+tổng thể gọn gàng (mục cha T-23).
 
 ---
 
@@ -437,6 +442,16 @@ trong lúc/trước khi làm lại theo T-12 — không đợi xong
 design system mới sửa lỗi điều hướng/hiển thị. Mọi thay
 đổi UI phải có RENDER THẬT từ HTML/CSS của app để nghiệm
 thu (luật AGENTS.md mục 6).
+- **Bổ sung của chủ dự án (2026-10-27 ~00:58, từ dùng
+  thật):** (1) quyền của từng connector (điển hình
+  google-workspace) đang NẰM LĂN LÓC trong danh sách
+  phẳng của màn Quyền chung — phải gom vào TRONG màn
+  chi tiết của chính connector đó (xem T-23.6); (2)
+  danh sách kỹ năng dài dằng dặc một cột — phải gom
+  nhóm/gập (xem T-23.3); (3) TIÊU CHÍ XUYÊN SUỐT cả
+  đợt T-23: tổng thể phải GỌN GÀNG — không màn nào là
+  một cột cuộn vô tận; danh sách dài bắt buộc có nhóm/
+  gập/tìm kiếm/phân trang, chi tiết để ở màn con.
 
 ### [T-23.1] Sửa điều hướng Mini App — Giao: Antigravity — `TODO` (ƯU TIÊN 11)
 QA Q-01 (nghiêm trọng nhất): nhấn hàng trong Cài đặt mở
@@ -489,6 +504,11 @@ nhưng màn con chỉ là khối văn bản.
 - Kỹ năng: giữ tìm kiếm đang tốt; dịch mô tả sang tiếng
   Việt ở tầng hiển thị nếu dữ liệu gốc tiếng Anh; sửa
   các mô tả vỡ chỉ còn ">" / ">-"; ẩn đường dẫn nguồn.
+  CHỦ DỰ ÁN NHẤN MẠNH (27/10): list kỹ năng "dài cộp"
+  là lỗi gọn gàng tự thân — phải GOM NHÓM theo chủ
+  đề/nguồn + GẬP nhóm mặc định (mở nhóm nào xem nhóm
+  đó) + hàng gọn (tên hiển thị + 1 dòng mô tả), có
+  phân trang/tải thêm; không đổ 91 hàng một cột nữa.
 - Thư viện: mỗi thẻ chỉ còn tên + ngày + MỘT nút tràn
   (⋯: Chia sẻ/Ghim/Sửa tên/Xoá có xác nhận); nhấn thẻ
   mở XEM TRƯỚC; tìm kiếm + lọc theo loại file; Thùng
@@ -556,6 +576,22 @@ ghi/xoá = HỎI).
 - Màn Quyền: tổng quan "X/Y quyền đang mở" ở đầu, tìm
   kiếm tool, thu gọn từng nhóm, tách "Từng tool" thành
   màn con có lọc theo connector.
+- QUYỀN THEO CONNECTOR ĐẶT TRONG CONNECTOR (chủ dự án
+  bổ sung 27/10 ~00:58): hiện quyền của google-workspace
+  (gửi/đọc Gmail, Calendar...) nằm lăn lóc lẫn trong
+  danh sách "Từng tool" PHẲNG của màn Quyền chung —
+  sai chỗ. Đúng ý: bấm vào google-workspace trong
+  "Công cụ kết nối > Đã cài" phải mở MÀN CHI TIẾT của
+  chính connector đó, trong đó có: trạng thái kết nối,
+  danh sách tool, QUYỀN TỪNG HÀNH ĐỘNG của connector
+  đó, cấu hình — chỉnh quyền ngay tại đó. Áp dụng cho
+  MỌI connector (system, mcp-marketplace cũng vậy).
+  Màn Quyền chung từ nay chỉ còn: mặc định toàn cục +
+  tổng quan + đường dẫn vào từng connector; BỎ danh
+  sách "Từng tool" phẳng. (QA đợt 1 chưa kiểm chứng
+  được hàng connector ở tab Đã cài có mở chi tiết
+  không — mục này bao gồm cả việc tạo màn chi tiết
+  đó nếu chưa có.)
 - Mọi nút phá huỷ (Xoá ở Vault/thư viện/Heartbeat,
   Cài connector có quyền file) phải có hộp thoại XÁC
   NHẬN trước khi thực thi; Xoá trong Vault chuyển vào

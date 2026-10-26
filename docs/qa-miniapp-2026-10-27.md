@@ -126,6 +126,15 @@ lần — khớp các việc "Đã lỗi: Tiến trình bị ngắt khi bot
 khởi động lại". Một phần restart là do auto_watch nạp
 commit AGENT_TASKS mới trong lúc QA đang chạy.
 
+## Bổ sung của chủ dự án (27/10 ~00:58, từ dùng thật)
+- Quyền của google-workspace nằm lăn lóc trong danh
+  sách "Từng tool" phẳng của màn Quyền chung, thay vì
+  nằm trong màn chi tiết của chính connector đó (bấm
+  vào google-workspace là cấu hình được quyền của nó).
+- Danh sách kỹ năng dài một cột, không nhóm/gập.
+- Tổng thể chưa gọn gàng: nhiều màn là cột cuộn dài
+  vô tận thay vì nhóm + màn con.
+
 ## Chưa kiểm chứng (ranh giới chỉ-đọc)
 Hành vi công tắc lịch/connector/policy; hộp thoại xác
 nhận sau các nút Xoá/Cài/Lưu/Chạy ngay; phân trang chợ
