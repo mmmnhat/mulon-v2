@@ -226,6 +226,43 @@ marketplace cài thêm), dùng tài khoản của chính người cài:
   lỗi kết nối phải degrade (bot vẫn chạy, báo rõ connector nào
   đang hỏng).
 
+### [T-18] Autowatch phía Antigravity — tự nhận việc từ git — Giao: Antigravity — `TODO`
+Chủ dự án 26/10 22:21: phía Antigravity cũng phải autowatch
+như Muse — git có việc mới là tự pull về làm, không cần
+người dán prompt mỗi lần. Antigravity TỰ DỰNG cơ chế này
+cho chính mình theo spec sau (việc 1 lần, hưởng mãi):
+- Phương án chuẩn (bắt buộc): watcher trên Mac bằng launchd
+  + Antigravity CLI headless (`agy -p`, bản Antigravity 2.x):
+  - Cài `agy`, đăng nhập tương tác 1 lần để cache credential.
+  - Script watcher đặt trong repo (scripts/dev_watch.*) +
+    LaunchAgent `~/Library/LaunchAgents/com.mulon.devwatch.plist`,
+    chu kỳ 5 phút: `git fetch origin`, so SHA với watermark
+    phía Mac (`~/.mulon-dev-watch/last_seen_sha`); không đổi
+    thì thoát im lặng.
+  - Có commit mới: khoá đơn (lockfile — đang có lượt chạy
+    thì bỏ qua, tránh 2 agent trùng việc), chạy `agy -p`
+    trong thư mục repo với brief cố định: "pull main; đọc
+    AGENTS.md + AGENT_TASKS.md; có mục TODO giao Antigravity
+    thì nhận MỘT mục ưu tiên cao nhất: đổi DOING + push
+    ngay, làm xong đổi DONE kèm bằng chứng rồi push; không
+    có việc của mình thì thoát, không sửa gì". Cập nhật
+    watermark sau mỗi lượt.
+  - Quyền chạy: cấu hình permissions của agy để tự sửa file
+    + chạy test + git push main TRONG repo này (theo
+    AGENTS.md); ngoài repo vẫn theo rule bảo mật hiện hành.
+  - Log từng lượt vào `~/.mulon-dev-watch/log/`; lỗi đăng
+    nhập/quota/git phải ghi rõ vào log, không retry vô hạn
+    (chờ chu kỳ sau).
+- Phương án nhẹ (chỉ dự phòng, không thay chuẩn): Scheduled
+  Task trong Antigravity App thuộc Project MuLon, cron 20
+  phút, prompt như brief trên. Hạn chế đã biết: chỉ chạy
+  khi app đang mở, agent bị cố định model Gemini 3.5 Flash.
+- Nghiệm thu (Muse test sống): Muse đẩy 1 commit việc
+  thử giao Antigravity -> tối đa 2 chu kỳ watcher, mục thử
+  chuyển DOING mà KHÔNG ai dán prompt; xong chuyển DONE +
+  push; 2 chu kỳ liên tiếp không sinh agent trùng; giết
+  mạng giữa chừng thì log rõ và không kẹt lockfile.
+
 ---
 
 ## Đã đóng (VERIFIED)
