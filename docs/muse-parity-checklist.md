@@ -185,7 +185,42 @@
 
 ---
 
-*Cập nhật v2 — 2026-10-26 21:2x: bổ sung chi tiết từ tài liệu
+## R. Kiến trúc hệ thống & vòng lặp suy luận (tầng sâu nhất)
+
+> Các mục trên (A-T) là cái NHÌN THẤY được. Nhóm R là cơ chế
+> bên dưới sinh ra chúng — thiếu nhóm này thì tính năng giống
+> mà "cảm giác" vẫn khác. Mô tả ở mức cơ chế (kiến trúc Muse
+> suy ra từ tài liệu vận hành + hành vi quan sát được), không
+> phải mã nguồn. Chấm bằng: đọc kiến trúc/code của MuLon đối
+> chiếu từng cơ chế + test hành vi ở nhóm A-T tương ứng.
+
+| ID | Thành phần | Cơ chế chuẩn | Vì sao quyết định cảm giác |
+|---|---|---|---|
+| R1 | Vòng lặp agent (agent loop) | Mỗi lượt: hiểu ý -> lập kế hoạch (todo khi việc >=3 bước) -> gọi tool -> quan sát kết quả -> tự kiểm chứng trước khi báo xong; báo cáo chỉ khi kết quả ĐÃ tới nơi | Bot "làm có đầu có đuôi", không báo khống, không bỏ dở giữa chừng |
+| R2 | Streaming + sửa tin | Trả lời chảy dần (stream) và sửa cùng một tin nhắn khi tiến triển, thay vì im lặng rồi bung một cục | Cảm giác "đang làm thật" thay vì "đang chờ máy" |
+| R3 | Ngắt & lái giữa lượt (steering) | Tin mới đến giữa lượt đang chạy được phân loại: lái hướng / việc mới song song / huỷ việc cũ — không nuốt, không đè | Giống người đang nói chuyện, không phải máy trả lời thư |
+| R4 | Quản trị ngữ cảnh (context engineering) | Đếm token trước mỗi lượt; cửa sổ làm việc cố định; nén (compaction) bằng tóm tắt CÓ CẤU TRÚC khi gần đầy; TRƯỚC khi nén phải xả ký ức bền (memory flush); snapshot dossier đóng băng trong phiên | Hội thoại dài không "quên đầu quên đuôi", không mất dữ kiện quan trọng khi nén |
+| R5 | Offload kết quả tool | Kết quả tool dài bị cắt trần + ghi ra file/artifact, trong ngữ cảnh chỉ giữ trích đoạn + đường dẫn | Không ngợp ngữ cảnh, vẫn truy lại được toàn văn khi cần |
+| R6 | Hệ sub-agent | Spawn agent con kế thừa ngữ cảnh, chạy nền bất đồng bộ; kết quả về qua HANDOFF (không poll); có trạng thái running/quiet/done/interrupted; coordinator fan-out tối đa 2 tầng; việc song song spawn cùng lượt | Việc lớn không chặn chat; user vẫn nói chuyện được trong lúc máy làm |
+| R7 | Bàn giao bất đồng bộ (handoff) | Mọi việc nền (sub-agent, browser, cron, artifact build) kết thúc bằng handoff vào ngữ cảnh; agent chính quyết định cái gì tới user; "đã nhận" != "đã giao" | Không mất kết quả, không báo trùng, không báo sớm |
+| R8 | Điều phối việc nền 3 cơ chế | Cron (việc theo giờ, agent chạy), Hook (script thăm dò nhẹ, chỉ đánh thức agent khi có điều kiện), Service (tiến trình chạy liên tục có giám sát + tự hồi phục) — chọn đúng cơ chế cho đúng việc | Hệ thống sống 24/7 mà không đốt token thăm dò vô ích |
+| R9 | Khôi phục sau gián đoạn | Checkpoint/watermark ghi nguyên tử; VM bị thay thì job/sub-agent/artifact tự khôi phục theo trạng thái bền; hành động ngoài đã làm phải kiểm lại kết quả trước khi làm tiếp (không lặp hành động khó đảo) | Mất điện/restart không làm mất việc, không mua trùng, không gửi trùng |
+| R10 | Kiến trúc ký ức phân lớp | Nhiều lớp tách bạch: ký ức curated (MEMORY) / nhật ký theo ngày / chỉ mục dẫn xuất / trang người-nhóm / tổng hợp căn chỉnh (alignment); mỗi lớp có nhịp cập nhật và chủ sở hữu riêng; sự thật mới thay thế sự thật cũ nhưng giữ vết truy nguồn | Nhớ lâu mà không rác, giải thích được, sửa được |
+| R11 | Phân tách pipeline chủ động | Bộ phận VIẾT (feed writer) không đọc transcript thô — chỉ đọc bản tóm tắt gu (taste summary) do bộ phận khác dựng từ reaction + thảo luận; pipeline chọn item có tiêu chí send/skip tường minh (kịp hạn, thay đổi, được yêu cầu, sẵn sàng quyết, cơ hội mới / đã xử lý, hết hạn, chưa xác nhận...) | Chủ động mà không tọc mạch, không spam, không nhắc việc đã xong |
+| R12 | Kiến trúc quyền & duyệt ở tầng runtime | Thẻ duyệt do RUNTIME phát (agent không tự mô tả/tự duyệt); quyền có scope + hạn; lịch sử duyệt là sổ kiểm toán; agent chỉ ĐỌC được trạng thái quyền, không tự sửa | An toàn nằm ở khung, không phụ thuộc "agent ngoan" |
+| R13 | Vault tách biệt | Bí mật sống ở kho riêng ngoài chat/ký ức/file thường; agent chỉ cầm THAM CHIẾU mờ (vd `[credential:<uuid>]` sống ~10 phút); giá trị thật chỉ tới nơi cần dùng sau khi user duyệt chia sẻ | Rò rỉ qua hội thoại/log gần như không thể |
+| R14 | Ranh giới lệnh (instruction boundary) | Phân biệt cứng 3 loại nội dung: lệnh của user / ngữ cảnh đứng của user / nội dung ngoài (luôn là dữ liệu); marker bao ngoài (external content fencing); worker ở chat ngoài bị ràng bởi discretion policy riêng từng chat | Không bị prompt injection lái, không lộ chuyện nhà ra ngoài |
+| R15 | Định tuyến hội thoại | Kết quả việc nào về đúng chat nấy (chat gốc); chat phụ có transcript + ký ức riêng nhưng dùng chung ký ức user; worker ở chat ngoài viết cho USER xem qua agent chính, không trả lời thẳng vào agent chính như ra lệnh | Không lẫn việc giữa các cuộc trò chuyện |
+| R16 | Trình duyệt là agent riêng | Browser chạy như tác nhân tách biệt (cửa sổ/profile/phiên riêng), có chuyên viên đăng nhập, luồng mã xác minh được bảo vệ, takeover hai chiều; agent chính chỉ giao việc + nhận báo cáo | Đăng nhập/mua sắm an toàn, user nhảy vào xem/can thiệp được |
+| R17 | Artifact là tiến trình build riêng | Dựng tài liệu/trang/app chạy nền như một builder riêng, có kho dữ liệu riêng cho app tương tác, xuất bản = snapshot tĩnh + duyệt mới mỗi lần | Giao được sản phẩm thật (không chỉ tin nhắn) mà không chặn chat |
+| R18 | Đánh giá chất lượng khép kín (eval loop) | Eval vàng cố định + eval sinh từ correction thật; skill review hằng ngày biến việc lặp thành skill; thay đổi không đo được là tốt hơn thì bị retire | Hệ thống tự tốt lên thay vì tự rác thêm |
+| R19 | Đồng hồ & múi giờ là hạ tầng | Mọi suy luận ngày giờ neo vào time tag theo múi giờ user (kể cả khi đi du lịch); kiểm tra thứ/ngày bằng công cụ; việc theo lịch neo vào home/work tz đã lưu | Không sai hẹn, không nhầm ngày — lỗi nhỏ mà phá niềm tin nhanh nhất |
+| R20 | Ngân sách & giới hạn tự biết | Trần token/chi phí mỗi lượt và mỗi job; job nền mặc định tắt, bật phải tường minh; rate-limit của nhà cung cấp là tín hiệu DỪNG, không lách | Không cháy tiền, không bị khoá tài khoản vì chính bot của mình |
+
+---
+
+*Cập nhật v3 — 2026-10-26: thêm nhóm R (kiến trúc & vòng lặp suy luận).
+*Cập nhật v2 — 2026-10-26: bổ sung chi tiết từ tài liệu
 sản phẩm Muse đầy đủ (status screen, chat search, proactive
 editions, cơ chế duyệt, browser sâu, động cơ tự cải thiện) +
 nhóm M (tác vụ đời thật) + nhóm T (hành vi & phán đoán).*
