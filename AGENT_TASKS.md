@@ -19,27 +19,13 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-26 21:2x bởi Muse (kiểm chứng
-đợt Antigravity 1.6.5-1.6.7: T-01..T-05, T-07, T-08 VERIFIED;
-T-06 NEEDS-FIX 1 test DNS pinning).
+Cập nhật lần cuối: 2026-10-26 21:3x bởi Muse (đính chính
+T-06 = VERIFIED sau test sống + env sạch; bổ sung bằng chứng
+kiểm chứng sống cho T-03/T-05).
 
 ---
 
 ## Đang mở
-
-### [T-06] Vá DNS rebinding TOCTOU ở http_get_public — Giao: Antigravity — `NEEDS-FIX` (P2)
-- Antigravity báo DONE (commit `78276cd` + `01af50e`, PinningBackend/
-  PinningTransport trong `mulon/tools.py`, 10 test trong
-  `tests/test_v165_dns_pinning.py`, báo 457/457 trên máy Mac).
-- Muse kiểm chứng độc lập 26/10 21:2x trên VM Linux: **456 passed,
-  1 FAILED** — `test_real_httpx_client_instrumented_with_pinning`
-  chết `httpx.InvalidURL: Invalid port: ':1]'`. Dấu hiệu đường ghim
-  IP xử lý host/IPv6 chưa đúng (chuỗi dạng `[::1]` bị parse lẫn
-  port) hoặc test chưa hermetic (còn một lượt resolve thật phụ
-  thuộc DNS môi trường). Trên Mac pass nên cần: (1) xác định gốc —
-  sửa parse IPv6 (ngoặc vuông) nếu là lỗi code, hoặc mock nốt lượt
-  resolve còn hở nếu là lỗi test; (2) chạy lại test này trên cả
-  Mac lẫn một môi trường Linux sạch. Đạt khi test xanh ở cả hai.
 
 ## Đợt PARITY + MỞ RỘNG (chủ dự án yêu cầu 26/10/2026 21:06-21:08)
 
@@ -221,3 +207,21 @@ marketplace cài thêm), dùng tài khoản của chính người cài:
   đúng phạm vi khảo sát (Reader Pool + writer lock cho SQLite;
   google_conn legacy giữ nguyên, gộp vào T-17), không tự sửa code.
   Chờ chủ dự án duyệt phương án.
+- T-06 vá DNS rebinding — VERIFIED (đính chính 26/10 21:3x):
+  NEEDS-FIX trước đó là BÁO ĐỘNG GIẢ từ môi trường kiểm chứng —
+  biến NO_PROXY của VM chứa IPv6 ngoặc vuông làm httpx trên VM
+  vỡ parse URL ngay cả với client trần, không phải lỗi code.
+  Chạy lại với env sạch: 18/18 test DNS pinning + TTL + sprite
+  PASS. Muse xin lỗi Antigravity về lượt chấm oan này; chuẩn
+  kiểm chứng đã sửa: luôn strip *_proxy env khi chạy test trên VM.
+- Kiểm chứng SỐNG bởi Muse 26/10 (hàm thật, dữ liệu thật,
+  không mock): file tool denylist 6/6 (.env/secret/vault bị chặn,
+  .env.example/notes đọc được, ../ bị chặn); gateway multimodal
+  6/6 (ảnh trong workspace/temp qua, .env + /etc/passwd + ảnh tên
+  secret + ngoài vùng đều chặn); SSRF guard chặn 127.0.0.1,
+  localhost, [::1], 169.254.169.254 + http_get_public từ chối
+  loopback; TTL xoá đúng file 8 ngày giữ file mới; redirect
+  ${WEBAPP_URL} mở rộng đúng qua field env của config thật;
+  atlas sprite 1280x1280 RGBA + manifest 21 frame (5/4/4/4/4).
+  (Một dòng "example.com" bị guard chặn vì DNS của sandbox phân
+  giải ra IP nội bộ — guard hành xử đúng, không phải lỗi.)
