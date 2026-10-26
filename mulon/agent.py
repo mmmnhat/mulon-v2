@@ -658,6 +658,11 @@ class Agent:
                 )
                 await self._emit(on_event, "retry", task_id=task_id,
                                  diagnosis=diagnosis)
+        except asyncio.CancelledError:
+            logger.info("tác vụ %s bị dừng theo yêu cầu", task_id)
+            await self.memory.finish_task(task_id, "cancelled", error="Tác vụ đã bị người dùng dừng.")
+            await self._emit(on_event, "task_done", task_id=task_id, status="cancelled")
+            raise
         except Exception as exc:
             logger.warning("tác vụ %s thất bại do ngoại lệ: %s", task_id, exc)
             await self.memory.finish_task(task_id, "failed", error=str(exc)[:200])
@@ -742,10 +747,10 @@ class Agent:
                 elif not decision.allowed:
                     return tc, {"ok": False,
                                 "error": f"policy chặn ở lớp {decision.layer}"}
-                await self._emit(on_event, "tool_start", task_id=task_id,
-                                 tool=tc.name)
                 # Ghi nhận bước thực thi thật vào task timeline (chuẩn Muse)
                 step_title = format_step_title(tc.name, args)
+                await self._emit(on_event, "tool_start", task_id=task_id,
+                                 tool=tc.name, step_title=step_title, args=args)
                 step_idx = await self.memory.add_task_step(task_id, step_title, "doing")
                 await self.memory.clear_placeholder_steps(task_id)
 

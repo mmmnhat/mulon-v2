@@ -1119,6 +1119,12 @@ class Memory:
         )
         await self.db.commit()
 
+    async def cancel_task(
+        self, task_id: str, error: str = "Tác vụ đã bị người dùng dừng."
+    ) -> None:
+        """Hủy tác vụ và cập nhật trạng thái sang cancelled."""
+        await self.finish_task(task_id, "cancelled", error=error)
+
     async def reconcile_orphan_tasks(self) -> int:
         """Thu dọn các task bị kẹt 'running' từ phiên trước (do bot crash/restart)."""
         cur = await self.db.execute(
@@ -1140,15 +1146,23 @@ class Memory:
             (task_id,),
         )
         d["steps"] = [dict(r) for r in await cur.fetchall()]
+        cur_step = ""
+        for s in reversed(d["steps"]):
+            if s.get("status") == "doing":
+                cur_step = s.get("title") or ""
+                break
+        if not cur_step and d["steps"]:
+            cur_step = d["steps"][-1].get("title") or ""
+        d["current_step"] = cur_step
         return d
 
     async def list_tasks(self, limit: int = 20) -> list[dict]:
         """Các task gần nhất (mới nhất trước) — tab Việc của Mini App.
 
-        Kèm tiến độ bước (tổng/đã xong) để danh sách hiện như
-        thẻ việc của Muse. Chỉ task THẬT (đường plan-act-verify,
-        job, agent con) mới có bản ghi ở đây — lượt chat thường
-        không tạo task (vá sau 1.4)."""
+        Kèm tiến độ bước (tổng/đã xong) và bước hiện tại để danh sách
+        hiện rõ tiến trình thời gian thực như thẻ việc của Muse. Chỉ
+        task THẬT (đường plan-act-verify, job, agent con) mới có bản
+        ghi ở đây — lượt chat thường không tạo task (vá sau 1.4)."""
         cur = await self.db.execute(
             "SELECT t.id, t.session_key, t.title, t.status, t.error,"
             " t.created_at, t.updated_at,"
@@ -1156,7 +1170,12 @@ class Memory:
             "   WHERE s.task_id = t.id) AS steps_total,"
             " (SELECT COUNT(*) FROM task_steps s"
             "   WHERE s.task_id = t.id AND s.status = 'done')"
-            "   AS steps_done"
+            "   AS steps_done,"
+            " COALESCE("
+            "   (SELECT s.title FROM task_steps s WHERE s.task_id = t.id AND s.status = 'doing' ORDER BY s.idx DESC LIMIT 1),"
+            "   (SELECT s.title FROM task_steps s WHERE s.task_id = t.id ORDER BY s.idx DESC LIMIT 1),"
+            "   ''"
+            " ) AS current_step"
             " FROM tasks t ORDER BY t.created_at DESC LIMIT ?",
             (limit,),
         )

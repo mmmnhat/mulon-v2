@@ -739,7 +739,10 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <!-- chi tiết 1 việc -->
 <section id="screen-task" class="hidden">
   <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
-  <h2 class="screen-title" id="task-detail-title">Chi tiết việc</h2>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <h2 class="screen-title" id="task-detail-title" style="margin-bottom:0;">Chi tiết việc</h2>
+    <button id="btn-stop-task-detail" class="btn btn-danger btn-sm hidden" style="height:32px; padding:0 12px; font-size:12px; border-radius:8px; cursor:pointer;">Dừng việc</button>
+  </div>
   <div class="card">
     <div class="card-title">Dòng thời gian</div>
     <div class="timeline" id="task-timeline"></div>
@@ -763,7 +766,12 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <section id="tab-lich" class="hidden">
   <div id="schedule-banner"></div>
 
-  <div class="card-title" style="margin:8px 0 8px 4px; font-size:15px; font-weight:600; color:var(--ink2);">Hàng ngày</div>
+  <div class="card-title" style="margin:8px 0 8px 4px; font-size:15px; font-weight:600; color:var(--ink2);">Sắp tới (Upcoming)</div>
+  <div class="card" style="margin-bottom:18px;">
+    <div id="upcoming-list"></div>
+  </div>
+
+  <div class="card-title" style="margin:8px 0 8px 4px; font-size:15px; font-weight:600; color:var(--ink2);">Hàng ngày &amp; Hệ thống</div>
   <div class="card" id="card-heartbeat-item" style="cursor:pointer; display:flex; align-items:center; gap:14px; padding:16px; border-radius:18px; margin-bottom:18px;">
     <div style="width:44px; height:44px; border-radius:50%; background:var(--surface2); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="var(--err)" stroke="var(--err)" stroke-width="1.5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
@@ -1832,12 +1840,14 @@ function taskStateText(t){
      lịch sử duyệt (KT-3) — không còn glyph ✓/◌/✕ trong ô be. */
   if (t.status === "done") return "✓ Đã xong";
   if (t.status === "running") return "◌ Đang chạy";
+  if (t.status === "cancelled") return "⊘ Đã dừng";
   if (t.status === "failed") return "✕ Đã lỗi";
   return "· Đang chờ";
 }
 function taskSub(t){
   /* Sub chỉ khi thật cần: chi tiết lỗi dưới tiêu đề. */
   if (t.status === "failed") return "Lỗi: " + (t.error || "không rõ");
+  if (t.status === "cancelled") return "Đã dừng: " + (t.error || "theo yêu cầu");
   return "";
 }
 function cleanTaskTitle(s){
@@ -1859,18 +1869,43 @@ function renderTasks(){
   }
   box.innerHTML = tasks.map(t => {
     let sub = taskSub(t);
-    if (!sub && t.steps_total)
+    if (t.status === "running" && t.current_step) {
+      sub = "Đang chạy: " + t.current_step;
+    } else if (!sub && t.steps_total) {
       sub = t.steps_done + "/" + t.steps_total + " bước";
+    }
+    const stopBtn = (t.status === "running")
+      ? '<button class="btn btn-danger btn-xs" data-stop-id="' + esc(t.id) + '" style="margin-left:8px; padding:2px 8px; font-size:11px; border-radius:6px; cursor:pointer;" title="Dừng việc này">Dừng</button>'
+      : '';
     return '<div class="row" data-task="' + esc(t.id) + '">' +
       '<div class="r-main"><div class="r-title">' + esc(cleanTaskTitle(t.title)) +
       '</div>' + (sub ? '<div class="r-sub">' + esc(sub) +
       '</div>' : "") + '</div>' +
       '<span class="r-state">' + taskStateText(t) + '</span>' +
+      stopBtn +
       '<div class="r-time">' + esc(todayLabel(t.created_at)) +
       '</div></div>';
   }).join("");
   box.querySelectorAll("[data-task]").forEach(el =>
     el.addEventListener("click", () => openTask(el.dataset.task)));
+  box.querySelectorAll("[data-stop-id]").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const tid = btn.dataset.stopId;
+      if (!confirm("Ní có chắc muốn dừng việc đang chạy này không?")) return;
+      try {
+        btn.disabled = true;
+        btn.textContent = "Đang dừng...";
+        const res = await api("/api/task/stop", "POST", {id: tid});
+        toast(res.message || "Đã dừng việc thành công.");
+        await refresh();
+      } catch (err) {
+        toast("Lỗi dừng việc: " + err.message);
+        btn.disabled = false;
+        btn.textContent = "Dừng";
+      }
+    });
+  });
 }
 /* Ánh xạ nhãn hành động lời thường cho bước timeline (NT-4) —
    cùng bảng với server (TOOL_ACTION_LABELS/_GROUP_ACTION_LABELS
@@ -1932,6 +1967,31 @@ async function openTask(id){
     const data = await api("/api/task?id=" + encodeURIComponent(id));
     const t = data.task;
     $("task-detail-title").textContent = cleanTaskTitle(t.title);
+    const stopDetailBtn = $("btn-stop-task-detail");
+    if (stopDetailBtn) {
+      if (t.status === "running") {
+        stopDetailBtn.classList.remove("hidden");
+        stopDetailBtn.disabled = false;
+        stopDetailBtn.textContent = "Dừng việc";
+        stopDetailBtn.onclick = async () => {
+          if (!confirm("Ní có chắc muốn dừng việc đang chạy này không?")) return;
+          try {
+            stopDetailBtn.disabled = true;
+            stopDetailBtn.textContent = "Đang dừng...";
+            const res = await api("/api/task/stop", "POST", {id: t.id});
+            toast(res.message || "Đã dừng việc thành công.");
+            await openTask(t.id);
+            await refresh();
+          } catch (err) {
+            toast("Lỗi dừng việc: " + err.message);
+            stopDetailBtn.disabled = false;
+            stopDetailBtn.textContent = "Dừng việc";
+          }
+        };
+      } else {
+        stopDetailBtn.classList.add("hidden");
+      }
+    }
 
     const items = [];
     const steps = t.steps || [];
@@ -2177,6 +2237,27 @@ function renderSchedule(){
 
   const userItems = sch.items.filter(it => it.kind === "schedule");
   const sysItems = sch.items.filter(it => it.kind !== "schedule");
+
+  // Danh sách Sắp tới (Upcoming) hợp nhất từ dữ liệu thật
+  const upBox = $("upcoming-list");
+  if (upBox) {
+    const upcoming = (S && S.upcoming) || [];
+    if (!upcoming.length) {
+      upBox.innerHTML = '<div class="empty">Chưa có việc sắp tới nào. ' +
+        'Lịch hẹn, Heartbeat, lịch Feed và cam kết đang theo dõi sẽ xuất hiện tại đây.</div>';
+    } else {
+      upBox.innerHTML = upcoming.map(it => {
+        const badgeCls = it.read_only ? 'r-state' : 'r-state';
+        const badgeTxt = it.read_only ? 'Chỉ xem' : 'Sửa/huỷ qua chat';
+        const sub = (it.time_label ? it.time_label + ' · ' : '') + esc(it.chat_instruction || '');
+        return '<div class="row static">' +
+          '<div class="r-main"><div class="r-title">' + esc(it.title) +
+          '</div><div class="r-sub">' + sub + '</div></div>' +
+          '<span class="' + badgeCls + '">' + badgeTxt + '</span>' +
+          '</div>';
+      }).join("");
+    }
+  }
 
   // Danh sách lịch hẹn người dùng
   const boxUser = $("schedule-list");

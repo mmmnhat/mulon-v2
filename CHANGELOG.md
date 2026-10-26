@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## 1.7.4 — 2026-10-27 — Tab Hành động thời gian thực và Danh sách Sắp tới (T-10.2 Parity D4 + C6 + E8)
+
+- **Tab Hành động thời gian thực (Realtime Action & Subagent Step Tracking):**
+  - Mọi tác vụ đang thực thi (kể cả sub-agents khởi tạo bởi `SubagentRunner`) được đăng ký và theo dõi tự động qua `ActivityTracker`.
+  - Cập nhật liên tục bước thực thi hiện tại (`current_step`):
+    - Agent chính phát sự kiện `tool_start` kèm `step_title`, `tool_done`, `verify` để cập nhật bước đang chạy theo thời gian thực.
+    - `SubagentRunner._run_inner` tự động đăng ký subagent vào `activity`, ghi nhận tiến trình từng bước `Subagent [<profile>]: <tiêu đề>`.
+    - `Memory.list_tasks` và `Memory.get_task` nạp `current_step` mới nhất từ bảng `task_steps` (subquery `SELECT title FROM task_steps WHERE task_id = t.id ORDER BY step_order DESC, created_at DESC LIMIT 1`).
+    - Tab Hành động trong Mini App (`renderTasks` và màn chi tiết `#screen-task`): hiển thị rõ ràng bước hiện tại (`current_step`), trạng thái (`Đang chạy`, `Hoàn thành`, `Thất bại`, `Đã huỷ`), thời gian tạo.
+- **Nút Dừng việc thực chất (True Cancellation & Stop Execution):**
+  - Trang bị nút "Dừng" trên từng dòng tác vụ đang chạy trong tab Hành động và nút "Dừng tác vụ này" trong màn chi tiết tác vụ (`#screen-task`).
+  - Khi bấm Dừng: gọi endpoint `POST /api/task/stop` kèm `task_id`.
+  - Hệ thống thực hiện huỷ thực sự (`activity.stop_task(task_id)` huỷ trực tiếp `asyncio.Task` đang chạy và `memory.cancel_task(task_id)` chuyển trạng thái thành `cancelled` trong SQLite).
+  - Khối `_task_path` trong `Agent` và `SubagentRunner` bắt chuẩn `asyncio.CancelledError`, cập nhật DB trạng thái `cancelled`, emit sự kiện `task_done(status="cancelled")`, dọn dẹp runner an toàn.
+  - Đồng bộ lệnh chat Telegram: `/stop <task_id>` hoặc `/cancel <task_id>` cho phép chủ sở hữu huỷ nhanh tác vụ ngay từ chat Telegram.
+- **Danh sách Sắp tới tổng hợp từ dữ liệu thật (Unified Real-Data Upcoming List):**
+  - Endpoint `GET /api/upcoming` và thuộc tính `upcoming` trong `/api/state` tổng hợp 100% dữ liệu thật từ hệ thống:
+    - Lịch định kỳ do người dùng đặt (`schedules` từ `Memory.list_schedules()`): nhãn "Sửa/huỷ qua chat: /schedules", có thể điều chỉnh qua bot.
+    - Heartbeat định kỳ (`heartbeat` cấu hình qua `Config.heartbeat_interval_s`, trạng thái bật/tắt `effective_enabled`): nhãn "Chỉ xem (hệ thống)".
+    - Lịch tự động điểm tin Feed (`feed_auto` theo `Config.feed_auto_interval_s` và trạng thái `effective_enabled`): nhãn "Chỉ xem (hệ thống)".
+    - Cam kết & việc đang theo dõi (`tracked_items` từ `Memory.list_commitments(status="open")`): nhãn "Sửa/huỷ qua chat: /commitments".
+  - Hiển thị trực quan trong Mini App (Tab Lịch - Sắp tới) với phân loại rõ ràng: "Sửa/huỷ qua chat" (kèm gợi ý lệnh) vs "Chỉ xem (hệ thống)", không có dữ liệu mock/dummy (đáp ứng trọn vẹn tiêu chí Parity D4 + C6 + E8).
+  - Hỗ trợ xem nhanh danh sách sắp tới ngay trong chat Telegram qua lệnh `/upcoming` (alias `/saptol`, `/lich`).
+- **Kiểm chứng:** 490/490 unit tests PASS (bổ sung 6 test toàn diện trong `tests/test_v17_activity_upcoming.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
+
+
 ## 1.7.3 — 2026-10-27 — Phê duyệt đồng bộ 2 chiều và Thẻ Vault trong chat (T-10.1 Parity F3 + F2)
 
 - **Đồng bộ phê duyệt 2 chiều (Bidirectional Approval Synchronization & In-Chat Status Update):**

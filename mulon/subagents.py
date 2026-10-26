@@ -89,13 +89,15 @@ class _CountingGateway:
 
 class SubagentRunner:
     def __init__(self, cfg, gateway, memory, ctx, policy,
-                 registry_factory: Callable[[], ToolRegistry]):
+                 registry_factory: Callable[[], ToolRegistry],
+                 activity: Optional[Any] = None):
         self.cfg = cfg
         self.gateway = gateway
         self.memory = memory
         self.ctx = ctx
         self.policy = policy
         self._registry_factory = registry_factory
+        self.activity = activity
         self._semaphore = asyncio.Semaphore(cfg.subagent_max_concurrent)
 
     def _filtered_registry(self, profile: str) -> ToolRegistry:
@@ -129,6 +131,13 @@ class SubagentRunner:
             await self.memory.update_step(sub_task_id, 1, "doing")
         except Exception as exc:
             logger.warning("tạo task cho subagent trong memory lỗi: %s", exc)
+
+        if self.activity is not None:
+            self.activity.register_task(
+                sub_task_id, asyncio.current_task(),
+                title=sub_task_title, session_key=session_key,
+                current_step="Thực thi tác vụ con", kind="subagent"
+            )
 
         counting = _CountingGateway(self.gateway,
                                     self.cfg.subagent_token_budget)
@@ -164,11 +173,17 @@ class SubagentRunner:
                 status = "done"
         except asyncio.TimeoutError:
             summary = "subagent chạm trần thời gian, đã dừng an toàn"
+        except asyncio.CancelledError:
+            status = "cancelled"
+            summary = "subagent đã bị dừng theo yêu cầu"
+            raise
         except Exception as exc:
             summary = f"subagent lỗi: {type(exc).__name__}: {exc}"
         finally:
+            if self.activity is not None:
+                self.activity.unregister_task(sub_task_id)
             try:
-                final_step_status = "done" if status == "done" else "failed"
+                final_step_status = "done" if status == "done" else ("cancelled" if status == "cancelled" else "failed")
                 await self.memory.update_step(sub_task_id, 1, final_step_status)
                 await self.memory.update_step(sub_task_id, 2, final_step_status)
                 await self.memory.finish_task(sub_task_id, status, result=summary)

@@ -252,11 +252,13 @@ def policy_group_label(group: str) -> str:
 # ---------------------------------------------------------------------------
 
 class ActivityTracker:
-    """Trạng thái sống tối thiểu cho Mini App: lượt đang chạy +
-    bước hiện tại. Bề mặt Telegram cập nhật; server chỉ đọc."""
+    """Trạng thái sống cho Mini App: lượt đang chạy, bước hiện tại,
+    và quản lý huỷ tác vụ thời gian thực (kể cả sub-agent)."""
 
     def __init__(self):
         self.current: Optional[dict] = None
+        self._running_tasks: dict[str, asyncio.Task] = {}
+        self._task_meta: dict[str, dict] = {}
 
     def start_turn(self, session_key: str, text: str) -> None:
         self.current = {
@@ -273,12 +275,68 @@ class ActivityTracker:
     def end_turn(self) -> None:
         self.current = None
 
+    def register_task(
+        self, task_id: str, task: asyncio.Task,
+        title: str = "", session_key: str = "",
+        current_step: str = "Đang xử lý…", kind: str = "main"
+    ) -> None:
+        """Đăng ký tác vụ đang chạy kèm asyncio.Task thật để cho phép huỷ từ bất kỳ đâu."""
+        self._running_tasks[task_id] = task
+        self._task_meta[task_id] = {
+            "task_id": task_id,
+            "title": title or "Tác vụ",
+            "session_key": session_key,
+            "current_step": current_step,
+            "kind": kind,
+            "started_at": time.time(),
+        }
+
+    def update_task_step(self, task_id: str, step_title: str) -> None:
+        """Cập nhật bước hiện tại đang chạy của task."""
+        if task_id in self._task_meta:
+            self._task_meta[task_id]["current_step"] = step_title
+        if self.current is not None:
+            self.current["step"] = step_title
+
+    def unregister_task(self, task_id: str) -> None:
+        """Gỡ bỏ task khi đã hoàn thành hoặc đã dừng."""
+        self._running_tasks.pop(task_id, None)
+        self._task_meta.pop(task_id, None)
+
+    def stop_task(self, task_id: str) -> bool:
+        """Huỷ thật sự (cancel) asyncio.Task đang chạy của task_id hoặc session_key."""
+        target_task = self._running_tasks.get(task_id)
+        if target_task is not None:
+            if not target_task.done():
+                target_task.cancel()
+            self.unregister_task(task_id)
+            return True
+        for tid, meta in list(self._task_meta.items()):
+            if meta.get("session_key") == task_id or tid == task_id:
+                t = self._running_tasks.get(tid)
+                if t is not None and not t.done():
+                    t.cancel()
+                self.unregister_task(tid)
+                return True
+        return False
+
+    def get_running_task_info(self, task_id: str) -> Optional[dict]:
+        return self._task_meta.get(task_id)
+
+    def list_running_tasks(self) -> list[dict]:
+        return list(self._task_meta.values())
+
     def snapshot(self) -> dict:
+        running = self.list_running_tasks()
         if self.current is None:
-            return {"busy": False, "label": "Sẵn sàng", "current": None}
+            return {"busy": len(running) > 0,
+                    "label": "Đang chạy việc nền" if running else "Sẵn sàng",
+                    "current": None,
+                    "running_tasks": running}
         return {"busy": True,
                 "label": self.current.get("step") or "Đang xử lý",
-                "current": dict(self.current)}
+                "current": dict(self.current),
+                "running_tasks": running}
 
 
 # ---------------------------------------------------------------------------
@@ -483,6 +541,8 @@ class WebAppServer:
         app.router.add_get("/api/state", self._handle_state)
         app.router.add_get("/api/heartbeat/history", self._handle_heartbeat_history)
         app.router.add_get("/api/task", self._handle_task)
+        app.router.add_post("/api/task/stop", self._handle_task_stop)
+        app.router.add_get("/api/upcoming", self._handle_upcoming)
         app.router.add_get("/api/profile/content",
                            self._handle_profile_content)
         app.router.add_post("/api/policy", self._handle_policy)
@@ -904,6 +964,101 @@ class WebAppServer:
                 "heartbeat": heartbeat_info,
                 "items": items}
 
+    async def _upcoming_state(self) -> list[dict]:
+        """Danh sách Sắp tới (Upcoming) hợp nhất từ 100% dữ liệu thật:
+        - Job theo lịch hẹn (schedules)
+        - Chu kỳ quét định kỳ (Heartbeat)
+        - Lịch Feed chủ động (feed_auto)
+        - Cam kết/hạn đang theo dõi (tracked_items mở)."""
+        upcoming: list[dict] = []
+
+        # 1. Job theo lịch từ DB
+        try:
+            rows = await self.memory.list_schedules()
+        except Exception:
+            rows = []
+        for r in rows:
+            payload = str(r.get("payload") or "")
+            internal = internal_kind(payload)
+            if internal is not None:
+                continue
+            if bool(r.get("enabled", 1)):
+                upcoming.append({
+                    "id": f"sched_{r.get('id')}",
+                    "raw_id": str(r.get("id")),
+                    "kind": "schedule",
+                    "kind_label": "Lịch hẹn cá nhân",
+                    "title": payload[:80] or f"Lịch #{r.get('id')}",
+                    "time_label": r.get("cron") or "",
+                    "next_run_at": r.get("next_run_at") or "",
+                    "can_modify_via_chat": True,
+                    "chat_instruction": f"Huỷ bằng chat: 'huỷ lịch {r.get('id')}' hoặc bảo bot huỷ lịch",
+                    "read_only": False,
+                })
+
+        # 2. Heartbeat định kỳ
+        try:
+            hb_en = await effective_enabled(self.memory, self.cfg)
+        except Exception:
+            hb_en = bool(self.cfg.proactivity_enabled)
+        if hb_en:
+            upcoming.append({
+                "id": "heartbeat",
+                "raw_id": "heartbeat",
+                "kind": "heartbeat",
+                "kind_label": "Hệ thống định kỳ",
+                "title": "Heartbeat (quét chủ động checklist & cam kết)",
+                "time_label": "30 phút một lần",
+                "next_run_at": "",
+                "can_modify_via_chat": False,
+                "chat_instruction": "Chỉ xem (tiến trình nền hệ thống, bật/tắt trong Cài đặt)",
+                "read_only": True,
+            })
+
+        # 3. Lịch Feed chủ động
+        if self.feed_auto is not None:
+            try:
+                feed_st = await self.feed_auto.get_state()
+            except Exception:
+                feed_st = {}
+            if feed_st and feed_st.get("enabled", True):
+                upcoming.append({
+                    "id": "feed_auto",
+                    "raw_id": "feed_auto",
+                    "kind": "feed_auto",
+                    "kind_label": "Hệ thống định kỳ",
+                    "title": "Feed chủ động (tự động 2 bài/ngày)",
+                    "time_label": "Hằng ngày (08:00 & 17:00)",
+                    "next_run_at": "",
+                    "can_modify_via_chat": False,
+                    "chat_instruction": "Chỉ xem (tiến trình nền hệ thống)",
+                    "read_only": True,
+                })
+
+        # 4. Cam kết đang theo dõi (tracked items)
+        try:
+            tracked = await self.memory.list_tracked_items(status="open")
+        except Exception:
+            tracked = []
+        for t in tracked:
+            due = t.get("due_at") or ""
+            time_str = f"Hạn: {due}" if due else "Đang theo dõi"
+            upcoming.append({
+                "id": f"tracked_{t['id']}",
+                "raw_id": str(t["id"]),
+                "kind": "tracked_item",
+                "kind_label": "Cam kết đang theo dõi",
+                "title": t.get("title") or "Cam kết",
+                "time_label": time_str,
+                "next_run_at": due,
+                "detail": t.get("detail") or "",
+                "can_modify_via_chat": True,
+                "chat_instruction": f"Cập nhật/đóng bằng chat: 'đóng cam kết #{t['id']}' hoặc thông báo kết quả trong chat",
+                "read_only": False,
+            })
+
+        return upcoming
+
     async def _profile_state(self) -> dict:
         import os
 
@@ -1015,6 +1170,11 @@ class WebAppServer:
         tasks = []
         try:
             for t in await self.memory.list_tasks(limit=20):
+                c_step = t.get("current_step") or ""
+                if t.get("status") == "running" and self.activity:
+                    live_info = self.activity.get_running_task_info(t["id"])
+                    if live_info and live_info.get("current_step"):
+                        c_step = live_info["current_step"]
                 tasks.append({
                     "id": t["id"], "kind": "task",
                     "title": t.get("title") or "",
@@ -1022,6 +1182,7 @@ class WebAppServer:
                     "error": t.get("error") or "",
                     "steps_total": t.get("steps_total") or 0,
                     "steps_done": t.get("steps_done") or 0,
+                    "current_step": c_step,
                     "created_at": t.get("created_at") or "",
                     "updated_at": t.get("updated_at") or "",
                 })
@@ -1069,6 +1230,7 @@ class WebAppServer:
             "ok": True,
             "status": self.activity.snapshot(),
             "tasks": tasks,
+            "upcoming": await self._upcoming_state(),
             "approvals": {
                 "pending": pending,
                 "history": history,
@@ -1139,6 +1301,55 @@ class WebAppServer:
                 "steps": task.get("steps") or [],
             },
             "events": events,
+        })
+
+    async def _handle_task_stop(self, request):
+        """Huỷ tác vụ đang chạy (kể cả sub-agent) — dừng thật sự asyncio.Task."""
+        data = {}
+        if request.can_read_body:
+            try:
+                data = await request.json()
+            except Exception:
+                data = {}
+        task_id = str(data.get("id") or request.query.get("id") or "").strip()
+        if not task_id:
+            return web.json_response({"ok": False, "error": "Thiếu mã task_id (tham số id)"}, status=400)
+
+        # 1. Thử huỷ qua ActivityTracker
+        stopped_live = False
+        if self.activity is not None:
+            stopped_live = self.activity.stop_task(task_id)
+
+        # 2. Cập nhật DB
+        db_updated = False
+        if self.memory is not None:
+            try:
+                task_row = await self.memory.get_task(task_id)
+                if task_row:
+                    await self.memory.cancel_task(task_id, error="Đã dừng theo yêu cầu người dùng qua Mini App")
+                    db_updated = True
+            except Exception as exc:
+                logger.warning("Cập nhật huỷ task %s trong DB lỗi: %s", task_id, exc)
+
+        if stopped_live or db_updated:
+            return web.json_response({
+                "ok": True,
+                "task_id": task_id,
+                "stopped_live": stopped_live,
+                "message": "Đã dừng tác vụ thành công.",
+            })
+        return web.json_response({
+            "ok": False,
+            "error": "Tác vụ không còn chạy hoặc không tồn tại.",
+        }, status=404)
+
+    async def _handle_upcoming(self, request):
+        """Trả về danh sách việc sắp tới hợp nhất từ dữ liệu thật."""
+        upcoming = await self._upcoming_state()
+        return web.json_response({
+            "ok": True,
+            "upcoming": upcoming,
+            "count": len(upcoming),
         })
 
     async def _handle_profile_content(self, request):

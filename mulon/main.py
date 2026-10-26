@@ -133,12 +133,14 @@ async def build_system(cfg: Config):
     if mcp_tools:
         logger.info("MCP đã đăng ký %d tool: %s",
                     len(mcp_tools), mcp_tools)
+    activity = ActivityTracker()
     agent = Agent(cfg, gateway, memory, ctx, registry, policy,
                   broker=broker)
     # Subagents: agent loop đầy đủ, toolset thu hẹp theo profile.
     runner = SubagentRunner(
         cfg, gateway, memory, ctx, policy,
         registry_factory=lambda: registry,
+        activity=activity,
     )
     register_subagent_tool(registry, runner)
 
@@ -201,8 +203,7 @@ async def build_system(cfg: Config):
     }
     # 1.2.0: Mini App server — chỉ DỰNG ở đây; start() trong _run
     # (như vault server, dry-run không bind cổng). ActivityTracker
-    # dùng chung với bề mặt Telegram.
-    activity = ActivityTracker()
+    # dùng chung với bề mặt Telegram và SubagentRunner.
     webapp = WebAppServer(
         cfg, memory=memory, policy=policy, broker=broker,
         connectors=connectors, mcp_manager=mcp_manager,

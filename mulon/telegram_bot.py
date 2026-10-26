@@ -760,10 +760,21 @@ class TelegramSurface:
                         await self.send_approval_card(
                             anchor.chat.id, thread_id, payload)
                     elif kind == "task_start":
+                        t_id = payload.get("task_id")
                         t_title = payload.get("title") or "Lập kế hoạch tác vụ"
                         progress_steps.append({"icon": "✓", "text": f"Kế hoạch: {t_title[:45]}"})
                         await _render_progress()
+                        if t_id and self.activity:
+                            cur_t = self._active_tasks.get(key) or asyncio.current_task()
+                            self.activity.register_task(
+                                t_id, cur_t, title=t_title, session_key=key,
+                                current_step="Đang lập kế hoạch", kind="main"
+                            )
                     elif kind == "tool_start":
+                        t_id = payload.get("task_id")
+                        step_t = payload.get("step_title") or label or f"Chạy {payload.get('tool', '')}"
+                        if t_id and step_t and self.activity:
+                            self.activity.update_task_step(t_id, step_t)
                         if payload.get("tool") == "request_vault_secret":
                             v_args = payload.get("args") or {}
                             v_lbl = str(v_args.get("label") or "").strip()
@@ -778,6 +789,9 @@ class TelegramSurface:
                         await _render_progress()
                     elif kind == "tool_done":
                         step_t = payload.get("step_title") or label or "Đã xong bước"
+                        t_id = payload.get("task_id")
+                        if t_id and self.activity:
+                            self.activity.update_task_step(t_id, f"Hoàn thành: {step_t}")
                         updated = False
                         for s in reversed(progress_steps):
                             if s.get("icon") == "⏳":
@@ -789,8 +803,15 @@ class TelegramSurface:
                             progress_steps.append({"icon": "✓", "text": step_t})
                         await _render_progress()
                     elif kind == "verify":
+                        t_id = payload.get("task_id")
+                        if t_id and self.activity:
+                            self.activity.update_task_step(t_id, "Kiểm chứng kết quả")
                         progress_steps.append({"icon": "⏳", "text": "Kiểm chứng kết quả..."})
                         await _render_progress()
+                    elif kind in ("task_done", "turn_done"):
+                        t_id = payload.get("task_id")
+                        if t_id and self.activity:
+                            self.activity.unregister_task(t_id)
                     elif label:
                         progress_steps.append({"icon": "⏳", "text": label})
                         await _render_progress()
@@ -3107,10 +3128,72 @@ class TelegramSurface:
             await self._send_typing(message)
             await self._process_voice_message(message)
 
+        @dp.message(F.text.startswith("/upcoming") | F.text.startswith("/saptol") | (F.text == "/lich"))
+        async def cmd_upcoming(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            if self.memory is None:
+                await message.answer("Chưa khởi tạo bộ nhớ.")
+                return
+            from .planning import internal_kind
+            lines = ["📅 <b>Danh sách Sắp tới (Upcoming)</b>\n"]
+            # Schedules
+            try:
+                scheds = await self.memory.list_schedules()
+                active_scheds = [s for s in scheds if s.get("enabled", 1) and internal_kind(s.get("payload") or "") is None]
+                if active_scheds:
+                    lines.append("⏰ <b>Job theo lịch hẹn:</b>")
+                    for s in active_scheds:
+                        nxt = s.get("next_run_at") or "theo cron"
+                        lines.append(f"  • <b>{s.get('payload', '')[:50]}</b> ({s.get('cron', '')})")
+                        lines.append(f"    <i>Tới hạn:</i> {nxt} · <i>Sửa/huỷ:</i> dùng chat 'huỷ lịch {s['id']}'")
+            except Exception:
+                pass
+
+            # Heartbeat
+            lines.append("💓 <b>Heartbeat:</b> 30 phút một lần (quét chủ động) · <i>Chỉ xem</i>")
+            # Feed
+            lines.append("📰 <b>Feed chủ động:</b> 08:00 & 17:00 (2 bài/ngày) · <i>Chỉ xem</i>")
+
+            # Tracked items
+            try:
+                tracked = await self.memory.list_tracked_items(status="open")
+                if tracked:
+                    lines.append("\n📌 <b>Cam kết đang theo dõi:</b>")
+                    for t in tracked:
+                        due = t.get("due_at") or "Đang theo dõi"
+                        lines.append(f"  • <b>{t['title']}</b> (Hạn: {due})")
+                        lines.append(f"    <i>Cập nhật/đóng:</i> nói trong chat 'đóng cam kết #{t['id']}'")
+            except Exception:
+                pass
+
+            lines.append("\n💡 <i>Mục có nhãn 'Sửa/huỷ qua chat' bạn có thể ra lệnh trực tiếp trong hội thoại để điều chỉnh.</i>")
+            await message.answer("\n".join(lines), parse_mode="HTML")
+
         @dp.message(F.text.startswith("/cancel") | F.text.startswith("/stop"))
         async def cmd_cancel(message: Message) -> None:
             if not self._is_allowed(message):
                 return
+            parts = (message.text or "").strip().split()
+            target_id = parts[1] if len(parts) > 1 else ""
+            if target_id:
+                stopped = False
+                if self.activity:
+                    stopped = self.activity.stop_task(target_id)
+                if self.memory:
+                    try:
+                        t_row = await self.memory.get_task(target_id)
+                        if t_row and t_row.get("status") == "running":
+                            await self.memory.cancel_task(target_id, error="Đã dừng theo lệnh chat /stop")
+                            stopped = True
+                    except Exception:
+                        pass
+                if stopped:
+                    await message.answer(f"Đã dừng tác vụ '{target_id}' thành công.")
+                else:
+                    await message.answer(f"Không tìm thấy tác vụ đang chạy với mã '{target_id}'.")
+                return
+
             key = session_key_for(message)
             if self.batcher.is_busy(key):
                 running_task = self._active_tasks.get(key)

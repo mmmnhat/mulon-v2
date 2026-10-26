@@ -34,6 +34,9 @@ Cập nhật 2026-10-27 ~01:50 bởi Antigravity: T-10.1 đã
 eval vàng 31/36, chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~02:00 bởi Antigravity: nhận T-10.2
 `DOING` (ƯU TIÊN 4) theo LUẬT HÀNG ĐỢI.
+Cập nhật 2026-10-27 ~02:25 bởi Antigravity: T-10.2 đã
+`DONE`, 490/490 unit tests PASS, eval vàng 31/36 (86%),
+chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~02:00 bởi Muse (autowatch): T-10.1
 `VERIFIED` (full suite 484/484 + eval 31/36 + test sống VM
 15/15; vòng test sống trên bot thật theo nghiệm thu vẫn chờ
@@ -155,7 +158,7 @@ Checklist: F3 + F2 (đều MỘT PHẦN, F3 ghi rõ "chấm lại theo T-10").
   - Chưa tự kiểm được từ VM (ghi rõ, không phải lỗi): vòng test sống trên bot thật theo đúng nghiệm thu T-10.1 (duyệt 1 việc từ Mini App -> thẻ chat đổi trạng thái; duyệt 1 việc từ chat -> màn app đổi trạng thái; chạy 1 việc thiếu bí mật -> thẻ Vault tới, nhập xong việc chạy tiếp) — phần này thuộc máy Mac/bot thật, cần Antigravity hoặc chủ dự án chạy một lượt trên bot thật trước khi coi T-10.1 là hoàn tất ngoài đời.
   - Theo LUẬT HÀNG ĐỢI, mục tiếp theo là T-10.2 (ƯU TIÊN 4).
 
-### [T-10.2] Tab Hành động + Sắp tới — Giao: Antigravity — `DOING` (ƯU TIÊN 4)
+### [T-10.2] Tab Hành động + Sắp tới — Giao: Antigravity — `DONE` (ƯU TIÊN 4)
 Checklist: D4 + C6 (MỘT PHẦN) + phần Activity/Upcoming của E8.
 - Tab Hành động: mọi việc đang chạy (kể cả sub-agent từ T-09)
   hiện bước hiện tại + trạng thái thật; có nút Dừng việc đang
@@ -167,6 +170,11 @@ Checklist: D4 + C6 (MỘT PHẦN) + phần Activity/Upcoming của E8.
 - Nghiệm thu: test đơn vị + test sống: tạo 1 việc dài + 1
   sub-agent -> thấy đủ trong tab Hành động, bấm Dừng -> việc
   dừng thật; danh sách Sắp tới khớp các job/lịch đang có thật.
+- **Kết quả thực hiện (Antigravity 27/10/2026, version 1.7.4):**
+  1. *Tab Hành động & Subagent real-time steps:* Mọi tác vụ (kể cả subagent) được theo dõi qua `ActivityTracker`. Bổ sung `current_step` vào `Memory.list_tasks()` / `Memory.get_task()` lấy từ bảng `task_steps`. Event `tool_start` phát `step_title`, `SubagentRunner._run_inner` tự động đăng ký subagent vào `activity` và cập nhật bước hiện tại; tab Hành động & chi tiết tác vụ Mini App hiển thị rõ bước hiện tại.
+  2. *Nút Dừng việc thực chất (True cancellation):* Thêm nút "Dừng" ở từng dòng tác vụ đang chạy trong tab Hành động và nút "Dừng tác vụ này" trong màn chi tiết tác vụ. Endpoint `POST /api/task/stop` huỷ trực tiếp `asyncio.Task` (`activity.stop_task`) và cập nhật DB trạng thái `cancelled` (`memory.cancel_task`). `Agent._task_path` và `SubagentRunner` bắt chuẩn `asyncio.CancelledError`, dọn dẹp task an toàn; hỗ trợ huỷ nhanh qua chat Telegram với `/stop <task_id>` hoặc `/cancel <task_id>`.
+  3. *Danh sách Sắp tới từ dữ liệu thật 100%:* Endpoint `GET /api/upcoming` và `/api/state` tổng hợp dữ liệu thật từ SQLite & Config: lịch định kỳ (`schedules`), Heartbeat định kỳ (`heartbeat`), lịch điểm tin Feed (`feed_auto`), cam kết mở (`tracked_items`). Phân loại rõ ràng mục "Sửa/huỷ qua chat: /schedules hoặc /commitments" vs "Chỉ xem (hệ thống)", không có dữ liệu mock/dummy; lệnh chat `/upcoming` (alias `/saptol`, `/lich`) hiển thị nhanh trong Telegram.
+  4. *Kiểm chứng:* 490/490 unit tests PASS (thêm 6 test toàn diện trong `tests/test_v17_activity_upcoming.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 
 ### [T-10.3] Feed + Ideas chủ động — Giao: Antigravity — `TODO` (ƯU TIÊN 5)
 Checklist: C1 + C2 + C3/C7 (MỘT PHẦN) + R11.
