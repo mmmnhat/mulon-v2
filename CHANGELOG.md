@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 1.6.5 — 2026-10-26 — TTL dọn artifact tool-results (Backlog audit B1)
+
+- **Artifacts:** Bổ sung cơ chế `clean_old_tool_results` tự động xóa
+  các file kết quả tool trong `data/artifacts/tool-results/` cũ hơn
+  7 ngày (chạy tại `main.py` lúc boot và định kỳ 24h trong `trim_tool_result`),
+  tránh tích tụ rác đĩa không kiểm soát.
+- **Test:** Thêm test hồi quy `test_clean_old_tool_results_ttl` trong
+  `tests/test_context_trim.py`. 447 tests passed.
+
 ## 1.6.4 — 2026-10-26 — Gỡ hardcode theo audit toàn diện
 
 - **Bảo mật:** gateway multimodal chỉ đóng gói file ảnh thật nằm

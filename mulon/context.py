@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -148,6 +149,35 @@ class TrimResult:
     original_chars: int = 0
 
 
+_LAST_TOOL_RESULTS_CLEANUP = 0.0
+
+
+def clean_old_tool_results(artifact_dir: str | Path, max_age_days: int = 7) -> int:
+    """Xóa các file kết quả tool cũ hơn max_age_days (mục B1, 1.6.5).
+
+    Chạy lúc boot hoặc định kỳ khi trim_tool_result được gọi.
+    Không raise exception, trả về số file đã xóa.
+    """
+    base = Path(artifact_dir) / "tool-results"
+    if not base.exists() or not base.is_dir():
+        return 0
+    now = time.time()
+    cutoff = now - (max_age_days * 86400)
+    deleted = 0
+    try:
+        for p in base.iterdir():
+            if p.is_file():
+                try:
+                    if p.stat().st_mtime < cutoff:
+                        p.unlink()
+                        deleted += 1
+                except Exception as exc:
+                    logger.debug("Lỗi khi xóa artifact cũ %s: %s", p, exc)
+    except Exception as exc:
+        logger.warning("Quét thư mục tool-results lỗi: %s", exc)
+    return deleted
+
+
 def trim_tool_result(
     text: str,
     max_chars: int,
@@ -155,6 +185,12 @@ def trim_tool_result(
     tool_name: str = "tool",
 ) -> TrimResult:
     """Cắt trần kết quả tool; bản đầy đủ đi đường artifact (mục 3.2)."""
+    global _LAST_TOOL_RESULTS_CLEANUP
+    now_ts = time.time()
+    if now_ts - _LAST_TOOL_RESULTS_CLEANUP > 86400:
+        _LAST_TOOL_RESULTS_CLEANUP = now_ts
+        clean_old_tool_results(artifact_dir, max_age_days=7)
+
     original = len(text)
     if original <= max_chars:
         return TrimResult(text=text, original_chars=original)

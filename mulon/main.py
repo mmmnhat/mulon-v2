@@ -20,7 +20,7 @@ from .browser_worker import register_browser_tools
 from .config import Config
 from .connectors import build_default_connectors, register_connector_tools
 from .consolidation import ConsolidationWorker
-from .context import ContextEngine, Dossier
+from .context import ContextEngine, Dossier, clean_old_tool_results
 from .embeddings import build_embedder
 from .feed import FeedEngine
 from .feed_auto import FeedAutoRunner
@@ -58,6 +58,7 @@ async def build_system(cfg: Config):
     cfg.db_path.parent.mkdir(parents=True, exist_ok=True)
     cfg.workspace_dir.mkdir(parents=True, exist_ok=True)
     cfg.artifact_dir.mkdir(parents=True, exist_ok=True)
+    clean_old_tool_results(cfg.artifact_dir, max_age_days=7)
     memory = await Memory.open(cfg.db_path)
     await memory.reconcile_orphan_tasks()
     # Phase 2: gắn embedder cho hybrid recall. Không dựng được thì
