@@ -19,7 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-27 ~09:25 bởi Antigravity: T-10.5 đã
+Cập nhật lần cuối: 2026-10-27 ~09:38 bởi Antigravity: nhận T-22.1 `DOING` (ƯU TIÊN 8) theo LUẬT HÀNG ĐỢI.
+Cập nhật 2026-10-27 ~09:25 bởi Antigravity: T-10.5 đã
 `DONE` (commit `b532c12`: gửi đi đủ 5 loại nội dung ảnh/video/voice/audio/tài liệu kèm degrade và 50MB check; nhận MỌI file user gửi vào Thư viện; tìm kiếm ngôn ngữ tự nhiên không dấu; chat phụ cô lập history, dùng chung user memory; R15 định tuyến hội thoại chuẩn), 509/509 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~08:35 bởi Muse (autowatch):
 ghi nhận claim T-10.5 `DOING` (commit `a975389`, phía Mac) —
@@ -562,7 +563,7 @@ repo này và một phần là cơ chế nội bộ của nền tảng Muse —
 KHÔNG copy được; Antigravity tự cài đặt mới trong MuLon
 theo đúng thư viện/cơ chế đã chứng minh ở từng mục con.
 
-### [T-22.1] Zalo cá nhân + Telegram cá nhân (đăng nhập QR) — Giao: Antigravity — `TODO` (ƯU TIÊN 8)
+### [T-22.1] Zalo cá nhân + Telegram cá nhân (đăng nhập QR) — Giao: Antigravity — `DOING` (ƯU TIÊN 8)
 Hai nền tảng này cùng họ cơ chế: đăng nhập QR, không mật
 khẩu, phiên lưu bền — phía Muse đã chạy thật ổn định.
 - **Zalo cá nhân** (thư viện `zca-js`): quét QR bằng app
