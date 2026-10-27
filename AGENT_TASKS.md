@@ -19,6 +19,7 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật lần cuối: 2026-10-27 ~11:46 bởi Antigravity: T-23.1 đã `DONE` (sửa điều hướng Mini App theo QA Q-01; hiển thị nút quay lại chuẩn 44px trên toàn bộ 14 màn con; gỡ bỏ .has-tg-back .backrow ẩn nút back; user-select none chống micro-drag nuốt click trên hàng; gỡ bỏ double-pop back listener; bỏ chevron chết trên Heartbeat run history; đồng bộ nhãn Nhập thủ công; tự động re-render dữ liệu mới khi mở màn con), 545/545 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~11:23 bởi Antigravity: nhận T-23.1 `DOING` (ƯU TIÊN 11) theo LUẬT HÀNG ĐỢI.
 Cập nhật lần cuối: 2026-10-27 ~11:05 bởi Antigravity: T-22.3 đã `DONE` (kết nối tin nhắn Instagram Direct Messages + Threads Direct Messages; tách biệt kết nối tin nhắn với bài đăng; Instagram hỗ trợ inbox/pending/spam, tìm kiếm, gửi tin/file, thả reaction, Checkpoint Guard; Threads tuân thủ nghiêm ngặt GIỚI HẠN CỨNG từ chối mở DM tới người lạ qua @handle; phân quyền đọc allow, gửi ask; phiên Vault an toàn; lệnh chat /instagram, /threads và Mini App UI), 539/539 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~10:47 bởi Antigravity: nhận T-22.3 `DOING` (ƯU TIÊN 10) theo LUẬT HÀNG ĐỢI.
@@ -686,7 +687,7 @@ thu (luật AGENTS.md mục 6).
 
 - **Bổ sung đợt sitemap (Muse, 27/10/2026):** bản đồ đầy đủ + số liệu ở `docs/sitemap-miniapp-2026-10-27.md`; cây IA đích ở `docs/miniapp-ia-redesign-2026-10-27.md`. Số mới cần biết: 127 hàng chết (7 lịch hẹn + 100 tài liệu + 3 connector + 17 bí mật), cả 10 màn con không có nút quay lại, tìm kiếm chỉ có ở Kỹ năng. Lỗi tải initData ở Chi tiết việc + Chợ tách sang T-24.5.
 
-### [T-23.1] Sửa điều hướng Mini App — Giao: Antigravity — `DOING` (ƯU TIÊN 11)
+### [T-23.1] Sửa điều hướng Mini App — Giao: Antigravity — `DONE` (ƯU TIÊN 11)
 QA Q-01 (nghiêm trọng nhất): nhấn hàng trong Cài đặt mở
 lại màn con TRƯỚC ĐÓ (stale navigation), phải nhấn lần
 hai; chỉ chevron mới mở chắc, thân hàng lúc được lúc
@@ -702,6 +703,14 @@ hàng lịch/tài liệu nhấn không tác dụng.
 - Nghiệm thu: Muse mở lại app kiểm từng hàng Cài đặt +
   Lịch + Chợ + thư viện; kèm test hồi quy trạng thái điều
   hướng nếu test được ở tầng webapp.
+
+- **Kết quả thực hiện (Antigravity 27/10/2026, version 1.7.11, commit b6f2a38):**
+  1. **Hiển thị nút Quay lại chuẩn 44px trên 14 màn con**: Gỡ bỏ hoàn toàn CSS `.has-tg-back .backrow{display:none !important}` làm ẩn thanh quay lại trên Telegram WebView; chuẩn hóa thanh quay lại `.backrow` có nút bấm `[data-back]` / `[data-back-sub]`, icon SVG chevron `‹` tím, text nhãn "Quay lại" và touch target tối thiểu 44px trên toàn bộ 14 màn con (`screen-connectors`, `screen-import`, `screen-install`, `screen-listing`, `screen-mktcat`, `screen-conn-pol`, `screen-vault`, `screen-policy`, `screen-system`, `screen-feed`, `screen-job`, `screen-sub-dossier`, `screen-sub-memory`, `screen-sub-skills`).
+  2. **Chống nuốt click thân hàng (micro-drag swallow)**: Bổ sung `user-select: none; -webkit-user-select: none;` cho `.row, .row *` để ngăn chặn vi chuyển động rê chuột 1px biến cú nhấp chuột thành text-selection drag nuốt mất sự kiện `click`; bổ sung `pointer-events: none` cho `.row + .row:before` để đường chia hàng không cản trở hit-testing.
+  3. **Khắc phục triệt để lỗi nhảy cóc 2 cấp (Double-pop back)**: Gỡ bỏ các event listener riêng biệt trùng lặp trên `import-back`, `install-back`, `listing-back`, `mktcat-back`, `connPolBack`; gom về một cơ chế event delegation duy nhất trên `document` cho `[data-back]` và `[data-back-sub]`, ủy thác điều hướng lùi về `handleNativeBack()`.
+  4. **Bỏ chevron chết & đồng bộ nhãn**: Loại bỏ SVG chevron khỏi các hàng lịch sử chạy Heartbeat modal (`renderHeartbeatRunList`); đổi nhãn `conn-add-manual` từ "Thêm thủ công" thành "Nhập thủ công" khớp 100% với tiêu đề màn con `screen-import`.
+  5. **Cập nhật dữ liệu tức thì**: Tự động gọi render hàm dữ liệu mới (`renderConnectors`, `renderVault`, `renderPolicy`, `renderSystem`, `renderFeed`) khi `showSub(id)` được kích hoạt.
+  6. **Kiểm thử**: Viết mới test hồi quy `tests/test_v17_miniapp_navigation.py` (6/6 passed); toàn bộ test suite đạt `545/545 passed`; eval vàng `python -m mulon.evals` đạt `31/36` (86% >= 85%).
 
 ### [T-23.2] Render markdown + tải chậm + dọn rò rỉ hiển thị — Giao: Antigravity — `TODO` (ƯU TIÊN 12)
 QA Q-02 + Q-04 + Q-07: markdown THÔ ở Tóm tắt việc, Hồ

@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## 1.7.11 — 2026-10-27 — Sửa điều hướng Mini App theo QA Q-01 (T-23.1)
+
+- **Khắc phục lỗi điều hướng và affordance Mini App (QA Q-01):**
+  - **Hiển thị nút Quay lại chuẩn trên 14 màn con:**
+    - Gỡ bỏ hoàn toàn CSS `.has-tg-back .backrow{display:none !important}` vốn ẩn sạch thanh quay lại khi chạy trong môi trường Telegram WebView / `initData`.
+    - Chuẩn hóa thanh quay lại `.backrow` kèm icon chevron `‹` SVG tím, nhãn "Quay lại", chiều cao tối thiểu 44px (touch target chuẩn ngón cái) trên toàn bộ 14 màn con: `screen-connectors`, `screen-import`, `screen-install`, `screen-listing`, `screen-mktcat`, `screen-conn-pol`, `screen-vault`, `screen-policy`, `screen-system`, `screen-feed`, `screen-job`, `screen-sub-dossier`, `screen-sub-memory`, `screen-sub-skills`.
+  - **Khắc phục lỗi bấm trúng thân hàng lúc được lúc không (Micro-drag click swallow):**
+    - Thêm `user-select: none; -webkit-user-select: none;` cho `.row, .row *` để ngăn chặn vi chuyển động kéo rê 1px trên trackpad/chuột vô tình biến thành text-selection drag làm nuốt mất sự kiện `click` của trình duyệt.
+    - Thêm `pointer-events: none` vào `.row + .row:before` để đường chia hàng không cản trở hit-testing.
+  - **Loại bỏ triệt để lỗi nhảy cóc 2 cấp (Double-pop back navigation):**
+    - Gỡ bỏ các event listener cục bộ trùng lặp trên `import-back`, `install-back`, `listing-back`, `mktcat-back`, `connPolBack`.
+    - Thống nhất cơ chế event delegation duy nhất trên `document` cho mọi nút quay lại `[data-back]` và `[data-back-sub]`, ủy quyền xử lý phân cấp lùi cho `handleNativeBack()`.
+  - **Đồng bộ nhãn và dọn dẹp chevron chết:**
+    - Đổi nhãn nút `conn-add-manual` từ "Thêm thủ công" thành "Nhập thủ công" khớp 100% với tiêu đề màn con `screen-import`.
+    - Bỏ SVG chevron chết trên các hàng lịch sử chạy Heartbeat modal (`renderHeartbeatRunList`), đảm bảo nguyên tắc: có chevron là phải mở được, không mở được thì không gắn chevron.
+  - **Cập nhật dữ liệu tức thì khi chuyển màn con:**
+    - Tự động gọi render hàm dữ liệu mới (`renderConnectors`, `renderVault`, `renderPolicy`, `renderSystem`, `renderFeed`) ngay khi `showSub(id)` được kích hoạt, loại trừ dữ liệu cũ / stale state.
+
+
 ## 1.7.10 — 2026-10-27 — Tin nhắn Instagram + Tin nhắn Threads (T-22.3)
 
 - **Tách biệt kết nối TIN NHẮN với kết nối nội dung bài đăng (chuẩn Muse Parity):**

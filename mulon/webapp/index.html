@@ -246,12 +246,17 @@ section{animation:tab-in var(--t2) var(--ease)}
   display:flex; align-items:center; gap:var(--s3);
   padding:var(--s2) var(--s4); min-height:52px; cursor:pointer;
   position:relative;
+  user-select:none; -webkit-user-select:none;
+}
+.row *{
+  user-select:none; -webkit-user-select:none;
 }
 /* Đường chia THỤT theo lề nội dung (TQ-4): bắt đầu ở x=16
    (lề chữ của hàng), không chạy sát mép thẻ như vòng 2. */
 .row + .row:before{
   content:""; position:absolute; top:0; left:var(--s4); right:0;
   height:1px; background:var(--tint-gray);
+  pointer-events:none;
 }
 .row.static{cursor:default}
 .row:not(.static){transition:background var(--t1) var(--ease)}
@@ -539,17 +544,18 @@ table.fields tr + tr td.k:before{left:var(--s4)}
 }
 /* ---------- màn con ---------- */
 .backrow{
-  display:flex; align-items:center; gap:var(--s1);
+  display:inline-flex; align-items:center; gap:var(--s1);
   color:var(--lav-deep);
   font-weight:var(--fw-s); cursor:pointer; min-height:44px;
   font-size:var(--fs-body);
-  padding-top:max(var(--s2), env(safe-area-inset-top, 0px));
+  padding:var(--s2) 0; margin-bottom:var(--s1);
+  user-select:none; -webkit-user-select:none;
 }
+.backrow:hover{opacity:.85}
 .backrow:active{opacity:.55}
-.has-tg-back .backrow{display:none !important}
 .screen-title{font-size:var(--fs-screen); font-weight:var(--fw-s);
   margin:0 0 var(--s2); letter-spacing:-0.01em; overflow-wrap:anywhere; word-break:break-word}
-.has-tg-back section > .screen-title{padding-top:var(--s2)}
+section > .screen-title{margin:0 0 var(--s2)}
 /* Note = chữ trần 13 --ink2, KHÔNG hộp nền (TQ-2): hộp xám
    90pt ở đầu màn con ăn chrome và nói điều hiển nhiên. Nội
    dung dài để ở cuối màn (mẫu .bc-note / chân màn Quyền). */
@@ -1078,9 +1084,9 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <div id="conn-view-installed">
     <div id="connector-note"></div>
     <div class="card"><div id="connector-list"></div></div>
-    <div class="card"><div class="row" id="conn-add-manual">
+    <div class="card"><div class="row" id="conn-add-manual" data-open="screen-import">
       <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
-      <div class="r-main"><div class="r-title">Thêm thủ công</div></div>
+      <div class="r-main"><div class="r-title">Nhập thủ công</div></div>
       <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
     </div></div>
   </div>
@@ -1102,7 +1108,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Cài đặt con: Cấu hình Google (Gmail & Google Calendar) -->
 <section id="screen-google-config" class="hidden">
-  <div class="backrow" data-back-sub="screen-connectors">
+  <div class="backrow" data-back id="gconfig-back">
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Công cụ kết nối
   </div>
   <h2 class="screen-title">Cấu hình Google</h2>
@@ -1147,7 +1153,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Chợ MCP: server theo danh mục (màn con) -->
 <section id="screen-mktcat" class="hidden">
-  <div class="backrow" id="mktcat-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Kết nối</div>
+  <div class="backrow" data-back id="mktcat-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Công cụ kết nối</div>
   <h2 class="screen-title" id="mktcat-title">Danh mục</h2>
   <div class="card"><div id="mkt-list"></div></div>
   <div class="card" id="mkt-pagination" style="display:flex; justify-content:space-between; align-items:center; padding:var(--s2) var(--s3); margin-top:var(--s2);">
@@ -1159,14 +1165,14 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Chợ MCP: Chi tiết listing -->
 <section id="screen-listing" class="hidden">
-  <div class="backrow" id="listing-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Kết nối</div>
+  <div class="backrow" data-back id="listing-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <h2 class="screen-title" id="listing-title">Chi tiết</h2>
   <div id="listing-body"></div>
 </section>
 
 <!-- Chợ MCP: Wizard / operation -->
 <section id="screen-install" class="hidden">
-  <div class="backrow" id="install-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Kết nối</div>
+  <div class="backrow" data-back id="install-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Công cụ kết nối</div>
   <h2 class="screen-title" id="install-title">Cài đặt MCP</h2>
   <div id="install-body"></div>
   <button class="btn btn-text" id="install-cancel">Huỷ operation</button>
@@ -1174,7 +1180,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Chợ MCP: Nhập thủ công -->
 <section id="screen-import" class="hidden">
-  <div class="backrow" id="import-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Kết nối</div>
+  <div class="backrow" data-back id="import-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Công cụ kết nối</div>
   <h2 class="screen-title">Nhập thủ công</h2>
   <div class="note">Dán JSON cấu hình MCP vào đây.</div>
   <div class="card"><textarea id="import-text" class="mkt-text"
@@ -1239,7 +1245,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Cài đặt con: Quyền chi tiết connector (1.6.0) -->
 <section id="screen-connector-policy" class="hidden">
-  <div class="backrow" id="conn-pol-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quyền</div>
+  <div class="backrow" data-back id="conn-pol-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quyền</div>
   <h2 class="screen-title" id="conn-pol-title">Quyền connector</h2>
   <div class="note">Phân quyền chi tiết theo từng hành động. Đổi là áp dụng ngay.</div>
   <div class="card">
@@ -1416,6 +1422,20 @@ function showSub(id){
   if (tg && tg.BackButton) tg.BackButton.show();
   document.title = (SCREEN_TITLES[id] || "Mulon") + " — Mulon";
   window.scrollTo(0, 0);
+
+  // Kích hoạt render dữ liệu màn con tương ứng để luôn mới
+  if (id === "screen-connectors") {
+    loadMktSummary();
+    loadMktInstalled();
+  } else if (id === "screen-vault") {
+    renderVault();
+  } else if (id === "screen-policy") {
+    renderPolicy();
+  } else if (id === "screen-system") {
+    renderSystem();
+  } else if (id === "screen-feed") {
+    renderFeed();
+  }
 }
 function handleNativeBack(){
   haptic("select");
@@ -1437,12 +1457,30 @@ if (tg && tg.BackButton) {
 }
 document.querySelectorAll("#segbar button").forEach(b =>
   b.addEventListener("click", () => { haptic("select"); showMain(b.dataset.tab); }));
-document.querySelectorAll("[data-back]").forEach(el =>
-  el.addEventListener("click", () => handleNativeBack()));
-document.querySelectorAll("[data-back-sub]").forEach(el =>
-  el.addEventListener("click", () => showSub(el.dataset.backSub)));
-document.querySelectorAll("[data-open]").forEach(el =>
-  el.addEventListener("click", () => showSub(el.dataset.open)));
+
+// Uỷ quyền sự kiện click điều hướng toàn thân hàng và nút quay lại chuẩn
+document.addEventListener("click", (e) => {
+  const backEl = e.target.closest("[data-back]");
+  if (backEl) {
+    e.preventDefault();
+    handleNativeBack();
+    return;
+  }
+  const backSubEl = e.target.closest("[data-back-sub]");
+  if (backSubEl && backSubEl.dataset.backSub) {
+    e.preventDefault();
+    haptic("select");
+    showSub(backSubEl.dataset.backSub);
+    return;
+  }
+  const openEl = e.target.closest("[data-open]");
+  if (openEl && openEl.dataset.open) {
+    e.preventDefault();
+    haptic("select");
+    showSub(openEl.dataset.open);
+    return;
+  }
+});
 
 /* ---------- Cử chỉ vuốt kéo xuống đóng Bottom Sheet (Drag down to dismiss) ---------- */
 function bindSheetSwipeDismiss(modalEl, cardEl) {
@@ -2415,7 +2453,7 @@ function renderHeartbeatRunList(hist) {
     return `<div class="heartbeat-run-wrapper" style="border-bottom:1px solid color-mix(in srgb, var(--line) 40%, transparent); padding:4px 0;">` +
       `<div class="run-item" data-hb-run="${idx}" style="cursor:pointer; padding:6px 4px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; user-select:none;">` +
         `<span><span class="dot-green">🟢</span> Đã thành công · ${esc(trig)}</span> ` +
-        `<span class="run-time" style="display:flex; align-items:center; gap:4px;">${esc(timeStr)} <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" style="transform:${isExp ? "rotate(180deg)" : "rotate(0deg)"}; transition:transform 180ms;"><path d="M6 9l6 6 6-6"/></svg></span>` +
+        `<span class="run-time" style="display:flex; align-items:center; gap:4px; color:var(--ink2);">${esc(timeStr)}</span>` +
       `</div>` +
       (isExp ? `<div style="padding:10px 12px; margin:4px 0 6px; border-radius:12px; background:var(--surface2); font-size:12px; line-height:1.55; color:var(--ink2); animation:modalPop 0.15s ease-out;">` +
         `<div><strong style="color:var(--ink);">Thời điểm:</strong> ${esc(fullTimeStr)}</div>` +
@@ -3397,8 +3435,6 @@ function renderConnectorPolicyDetail(){
   $("screen-connector-policy").querySelectorAll(".pol-row").forEach(row =>
     row.addEventListener("click", () => openPolMenu(row)));
 }
-const connPolBack = $("conn-pol-back");
-if (connPolBack) connPolBack.addEventListener("click", () => showSub("screen-policy"));
 
 function renderPolicy(){
   const pol = (S && S.policy) || {groups:{}, tools:{}};
@@ -3619,10 +3655,6 @@ document.querySelectorAll("#conn-seg button").forEach(b =>
   }));
 $("conn-add-manual").addEventListener("click",
   () => showSub("screen-import"));
-$("listing-back").addEventListener("click",
-  () => showSub(listingReturn));
-$("mktcat-back").addEventListener("click",
-  () => showSub("screen-connectors"));
 $("mkt-prev").addEventListener("click", () => {
   if ((MKT.page || 1) > 1){
     loadMktCatalog((MKT.page || 1) - 1);
@@ -3637,10 +3669,6 @@ $("mkt-next").addEventListener("click", () => {
     if (scr) scr.scrollIntoView({behavior: "smooth", block: "start"});
   }
 });
-$("install-back").addEventListener("click",
-  () => showSub("screen-connectors"));
-$("import-back").addEventListener("click",
-  () => showSub("screen-connectors"));
 document.querySelector('[data-open="screen-connectors"]')
   .addEventListener("click", () => {
     loadMktSummary(); loadMktInstalled();
