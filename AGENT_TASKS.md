@@ -19,6 +19,12 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~23:08 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): phiên mới nhận tiếp T-14 `DOING` (LUỒNG 4) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; khôi phục claim T-27 (LUỒNG 2) và T-30 (LUỒNG 3) bị commit `c6d228c` vô tình ghi đè; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L4]
+
+Cập nhật 2026-10-27 ~23:03 bởi Antigravity (LUỒNG 3, ký: Antigravity [L3]): phiên mới nhận tiếp T-30 `DOING` (ƯU TIÊN 29, LUỒNG 3) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L3]
+
+Cập nhật 2026-10-27 ~22:58 bởi Antigravity (LUỒNG 2, ký: Antigravity [L2]): phiên mới nhận tiếp T-27 `DOING` (ƯU TIÊN 26, LUỒNG 2) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L2]
+
 Cập nhật 2026-10-27 ~23:02 bởi Muse (ký: Muse): thêm **kỷ luật chung số 7 — CẤM BÁO CÁO MỞ ĐẦU / KẾ HOẠCH SUÔNG** theo lệnh chủ dự án (các luồng cứ báo cáo mở đầu rồi dừng thay vì bắt tay làm): claim xong là code/test ngay trong cùng lượt, chỉ nhắn khi DONE hoặc kẹt thật. Lần đẩy này CHỈ sửa: dòng cập nhật này + kỷ luật chung số 7, không động mục khác. Ky: Muse
 
 Cập nhật 2026-10-27 ~22:52 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): phiên mới nhận tiếp T-24.4 `DOING` (ƯU TIÊN 20, LUỒNG 1) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L1]
@@ -526,6 +532,7 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
 - Chuẩn hoá brand: logo, màu, giọng văn trong app + bot.
 
 ### [T-14] Tích hợp CLIProxyAPI làm cổng model chính thức — Giao: Antigravity — `DOING` — LUỒNG 4
+- **Nhận tiếp — Antigravity [L4] (2026-10-27 ~23:08 +07, phiên mới sau 22:47):** nhận tiếp T-14 DOING theo LUẬT ĐA LUỒNG, làm tiếp từ trạng thái code trên `main`. Ky: Antigravity [L4]
 Chủ dự án xác nhận 26/10: "ProxyAPI" = **CLIProxyAPI**
 (`github.com/router-for-me/CLIProxyAPI`) — proxy server biến
 tài khoản CLI (Gemini, Claude, Codex, Grok, Kimi...) thành API
@@ -1288,6 +1295,7 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Yêu cầu tóm tắt (chi tiết + nghiệm thu ở tài liệu audit mục 1.4): một danh sách lệnh khai duy nhất sinh ra menu + /help + tài liệu, có test tĩnh quét handler đối chiếu; thêm /help theo nhóm; gộp alias ẩn (saptol/lich -> upcoming, stop -> cancel, dongchat -> chatphu_dong); lệnh lạ trả lời ngay không vào vòng agent; lệnh-theo-id rút khỏi bề mặt công bố (giữ làm đường nội bộ cho nút bấm); lệnh nâng cao/phá huỷ (restart, forget, export_memory, google_auth, claim, setup) gom nhóm Nâng cao trong /help kèm cảnh báo; the_duyet chỉ bật khi có cờ dev, mặc định tắt; /memory trả tóm tắt có cấu trúc thay vì dump thô.
 
 ### [T-27] Giao diện Mini App đạt chuẩn chuyên nghiệp 100% — Giao: Antigravity — `DOING` (ƯU TIÊN 26) — LUỒNG 2
+- **Nhận tiếp — Antigravity [L2] (2026-10-27 ~22:58 +07, phiên mới sau 22:47):** nhận tiếp T-27 DOING theo LUẬT ĐA LUỒNG, làm tiếp từ trạng thái code trên `main`. Ky: Antigravity [L2]
 - Nguồn: `docs/ui-professional-audit-2026-10-27.md` mục 2 (đối chiếu sitemap đo thật + cây IA `docs/miniapp-ia-redesign-2026-10-27.md`; liên quan T-12, T-23.1..T-23.6, T-24.5, T-25 — đợt này là lớp HOÀN THIỆN CHUYÊN NGHIỆP trên cấu trúc IA đó, không thay thế chúng).
 - Chuẩn xuyên suốt phải đạt (chi tiết mục 2.1): native Telegram (BackButton mọi màn con, MainButton cho hành động chính, haptic, themeParams + một màu nhấn); design system đo được (lưới 8pt, padding 16, hàng ≥56/vùng chạm ≥44, tối đa 4 cỡ chữ/2 weight, bo góc thống nhất); mọi màn đủ 4 trạng thái (skeleton/rỗng/lỗi-tại-chỗ/có dữ liệu) và mở màn con < 1s cảm nhận; nhãn = đích đến; xác nhận cho thao tác phá huỷ.
 - Thiếu/thừa từng màn: liệt kê đầy đủ ở mục 2.2 (Việc, Phê duyệt — xoá dữ liệu thử + thêm timestamp lịch sử, Lịch, Hồ sơ — bỏ ~400 nút lộ thiên + hết trùng bộ nhớ, Cài đặt — bỏ danh sách tool phẳng + chi tiết connector, Kho, Chợ — tìm kiếm/danh mục/phân trang, Feed — hết hardcode nhãn giờ).
@@ -1301,6 +1309,7 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Yêu cầu: xác định job + test gãy, sửa đúng gốc (ưu tiên sửa test cho đúng đa nền tảng; cấm xoá/nới test để CI xanh — luật AGENTS.md mục 7.3); nếu là lỗi code thật thì sửa code + test hồi quy. Xong: 3/3 chân xanh trên commit mới nhất và ghi kết quả vào mục này.
 
 ### [T-30] Bề mặt đầy đủ Facebook + Threads CÁ NHÂN theo chuẩn Muse — Giao: Antigravity — `DOING` (ƯU TIÊN 29) — LUỒNG 3
+- **Nhận tiếp — Antigravity [L3] (2026-10-27 ~23:03 +07, phiên mới sau 22:47):** nhận tiếp T-30 DOING theo LUẬT ĐA LUỒNG, làm tiếp từ trạng thái code trên `main`. Ky: Antigravity [L3]
 - Bối cảnh: chủ dự án chỉ rõ 27/10 — phía Muse, tài khoản Facebook/Threads cá nhân không chỉ có DM: còn duyệt feed, tương tác trong nhóm, liệt kê nhóm đang tham gia, đăng bài... T-22.2 mới phủ nghiên cứu + đọc cơ bản + Messenger; T-22.3 là khung DM. Mục này mở connector cá nhân ra **đúng bề mặt Muse đang có thật** (đối chiếu connector facebook_cli + threads phía Muse). DM Threads giữ ở T-22.3, không làm lại ở đây.
 - **Facebook cá nhân** (transport phiên web như T-22.2, kế thừa cảnh báo rủi ro + Checkpoint Guard):
   1. Danh tính + quan hệ: thông tin tài khoản, danh sách bạn bè, xem trang cá nhân/timeline người khác.
