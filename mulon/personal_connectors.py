@@ -1470,6 +1470,13 @@ class FacebookPersonalConnector(Connector):
             text = args.get("text") or args.get("msg")
             if not thread_id or not text:
                 return {"ok": False, "error": "Thiếu thread_id hoặc text để gửi tin nhắn Messenger."}
+            if self._session_runner is None and self._http_client is None:
+                return {
+                    "ok": False,
+                    "unsupported": True,
+                    "error": "Chưa có transport thực tế (session_runner/browser_bridge) để gửi tin nhắn Messenger cá nhân.",
+                    "warning": WARNING_FACEBOOK,
+                }
             return {
                 "ok": True,
                 "sent": True,
@@ -1498,10 +1505,12 @@ class InstagramMessagesConnector(Connector):
 
     name = "instagram_messages"
 
-    def __init__(self, cfg=None, vault_store=None, session_runner=None):
+    def __init__(self, cfg=None, vault_store=None, session_runner=None,
+                 browser_bridge=None):
         self.cfg = cfg
         self.vault = vault_store
         self._session_runner = session_runner
+        self._browser_bridge = browser_bridge
         self._checkpoint_detected = False
 
     def _parse_cookies(self, raw: Union[str, dict]) -> dict[str, str]:
@@ -1619,10 +1628,11 @@ class InstagramMessagesConnector(Connector):
         # Kiểm tra session
         session_raw = _vault_get(self.vault, LBL_IG_SESSION)
         cookies = self._parse_cookies(session_raw) if session_raw else {}
-        if not (cookies.get("sessionid") or cookies.get("token") or cookies.get("ds_user_id")):
+        has_session = bool(cookies.get("sessionid") or cookies.get("token") or cookies.get("ds_user_id"))
+        if not has_session and self._browser_bridge is None:
             return {
                 "ok": False,
-                "error": "Chưa cấu hình phiên cookie Instagram trong Kho bảo mật (Vault).",
+                "error": "Chưa cấu hình phiên cookie Instagram trong Kho bảo mật (Vault) hoặc chưa gắn browser bridge.",
                 "warning": WARNING_INSTAGRAM_MSG,
             }
 
@@ -1733,48 +1743,89 @@ class InstagramMessagesConnector(Connector):
                 "warning": WARNING_INSTAGRAM_MSG,
             }
 
-        # 7. Gửi tin nhắn (send_message)
+        # 7. Gửi tin nhắn (send_message) — Chống báo thành công giả (T-22.3)
         if action == "send_message":
             thread_id = args.get("thread_id") or args.get("recipient_id") or args.get("username")
             text = args.get("text") or args.get("msg")
-            if not thread_id or not text:
+            if not thread_id or not text or not str(text).strip():
                 return {"ok": False, "error": "Thiếu thread_id/recipient_id hoặc text để gửi tin nhắn Instagram."}
+            if self._browser_bridge is not None:
+                participant = (args.get("username") or args.get("handle")
+                               or args.get("recipient") or args.get("recipient_id") or "").strip() or None
+                res = self._browser_bridge.send_message(
+                    str(thread_id),
+                    str(text),
+                    participant=participant,
+                )
+                if hasattr(res, "__await__"):
+                    res = await res
+                if isinstance(res, dict):
+                    out = dict(res)
+                    out.setdefault("warning", WARNING_INSTAGRAM_MSG)
+                    out.setdefault("limitations", LIMITATION_INSTAGRAM_MSG)
+                    return out
+                return {
+                    "ok": False,
+                    "error": "browser bridge trả kết quả không hợp lệ — không báo thành công giả",
+                    "warning": WARNING_INSTAGRAM_MSG,
+                    "limitations": LIMITATION_INSTAGRAM_MSG,
+                }
             return {
-                "ok": True,
-                "sent": True,
-                "thread_id": str(thread_id),
-                "text": text,
+                "ok": False,
+                "unsupported": True,
+                "error": (
+                    "Instagram DM chưa có đường gửi thật trên bản cài này: "
+                    "chưa gắn browser bridge (cần BROWSER_PROFILE_DIR đã đăng nhập Instagram web + Playwright) "
+                    "hoặc session_runner. Tin chưa được gửi — không báo thành công giả."
+                ),
                 "warning": WARNING_INSTAGRAM_MSG,
+                "limitations": LIMITATION_INSTAGRAM_MSG,
             }
 
-        # 8. Gửi tệp đính kèm (send_file)
+        # 8. Gửi tệp đính kèm (send_file) — Chống báo thành công giả (T-22.3)
         if action == "send_file":
             thread_id = args.get("thread_id") or args.get("recipient_id")
             path = args.get("path") or args.get("file_path") or args.get("url")
             if not thread_id or not path:
                 return {"ok": False, "error": "Thiếu thread_id hoặc path để gửi tệp tin nhắn Instagram."}
             return {
-                "ok": True,
-                "sent": True,
-                "thread_id": str(thread_id),
-                "path": str(path),
+                "ok": False,
+                "unsupported": True,
+                "error": (
+                    "Instagram DM chưa hỗ trợ gửi tệp trên bản cài này khi chưa có "
+                    "session_runner / transport hỗ trợ gửi tệp. Tệp chưa được gửi — "
+                    "không báo thành công giả."
+                ),
                 "warning": WARNING_INSTAGRAM_MSG,
+                "limitations": LIMITATION_INSTAGRAM_MSG,
             }
 
-        # 9. Thả reaction (send_reaction)
+        # 9. Thả reaction (send_reaction) — Chống báo thành công giả (T-22.3)
         if action in ("send_reaction", "react"):
             thread_id = args.get("thread_id")
             message_id = args.get("message_id")
             reaction = args.get("reaction") or args.get("emoji") or "❤️"
             if not thread_id or not message_id:
                 return {"ok": False, "error": "Thiếu thread_id hoặc message_id để thả reaction."}
+            if self._browser_bridge is not None and hasattr(self._browser_bridge, "send_reaction"):
+                res = self._browser_bridge.send_reaction(str(thread_id), str(message_id), str(reaction))
+                if hasattr(res, "__await__"):
+                    res = await res
+                if isinstance(res, dict):
+                    out = dict(res)
+                    out.setdefault("warning", WARNING_INSTAGRAM_MSG)
+                    out.setdefault("limitations", LIMITATION_INSTAGRAM_MSG)
+                    return out
             return {
-                "ok": True,
-                "reacted": True,
-                "thread_id": str(thread_id),
-                "message_id": str(message_id),
-                "reaction": str(reaction),
+                "ok": False,
+                "unsupported": True,
+                "error": (
+                    "Instagram DM chưa hỗ trợ thả reaction trên bản cài này khi chưa có "
+                    "session_runner hoặc browser_bridge hỗ trợ reaction. Reaction chưa được gửi — "
+                    "không báo thành công giả."
+                ),
                 "warning": WARNING_INSTAGRAM_MSG,
+                "limitations": LIMITATION_INSTAGRAM_MSG,
             }
 
         return {"ok": False, "error": f"instagram_messages không hỗ trợ action: {action}"}
@@ -2037,10 +2088,11 @@ class ThreadsMessagesConnector(Connector):
         # Kiểm tra session
         session_raw = _vault_get(self.vault, LBL_TH_SESSION)
         cookies = self._parse_cookies(session_raw) if session_raw else {}
-        if not (cookies.get("sessionid") or cookies.get("token") or cookies.get("ds_user_id")):
+        has_session = bool(cookies.get("sessionid") or cookies.get("token") or cookies.get("ds_user_id"))
+        if not has_session and self._browser_bridge is None:
             return {
                 "ok": False,
-                "error": "Chưa cấu hình phiên cookie Threads trong Kho bảo mật (Vault).",
+                "error": "Chưa cấu hình phiên cookie Threads trong Kho bảo mật (Vault) hoặc chưa gắn browser bridge.",
                 "warning": WARNING_THREADS_MSG,
             }
 
@@ -2180,18 +2232,30 @@ class ThreadsMessagesConnector(Connector):
                 "limitations": LIMITATION_THREADS_MSG,
             }
 
-        # 7. Thả reaction (send_reaction) stub khi không có session_runner
+        # 7. Thả reaction (send_reaction) — Chống báo thành công giả (T-22.3)
         if action in ("send_reaction", "react"):
             thread_id = args.get("thread_id")
             message_id = args.get("message_id")
             reaction = args.get("reaction") or args.get("emoji") or "❤️"
+            if self._browser_bridge is not None and hasattr(self._browser_bridge, "send_reaction"):
+                res = self._browser_bridge.send_reaction(str(thread_id), str(message_id), str(reaction))
+                if hasattr(res, "__await__"):
+                    res = await res
+                if isinstance(res, dict):
+                    out = dict(res)
+                    out.setdefault("warning", WARNING_THREADS_MSG)
+                    out.setdefault("limitations", LIMITATION_THREADS_MSG)
+                    return out
             return {
-                "ok": True,
-                "reacted": True,
-                "thread_id": str(thread_id),
-                "message_id": str(message_id),
-                "reaction": str(reaction),
+                "ok": False,
+                "unsupported": True,
+                "error": (
+                    "Threads DM chưa hỗ trợ thả reaction trên bản cài này khi chưa có "
+                    "transport/browser_bridge hỗ trợ reaction. Reaction chưa được gửi — "
+                    "không báo thành công giả."
+                ),
                 "warning": WARNING_THREADS_MSG,
+                "limitations": LIMITATION_THREADS_MSG,
             }
 
         return {"ok": False, "error": f"threads_messages không hỗ trợ action: {action}"}

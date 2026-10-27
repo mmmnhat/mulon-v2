@@ -675,10 +675,20 @@ async def test_facebook_personal_messages_and_policy(tmp_path):
     assert msgs["messages"][0]["raw_text"] == "Alo bạn ơi, có rảnh không?"
 
     # 2. Gửi tin nhắn Messenger (send_message)
+    # KHI KHÔNG CÓ TRANSPORT: trả lỗi unsupported (chống báo thành công giả)
     send_res = await fb.call("send_message", {"thread_id": "thread_123", "text": "Tối nay gặp nhé!"})
-    assert send_res["ok"] is True
-    assert send_res["sent"] is True
-    assert send_res["thread_id"] == "thread_123"
+    assert send_res["ok"] is False
+    assert send_res.get("unsupported") is True
+
+    # KHI CÓ SESSION RUNNER / TRANSPORT: gửi thành công
+    async def fake_runner(cmd, args, cookies):
+        return {"msg_id": "sent_123", "ok": True, "sent": True, "thread_id": args.get("thread_id")}
+
+    fb_transport = FacebookPersonalConnector(vault_store=vault, session_runner=fake_runner)
+    send_ok = await fb_transport.call("send_message", {"thread_id": "thread_123", "text": "Tối nay gặp nhé!"})
+    assert send_ok["ok"] is True
+    assert send_ok["sent"] is True
+    assert send_ok["thread_id"] == "thread_123"
 
     # 3. Kiểm tra Policy Engine: đọc = allow, gửi = ask
     policy = PolicyEngine(tmp_path / "policy.json")
@@ -975,23 +985,24 @@ async def test_instagram_messages_search_and_send_reaction(tmp_path):
     assert "<external_data" in search_res["messages"][0]["text"]
     assert "DỮ LIỆU NGOÀI" in search_res["messages"][0]["text"]
 
-    # Gửi tin nhắn
+    # Gửi tin nhắn khi chưa có transport/bridge -> Trả unsupported trung thực, không báo thành công giả
     send_res = await conn.call("send_message", {"thread_id": "t1", "text": "Ok chốt 10h nhé!"})
-    assert send_res["ok"] is True
-    assert send_res["sent"] is True
-    assert send_res["thread_id"] == "t1"
+    assert send_res["ok"] is False
+    assert send_res.get("unsupported") is True
+    assert send_res.get("sent") is not True
+    assert "chưa có đường gửi thật" in send_res["error"]
 
-    # Gửi file
+    # Gửi file khi chưa có transport/runner -> Trả unsupported trung thực
     file_res = await conn.call("send_file", {"thread_id": "t1", "path": "/path/to/photo.jpg"})
-    assert file_res["ok"] is True
-    assert file_res["sent"] is True
-    assert file_res["path"] == "/path/to/photo.jpg"
+    assert file_res["ok"] is False
+    assert file_res.get("unsupported") is True
+    assert file_res.get("sent") is not True
 
-    # Thả reaction
+    # Thả reaction khi chưa có transport/runner -> Trả unsupported trung thực
     react_res = await conn.call("send_reaction", {"thread_id": "t1", "message_id": "m1", "reaction": "❤️"})
-    assert react_res["ok"] is True
-    assert react_res["reacted"] is True
-    assert react_res["reaction"] == "❤️"
+    assert react_res["ok"] is False
+    assert react_res.get("unsupported") is True
+    assert react_res.get("reacted") is not True
 
 
 @pytest.mark.asyncio
@@ -1157,15 +1168,15 @@ async def test_threads_messages_strict_limitation_and_send(tmp_path):
     assert valid_p_res.get("unsupported") is True
     assert valid_p_res.get("sent") is not True
 
-    # 5. THẢ REACTION
+    # 5. THẢ REACTION KHI CHƯA CÓ TRANSPORT/BRIDGE -> TRẢ UNSUPPORTED
     react_res = await conn.call("send_reaction", {
         "thread_id": "th_valid_1",
         "message_id": "msg_001",
         "reaction": "🔥",
     })
-    assert react_res["ok"] is True
-    assert react_res["reacted"] is True
-    assert react_res["reaction"] == "🔥"
+    assert react_res["ok"] is False
+    assert react_res.get("unsupported") is True
+    assert react_res.get("reacted") is not True
 
 
 @pytest.mark.asyncio

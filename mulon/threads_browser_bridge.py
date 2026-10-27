@@ -368,3 +368,33 @@ class ThreadsBrowserBridge:
         out = dict(res)
         out.setdefault("transport", "threads_web_browser")
         return out
+
+    async def send_reaction(self, thread_id: str, message_id: str,
+                            reaction: str = "❤️") -> dict:
+        """Thả reaction vào tin nhắn qua web. Chỉ trả ok khi có driver hỗ trợ."""
+        thread_id = (thread_id or "").strip()
+        message_id = (message_id or "").strip()
+        if not thread_id or not message_id:
+            return {"ok": False, "error": "Thiếu thread_id hoặc message_id để thả reaction."}
+        ok, reason = self.availability()
+        if not ok:
+            return {"ok": False, "error": reason, "unsupported": True}
+        driver = self._driver
+        if driver is None and self._driver_factory is not None:
+            driver = self._driver_factory()
+        if driver is not None and hasattr(driver, "react"):
+            try:
+                res = driver.react(thread_id, message_id, reaction)
+                if asyncio.iscoroutine(res) or hasattr(res, "__await__"):
+                    res = await res
+                if isinstance(res, dict):
+                    out = dict(res)
+                    out.setdefault("transport", "threads_web_browser")
+                    return out
+            except Exception as exc:
+                return {"ok": False, "error": f"browser bridge react lỗi: {exc}"}
+        return {
+            "ok": False,
+            "unsupported": True,
+            "error": "Threads web driver chưa hỗ trợ tự động tìm và thả reaction emoji trên DOM. Không báo thành công giả.",
+        }

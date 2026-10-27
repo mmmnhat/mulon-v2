@@ -224,7 +224,16 @@ def build_default_connectors(cfg, google_auth=None, vault_store=None) -> Connect
     registry.register(ZaloPersonalConnector(cfg=cfg, vault_store=vault_store))
     registry.register(TelegramPersonalConnector(cfg=cfg, vault_store=vault_store))
     registry.register(FacebookPersonalConnector(cfg=cfg, vault_store=vault_store))
-    registry.register(InstagramMessagesConnector(cfg=cfg, vault_store=vault_store))
+    instagram_bridge = None
+    try:
+        from .instagram_browser_bridge import InstagramBrowserBridge
+
+        instagram_bridge = InstagramBrowserBridge(cfg=cfg)
+    except Exception as exc:
+        logger.warning("dựng Instagram browser bridge lỗi (%s) — "
+                       "instagram_messages chạy không bridge", exc)
+    registry.register(InstagramMessagesConnector(
+        cfg=cfg, vault_store=vault_store, browser_bridge=instagram_bridge))
     registry.register(ThreadsPersonalConnector(cfg=cfg, vault_store=vault_store))
     # Spike T-22.3: bridge gửi DM Threads thật qua web. Dựng lỗi
     # thì degrade về None (connector sẽ báo chưa có đường gửi thật

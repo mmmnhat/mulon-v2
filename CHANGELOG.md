@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## 1.7.34 — 2026-10-28 — Hoàn tất Tin nhắn Instagram + Tin nhắn Threads Browser Bridge, gỡ bỏ triệt để stub báo gửi giả (T-22.3, LUỒNG 3 — ký: Antigravity [L3])
+
+- **Gỡ bỏ triệt để stub báo gửi giả và phân tách cổng phiên cookie (`mulon/personal_connectors.py`, T-22.3):**
+  - Instagram Messages: Gỡ bỏ hoàn toàn việc trả về `sent: True` hoặc `reacted: True` giả lập khi không có transport trong `send_message`, `send_file`, `send_reaction`. Khi không có session runner lẫn browser bridge, trả về `{"ok": False, "unsupported": True, "error": "..."}` trung thực.
+  - Threads Messages: Gỡ bỏ stub `reacted: True` giả trong `send_reaction`, tích hợp gọi `ThreadsBrowserBridge.send_reaction` thật và trả `unsupported: True` khi thiếu transport.
+  - Facebook Personal: Rà soát và gỡ bỏ stub `sent: True` trong Messenger `send_message` khi thiếu session runner/HTTP client.
+  - Phân tách cổng kiểm tra phiên cookie: Không chặn gọi bridge khi người dùng chỉ cấu hình `BROWSER_PROFILE_DIR` mà chưa dán cookie vào Vault (`has_session or self._browser_bridge is not None`).
+- **Bổ sung Instagram Browser Bridge & Bộ Selectors (`mulon/instagram_browser_bridge.py`, `config/instagram_web_selectors.json`, T-22.3):**
+  - Xây dựng `InstagramBrowserBridge` và `PlaywrightInstagramDriver` chạy trên profile Chromium bền (`BROWSER_PROFILE_DIR`), hỗ trợ `send_message` và `send_reaction` trực tiếp qua DOM Instagram Web với cơ chế đối chiếu xác thực thật trước khi báo thành công.
+  - Tách toàn bộ selector DOM vào `config/instagram_web_selectors.json` (inbox path, conversation link, composer, send button, reaction triggers).
+  - Tích hợp chuẩn hoá tên và username (`_normalize_name`) để nhận diện chính xác hội thoại.
+- **Tích hợp Threads Browser Bridge Reaction (`mulon/threads_browser_bridge.py`, `mulon/connectors.py`, T-22.3):**
+  - Mở rộng `ThreadsBrowserBridge` với phương thức `send_reaction` thật qua web interface.
+  - Gắn tự động `InstagramBrowserBridge` vào `InstagramMessagesConnector` trong `build_default_connectors`.
+- **Tài liệu & Kiểm thử (`docs/threads-browser-bridge-spike.md`, `tests/test_instagram_browser_bridge.py`, `tests/test_v17_personal_connectors.py`, T-22.3):**
+  - Cập nhật tài liệu kỹ thuật hướng dẫn chạy Browser Bridge trên máy Mac không bắt buộc dán cookie.
+  - Bổ sung test suite `tests/test_instagram_browser_bridge.py` (10 test), cập nhật `tests/test_threads_browser_bridge.py` và `tests/test_v17_personal_connectors.py`.
+  - Toàn bộ suite 655/655 test PASSED 100%.
+
 ## 1.7.33 — 2026-10-28 — Đường thẳng Kho bí mật -> API, chống loop và chặn lục lọi repo (T-24.6, LUỒNG 1 — ký: Antigravity [L1])
 
 - **Giải mã Vault đa định dạng & Fail-fast trong lệnh (`mulon/vault.py`, `mulon/tools.py`, T-24.6):**

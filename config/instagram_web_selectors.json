@@ -1,0 +1,14 @@
+{
+  "inbox_path": "/direct/inbox/",
+  "conversation_link_selector": "a[href*=\"/direct/t/\"]",
+  "composer_selectors": [
+    "div[contenteditable=\"true\"]",
+    "textarea",
+    "div[role=\"textbox\"]"
+  ],
+  "send_button_selectors": [
+    "button[type=\"button\"]",
+    "div[role=\"button\"]",
+    "button[type=\"submit\"]"
+  ]
+}
