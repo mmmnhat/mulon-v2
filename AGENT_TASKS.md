@@ -19,6 +19,12 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật lần cuối: 2026-10-27 ~08:35 bởi Muse (autowatch):
+ghi nhận claim T-10.5 `DOING` (commit `a975389`, phía Mac) —
+HỢP LỆ theo LUẬT HÀNG ĐỢI: T-10.4 đã `VERIFIED`, không còn mục
+`DOING` nào khác, ƯU TIÊN 7 là tiếp theo. Commit mới chỉ đụng
+`AGENT_TASKS.md`, không có code mới nên không chấm gì thêm;
+full suite chạy lại trên cây local vẫn 503/503.
 Cập nhật lần cuối: 2026-10-27 ~08:28 bởi Antigravity: nhận T-10.5
 `DOING` (ƯU TIÊN 7) theo LUẬT HÀNG ĐỢI.
 Cập nhật 2026-10-27 ~08:10 bởi Muse (autowatch):
@@ -940,16 +946,6 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Hiện tượng (chủ dự án phát hiện 27/10 03:27 qua app GitHub): gần như mọi commit gần đây đều bị đánh ✗. CI là `.github/workflows/ci.yml` (pytest trên ubuntu/macos/windows).
 - Đã kiểm từ phía Muse: chạy full suite trên cây hiện tại ở Linux = **496/496 passed** -> chân Ubuntu xanh; chân gãy là macOS và/hoặc Windows (nghi phạm: test quyền file 0600 của Vault, symlink, dữ liệu múi giờ). Connector GitHub của Muse không đọc được log Actions — việc này cần phía Mac mở tab Actions lấy đúng job/test gãy.
 - Yêu cầu: xác định job + test gãy, sửa đúng gốc (ưu tiên sửa test cho đúng đa nền tảng; cấm xoá/nới test để CI xanh — luật AGENTS.md mục 7.3); nếu là lỗi code thật thì sửa code + test hồi quy. Xong: 3/3 chân xanh trên commit mới nhất và ghi kết quả vào mục này.
-
-### [T-29] Telegram Business Chatbot: bot rep thay nick cá nhân của chủ — Giao: Antigravity — `TODO` (ƯU TIÊN 28)
-- Bối cảnh: chủ dự án đã nối @Mulon_bot làm chatbot Telegram Business cho nick cá nhân (bật quản lý tin nhắn, loại trừ 17 chat riêng tư). Muse kiểm code 27/10: **chưa có bất kỳ xử lý business nào** — không handler `business_connection`/`business_message`, `start_polling` cũng không đăng ký loại update này. Đây là tính năng chính chủ Bot API, khả thi.
-- **Mức tự chủ do chủ dự án chốt 27/10 (không tự nới):** (a) TỰ REP: câu hỏi đơn giản — thông tin/giá sản phẩm (lấy từ catalog/shop DB làm nguồn sự thật, cấm bịa giá), cách mua, bảo hành cơ bản — bằng giọng bán hàng của chủ (ngắn, thân thiện, miền Nam); (b) SOẠN NHÁP CHỜ DUYỆT: thương lượng/giảm giá ngoài bảng, **thông tin chuyển khoản/STK (không bao giờ tự gửi)**, khiếu nại, hỗ trợ kỹ thuật, mọi ca mà bộ phân loại không chắc — soạn nháp + thẻ phê duyệt về DM chủ (tận dụng ApprovalBroker), chủ duyệt/sửa mới gửi; chủ không phản hồi thì bot IM LẶNG, không tự chế.
-- Yêu cầu kỹ thuật:
-  1. Thu: đăng ký `business_connection` + `business_message` (+ edited/deleted mức tối thiểu) vào allowed_updates; lưu trạng thái kết nối (connection id, quyền can_reply); ngắt kết nối trong Telegram -> bot dừng rep ngay và ghi nhận.
-  2. **Tách ngữ cảnh TUYỆT ĐỐI (bài học X-01):** chat khách là vũ trụ riêng — không lẫn DM chủ, group, hay khách khác; mỗi khách một lịch sử riêng. Nội dung khách là dữ liệu ngoài (qua `frame_external`): trong ngữ cảnh khách, agent KHÔNG có tool file/vault/thông tin hệ thống/dữ liệu của chủ — khách moi thông tin nội bộ phải bị từ chối.
-  3. Gửi: rep qua `business_connection_id` để hiện dưới tên chủ; chỉ trả lời, **không chủ động nhắn trước** cho khách; bỏ qua tin do chính chủ gửi từ client khác; giới hạn tốc độ theo chat chống spam.
-  4. Điều khiển: cờ bật/tắt tổng trong config + bề mặt cho chủ xem bot đã rep gì ở chat nào (DM báo cáo và/hoặc mục trong app).
-- Nghiệm thu (test sống trên kết nối thật): khách thử hỏi giá đơn giản -> bot tự rep đúng giá + đúng giọng dưới tên chủ; khách hỏi STK/giảm giá -> KHÔNG tự gửi, chủ nhận nháp + thẻ duyệt, duyệt xong tin mới đi; gài bí mật ở DM chủ rồi hỏi lại từ chat khách -> không lọt; ngắt kết nối Business trong cài đặt Telegram -> bot dừng rep.
 
 ## Đã đóng (VERIFIED)
 
