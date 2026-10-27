@@ -109,15 +109,27 @@ class LibraryService:
 
     # ---------- lập chỉ mục ----------
     async def index_file(self, path: str | Path,
-                         source: str = "agent") -> Optional[dict]:
+                         source: str = "agent",
+                         caption: str = "") -> Optional[dict]:
         p = Path(path)
         if not p.is_file():
             return None
         existing = await self.memory.get_library_item_by_path(str(p))
         if existing is not None:
+            if caption and not existing.get("caption"):
+                await self.memory.update_library_item(existing["id"], caption=caption)
+                existing["caption"] = caption
             return existing
         return await self.memory.add_library_item(
-            p.name, kind_of(p), str(p), source=source)
+            p.name, kind_of(p), str(p), source=source, caption=caption)
+
+    async def get_item(self, item_id: int) -> Optional[dict]:
+        return await self.memory.get_library_item(item_id)
+
+    async def search(self, query: str, kind: Optional[str] = None,
+                     status: str = "active", limit: int = 50) -> list[dict]:
+        return await self.memory.search_library_items(
+            query=query, kind=kind, status=status, limit=limit)
 
     async def scan(self) -> dict:
         """Quét workspace, lập chỉ mục file chưa có trong catalog.
@@ -403,10 +415,11 @@ ICON_MAP = {
 }
 
 
-def format_library_list(items: list[dict]) -> str:
+def format_library_list(items: list[dict], title: str = "") -> str:
     if not items:
         return "Library trống."
-    lines = [f"📚 <b>Thư viện Mulon ({len(items)} mục):</b>\n"]
+    header = title if title else f"📚 <b>Thư viện Mulon ({len(items)} mục):</b>\n"
+    lines = [header]
     for it in items:
         extra = ""
         pin = "📌 " if it.get("pinned") else ""
@@ -416,6 +429,102 @@ def format_library_list(items: list[dict]) -> str:
         elif it.get("share_status") == "pending_host":
             extra = " <i>(chờ chia sẻ)</i>"
         name_esc = html.escape(str(it.get("name", "")))
-        lines.append(f"{pin}• <b>#{it['id']}</b> {icon} <code>{name_esc}</code>{extra}")
-    lines.append("\n💡 <i>Gõ <code>/library &lt;id&gt;</code> (vd: <code>/library 6</code>) để tải file/ảnh gốc về chat.</i>")
+        cap = ""
+        if it.get("caption"):
+            cap = f" — <i>{html.escape(str(it['caption']))}</i>"
+        lines.append(f"{pin}• <b>#{it['id']}</b> {icon} <code>{name_esc}</code>{cap}{extra}")
+    lines.append("\n💡 <i>Gõ <code>/library &lt;id&gt;</code> (vd: <code>/library 6</code>) để tải file/ảnh gốc về chat, hoặc <code>/library &lt;từ khóa&gt;</code> để tìm kiếm.</i>")
     return "\n".join(lines)
+
+
+def register_library_tools(registry, library_service: LibraryService) -> list[str]:
+    """Đăng ký các tool thao tác Thư viện (Library) cho Agent."""
+    from .tools import ToolSpec
+
+    async def search_library_tool(query: str, kind: str = "") -> dict:
+        results = await library_service.search(query, kind=kind or None, status="active", limit=20)
+        items = [
+            {
+                "id": it["id"],
+                "name": it.get("name", ""),
+                "kind": it.get("kind", ""),
+                "path": it.get("path", ""),
+                "caption": it.get("caption", ""),
+                "share_status": it.get("share_status", ""),
+                "pinned": bool(it.get("pinned", 0)),
+            }
+            for it in results
+        ]
+        return {"ok": True, "query": query, "count": len(items), "items": items}
+
+    async def get_library_item_tool(item_id: int) -> dict:
+        item = await library_service.get_item(item_id)
+        if not item:
+            return {"ok": False, "error": f"Không tìm thấy mục #{item_id} trong Thư viện"}
+        return {
+            "ok": True,
+            "item": {
+                "id": item["id"],
+                "name": item.get("name", ""),
+                "kind": item.get("kind", ""),
+                "path": item.get("path", ""),
+                "caption": item.get("caption", ""),
+                "status": item.get("status", ""),
+                "share_status": item.get("share_status", ""),
+                "pinned": bool(item.get("pinned", 0)),
+            }
+        }
+
+    async def share_library_item_tool(item_id: int, hours: float = 48.0) -> dict:
+        return await library_service.share_item(item_id, hours=hours)
+
+    specs = [
+        ToolSpec(
+            name="search_library",
+            description="Tìm kiếm tệp, tài liệu, hình ảnh, video, âm thanh trong Thư viện (Library) bằng ngôn ngữ tự nhiên, từ khóa, tên tệp hoặc loại.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Từ khóa hoặc câu tìm kiếm bằng ngôn ngữ tự nhiên (vd: 'hợp đồng', 'ảnh tiệc', 'bản ghi âm')"},
+                    "kind": {"type": "string", "description": "Lọc theo loại tệp nếu cần (document, image, media, code, archive)", "default": ""},
+                },
+                "required": ["query"],
+            },
+            group="library",
+            timeout_s=30,
+            handler=search_library_tool,
+        ),
+        ToolSpec(
+            name="get_library_item",
+            description="Lấy thông tin chi tiết và đường dẫn của một mục trong Thư viện (Library) theo mã định danh (ID).",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "integer", "description": "ID mục trong Thư viện"},
+                },
+                "required": ["item_id"],
+            },
+            group="library",
+            timeout_s=15,
+            handler=get_library_item_tool,
+        ),
+        ToolSpec(
+            name="share_library_item",
+            description="Tạo liên kết chia sẻ công khai an toàn cho một mục trong Thư viện (thời hạn tối đa 48 giờ).",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "integer", "description": "ID mục cần chia sẻ"},
+                    "hours": {"type": "number", "description": "Số giờ hiệu lực của liên kết (tối đa 48 giờ)", "default": 48.0},
+                },
+                "required": ["item_id"],
+            },
+            group="library",
+            timeout_s=30,
+            handler=share_library_item_tool,
+        ),
+    ]
+
+    for sp in specs:
+        registry.register(sp)
+    return [sp.name for sp in specs]

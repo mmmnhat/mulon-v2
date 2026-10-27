@@ -450,6 +450,7 @@ CREATE TABLE IF NOT EXISTS library_items (
     path             TEXT NOT NULL DEFAULT '',
     trash_path       TEXT NOT NULL DEFAULT '',
     source           TEXT NOT NULL DEFAULT '',
+    caption          TEXT NOT NULL DEFAULT '',
     status           TEXT NOT NULL DEFAULT 'active',
     share_status     TEXT NOT NULL DEFAULT '',
     share_expires_at TEXT DEFAULT '',
@@ -496,6 +497,16 @@ async def _migrate_library_16(db) -> None:
             "ALTER TABLE library_items ADD COLUMN pinned INTEGER DEFAULT 0")
     await db.execute(
         "CREATE INDEX IF NOT EXISTS idx_library_token ON library_items(share_token)")
+    await db.commit()
+
+
+async def _migrate_library_17(db) -> None:
+    """Migration 1.7.7: library_items thêm cột caption phục vụ tìm kiếm ngôn ngữ tự nhiên."""
+    cur = await db.execute("PRAGMA table_info(library_items)")
+    cols = {row[1] for row in await cur.fetchall()}
+    if "caption" not in cols:
+        await db.execute(
+            "ALTER TABLE library_items ADD COLUMN caption TEXT NOT NULL DEFAULT ''")
     await db.commit()
 
 
@@ -620,6 +631,7 @@ class Memory:
         await db.commit()
         await _migrate_feed_14(db)
         await _migrate_library_16(db)
+        await _migrate_library_17(db)
         await _migrate_goals_muse(db)
         await _migrate_schedules_muse(db)
         await _migrate_ideas_muse(db)
@@ -2270,12 +2282,12 @@ class Memory:
 
     # --- library ---
     async def add_library_item(self, name: str, kind: str, path: str,
-                               source: str = "") -> dict:
+                               source: str = "", caption: str = "") -> dict:
         ts = now_iso()
         cur = await self.db.execute(
-            "INSERT INTO library_items(name, kind, path, source, status,"
-            " created_at, updated_at) VALUES (?,?,?,?,'active',?,?)",
-            (name, kind, path, source, ts, ts),
+            "INSERT INTO library_items(name, kind, path, source, caption, status,"
+            " created_at, updated_at) VALUES (?,?,?,?,?,'active',?,?)",
+            (name, kind, path, source, caption, ts, ts),
         )
         await self.db.commit()
         return await self.get_library_item(int(cur.lastrowid))  # type: ignore[return-value]
@@ -2322,7 +2334,7 @@ class Memory:
     async def update_library_item(self, item_id: int, **fields) -> bool:
         allowed = {"name", "kind", "path", "trash_path", "source",
                    "status", "share_status", "share_expires_at",
-                   "trashed_at", "share_token", "pinned"}
+                   "trashed_at", "share_token", "pinned", "caption"}
         clean = {k: v for k, v in fields.items() if k in allowed}
         if not clean:
             return False
@@ -2334,6 +2346,71 @@ class Memory:
         )
         await self.db.commit()
         return cur.rowcount > 0
+
+    async def search_library_items(self, query: str, kind: Optional[str] = None,
+                                   status: Optional[str] = "active",
+                                   limit: int = 50) -> list[dict]:
+        """Tìm kiếm library items bằng ngôn ngữ tự nhiên / từ khóa (khớp fold_vi trên name, caption, path, kind)."""
+        raw_items = await self.list_library_items(status=status, limit=500)
+        q = fold_vi((query or "").strip().lower())
+        if not q:
+            if kind:
+                return [it for it in raw_items if it.get("kind") == kind][:limit]
+            return raw_items[:limit]
+
+        tokens = [t for t in q.split() if t]
+        scored: list[tuple[float, dict]] = []
+        for it in raw_items:
+            if kind and it.get("kind") != kind:
+                continue
+            name_norm = fold_vi((it.get("name") or "").lower())
+            cap_norm = fold_vi((it.get("caption") or "").lower())
+            path_norm = fold_vi((it.get("path") or "").lower())
+            item_kind = fold_vi((it.get("kind") or "").lower())
+
+            score = 0.0
+            # Khớp toàn cụm
+            if q in name_norm:
+                score += 10.0
+            if q in cap_norm:
+                score += 8.0
+            if q in path_norm:
+                score += 4.0
+            if q in item_kind:
+                score += 5.0
+
+            # Khớp từng từ
+            token_matches = 0
+            for t in tokens:
+                matched_token = False
+                if t in name_norm:
+                    score += 3.0
+                    matched_token = True
+                if t in cap_norm:
+                    score += 2.0
+                    matched_token = True
+                if t in path_norm:
+                    score += 1.0
+                    matched_token = True
+                if t in item_kind:
+                    score += 2.0
+                    matched_token = True
+                if matched_token:
+                    token_matches += 1
+
+            # Bonus nếu khớp tất cả từ
+            if token_matches == len(tokens) and len(tokens) > 1:
+                score += 5.0
+
+            # Boost nếu được ghim (pinned)
+            if it.get("pinned"):
+                score += 1.5
+
+            if score > 0:
+                scored.append((score, it))
+
+        scored.sort(key=lambda x: (x[0], x[1].get("pinned", 0), x[1].get("id", 0)), reverse=True)
+        return [it for _, it in scored[:limit]]
 
     # --- forget (mục 16.11): tìm + vô hiệu, KHÔNG xóa cứng ---
     async def search_facts(self, topic: str, limit: int = 50,

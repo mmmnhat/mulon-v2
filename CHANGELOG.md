@@ -1,5 +1,37 @@
 # CHANGELOG
 
+## 1.7.7 — 2026-10-27 — Gửi/nhận mọi loại nội dung, Thư viện và Chat phụ & Định tuyến R15 (T-10.5 Parity E2 + E3 + R15)
+
+- **Gửi đi đa dạng mọi loại nội dung (Outgoing Multi-Content Types):**
+  - Tự động nhận diện nội dung bot tạo và gửi qua đúng phương thức aiogram của Telegram:
+    - Ảnh (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`): gửi qua `answer_photo` / `send_photo` kèm chú thích và icon `🖼️`.
+    - Video (`.mp4`, `.mov`, `.avi`, `.webm`, `.mkv`): gửi qua `answer_video` / `send_video` kèm chú thích và icon `🎥`.
+    - Voice thoại (`.ogg`): gửi qua `answer_voice` / `send_voice` kèm chú thích và icon `🎙️`.
+    - Âm thanh / Nhạc (`.mp3`, `.wav`, `.m4a`, `.flac`, `.aac`): gửi qua `answer_audio` / `send_audio` kèm chú thích và icon `🎵`.
+    - Tài liệu / Tệp tin (`.pdf`, `.docx`, `.xlsx`, `.csv`, `.txt`, `.md`, `.json`, `.zip`, `.tar.gz`...): gửi qua `answer_document` / `send_document` kèm chú thích và icon `📄`.
+  - Cơ chế Degrade an toàn và minh bạch:
+    - Kiểm tra trần dung lượng tải lên của Telegram Bot API (`TELEGRAM_MAX_FILE_SIZE_BYTES`, mặc định 50MB); file vượt trần được báo rõ ràng kích thước và đường dẫn trực tiếp, tuyệt đối không nuốt lỗi im lặng.
+    - Bắt lỗi giao thức/định dạng Telegram và báo rõ cho người dùng thay vì crash bot.
+  - Tự động lập chỉ mục mọi tệp bot tạo ra vào Thư viện (`LibraryService.index_file`) và đồng bộ vào topic Library nếu đang ở group forum.
+- **Nhận vào: MỌI file người dùng gửi đều vào Thư viện (Incoming Files & Storage):**
+  - Hỗ trợ đầy đủ các handler nhận nội dung: `@dp.message(F.document)`, `@dp.message(F.photo)`, `@dp.message(F.video)`, `@dp.message(F.audio)`, `@dp.message(F.voice)`.
+  - Không còn từ chối bất kỳ định dạng tài liệu nào: mọi tệp gửi đến đều được tải về thư mục `workspace/uploads/` và tự động lập chỉ mục vào `library_items` kèm chú thích (`caption`).
+  - Hỗ trợ bối cảnh hội thoại: truyền đầy đủ thông tin tệp (tên, loại, ID Thư viện, đường dẫn) vào ngữ cảnh agent để đọc hiểu và xử lý theo yêu cầu người dùng.
+- **Tìm kiếm Thư viện bằng ngôn ngữ tự nhiên (Natural Language Library Search - Parity E2):**
+  - Migration DB 1.7.7: thêm cột `caption` vào bảng `library_items` trong SQLite.
+  - Tìm kiếm thông minh không dấu `fold_vi` trên tên tệp (`name`), chú thích (`caption`), phân loại (`kind`) và đường dẫn (`path`).
+  - Lệnh `/library <từ khóa>`: hiển thị trực quan các mục khớp với từ khóa tìm kiếm.
+  - Lệnh `/library <id>`: tải trực tiếp tệp gốc về chat qua đúng phương thức Telegram theo định dạng.
+  - Cung cấp bộ công cụ cho Agent: `search_library` (tìm kiếm bằng ngôn ngữ tự nhiên), `get_library_item` (lấy chi tiết mục), `share_library_item` (tạo link chia sẻ an toàn).
+  - WebApp REST API: hỗ trợ tìm kiếm qua `/api/library/items?q=...` và `/api/library/search`.
+  - Khống chế link chia sẻ công khai <= 48 giờ (`share_item`), bảo mật hash token và kiểm tra quyền truy cập.
+- **Chat phụ & Định tuyến hội thoại chuẩn R15 (Sidechats & Context Isolation - Parity E3 + R15):**
+  - Cô lập lịch sử: các topic chat phụ trong group forum (`thread_id`) có `session_key` riêng biệt; `recent_messages` chỉ truy vấn đúng luồng trao đổi đó, không lẫn vào Main chat hay các chat phụ khác.
+  - Ký ức bền dùng chung: các sự kiện quan trọng và hồ sơ người dùng (`USER.md`, `MEMORY.md`, `memory_facts`) được chia sẻ nhất quán xuyên suốt mọi chat thông qua cơ chế `ContextEngine.build` và `recall`.
+  - Định tuyến chuẩn R15: bổ sung `parse_session_key(session_key)` và `TelegramSurface.send_to_session`, đảm bảo kết quả tác vụ/thông báo nền quay về đúng chat và đúng thread khởi tạo.
+- **Kiểm chứng:** 509/509 unit tests PASS (thêm 6 test toàn diện trong `tests/test_v17_media_library_sidechat_parity.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
+
+
 ## 1.7.6 — 2026-10-27 — Goals lồng 1 cấp, tiến triển thật và Goal Briefings dạng Letter (T-10.4 Parity D1 + D2/C8 + D3)
 
 - **Mục tiêu & Mục tiêu con lồng 1 cấp (Goals & Subgoals - Parity D1):**

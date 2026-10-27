@@ -647,6 +647,7 @@ class WebAppServer:
         app.router.add_get("/share/{token}", self._handle_public_share)
         # 1.6.0: Library management API cho Mini App
         app.router.add_get("/api/library/items", self._handle_library_items)
+        app.router.add_get("/api/library/search", self._handle_library_search)
         app.router.add_post("/api/library/items/{id}/pin", self._handle_library_pin)
         app.router.add_post("/api/library/items/{id}/trash", self._handle_library_trash)
         app.router.add_post("/api/library/items/{id}/restore", self._handle_library_restore)
@@ -2693,8 +2694,22 @@ function copyContent() {{
         status = str(request.query.get("status") or "active")
         if status not in ("active", "trashed"):
             status = "active"
-        items = await self.library.list_items(status=status, limit=100)
+        query = str(request.query.get("q") or request.query.get("query") or "").strip()
+        kind = str(request.query.get("kind") or "").strip()
+        if query:
+            items = await self.library.search(query, kind=kind or None, status=status, limit=100)
+        else:
+            items = await self.library.list_items(status=status, limit=100)
         return web.json_response({"ok": True, "items": items})
+
+    async def _handle_library_search(self, request):
+        if self.library is None:
+            return web.json_response(
+                {"ok": False, "error": "Library chưa được kết nối"}, status=503)
+        query = str(request.query.get("q") or request.query.get("query") or "").strip()
+        kind = str(request.query.get("kind") or "").strip()
+        items = await self.library.search(query, kind=kind or None, status="active", limit=100)
+        return web.json_response({"ok": True, "query": query, "items": items})
 
     async def _handle_library_pin(self, request):
         if self.library is None:

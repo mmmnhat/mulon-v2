@@ -378,6 +378,27 @@ def session_key_for(message: Message) -> str:
     return f"agent:main:telegram:{kind}:{chat.id}:topic:{topic_id}"
 
 
+def parse_session_key(session_key: str) -> tuple[Optional[int], Optional[int]]:
+    """Tách (chat_id, thread_id) từ session_key của Telegram (chuẩn R15 định tuyến hội thoại)."""
+    if not session_key or not session_key.startswith("agent:main:telegram:"):
+        return None, None
+    parts = session_key.split(":")
+    if len(parts) >= 7 and parts[5] == "topic":
+        try:
+            cid = int(parts[4])
+            tid = int(parts[6])
+            return cid, (tid if tid > 0 else None)
+        except ValueError:
+            return None, None
+    elif len(parts) >= 5:
+        try:
+            cid = int(parts[4])
+            return cid, None
+        except ValueError:
+            return None, None
+    return None, None
+
+
 # --------------------- nghi lễ khởi tạo (mục 16.10) ---------------------
 
 # Bộ câu hỏi dự phòng khi BOOTSTRAP.md không trích được mục
@@ -867,7 +888,7 @@ class TelegramSurface:
                     # chứa <div>, "a < b" trong câu trả lời).
                     for chunk in chunk_html(html.escape(final)):
                         await anchor.answer(chunk, parse_mode="HTML")
-                await self._maybe_send_photo(anchor, final)
+                await self._maybe_send_media_outputs(anchor, final)
                 await self._maybe_send_voice(key, anchor, final)
                 if was_bootstrap_pending and self.dossier is not None:
                     # Lượt vừa rồi có thể đã gỡ BOOTSTRAP_PENDING khỏi
@@ -891,40 +912,90 @@ class TelegramSurface:
             self.activity.end_turn()
             self.batcher.release(key)
 
-    # ---- media / photo output ----
-    async def _maybe_send_photo(self, anchor: Message, final_text: str) -> None:
-        """Tự động phát hiện nếu trong câu trả lời có file ảnh local hoặc link ảnh
-        trực tiếp (từ tool sinh ảnh Agnes AI / media) để gửi ảnh thật vào chat."""
+    # ---- media / photo / video / audio / document output ----
+    async def _maybe_send_media_outputs(self, anchor: Message, final_text: str) -> None:
+        """Tự động phát hiện nếu trong câu trả lời có file local (ảnh, video, audio, voice, tài liệu)
+        hoặc link ảnh trực tiếp để gửi nội dung thật vào Telegram theo đúng phương thức.
+        File vượt quá giới hạn hoặc định dạng lỗi được degrade báo rõ, không nuốt im lặng."""
         if not final_text:
             return
-        # 1. Tìm đường dẫn file ảnh local
-        img_paths = re.findall(
-            r"(?:[\w\-\./]+)?images/[\w\-]+\.(?:png|jpg|jpeg|webp)",
+        from .library import ICON_MAP, kind_of, _denied_reason
+
+        # 1. Tìm đường dẫn file local
+        candidate_paths = re.findall(
+            r"(?:/[a-zA-Z0-9_\-\./]+|\b(?:[a-zA-Z0-9_\-\.]+/)*[a-zA-Z0-9_\-]+\.(?:png|jpg|jpeg|webp|gif|mp4|mov|avi|webm|mkv|ogg|mp3|wav|m4a|flac|aac|pdf|docx|xlsx|csv|txt|md|json|zip|tar\.gz))\b",
             final_text, re.IGNORECASE,
         )
-        sent = False
-        for p in img_paths:
+        sent_any = False
+        max_bytes = getattr(self.cfg, "telegram_max_file_size_bytes", 52428800)
+
+        for p in candidate_paths:
+            p_clean = p.rstrip(".,;:)\"'>]`")
             candidates = [
-                Path(p),
-                Path(self.cfg.workspace_dir) / "images" / Path(p).name,
-                Path(self.cfg.workspace_dir) / p,
+                Path(p_clean),
+                Path(self.cfg.workspace_dir) / p_clean,
+                Path(self.cfg.workspace_dir) / "images" / Path(p_clean).name,
+                Path(self.cfg.workspace_dir) / "uploads" / Path(p_clean).name,
+                Path(self.cfg.workspace_dir) / "media" / Path(p_clean).name,
+                Path(self.cfg.workspace_dir) / Path(p_clean).name,
             ]
             for cand in candidates:
                 if cand.is_file() and cand.stat().st_size > 0:
-                    try:
-                        await anchor.answer_photo(FSInputFile(str(cand)))
-                        sent = True
-                        await self._post_photo_to_library(
-                            FSInputFile(str(cand)), f"🖼️ [Thư viện] {cand.name}",
-                            chat_id=anchor.chat.id,
+                    if _denied_reason(cand):
+                        continue
+                    ext = cand.suffix.lower()
+                    kind = kind_of(cand)
+                    icon = ICON_MAP.get(kind, "📁")
+                    caption = f"{icon} {cand.name}"
+
+                    # Kiểm tra kích thước tối đa của Telegram Bot API (mặc định 50MB)
+                    if cand.stat().st_size > max_bytes:
+                        size_mb = cand.stat().st_size / (1024 * 1024)
+                        limit_mb = max_bytes // (1024 * 1024)
+                        await anchor.answer(
+                            f"⚠️ Tệp <code>{html.escape(cand.name)}</code> ({size_mb:.1f} MB) vượt quá giới hạn "
+                            f"{limit_mb}MB của Telegram Bot API. "
+                            f"Bạn có thể truy cập tệp trực tiếp tại: <code>{html.escape(str(cand))}</code> hoặc qua Mini App Thư viện.",
+                            parse_mode="HTML",
                         )
+                        sent_any = True
+                        break
+
+                    try:
+                        if ext in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
+                            await anchor.answer_photo(FSInputFile(str(cand)), caption=caption)
+                            await self._post_media_to_library("photo", FSInputFile(str(cand)), f"🖼️ [Thư viện] {cand.name}", chat_id=anchor.chat.id)
+                        elif ext in (".mp4", ".mov", ".avi", ".webm", ".mkv"):
+                            await anchor.answer_video(FSInputFile(str(cand)), caption=caption)
+                            await self._post_media_to_library("video", FSInputFile(str(cand)), f"🎥 [Thư viện] {cand.name}", chat_id=anchor.chat.id)
+                        elif ext in (".ogg",):
+                            await anchor.answer_voice(FSInputFile(str(cand)), caption=caption)
+                            await self._post_media_to_library("audio", FSInputFile(str(cand)), f"🎙️ [Thư viện] {cand.name}", chat_id=anchor.chat.id)
+                        elif ext in (".mp3", ".wav", ".m4a", ".flac", ".aac"):
+                            await anchor.answer_audio(FSInputFile(str(cand)), caption=caption)
+                            await self._post_media_to_library("audio", FSInputFile(str(cand)), f"🎵 [Thư viện] {cand.name}", chat_id=anchor.chat.id)
+                        else:
+                            await anchor.answer_document(FSInputFile(str(cand)), caption=caption)
+                            await self._post_media_to_library("document", FSInputFile(str(cand)), f"📄 [Thư viện] {cand.name}", chat_id=anchor.chat.id)
+
+                        lib = self._svc("library")
+                        if lib is not None:
+                            await lib.index_file(cand, source="agent", caption=caption)
+                        sent_any = True
                         break
                     except Exception as exc:
-                        logger.warning("gửi ảnh local qua telegram lỗi: %s", exc)
-            if sent:
+                        logger.warning("gửi tệp local qua telegram lỗi: %s", exc)
+                        await anchor.answer(
+                            f"⚠️ Không thể gửi tệp <code>{html.escape(cand.name)}</code> qua Telegram ({html.escape(str(exc))}). "
+                            f"Tệp đã được lưu an toàn tại: <code>{html.escape(str(cand))}</code>.",
+                            parse_mode="HTML",
+                        )
+                        sent_any = True
+                        break
+            if sent_any:
                 break
 
-        if not sent:
+        if not sent_any:
             # 2. Tìm link URL ảnh
             urls = re.findall(r"https?://[^\s\)\]<>\"]+", final_text)
             for u in urls:
@@ -935,8 +1006,7 @@ class TelegramSurface:
                 )
                 if is_img_url:
                     try:
-                        await anchor.answer_photo(clean_u)
-                        sent = True
+                        await anchor.answer_photo(clean_u, caption="🖼️ Ảnh mới từ AI / Web")
                         await self._post_photo_to_library(
                             clean_u, "🖼️ [Thư viện] Ảnh mới từ AI / Web",
                             chat_id=anchor.chat.id,
@@ -944,6 +1014,10 @@ class TelegramSurface:
                         break
                     except Exception as exc:
                         logger.warning("gửi ảnh url qua telegram lỗi: %s", exc)
+
+    async def _maybe_send_photo(self, anchor: Message, final_text: str) -> None:
+        """Alias tương thích ngược."""
+        await self._maybe_send_media_outputs(anchor, final_text)
 
     # ---- voice (Phase 4, mục 8.1) ----
     async def _maybe_send_voice(self, key: str, anchor: Message,
@@ -997,6 +1071,12 @@ class TelegramSurface:
             local = in_dir / f"{message.voice.file_unique_id}.ogg"
             await self.bot.download_file(
                 tg_file.file_path, destination=str(local))
+            lib = self._svc("library")
+            if lib is not None and local.is_file():
+                try:
+                    await lib.index_file(local, source="user_upload", caption="Tin nhắn thoại Telegram")
+                except Exception:
+                    pass
         except Exception as exc:
             logger.warning("tải voice lỗi: %s", exc)
             await message.answer("Mình không tải được tin nhắn thoại này.")
@@ -1158,9 +1238,9 @@ class TelegramSurface:
             except Exception as exc:
                 logger.warning("gửi thẻ ý tưởng tự động lỗi: %s", exc)
 
-    async def _post_photo_to_library(self, photo_input: Any, caption: str,
-                                     chat_id: Optional[int] = None) -> None:
-        """Tự động gửi ảnh mới vào topic Library để xây dựng kho ảnh visual."""
+    async def _post_media_to_library(self, media_type: str, media_input: Any,
+                                     caption: str, chat_id: Optional[int] = None) -> None:
+        """Tự động gửi media mới vào topic Library trong group forum nếu có."""
         if self.bot is None:
             return
         cid = await self._resolve_group_chat_id(chat_id)
@@ -1177,14 +1257,36 @@ class TelegramSurface:
         if not lib_thread:
             return
         try:
-            await self.bot.send_photo(
-                chat_id=cid,
-                photo=photo_input,
-                caption=caption,
-                message_thread_id=lib_thread,
-            )
+            if media_type == "photo":
+                await self.bot.send_photo(chat_id=cid, photo=media_input, caption=caption, message_thread_id=lib_thread)
+            elif media_type == "video":
+                await self.bot.send_video(chat_id=cid, video=media_input, caption=caption, message_thread_id=lib_thread)
+            elif media_type == "audio":
+                await self.bot.send_audio(chat_id=cid, audio=media_input, caption=caption, message_thread_id=lib_thread)
+            else:
+                await self.bot.send_document(chat_id=cid, document=media_input, caption=caption, message_thread_id=lib_thread)
         except Exception as exc:
-            logger.warning("tự động gửi ảnh vào topic library lỗi: %s", exc)
+            logger.warning("tự động gửi %s vào topic library lỗi: %s", media_type, exc)
+
+    async def _post_photo_to_library(self, photo_input: Any, caption: str,
+                                     chat_id: Optional[int] = None) -> None:
+        """Tự động gửi ảnh mới vào topic Library để xây dựng kho ảnh visual."""
+        await self._post_media_to_library("photo", photo_input, caption, chat_id=chat_id)
+
+    async def send_to_session(self, session_key: str, text: str, **kwargs) -> bool:
+        """Gửi tin nhắn về đúng chat và topic của session_key (chuẩn R15 định tuyến hội thoại)."""
+        chat_id, thread_id = parse_session_key(session_key)
+        if not chat_id or self.bot is None:
+            return False
+        send_kwargs = dict(kwargs)
+        if thread_id:
+            send_kwargs["message_thread_id"] = thread_id
+        try:
+            await self.bot.send_message(chat_id, text, **send_kwargs)
+            return True
+        except Exception as exc:
+            logger.warning("send_to_session lỗi (%s): %s", session_key, exc)
+            return False
 
     async def send_approval_card(self, chat_id: int,
                                  thread_id: Optional[int],
@@ -2837,20 +2939,50 @@ class TelegramSurface:
                 if not p.exists():
                     await message.answer(f"Tệp của mục #{target_id} không còn tồn tại trên máy.")
                     return
+                max_bytes = getattr(self.cfg, "telegram_max_file_size_bytes", 52428800)
+                if p.stat().st_size > max_bytes:
+                    await message.answer(
+                        f"⚠️ Tệp #{item['id']} ({p.stat().st_size / (1024*1024):.1f} MB) vượt quá giới hạn "
+                        f"{max_bytes // (1024*1024)}MB của Telegram Bot API. "
+                        f"Tệp đang nằm tại: <code>{html.escape(str(p))}</code>.",
+                        parse_mode="HTML"
+                    )
+                    return
                 ext = p.suffix.lower()
                 caption = f"#{item['id']} • {item['name']}"
                 try:
                     if item.get("kind") == "image" or ext in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
                         await message.answer_photo(photo=FSInputFile(str(p)), caption=caption)
-                    elif item.get("kind") == "media" or ext in (".ogg", ".mp3", ".wav", ".m4a"):
+                    elif ext in (".mp4", ".mov", ".avi", ".webm", ".mkv"):
+                        await message.answer_video(video=FSInputFile(str(p)), caption=caption)
+                    elif ext in (".ogg",):
                         await message.answer_voice(voice=FSInputFile(str(p)), caption=caption)
+                    elif item.get("kind") == "media" or ext in (".mp3", ".wav", ".m4a", ".flac", ".aac"):
+                        await message.answer_audio(audio=FSInputFile(str(p)), caption=caption)
                     else:
                         await message.answer_document(document=FSInputFile(str(p)), caption=caption)
                 except Exception as e:
-                    await message.answer(f"Lỗi khi gửi tệp #{target_id}: {e}")
+                    await message.answer(f"⚠️ Lỗi khi gửi tệp #{target_id} qua Telegram: {e}")
                 return
 
-            # 2. Nếu người dùng gọi /library để duyệt thư viện
+            # 2. Nếu người dùng gõ /library <từ khóa>, tìm kiếm bằng ngôn ngữ tự nhiên
+            if len(parts) > 1 and not parts[1].isdigit():
+                query = text.split(None, 1)[1].strip()
+                results = await library.search(query)
+                from .library import format_library_list
+                if not results:
+                    await message.answer(
+                        f"🔍 Không tìm thấy tệp nào trong Thư viện khớp với: <i>{html.escape(query)}</i>",
+                        parse_mode="HTML"
+                    )
+                else:
+                    await message.answer(
+                        format_library_list(results, title=f"🔍 <b>Kết quả tìm kiếm Thư viện cho '{html.escape(query)}' ({len(results)} mục):</b>\n"),
+                        parse_mode="HTML"
+                    )
+                return
+
+            # 3. Nếu người dùng gọi /library để duyệt thư viện
             await library.scan()
             items = await library.list_items(status="active")
             from .library import format_library_list
@@ -3169,70 +3301,61 @@ class TelegramSurface:
         async def on_document(message: Message) -> None:
             if not self._is_allowed(message):
                 return
+            if not self._should_respond(message):
+                return
             doc = message.document
             name = (doc.file_name or "").lower()
-            if any(name.endswith(ext) for ext in (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")):
-                if not self._should_respond(message):
-                    return
-                upload_dir = Path(self.cfg.workspace_dir) / "images" / "uploads"
-                upload_dir.mkdir(parents=True, exist_ok=True)
-                local = upload_dir / f"doc_{message.message_id}_{doc.file_name or 'image.jpg'}"
-                if self.bot:
-                    try:
-                        tg_file = await self.bot.get_file(doc.file_id)
-                        if tg_file.file_path:
-                            await self.bot.download_file(tg_file.file_path, destination=str(local))
-                    except Exception as exc:
-                        logger.warning("tải ảnh tài liệu lỗi: %s", exc)
-                caption = (message.caption or "").strip()
-                if local.is_file():
-                    text = f"[Người dùng gửi kèm ảnh: {local}]\n{caption}" if caption else f"[Người dùng gửi kèm ảnh: {local}]"
-                else:
-                    text = caption or "[Người dùng gửi một file hình ảnh]"
-                text = format_reply_context(message, text)
-                key = session_key_for(message)
-                self._sessions_meta[key] = message
-                await self.batcher.add(key, text)
-                return
+            upload_dir = Path(self.cfg.workspace_dir) / "uploads"
+            upload_dir.mkdir(parents=True, exist_ok=True)
+            local = upload_dir / f"doc_{message.message_id}_{doc.file_name or 'file'}"
+            if self.bot:
+                try:
+                    tg_file = await self.bot.get_file(doc.file_id)
+                    if tg_file.file_path:
+                        await self.bot.download_file(tg_file.file_path, destination=str(local))
+                except Exception as exc:
+                    logger.warning("tải tài liệu từ telegram lỗi: %s", exc)
 
-            # Hiện chỉ nhận file để import ký ức (mục 16.11); file
-            # khác được báo rõ thay vì nuốt im lặng.
-            if not (name.endswith(".md") or name.endswith(".json")
-                    or name.endswith(".txt")):
-                await message.answer(
-                    "Hiện mình chỉ nhận file .md/.json/.txt để "
-                    "import ký ức hoặc file ảnh. File này chưa được xử lý.")
-                return
-            if self.bot is None:
-                await message.answer(
-                    "Chưa tải được file ở bản chạy này.")
-                return
-            try:
-                tg_file = await self.bot.get_file(doc.file_id)
-                in_dir = Path(self.cfg.workspace_dir) / "imports"
-                in_dir.mkdir(parents=True, exist_ok=True)
-                local = in_dir / (doc.file_name or "import.md")
-                await self.bot.download_file(
-                    tg_file.file_path, destination=str(local))
-                text = local.read_text(encoding="utf-8",
-                                       errors="replace")
-            except Exception as exc:
-                logger.warning("tải file import lỗi: %s", exc)
-                await message.answer("Mình không tải/đọc được file này.")
-                return
-            items = surf.parse_import_content(text, doc.file_name or "")
-            added = 0
-            for item in items:
-                await self.memory.add_fact(
-                    item["fact"], subject=item["subject"],
-                    source="import")
-                added += 1
-            await self.memory.log_trajectory(
-                session_key_for(message), "memory_import",
-                {"file": doc.file_name, "facts_added": added})
-            await message.answer(
-                f"Đã import {added} fact từ file "
-                f"{doc.file_name} (nguồn: import).")
+            caption = (message.caption or "").strip()
+            library = self._svc("library")
+            item = None
+            if library is not None and local.is_file():
+                try:
+                    item = await library.index_file(local, source="user_upload", caption=caption)
+                except Exception as exc:
+                    logger.warning("lập chỉ mục tài liệu vào thư viện lỗi: %s", exc)
+
+            is_img = any(name.endswith(ext) for ext in (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"))
+            if is_img:
+                await self._post_media_to_library("photo", FSInputFile(str(local)), f"🖼️ [Thư viện] {doc.file_name or local.name}", chat_id=message.chat.id)
+                item_str = f" • Thư viện #{item['id']}" if item else ""
+                text = f"[Người dùng gửi kèm ảnh: {local}{item_str}]\n{caption}".strip() if caption else f"[Người dùng gửi kèm ảnh: {local}{item_str}]"
+            else:
+                # Kiểm tra nếu user chủ đích import ký ức (có lệnh /import hoặc caption chứa import)
+                if (name.endswith(".md") or name.endswith(".json") or name.endswith(".txt")) and ("import" in caption.lower() or caption.startswith("/import")):
+                    try:
+                        ftext = local.read_text(encoding="utf-8", errors="replace")
+                        items = surf.parse_import_content(ftext, doc.file_name or "")
+                        added = 0
+                        for it in items:
+                            await self.memory.add_fact(it["fact"], subject=it["subject"], source="import")
+                            added += 1
+                        await self.memory.log_trajectory(session_key_for(message), "memory_import", {"file": doc.file_name, "facts_added": added})
+                        await message.answer(f"Đã import {added} fact từ file {doc.file_name} (nguồn: import).")
+                        return
+                    except Exception as exc:
+                        logger.warning("import ký ức từ file lỗi: %s", exc)
+
+                await self._post_media_to_library("document", FSInputFile(str(local)), f"📄 [Thư viện] {doc.file_name or local.name}", chat_id=message.chat.id)
+                from .library import kind_of
+                kind = kind_of(local)
+                item_str = f" • Thư viện #{item['id']}" if item else ""
+                text = f"[Người dùng gửi tài liệu: {doc.file_name or local.name} (loại: {kind}{item_str}, đường dẫn: {local})]\n{caption}".strip()
+
+            text = format_reply_context(message, text)
+            key = session_key_for(message)
+            self._sessions_meta[key] = message
+            await self.batcher.add(key, text)
 
         @dp.message(F.text.startswith("/quyen"))
         async def cmd_quyen(message: Message) -> None:
@@ -3451,18 +3574,121 @@ class TelegramSurface:
                     logger.warning("tải ảnh từ telegram thất bại: %s", exc)
 
             caption = (message.caption or "").strip()
+            library = self._svc("library")
+            item = None
             if local_path and local_path.is_file():
-                await self._post_photo_to_library(
+                if library is not None:
+                    try:
+                        item = await library.index_file(local_path, source="user_upload", caption=caption)
+                    except Exception as exc:
+                        logger.warning("lập chỉ mục ảnh vào thư viện lỗi: %s", exc)
+                await self._post_media_to_library(
+                    "photo",
                     FSInputFile(str(local_path)),
                     f"📥 [Thư viện] {local_path.name}" + (f"\n{caption}" if caption else ""),
                     chat_id=message.chat.id,
                 )
+                item_str = f" • Thư viện #{item['id']}" if item else ""
                 if caption:
-                    text = f"[Người dùng gửi kèm ảnh: {local_path}]\n{caption}"
+                    text = f"[Người dùng gửi kèm ảnh: {local_path}{item_str}]\n{caption}"
                 else:
-                    text = f"[Người dùng gửi kèm ảnh: {local_path}]"
+                    text = f"[Người dùng gửi kèm ảnh: {local_path}{item_str}]"
             else:
                 text = caption or "[Người dùng gửi một hình ảnh]"
+
+            text = format_reply_context(message, text)
+            await self.batcher.add(key, text)
+
+        @dp.message(F.video)
+        async def on_video(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            if not self._should_respond(message):
+                return
+            await self._send_typing(message)
+            key = session_key_for(message)
+            self._sessions_meta[key] = message
+            vid = message.video
+            local_path: Optional[Path] = None
+            if self.bot and vid:
+                try:
+                    tg_file = await self.bot.get_file(vid.file_id)
+                    upload_dir = Path(self.cfg.workspace_dir) / "uploads"
+                    upload_dir.mkdir(parents=True, exist_ok=True)
+                    vname = vid.file_name or f"video_{message.message_id}_{vid.file_unique_id}.mp4"
+                    local_path = upload_dir / vname
+                    if tg_file.file_path:
+                        await self.bot.download_file(tg_file.file_path, destination=str(local_path))
+                except Exception as exc:
+                    logger.warning("tải video từ telegram thất bại: %s", exc)
+
+            caption = (message.caption or "").strip()
+            library = self._svc("library")
+            item = None
+            if local_path and local_path.is_file():
+                if library is not None:
+                    try:
+                        item = await library.index_file(local_path, source="user_upload", caption=caption)
+                    except Exception as exc:
+                        logger.warning("lập chỉ mục video vào thư viện lỗi: %s", exc)
+                await self._post_media_to_library(
+                    "video",
+                    FSInputFile(str(local_path)),
+                    f"🎥 [Thư viện] {local_path.name}" + (f"\n{caption}" if caption else ""),
+                    chat_id=message.chat.id,
+                )
+                item_str = f" • Thư viện #{item['id']}" if item else ""
+                dur_str = f", thời lượng: {vid.duration}s" if vid and vid.duration else ""
+                text = f"[Người dùng gửi video: {local_path.name} (đường dẫn: {local_path}{dur_str}{item_str})]\n{caption}".strip()
+            else:
+                text = caption or f"[Người dùng gửi một video]"
+
+            text = format_reply_context(message, text)
+            await self.batcher.add(key, text)
+
+        @dp.message(F.audio)
+        async def on_audio(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            if not self._should_respond(message):
+                return
+            await self._send_typing(message)
+            key = session_key_for(message)
+            self._sessions_meta[key] = message
+            aud = message.audio
+            local_path: Optional[Path] = None
+            if self.bot and aud:
+                try:
+                    tg_file = await self.bot.get_file(aud.file_id)
+                    upload_dir = Path(self.cfg.workspace_dir) / "uploads"
+                    upload_dir.mkdir(parents=True, exist_ok=True)
+                    aname = aud.file_name or f"audio_{message.message_id}_{aud.file_unique_id}.mp3"
+                    local_path = upload_dir / aname
+                    if tg_file.file_path:
+                        await self.bot.download_file(tg_file.file_path, destination=str(local_path))
+                except Exception as exc:
+                    logger.warning("tải audio từ telegram thất bại: %s", exc)
+
+            caption = (message.caption or "").strip()
+            library = self._svc("library")
+            item = None
+            if local_path and local_path.is_file():
+                if library is not None:
+                    try:
+                        item = await library.index_file(local_path, source="user_upload", caption=caption)
+                    except Exception as exc:
+                        logger.warning("lập chỉ mục audio vào thư viện lỗi: %s", exc)
+                await self._post_media_to_library(
+                    "audio",
+                    FSInputFile(str(local_path)),
+                    f"🎵 [Thư viện] {local_path.name}" + (f"\n{caption}" if caption else ""),
+                    chat_id=message.chat.id,
+                )
+                item_str = f" • Thư viện #{item['id']}" if item else ""
+                dur_str = f", thời lượng: {aud.duration}s" if aud and aud.duration else ""
+                text = f"[Người dùng gửi tệp âm thanh: {local_path.name} (đường dẫn: {local_path}{dur_str}{item_str})]\n{caption}".strip()
+            else:
+                text = caption or f"[Người dùng gửi một tệp âm thanh]"
 
             text = format_reply_context(message, text)
             await self.batcher.add(key, text)

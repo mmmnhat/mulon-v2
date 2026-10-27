@@ -138,6 +138,7 @@ class Config:
     allowed_user_ids: tuple[int, ...] = field(default_factory=tuple)
     group_mention_only: bool = True
     debounce_seconds: float = 2.5
+    telegram_max_file_size_bytes: int = 52428800  # 50MB (giới hạn của Telegram Bot API)
 
     # --- Đường dẫn đa nền tảng (T-15) ---
     use_platformdirs: bool = False
@@ -425,6 +426,7 @@ class Config:
             claim_token_path=claim_token_path,
             group_mention_only=_env_bool("GROUP_MENTION_ONLY", True),
             debounce_seconds=float(_env("DEBOUNCE_SECONDS", "2.5")),
+            telegram_max_file_size_bytes=_env_int("TELEGRAM_MAX_FILE_SIZE_BYTES", 52428800),
             db_path=_resolve(_env("MULON_DB_PATH", "data/mulon.db")),
             dossier_dir=_resolve(_env("MULON_DOSSIER_DIR", "dossier")),
             workspace_dir=_resolve(_env("MULON_WORKSPACE_DIR", "workspace")),

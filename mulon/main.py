@@ -201,6 +201,8 @@ async def build_system(cfg: Config):
         "vault_server": VaultFormServer(cfg, vault_store),
         "vault_store": vault_store,
     }
+    from .library import register_library_tools
+    register_library_tools(registry, phase6["library"])
     # 1.2.0: Mini App server — chỉ DỰNG ở đây; start() trong _run
     # (như vault server, dry-run không bind cổng). ActivityTracker
     # dùng chung với bề mặt Telegram và SubagentRunner.
