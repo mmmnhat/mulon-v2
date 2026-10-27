@@ -581,8 +581,9 @@ pre.content{
   font-size:var(--fs-cap); opacity:0; pointer-events:none;
   transition:opacity var(--t2) var(--ease); max-width:88vw;
   text-align:center; z-index:50; box-shadow:var(--shadow-pop);
+  display:none; visibility:hidden;
 }
-#toast.show{opacity:.96}
+#toast.show{display:block; visibility:visible; opacity:.96}
 /* ---------- Chợ MCP (1.3) ---------- */
 /* Segmented phụ trong màn con: cùng pattern segbar (track
    surface2, active surface + ink đậm, chỉ chữ) nhưng không
@@ -683,7 +684,20 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     box-shadow:0 0 0 1px var(--line)}
 }
 #screen-task{max-width:100%; overflow-x:hidden}
-/* ---------- Rich Markdown & Media Preview ---------- */
+/* ---------- Rich Markdown & Media Preview (T-23.2) ---------- */
+.md-content{font-size:var(--fs-body); line-height:var(--lh-body); color:var(--ink); overflow-wrap:anywhere; word-break:break-word}
+.md-h1{font-size:18px; font-weight:var(--fw-b); margin:14px 0 8px; color:var(--ink); line-height:1.3}
+.md-h2{font-size:16px; font-weight:var(--fw-b); margin:12px 0 6px; color:var(--ink); line-height:1.3}
+.md-h3{font-size:14px; font-weight:var(--fw-m); margin:10px 0 4px; color:var(--ink); line-height:1.3}
+.md-h4{font-size:13px; font-weight:var(--fw-m); margin:8px 0 4px; color:var(--ink2); line-height:1.3}
+.md-hr{border:0; height:1px; background:var(--line); margin:12px 0}
+.md-quote{margin:8px 0; padding:6px 12px; border-left:3px solid var(--lav-deep); background:var(--tint-gray); color:var(--ink2); border-radius:0 4px 4px 0; font-size:var(--fs-cap)}
+.md-ul, .md-ol{margin:6px 0; padding-left:20px}
+.md-ul li, .md-ol li{margin-bottom:4px; line-height:1.45}
+.md-table-wrap{overflow-x:auto; margin:8px 0; max-width:100%; border:1px solid var(--line); border-radius:6px}
+.md-table{width:100%; border-collapse:collapse; font-size:12px}
+.md-table th, .md-table td{padding:6px 10px; border:1px solid var(--line); text-align:left}
+.md-table th{background:var(--surface2); font-weight:var(--fw-m); color:var(--ink)}
 .code-block{background:#111214; color:#D4D4D4; padding:var(--s3); border-radius:8px; overflow-x:auto; font-family:ui-monospace, Menlo, monospace; font-size:12px; line-height:1.45; margin:var(--s2) 0; border:1px solid rgba(255,255,255,0.06); max-width:100%}
 .code-block code{font-family:inherit}
 .inline-code{background:var(--tint-gray); padding:2px 6px; border-radius:4px; font-family:ui-monospace, Menlo, monospace; font-size:12px}
@@ -918,7 +932,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <section id="screen-profile" class="hidden">
   <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <h2 class="screen-title" id="profile-title">Nội dung</h2>
-  <div class="card"><pre class="content" id="profile-content"></pre></div>
+  <div class="card"><div class="md-content" id="profile-content" style="padding:var(--s4);"></div></div>
 </section>
 
 <!-- đọc nội dung 1 kỹ năng (SKILL.md) -->
@@ -926,7 +940,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <h2 class="screen-title" id="skill-title">Kỹ năng</h2>
   <div class="note" id="skill-source"></div>
-  <div class="card"><pre class="content" id="skill-content"></pre></div>
+  <div class="card"><div class="md-content" id="skill-content" style="padding:var(--s4);"></div></div>
 </section>
 
 <!-- ================= TAB: CÀI ĐẶT ================= -->
@@ -1333,9 +1347,57 @@ let subScreen = null;   // id màn con đang mở
 const $ = (id) => document.getElementById(id);
 function esc(s){ return String(s ?? "").replace(/[&<>"']/g,
   c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+let _toastTimer = null;
 function toast(msg){
-  const t = $("toast"); t.textContent = msg; t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 2600);
+  const t = $("toast");
+  if (!t) return;
+  if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+  t.textContent = msg;
+  t.style.display = "block";
+  t.style.visibility = "visible";
+  requestAnimationFrame(() => {
+    t.classList.add("show");
+  });
+  _toastTimer = setTimeout(() => {
+    t.classList.remove("show");
+    setTimeout(() => {
+      if (!t.classList.contains("show")) {
+        t.textContent = "";
+        t.style.display = "none";
+        t.style.visibility = "hidden";
+      }
+    }, 250);
+  }, 2600);
+}
+function cleanPath(p){
+  if (!p) return "";
+  let s = String(p).trim().replace(/\\/g, "/");
+  const parts = s.split("/").filter(Boolean);
+  if (!parts.length) return s;
+  const skIdx = parts.lastIndexOf("skills");
+  if (skIdx !== -1 && skIdx < parts.length - 1) {
+    return parts.slice(skIdx).join("/");
+  }
+  const repoIdx = parts.lastIndexOf("auto");
+  if (repoIdx !== -1 && repoIdx < parts.length - 1) {
+    return parts.slice(repoIdx + 1).join("/");
+  }
+  return parts.length > 2 ? ".../" + parts.slice(-2).join("/") : parts[parts.length - 1];
+}
+function maskPaths(text){
+  if (!text) return "";
+  let s = String(text);
+  s = s.replace(/(?:(?:\/Volumes|\/Users|\/home)\/[^\s"')\]<>]+|[A-Za-z]:\\(?:Users\\)?[^\s"')\]<>]+)/g, (m) => cleanPath(m));
+  return s;
+}
+function fixGluedWords(text){
+  if (!text) return "";
+  let s = String(text);
+  s = s.replace(/([a-zA-ZÀ-ỹ])(\d+(?:\/\d+)?)/g, "$1 $2");
+  s = s.replace(/(\d+(?:\/\d+)?)([a-zA-ZÀ-ỹ])/g, "$1 $2");
+  s = s.replace(/(bài đăng)(của\b)/gi, "$1 $2");
+  s = s.replace(/([,;:])([a-zA-ZÀ-ỹ])/g, "$1 $2");
+  return s;
 }
 function haptic(kind){
   if (!tg || !tg.HapticFeedback) return;
@@ -1967,7 +2029,8 @@ function taskSub(t){
 function cleanTaskTitle(s){
   if (!s) return "Chi tiết việc";
   let t = s.replace(/\[(?:Người dùng gửi (?:kèm ảnh|một tấm ảnh|ảnh)|Đang trả lời tin)[^\]]*\]/gi, "").trim();
-  t = t.replace(/\/Volumes\/[^\s\]"']+/g, (m) => m.split("/").pop());
+  t = maskPaths(t);
+  t = fixGluedWords(t);
   t = t.replace(/\s+/g, " ");
   return t || "Chi tiết việc";
 }
@@ -2132,31 +2195,157 @@ function resolveMediaUrl(p){
 
 function renderMd(text){
   if (!text) return "";
+  // 1. Strip HTML comments (Q-02)
+  let raw = String(text).replace(/<!--[\s\S]*?-->/g, "");
+  // 2. Sửa dính chữ do thiếu khoảng trắng (Q-02)
+  raw = fixGluedWords(raw);
+  // 3. Ẩn đường dẫn tuyệt đối của máy chạy (Q-02 / T-23.2)
+  raw = maskPaths(raw);
+
+  // 4. Tách fenced code blocks
   const codeBlocks = [];
-  let s = String(text).replace(/```(?:[a-zA-Z0-9_\-]+)?\n([\s\S]*?)```/g, (_, code) => {
+  raw = raw.replace(/```(?:[a-zA-Z0-9_\-]+)?\n?([\s\S]*?)```/g, (_, code) => {
     codeBlocks.push(code);
-    return `%%%CB_${codeBlocks.length - 1}%%%`;
+    return `\n%%%CB_${codeBlocks.length - 1}%%%\n`;
   });
-  s = esc(s);
-  s = s.replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>');
-  s = s.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
-  s = s.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g,
-    '<div class="img-preview-wrap"><img src="$2" class="img-preview" alt="$1" loading="lazy" onclick="previewImage(this.src)"/></div>');
-  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="md-link">$1</a>');
-  s = s.replace(/(^|\s)(https?:\/\/[^\s"<>]+?\.(?:png|jpg|jpeg|webp)(?:\?[^\s"<>]*)?|https:\/\/platform-outputs\.agnes-ai\.space\/images\/[^\s"<>]+)($|\s)/gi,
-    '$1<div class="img-preview-wrap"><img src="$2" class="img-preview" alt="Ảnh kết quả" loading="lazy" onclick="previewImage(this.src)"/></div><a href="$2" target="_blank" rel="noopener" class="img-sublink">$2</a>$3');
-  s = s.replace(/\n/g, '<br>');
-  s = s.replace(/%%%CB_(\d+)%%%/g, (_, idx) => {
-    return '<div class="code-block"><code>' + esc(codeBlocks[Number(idx)]) + '</code></div>';
-  });
-  return s;
+
+  const lines = raw.split(/\r?\n/);
+  const out = [];
+  let inUl = false, inOl = false, inTable = false;
+  let tableRows = [];
+
+  function flushList(){
+    if (inUl) { out.push("</ul>"); inUl = false; }
+    if (inOl) { out.push("</ol>"); inOl = false; }
+  }
+  function flushTable(){
+    if (!inTable) return;
+    inTable = false;
+    if (!tableRows.length) return;
+    let html = '<div class="md-table-wrap"><table class="md-table">';
+    const header = tableRows[0];
+    html += '<thead><tr>' + header.map(c => '<th>' + renderInline(c) + '</th>').join('') + '</tr></thead>';
+    if (tableRows.length > 1) {
+      html += '<tbody>';
+      for (let r = 1; r < tableRows.length; r++) {
+        html += '<tr>' + tableRows[r].map(c => '<td>' + renderInline(c) + '</td>').join('') + '</tr>';
+      }
+      html += '</tbody>';
+    }
+    html += '</table></div>';
+    out.push(html);
+    tableRows = [];
+  }
+
+  function renderInline(s){
+    let t = esc(s);
+    t = t.replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>');
+    t = t.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+    t = t.replace(/(?:^|[^\*])\*([^*\n]+)\*(?!\*)/g, (m, c) => m[0] === '*' ? '<i>' + c + '</i>' : m[0] + '<i>' + c + '</i>');
+    t = t.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g,
+      '<div class="img-preview-wrap"><img src="$2" class="img-preview" alt="$1" loading="lazy" onclick="previewImage(this.src)"/></div>');
+    t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="md-link">$1</a>');
+    t = t.replace(/(^|\s)(https?:\/\/[^\s"<>]+?\.(?:png|jpg|jpeg|webp)(?:\?[^\s"<>]*)?|https:\/\/platform-outputs\.agnes-ai\.space\/images\/[^\s"<>]+)($|\s)/gi,
+      '$1<div class="img-preview-wrap"><img src="$2" class="img-preview" alt="Ảnh kết quả" loading="lazy" onclick="previewImage(this.src)"/></div><a href="$2" target="_blank" rel="noopener" class="img-sublink">$2</a>$3');
+    return t;
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Code block placeholder
+    const cbMatch = trimmed.match(/^%%%CB_(\d+)%%%$/);
+    if (cbMatch) {
+      flushList();
+      flushTable();
+      const idx = Number(cbMatch[1]);
+      out.push('<div class="code-block"><code>' + esc(codeBlocks[idx]) + '</code></div>');
+      continue;
+    }
+
+    // Table row: | a | b |
+    if (trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.length > 2) {
+      flushList();
+      // Bỏ qua dòng phân cách |---|---|
+      if (/^\|(?:\s*:?-+:?\s*\|)+$/.test(trimmed)) {
+        inTable = true;
+        continue;
+      }
+      const cols = trimmed.slice(1, -1).split('|').map(c => c.trim());
+      tableRows.push(cols);
+      inTable = true;
+      continue;
+    } else {
+      flushTable();
+    }
+
+    // Horizontal rule: ---, ***, ___
+    if (/^(?:---|\*\*\*|___)\s*$/.test(trimmed)) {
+      flushList();
+      out.push('<hr class="md-hr">');
+      continue;
+    }
+
+    // Headings: #, ##, ###, ####
+    const hMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+    if (hMatch) {
+      flushList();
+      const level = hMatch[1].length;
+      const hText = renderInline(hMatch[2]);
+      out.push('<h' + level + ' class="md-h' + level + '">' + hText + '</h' + level + '>');
+      continue;
+    }
+
+    // Blockquote: > text
+    const bqMatch = trimmed.match(/^>\s*(.+)$/);
+    if (bqMatch) {
+      flushList();
+      out.push('<blockquote class="md-quote">' + renderInline(bqMatch[1]) + '</blockquote>');
+      continue;
+    }
+
+    // Unordered list: - item hoặc * item
+    const ulMatch = trimmed.match(/^[\-\*]\s+(.+)$/);
+    if (ulMatch) {
+      if (inOl) { out.push("</ol>"); inOl = false; }
+      if (!inUl) { out.push('<ul class="md-ul">'); inUl = true; }
+      out.push('<li>' + renderInline(ulMatch[1]) + '</li>');
+      continue;
+    }
+
+    // Ordered list: 1. item
+    const olMatch = trimmed.match(/^\d+\.\s+(.+)$/);
+    if (olMatch) {
+      if (inUl) { out.push("</ul>"); inUl = false; }
+      if (!inOl) { out.push('<ol class="md-ol">'); inOl = true; }
+      out.push('<li>' + renderInline(olMatch[1]) + '</li>');
+      continue;
+    }
+
+    // Dòng trống
+    if (!trimmed) {
+      flushList();
+      continue;
+    }
+
+    // Đoạn văn thường
+    flushList();
+    out.push('<p style="margin:4px 0 6px;">' + renderInline(line) + '</p>');
+  }
+
+  flushList();
+  flushTable();
+  return out.join("");
 }
 
 async function openTask(id){
   showSub("screen-task");
   document.body.classList.remove("split");
+  // Xóa stale heading ngay lập tức (Q-03 / T-23.2)
+  $("task-detail-title").textContent = "Chi tiết việc";
   $("task-timeline").innerHTML = '<div class="skel"><div class="bar w70"></div><div class="bar w40"></div></div>';
-  $("task-summary").textContent = "";
+  $("task-summary").innerHTML = '<div class="skel"><div class="bar w90"></div><div class="bar w60"></div></div>';
   try {
     const data = await api("/api/task?id=" + encodeURIComponent(id));
     const t = data.task;
@@ -2235,7 +2424,8 @@ async function openTask(id){
       // Làm sạch meta: loại bỏ tag đính kèm và rút gọn đường dẫn file dài
       if (meta){
         meta = meta.replace(/\[(?:Người dùng gửi (?:kèm ảnh|một tấm ảnh|ảnh)|Đang trả lời tin)[^\]]*\]/gi, "").trim();
-        meta = meta.replace(/\/Volumes\/[^\s\]"']+/g, (m) => m.split("/").pop());
+        meta = maskPaths(meta);
+        meta = fixGluedWords(meta);
       }
       if (st.updated_at) meta = (meta ? meta + " · " : "") + hhmm(st.updated_at);
 
@@ -2899,41 +3089,47 @@ async function openSkill(name){
   showSub("screen-skill");
   $("skill-title").textContent = name;
   $("skill-source").textContent = "";
-  $("skill-content").textContent = "Đang tải…";
+  $("skill-content").innerHTML = '<div class="skel"><div class="bar w70"></div><div class="bar w90"></div><div class="bar w60"></div></div>';
   try {
     const d = await api("/api/skills/" + encodeURIComponent(name));
     $("skill-source").textContent = d.source
-      ? "Nguồn: " + d.source : "";
-    $("skill-content").textContent = d.content || "(kỹ năng trống)";
+      ? "Nguồn: " + cleanPath(d.source) : "";
+    $("skill-content").innerHTML = renderMd(d.content || "(kỹ năng trống)");
   } catch (e) {
-    $("skill-content").textContent = e.message;
+    $("skill-content").innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
     toast("Không đọc được kỹ năng: " + e.message);
   }
 }
 $("card-dossier").addEventListener("click", async () => {
   showSub("screen-profile");
   $("profile-title").textContent = "Hồ sơ của agent";
-  $("profile-content").textContent = "Đang tải…";
+  $("profile-content").innerHTML = '<div class="skel"><div class="bar w80"></div><div class="bar w60"></div><div class="bar w90"></div><div class="bar w70"></div></div>';
   try {
-    const parts = [];
-    for (const f of ((S && S.profile && S.profile.dossier_files) || [])) {
-      if (f.name === "BOOTSTRAP.md") continue;
-      const d = await api("/api/profile/content?kind=dossier&name=" +
-        encodeURIComponent(f.name));
-      parts.push("===== " + f.name + " =====\n" + d.content);
+    const d = await api("/api/profile/content?kind=dossier");
+    let parts = [];
+    if (d && d.files && Array.isArray(d.files)) {
+      parts = d.files.filter(f => f.name !== "BOOTSTRAP.md").map(f => `### ${f.name}\n\n${f.content}`);
+    } else if (d && d.content) {
+      parts = [d.content];
+    } else {
+      for (const f of ((S && S.profile && S.profile.dossier_files) || [])) {
+        if (f.name === "BOOTSTRAP.md") continue;
+        const res = await api("/api/profile/content?kind=dossier&name=" + encodeURIComponent(f.name));
+        parts.push(`### ${f.name}\n\n${res.content}`);
+      }
     }
-    $("profile-content").textContent = parts.join("\n\n") ||
-      "(hồ sơ trống)";
-  } catch (e) { $("profile-content").textContent = e.message; }
+    const combined = parts.join("\n\n---\n\n") || "(hồ sơ trống)";
+    $("profile-content").innerHTML = renderMd(combined);
+  } catch (e) { $("profile-content").innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; }
 });
 $("card-memory").addEventListener("click", async () => {
   showSub("screen-profile");
   $("profile-title").textContent = "Bộ nhớ dài hạn";
-  $("profile-content").textContent = "Đang tải…";
+  $("profile-content").innerHTML = '<div class="skel"><div class="bar w80"></div><div class="bar w60"></div><div class="bar w90"></div></div>';
   try {
     const d = await api("/api/profile/content?kind=memory");
-    $("profile-content").textContent = d.content || "(bộ nhớ trống)";
-  } catch (e) { $("profile-content").textContent = e.message; }
+    $("profile-content").innerHTML = renderMd(d.content || "(bộ nhớ trống)");
+  } catch (e) { $("profile-content").innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; }
 });
 
 /* ---------------- Cài đặt con ---------------- */
@@ -3971,10 +4167,8 @@ function renderListingDetail(){
       esc(L.source_url) + '" target="_blank" rel="noopener">' +
       esc(L.source_url) + '</a></td></tr>';
   h += '</table>';
-  if (L.description)
-    h += '<div class="detail-text">' + esc(L.description) + '</div>';
-  else if (L.summary)
-    h += '<div class="detail-text">' + esc(L.summary) + '</div>';
+  if (L.description || L.summary)
+    h += '<div class="detail-text md-content">' + renderMd(L.description || L.summary) + '</div>';
   h += '</div>';
 
   /* Trạng thái hỗ trợ */
@@ -3983,7 +4177,7 @@ function renderListingDetail(){
     '<div class="r-title" style="color:var(--accent,#10b981);font-weight:600">' +
     '✓ Được hỗ trợ đầy đủ' +
     '</div><div class="r-sub">' +
-    (man.url ? ('Server từ xa: ' + esc(man.url)) : ('Lệnh chạy: ' + esc(man.command || 'npx') + ' ' + esc((man.args||[]).join(' ')))) +
+    (man.url ? ('Server từ xa: ' + esc(man.url)) : ('Lệnh chạy: ' + esc(maskPaths((man.command || 'npx') + ' ' + (man.args||[]).join(' '))))) +
     '</div></div></div>';
   if (unsupported && reasons.length)
     h += '<div class="detail-list">' +
@@ -4032,7 +4226,7 @@ function renderListingDetail(){
     .filter(Boolean).join(" ");
   h += '<div class="card"><div class="card-title">Cấu hình sẽ dùng</div>';
   if (cmdline) {
-    h += '<pre class="mono-block">' + esc(cmdline) + '</pre>';
+    h += '<pre class="mono-block">' + esc(maskPaths(cmdline)) + '</pre>';
   } else if (!hasInstallableManifest) {
     h += '<div class="empty">Kho chưa có lệnh chạy tự động (command/stdio) cho server này.</div>';
   }

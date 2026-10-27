@@ -30,6 +30,7 @@ from .gateway import GatewayError, estimate_tokens
 from .learning import detect_and_record
 from .tools import result_to_text
 from .datafiles import load_json_data, load_prompt
+from .paths import sanitize_path_display, fix_glued_words
 
 logger = logging.getLogger("mulon.agent")
 
@@ -106,11 +107,11 @@ def format_step_title(tool_name: str, args: dict) -> str:
         first_line = cmd.strip().split("\n")[0]
         return f"Chạy lệnh: {first_line[:45]}" if first_line else "Chạy lệnh hệ thống"
     if tool_name == "read_file":
-        return f"Đã đọc file: {args.get('path', '')}"
+        return f"Đã đọc file: {sanitize_path_display(args.get('path', ''))}"
     if tool_name == "write_file":
-        return f"Đã ghi file: {args.get('path', '')}"
+        return f"Đã ghi file: {sanitize_path_display(args.get('path', ''))}"
     if tool_name == "edit_file":
-        return f"Đã sửa file: {args.get('path', '')}"
+        return f"Đã sửa file: {sanitize_path_display(args.get('path', ''))}"
     if tool_name in ("web_fetch", "web_read"):
         return f"Đã đọc trang web: {args.get('url', '')[:50]}"
     if tool_name == "web_search":
@@ -146,14 +147,14 @@ def format_step_detail(tool_name: str, args: dict, result: dict) -> str:
         local_path = result.get("local_path", "")
         url = result.get("url", "")
         info["prompt"] = prompt
-        info["reference_image"] = img_ref
+        info["reference_image"] = sanitize_path_display(img_ref)
         info["url"] = url
-        info["local_path"] = local_path
+        info["local_path"] = sanitize_path_display(local_path)
         info["description"] = f"Generated image via media.generate_image with prompt:\n\"{prompt}\""
         if img_ref:
-            info["summary"] = f"The image was created based on reference image {img_ref} and saved to {local_path or url}."
+            info["summary"] = f"The image was created based on reference image {sanitize_path_display(img_ref)} and saved to {sanitize_path_display(local_path or url)}."
         else:
-            info["summary"] = f"The image was created in {local_path or url}."
+            info["summary"] = f"The image was created in {sanitize_path_display(local_path or url)}."
     elif tool_name == "run_command":
         cmd = args.get("command", "")
         info["command"] = cmd
@@ -172,9 +173,10 @@ def format_step_detail(tool_name: str, args: dict, result: dict) -> str:
         info["content"] = str(result.get("results", result.get("content", "")))[:1500]
         info["description"] = f"Searched web for: {args.get('query', '')}"
     elif tool_name == "read_file":
-        info["path"] = args.get("path", "")
+        clean_p = sanitize_path_display(args.get("path", ""))
+        info["path"] = clean_p
         info["content"] = str(result.get("content", ""))[:1500]
-        info["description"] = f"Read file content from: {args.get('path', '')}"
+        info["description"] = f"Read file content from: {clean_p}"
     elif "content" in result:
         info["content"] = str(result.get("content", ""))[:1500]
 
@@ -670,17 +672,18 @@ class Agent:
             raise
 
         status = "done" if verified else ("unverified" if verified is None else "failed")
-        await self.memory.finish_task(task_id, status, result=final_text,
+        clean_result = fix_glued_words(final_text)
+        await self.memory.finish_task(task_id, status, result=clean_result,
                                       error=diagnosis if verified is False else "")
         await self._emit(on_event, "task_done", task_id=task_id, status=status)
         if verified is False:
             text = (
                 "⚠️ Chưa kiểm chứng được là đã xong đúng yêu cầu. "
                 f"Chẩn đoán: {diagnosis or 'không rõ'}.\n\n"
-                f"Phần làm được tới giờ:\n{final_text}"
+                f"Phần làm được tới giờ:\n{clean_result}"
             )
         else:
-            text = final_text
+            text = clean_result
         return TurnResult(text=text, intent=intent, task_id=task_id,
                           verified=verified)
 

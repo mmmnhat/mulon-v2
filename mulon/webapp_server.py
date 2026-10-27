@@ -37,6 +37,7 @@ from .memory import redact_trajectory_payload
 from .cron import parse_cron
 from .feed_auto import SCHEDULE_ID as FEED_SCHEDULE_ID, valid_quiet_hours
 from .planning import internal_kind
+from .paths import sanitize_path_display
 from .proactivity import PROACTIVITY_KV_KEY, effective_enabled
 from .ideas import IDEAS_AUTO_KV_KEY, effective_auto_enabled
 
@@ -1427,18 +1428,34 @@ class WebAppServer:
     async def _handle_profile_content(self, request):
         kind = request.query.get("kind", "")
         name = request.query.get("name", "")
-        if kind == "dossier" and self.dossier is not None \
-                and name in self.dossier.files:
-            return web.json_response({
-                "ok": True, "title": name,
-                "content": self.dossier.files[name][:6000]})
+        if kind == "dossier":
+            if self.dossier is None:
+                return web.json_response({"ok": True, "files": [], "content": ""})
+            if name and name != "all":
+                if name in self.dossier.files:
+                    return web.json_response({
+                        "ok": True, "title": name,
+                        "content": self.dossier.files[name][:6000]})
+                return web.json_response(
+                    {"ok": False, "error": "không có file này"}, status=404)
+            # Trả về toàn bộ file dossier trong 1 request duy nhất (tối ưu tải < 3s, T-23.2)
+            files = []
+            for fname, fcontent in self.dossier.files.items():
+                if fname == "BOOTSTRAP.md":
+                    continue
+                files.append({
+                    "name": fname,
+                    "title": fname,
+                    "content": fcontent[:6000],
+                })
+            return web.json_response({"ok": True, "files": files})
         if kind == "memory":
             facts = await self.memory.active_facts(limit=50)
             lines = [f"- {f['fact']}" for f in facts]
             mem_md = ""
             if self.dossier is not None:
                 mem_md = self.dossier.files.get("MEMORY.md", "")
-            content = (mem_md[:3000] + "\n\n" + "\n".join(lines))[:6000]
+            content = (mem_md[:3000] + "\n\n### Facts đang hiệu lực\n\n" + "\n".join(lines))[:6000]
             return web.json_response({
                 "ok": True, "title": "Bộ nhớ (MEMORY.md + facts)",
                 "content": content})
@@ -1900,7 +1917,7 @@ class WebAppServer:
         items = [{
             "name": e["name"],
             "description": e.get("description", ""),
-            "source": paths.get(e["name"], ""),
+            "source": sanitize_path_display(paths.get(e["name"], "")),
         } for e in self.skills.catalog()]
         return web.json_response(
             {"ok": True, "available": True, "skills": items})
@@ -1924,7 +1941,7 @@ class WebAppServer:
         return web.json_response({
             "ok": True, "name": name,
             "content": result.get("content", ""),
-            "source": result.get("path", "")})
+            "source": sanitize_path_display(result.get("path", ""))})
 
     async def _handle_vault_capture(self, request):
         """Nhập bí mật NGAY trong Mini App (1.3.0): owner gõ nhãn

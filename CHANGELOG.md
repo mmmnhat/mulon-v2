@@ -1,6 +1,30 @@
 # CHANGELOG
 
-## 1.7.13 — 2026-10-27 — Hợp nhất uỷ quyền click toàn thân hàng & chốt NEEDS-FIX điều hướng Mini App (T-23.1, Làn 1)
+## 1.7.14 — 2026-10-27 — Render rich markdown, triệt tiêu rò rỉ toast & tối ưu tải màn con (T-23.2, Làn 1)
+
+- **Render Rich Markdown toàn diện & triệt tiêu lộ HTML comments / đường dẫn máy (QA Q-02 / T-23.2):**
+  - Viết lại hàm `renderMd` trong `mulon/webapp/index.html`:
+    - Tự động strip toàn bộ HTML comments (`<!-- ... -->`) trước khi render.
+    - Sửa dính chữ do thiếu khoảng trắng (`fixGluedWords`: "toàn bộ63/63 bài đăngcủa" -> "toàn bộ 63/63 bài đăng của").
+    - Ẩn toàn bộ đường dẫn tuyệt đối của máy chủ cục bộ (`maskPaths`: loại bỏ `/Volumes/...`, `/Users/...`, `/home/...`, `C:\...`).
+    - Hỗ trợ đầy đủ các phần tử markdown: Headings (`#`, `##`, `###`, `####`), đường kẻ ngang (`---`, `***`), trích dẫn (`>`), danh sách (`- `, `* `, `1. `), bảng (`| ... |`), code block fenced với thụt lề chuẩn, inline code, bold, italic, links và image preview.
+  - Áp dụng container `.md-content` cho toàn bộ các màn: Tóm tắt việc (`#task-summary`), Hồ sơ agent (`#profile-content`), Bộ nhớ dài hạn, Chi tiết kỹ năng (`#skill-content`), và mô tả connector trong Chợ MCP (`#screen-listing`).
+  - Lệnh chạy connector và nguồn kỹ năng được chuẩn hóa qua `maskPaths` / `cleanPath` không còn lộ đường dẫn file tuyệt đối.
+- **Triệt tiêu hoàn toàn rò rỉ DOM của Toast hoàn tất (QA Q-02):**
+  - Bổ sung `display: none; visibility: hidden;` cho `#toast` khi ở trạng thái nghỉ.
+  - Khi `toast(msg)` ẩn đi, sau transition 250ms tự động dọn sạch `textContent = ""` và đặt lại `display: none; visibility: hidden;` để không còn rò rỉ cụm chữ "Một lượt việc vừa hoàn tất." trong DOM cuối trang.
+- **Xóa triệt để Stale Heading ở Chi tiết việc (QA Q-03):**
+  - Ngay đầu hàm `openTask(id)`: reset ngay tiêu đề `#task-detail-title` về "Chi tiết việc" và hiển thị skeleton cho timeline và summary trước khi gọi API, ngăn chặn hoàn toàn việc hiện tiêu đề việc cũ trước khi việc mới tải xong.
+- **Tối ưu tốc độ tải màn con < 3s & bổ sung Skeleton (QA Q-04):**
+  - Backend `_handle_profile_content` trong `mulon/webapp_server.py`: hỗ trợ lấy toàn bộ file dossier (`kind=dossier`) trong 1 request duy nhất thay vì frontend phải lặp 8-9 HTTP request tuần tự (giảm thời gian tải từ 15-20s xuống < 50ms).
+  - Bổ sung skeleton placeholder tức thì khi bấm mở màn Hồ sơ, Bộ nhớ, Kỹ năng và Chi tiết việc.
+- **Làm sạch đường dẫn máy & sửa dính chữ ở tầng Python (`mulon/paths.py`, `mulon/agent.py`):**
+  - Bổ sung hàm `sanitize_path_display` và `fix_glued_words` trong `mulon/paths.py`.
+  - Áp dụng làm sạch đường dẫn và dính chữ cho `format_step_title`, `format_step_detail`, `_handle_skills`, `_handle_skill_detail` và lưu kết quả `finish_task`.
+- **Kiểm thử hồi quy toàn diện (`tests/test_v17_miniapp_markdown_perf.py`):**
+  - 4 test mới kiểm chứng sanitization đường dẫn, fix glued words, batch API dossier, kiểm tra tĩnh HTML và render thật qua Playwright Chromium (390×844).
+  - Toàn bộ suite đạt 550/550 passed 100%, evals vàng đạt 31/36 (86%).
+
 
 - **Uỷ quyền điều hướng tập trung toàn thân hàng (`mulon/webapp/index.html`):**
   - Hợp nhất toàn bộ sự kiện nhấn hàng (`[data-open]`, `#card-heartbeat-item`, `[data-task]`, `[data-skill]`, `[data-open-conn-pol]`, `[data-open-gconfig]`, `[data-cat]`, `[data-pid]`, `[data-hist]`) vào bộ lắng nghe uỷ quyền duy nhất trên `document`, đảm bảo nhấn bất kỳ vị trí nào trên thân hàng cũng mở đúng màn con ngay lần đầu mà không bị rơi click khi DOM re-render định kỳ.
