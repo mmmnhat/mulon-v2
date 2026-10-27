@@ -1516,6 +1516,38 @@ class WebAppServer:
                         "", key).verdict
             except Exception:
                 pass
+
+        specs = dict(desc.get("connector_specs", {}))
+        if self.mcp is not None and self.registry is not None:
+            try:
+                from .mcp_client import load_server_configs
+                for entry in load_server_configs(self.mcp.config_path):
+                    sname = str(entry.get("name") or "")
+                    mcp_group = f"mcp:{sname}"
+                    if sname and (sname not in specs or mcp_group not in specs):
+                        mcp_tools = [s for s in self.registry.specs() if s.group == mcp_group]
+                        acts = []
+                        for s in mcp_tools:
+                            is_write = any(w in s.name.lower() for w in ("write", "create", "delete", "edit", "update", "run", "post", "send", "remove"))
+                            k = "write" if is_write else "read"
+                            acts.append({
+                                "id": s.name,
+                                "name": s.name,
+                                "label": s.description or s.name,
+                                "kind": k,
+                                "default": "ask" if is_write else "allow",
+                                "effective": self.policy.decide(s.name, mcp_group).verdict,
+                            })
+                        mcp_item = {
+                            "title": f"MCP: {sname}",
+                            "description": f"Server MCP {sname} ({len(acts)} công cụ)",
+                            "actions": acts,
+                        }
+                        specs[sname] = mcp_item
+                        specs[mcp_group] = mcp_item
+            except Exception:
+                pass
+
         return {
             "default": desc["default"],
             "groups": {
@@ -1532,7 +1564,7 @@ class WebAppServer:
                         if self.registry.get(t) else "")).verdict
                 for t in tools},
             "host": desc,
-            "connector_specs": desc.get("connector_specs", {}),
+            "connector_specs": specs,
         }
 
     async def _library_state(self) -> list[dict]:

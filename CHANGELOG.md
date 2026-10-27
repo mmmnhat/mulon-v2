@@ -1,6 +1,25 @@
 # CHANGELOG
 
-## 1.7.17 — 2026-10-27 — Chuẩn hoá màu 60/30/10, Việt hoá nhãn kỹ thuật, Tìm kiếm/Lọc Chợ MCP & Hợp nhất cấu hình Feed chủ động (T-23.5 & T-31, Làn 1)
+## 1.7.18 — 2026-10-27 — Siết quyền mặc định chuẩn F4, gom quyền vào màn chi tiết connector & hộp thoại xác nhận hành động phá huỷ (T-23.6, Làn 1)
+
+- **Khôi phục nguồn sự thật Policy tuân thủ nghiêm ngặt chuẩn F4 (`config/policy.json`, `mulon/policy.py`, QA Q-09 / T-23.6):**
+  - Gỡ bỏ hoàn toàn `{"default": "allow"}` phẳng trong `config/policy.json` (nguyên nhân khiến toàn bộ ~100+ quyền đều bị đánh giá thành Cho phép).
+  - Khôi phục mặc định chuẩn F4: các công cụ nguy hiểm / ghi / xoá / phá huỷ / shell (`run_command`, `restart_bot`, `write_file`, `edit_file`, `vault_put`, `delete_vault_secret`, `delete_library_item`, `share_library_item`, `schedule_delete`, `goal_delete`, `web_click`, `web_fill`) đều được siết mặc định ở nấc `ask` (Hỏi trước khi chạy).
+  - Giữ nguyên các quyền do người dùng đã chủ động cấu hình tường minh, không ghi đè âm thầm.
+- **Tái cấu trúc màn Quyền chung (`mulon/webapp/index.html`, QA Q-09 / T-23.6):**
+  - Bổ sung khối **Tổng quan quyền** `#policy-summary-card` ở đầu trang hiển thị rõ ràng số lượng công cụ tự chạy (Cho phép) / cần hỏi trước / bị chặn (`#policy-overview-text`) và nấc mặc định toàn cục (`#policy-global-default-row`).
+  - Loại bỏ hoàn toàn danh sách phẳng 90+ tool `#policy-tools` khỏi màn Quyền chung; thay thế bằng hàng điều hướng mở màn con **Tất cả công cụ** (`#screen-all-tools-policy`) có ô tìm kiếm theo tên `#all-tools-search` và dải chip lọc nhóm (Lệnh hệ thống, Tệp tin, Web, Ký ức, Kho an toàn, Kế hoạch).
+  - Tích hợp liên kết mở màn chi tiết connector cho từng connector và server MCP (`data-open-conn-pol`).
+- **Gom quyền hành động vào màn chi tiết từng Connector (`mulon/webapp/index.html`, `mulon/webapp_server.py`, T-23.6):**
+  - Chuyển toàn bộ quyền theo từng hành động của connector (Google Workspace, System, Personal Connectors, MCP servers) vào đúng **Màn chi tiết connector** (`#screen-connector-policy`).
+  - Backend `WebAppServer._policy_state` tự động trích xuất và tổng hợp specs chi tiết các hành động đọc/ghi cho System, Google Workspace, Zalo, Telegram, Facebook, Instagram, Threads và mọi MCP server đã cài đặt.
+  - Tại màn chi tiết connector, người dùng có thể theo dõi trạng thái kết nối, cấu hình, và chỉnh sửa trực tiếp quyền từng hành động phân loại theo thẻ Quyền đọc (`#conn-pol-read-card`) và Quyền ghi & xoá (`#conn-pol-write-card`).
+- **Hộp thoại xác nhận cho toàn bộ các hành động phá huỷ (`mulon/webapp/index.html`, QA Q-09 / T-23.6):**
+  - Chuyển tác vụ Xoá bí mật khỏi Kho vào màn con Chi tiết bí mật `#screen-vault-detail` (hiển thị nhãn, mã ref, chế độ lưu, form cập nhật giá trị/nhãn) và nút Xoá trong Thẻ Vùng nguy hiểm `#vd-btn-delete` luôn yêu cầu xác nhận qua `confirmDialog`.
+  - Bổ sung hộp thoại xác nhận khi cài đặt connector/MCP server yêu cầu quyền truy cập file trên máy chủ trong `prepareInstall()`.
+  - Bổ sung hộp thoại xác nhận khi ngắt kết nối Google Workspace và các tài khoản cá nhân trong cả danh sách Công cụ kết nối lẫn màn chi tiết connector.
+- **Kiểm thử hồi quy & Render thật Chromium (`tests/test_v17_policy_tightening.py`, T-23.6):**
+  - Viết mới bộ test `tests/test_v17_policy_tightening.py` kiểm chứng nguồn sự thật `config/policy.json`, chuẩn F4 (đọc = allow, ghi/xoá = ask), specs connector trong `_policy_state`, cấu trúc HTML màn Quyền / Chi tiết connector / Chi tiết Vault và Playwright Chromium E2E (390×844) tương tác thực tế và chụp 4 ảnh render thật (`t23_6_screen_policy.png`, `t23_6_screen_all_tools.png`, `t23_6_screen_conn_detail.png`, `t23_6_screen_vault_detail.png`).
 
 - **Chuẩn hoá bảng màu 60/30/10 & ghi chú thiết kế (`mulon/webapp/index.html`, QA Q-06 / T-23.5):**
   - Đổi chấm và chữ trạng thái header (`.app-status`, `.dot`), lịch sử chạy (`.run-item .dot-green`), trạng thái tạm dừng Heartbeat (`updateHeartbeatModalState`) và dòng trạng thái chi tiết listing/thao tác sang gam trung tính (`var(--ink)`, `var(--ink2)`, `var(--ink3)`, `var(--surface2)`), giữ đúng một màu nhấn thương hiệu tím Mulon (`#7C3AED`).

@@ -1,1 +1,17 @@
-{"default":"allow","groups":{},"tools":{}}
+{
+  "groups": {
+    "shell": "ask"
+  },
+  "tools": {
+    "delete_library_item": "ask",
+    "delete_vault_secret": "ask",
+    "edit_file": "ask",
+    "goal_delete": "ask",
+    "restart_bot": "ask",
+    "run_command": "ask",
+    "schedule_delete": "ask",
+    "share_library_item": "ask",
+    "vault_put": "ask",
+    "write_file": "ask"
+  }
+}

@@ -1509,46 +1509,143 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   </div>
 </section>
 
+<!-- Cài đặt con: Chi tiết bí mật Vault (T-23.6) -->
+<section id="screen-vault-detail" class="hidden">
+  <div class="backrow" data-back id="vault-detail-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Kho lưu trữ an toàn</div>
+  <h2 class="screen-title" id="vault-detail-title">Chi tiết bí mật</h2>
+  <div class="note">Bí mật được bảo vệ trong Kho an toàn trên máy host, chỉ cấp mã tham chiếu.</div>
+  <div class="card">
+    <div class="card-title">Thông tin bí mật</div>
+    <table class="fields">
+      <tr><td class="k">Nhãn bí mật</td><td id="vd-label">—</td></tr>
+      <tr><td class="k">Mã tham chiếu</td><td><code id="vd-ref" style="font-size:12px; word-break:break-all;">—</code></td></tr>
+      <tr><td class="k">Thời gian tạo</td><td id="vd-created">—</td></tr>
+      <tr><td class="k">Chế độ lưu</td><td>Quyền file 0600 (Vault cục bộ)</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <div class="card-title">Cập nhật bí mật</div>
+    <div style="font-size:12px; color:var(--ink2); margin-bottom:8px;">Thay đổi nhãn hoặc cập nhật giá trị mới:</div>
+    <input class="field-input" id="vd-edit-label" type="text" placeholder="Nhãn mới" style="margin-bottom:8px;">
+    <input class="field-input" id="vd-edit-value" type="password" placeholder="Giá trị bí mật mới (để trống nếu giữ nguyên)" autocomplete="off">
+    <div class="btn-row" style="padding:10px 0 0">
+      <button class="btn btn-accent btn-sm" id="vd-btn-save">Lưu cập nhật</button>
+    </div>
+  </div>
+  <div class="card" style="border:1px solid rgba(239, 68, 68, 0.2);">
+    <div class="card-title" style="color:var(--danger, #ef4444);">Vùng nguy hiểm</div>
+    <div style="font-size:12px; color:var(--ink2); margin-bottom:10px;">Xoá bí mật này sẽ huỷ vĩnh viễn khóa xác thực hoặc mật khẩu tương ứng. Các công cụ sử dụng bí mật này sẽ dừng hoạt động cho đến khi được cấu hình lại.</div>
+    <div class="btn-row" style="padding:0">
+      <button type="button" class="btn btn-danger-text btn-sm" id="vd-btn-delete" style="color:var(--danger, #ef4444); border-color:rgba(239, 68, 68, 0.3);">Xoá bí mật khỏi kho</button>
+    </div>
+  </div>
+</section>
+
 <!-- Cài đặt con: Quyền -->
 <section id="screen-policy" class="hidden">
   <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
   <h2 class="screen-title">Quyền</h2>
-  <div class="note">Đổi là áp dụng ngay.</div>
-  <label class="row static" style="padding-top:0">
-    <div class="r-main"><div class="r-title">Lưu bền vào file policy</div></div>
-    <label class="tgl"><input type="checkbox" id="policy-persist">
-      <span class="tr"></span></label>
-  </label>
-  <div class="card">
-    <div class="card-title">Nhóm việc</div>
-    <div id="policy-groups"></div>
+  <div class="note">Đổi là áp dụng ngay. Mặc định đọc = Cho phép, ghi/xoá = Hỏi.</div>
+
+  <div class="card" id="policy-summary-card">
+    <div class="card-title">Tổng quan quyền</div>
+    <div id="policy-overview-text" style="font-size:13px; color:var(--ink2); margin-bottom:10px; line-height:1.4;">Đang tính toán tổng quan quyền...</div>
+    <div class="row pol-row" data-scope="default" data-name="default" id="policy-global-default-row">
+      <div class="r-main">
+        <div class="r-title">Mặc định toàn cục</div>
+        <div class="r-sub">Áp dụng khi công cụ chưa có quy tắc riêng</div>
+      </div>
+      <span class="pol-val" id="policy-global-default-val">Cho phép</span>
+      <span class="pol-chev">⋮</span>
+    </div>
+    <label class="row static" style="padding-top:10px; border-top:1px solid var(--line);">
+      <div class="r-main"><div class="r-title">Lưu bền vào file policy</div></div>
+      <label class="tgl"><input type="checkbox" id="policy-persist" checked>
+        <span class="tr"></span></label>
+    </label>
   </div>
+
   <div class="card">
-    <div class="card-title">Connector &amp; server MCP</div>
+    <div class="card-title">Công cụ kết nối &amp; Dịch vụ</div>
+    <div class="note" style="padding:0 0 8px;">Nhấn vào từng connector để kiểm tra trạng thái và tinh chỉnh quyền từng hành động.</div>
     <div id="policy-connectors"></div>
   </div>
+
   <div class="card">
-    <div class="card-title">Từng tool</div>
-    <div id="policy-tools"></div>
+    <div class="card-title">Nhóm quyền hệ thống</div>
+    <div id="policy-groups"></div>
   </div>
+
+  <div class="card">
+    <div class="card-title">Tất cả công cụ</div>
+    <div class="row clickable" data-open="screen-all-tools-policy">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      </div>
+      <div class="r-main">
+        <div class="r-title">Danh sách từng công cụ</div>
+        <div class="r-sub" id="policy-tools-sub">Tìm kiếm và phân quyền chi tiết cho tất cả công cụ</div>
+      </div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div>
+  </div>
+
   <div class="note">Mặc định chỉ áp cho phiên hiện tại — hết phiên
     thì mất. Bật “Lưu bền” ở trên để ghi bền: Ghi vào file cấu
     hình trên máy — áp cho mọi phiên sau, không mất khi hết
     phiên.</div>
 </section>
 
-<!-- Cài đặt con: Quyền chi tiết connector (1.6.0) -->
-<section id="screen-connector-policy" class="hidden">
-  <div class="backrow" data-back id="conn-pol-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quyền</div>
-  <h2 class="screen-title" id="conn-pol-title">Quyền connector</h2>
-  <div class="note">Phân quyền chi tiết theo từng hành động. Đổi là áp dụng ngay.</div>
+<!-- Cài đặt con: Tất cả công cụ chi tiết (T-23.6) -->
+<section id="screen-all-tools-policy" class="hidden">
+  <div class="backrow" data-back id="all-tools-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quyền</div>
+  <h2 class="screen-title">Tất cả công cụ</h2>
+  <div class="note">Tìm kiếm và phân quyền theo từng công cụ cụ thể.</div>
+
+  <div class="mkt-search-bar" style="margin-bottom:10px;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    <input type="text" id="all-tools-search" placeholder="Tìm theo tên công cụ..." autocomplete="off">
+  </div>
+
+  <div class="cat-chips" id="all-tools-chips" style="margin-bottom:12px; display:flex; gap:6px; overflow-x:auto; padding-bottom:4px;">
+    <button type="button" class="chip cur" data-tool-cat="all">Tất cả</button>
+    <button type="button" class="chip" data-tool-cat="shell">Shell</button>
+    <button type="button" class="chip" data-tool-cat="file">File</button>
+    <button type="button" class="chip" data-tool-cat="web">Web</button>
+    <button type="button" class="chip" data-tool-cat="memory">Ký ức</button>
+    <button type="button" class="chip" data-tool-cat="vault">Kho an toàn</button>
+    <button type="button" class="chip" data-tool-cat="planning">Lập lịch</button>
+  </div>
+
   <div class="card">
-    <div class="card-title">Quyền đọc</div>
+    <div id="all-tools-list"></div>
+  </div>
+</section>
+
+<!-- Cài đặt con: Quyền chi tiết connector (1.6.0 & T-23.6) -->
+<section id="screen-connector-policy" class="hidden">
+  <div class="backrow" data-back id="conn-pol-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
+  <h2 class="screen-title" id="conn-pol-title">Chi tiết connector</h2>
+  <div class="note" id="conn-pol-desc">Trạng thái kết nối và phân quyền chi tiết theo từng hành động.</div>
+
+  <div class="card" id="conn-pol-status-card">
+    <div class="card-title">Trạng thái kết nối</div>
+    <div id="conn-pol-status-body"></div>
+  </div>
+
+  <div class="card" id="conn-pol-read-card">
+    <div class="card-title">Quyền đọc (Mặc định: Cho phép)</div>
     <div id="conn-pol-read"></div>
   </div>
-  <div class="card">
-    <div class="card-title">Quyền ghi và xóa</div>
+
+  <div class="card" id="conn-pol-write-card">
+    <div class="card-title">Quyền ghi &amp; xoá (Mặc định: Hỏi)</div>
     <div id="conn-pol-write"></div>
+  </div>
+
+  <div class="card hidden" id="conn-pol-other-card">
+    <div class="card-title">Công cụ khác</div>
+    <div id="conn-pol-other"></div>
   </div>
 </section>
 
@@ -1770,7 +1867,9 @@ const TAB_OF_SCREEN = {"screen-task":"viec","screen-schedule-detail":"lich","scr
   "screen-sub-library":"hoso","screen-library-preview":"hoso",
   "screen-library-trash":"hoso",
   "screen-connectors":"caidat","screen-vault":"caidat",
-  "screen-policy":"caidat","screen-system":"caidat",
+  "screen-vault-detail":"caidat",
+  "screen-policy":"caidat","screen-all-tools-policy":"caidat",
+  "screen-system":"caidat",
   "screen-feed":"caidat",
   "screen-listing":"caidat","screen-install":"caidat",
   "screen-mktcat":"caidat",
@@ -1787,10 +1886,12 @@ const SCREEN_TITLES = {
   "screen-connectors":"Công cụ kết nối","screen-google-config":"Cấu hình Google",
   "screen-mktcat":"Chợ MCP","screen-listing":"Chi tiết connector",
   "screen-install":"Cài đặt MCP","screen-import":"Nhập thủ công",
-  "screen-vault":"Kho lưu trữ an toàn","screen-policy":"Quyền",
-  "screen-connector-policy":"Quyền connector"
+  "screen-vault":"Kho lưu trữ an toàn","screen-vault-detail":"Chi tiết bí mật",
+  "screen-policy":"Quyền","screen-all-tools-policy":"Tất cả công cụ",
+  "screen-connector-policy":"Chi tiết connector & Quyền"
 };
 let profileReturnScreen = "screen-sub-dossier";
+let connPolReturnScreen = "screen-connectors";
 function showMain(tab){
   stopOpPoll();
   mainTab = tab; subScreen = null;
@@ -1848,6 +1949,8 @@ function showSub(id){
     renderLibrary();
   } else if (id === "screen-library-trash") {
     loadLibraryTrash();
+  } else if (id === "screen-all-tools-policy") {
+    renderAllToolsPolicy();
   }
 }
 function handleNativeBack(){
@@ -1858,6 +1961,10 @@ function handleNativeBack(){
   } else if (subScreen === "screen-listing") {
     showSub(listingReturn || "screen-connectors");
   } else if (subScreen === "screen-connector-policy") {
+    showSub(connPolReturnScreen || "screen-connectors");
+  } else if (subScreen === "screen-vault-detail") {
+    showSub("screen-vault");
+  } else if (subScreen === "screen-all-tools-policy") {
     showSub("screen-policy");
   } else if (subScreen === "screen-google-config") {
     showSub("screen-connectors");
@@ -1997,11 +2104,27 @@ document.addEventListener("click", (e) => {
     openLibraryPreview(libItemEl.dataset.libItem);
     return;
   }
+  const connDetailEl = e.target.closest("[data-open-conn-detail]");
+  if (connDetailEl && connDetailEl.dataset.openConnDetail) {
+    if (e.target.closest("button, label, input, select")) return;
+    e.preventDefault();
+    haptic("select");
+    openConnectorPolicy(connDetailEl.dataset.openConnDetail, "screen-connectors");
+    return;
+  }
+  const vaultRefEl = e.target.closest("[data-vault-ref]");
+  if (vaultRefEl && vaultRefEl.dataset.vaultRef) {
+    if (e.target.closest("button, label, input, select")) return;
+    e.preventDefault();
+    haptic("select");
+    openVaultDetail(vaultRefEl.dataset.vaultRef);
+    return;
+  }
   const connPolEl = e.target.closest("[data-open-conn-pol]");
   if (connPolEl && connPolEl.dataset.openConnPol) {
     e.preventDefault();
     haptic("select");
-    openConnectorPolicy(connPolEl.dataset.openConnPol);
+    openConnectorPolicy(connPolEl.dataset.openConnPol, "screen-policy");
     return;
   }
   const gconfigEl = e.target.closest("[data-open-gconfig]");
@@ -4349,8 +4472,8 @@ function renderConnectors(){
   box.innerHTML = list.map(c => {
     const isGoogle = !!c.google;
     const isPersonal = !!(c.zalo || c.telegram_personal || c.facebook_personal || c.instagram_messages || c.threads_messages);
-    return '<div class="row ' + (isGoogle ? 'clickable' : 'static') + '"' +
-      (isGoogle ? ' data-open-gconfig="1"' : '') + '>' +
+    const connId = c.id || c.name;
+    return '<div class="row clickable" data-open-conn-detail="' + esc(connId) + '">' +
       '<div class="mono">' + (c.kind === "mcp" ? "M" : "S") + '</div>' +
       '<div class="r-main"><div class="r-title">' + esc(c.name) + '</div>' +
       '<div class="r-sub">' + esc(connSub(c)) + '</div></div>' +
@@ -4359,11 +4482,12 @@ function renderConnectors(){
         : isPersonal
           ? personalConnectorAction(c)
           : c.toggleable
-            ? '<label class="tgl"><input type="checkbox" data-conn="' +
+            ? '<label class="tgl" onclick="event.stopPropagation()"><input type="checkbox" data-conn="' +
               esc(c.id) + '"' + (c.enabled ? " checked" : "") +
               '><span class="tr"></span></label>'
             : '<span class="r-state">' +
               (c.enabled ? "Đang bật" : "Đã tắt") + '</span>') +
+      '<span class="chev" style="margin-left:6px"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
       '</div>';
   }).join("");
   box.querySelectorAll("[data-gconfig]").forEach(btn =>
@@ -4385,11 +4509,13 @@ function renderConnectors(){
   box.querySelectorAll("[data-gdisconnect]").forEach(btn =>
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
-      try {
-        await api("/api/google/disconnect", "POST", {});
-        toast("Đã ngắt kết nối Google.");
-        await load();
-      } catch (err) { toast(err.message); }
+      confirmDialog("Ngắt kết nối Google Workspace? Các tác vụ đọc/gửi email và lịch sẽ bị dừng.", async () => {
+        try {
+          await api("/api/google/disconnect", "POST", {});
+          toast("Đã ngắt kết nối Google.");
+          await load();
+        } catch (err) { toast(err.message); }
+      });
     }));
   box.querySelectorAll("[data-pqr]").forEach(btn =>
     btn.addEventListener("click", async (e) => {
@@ -4455,11 +4581,13 @@ function renderConnectors(){
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       const name = btn.dataset.pdisconnect;
-      try {
-        await api("/api/personal-connector/disconnect", "POST", { name });
-        toast("Đã ngắt kết nối tài khoản cá nhân.");
-        await load();
-      } catch (err) { toast(err.message); }
+      confirmDialog("Ngắt kết nối tài khoản '" + name + "'? Các tác vụ đọc/gửi tin nhắn sẽ bị dừng.", async () => {
+        try {
+          await api("/api/personal-connector/disconnect", "POST", { name });
+          toast("Đã ngắt kết nối tài khoản cá nhân.");
+          await load();
+        } catch (err) { toast(err.message); }
+      });
     }));
   box.querySelectorAll("[data-conn]").forEach(inp =>
     inp.addEventListener("change", async () => {
@@ -4597,104 +4725,72 @@ function renderVault(){
     return;
   }
   box.innerHTML = list.map(v => {
-    const safeId = String(v.ref).replace(/[^a-zA-Z0-9]/g, "_");
-    return '<div class="vault-row" style="padding:12px 14px; border-bottom:1px solid var(--line)">' +
-      '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px">' +
-        '<div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1">' +
-          '<div class="glyph" style="flex-shrink:0">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>' +
-          '</div>' +
-          '<div style="min-width:0; flex:1">' +
-            '<div class="r-title" style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">' + esc(v.label) + '</div>' +
-            '<div class="r-sub" style="font-size:11px; opacity:0.65; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">' + esc(v.ref) +
-              (v.created_at ? " · " + esc(todayLabel(v.created_at)) : "") +
-            '</div>' +
-          '</div>' +
-        '</div>' +
-        '<div style="display:flex; gap:6px; flex-shrink:0">' +
-          '<button class="btn btn-soft btn-sm" style="min-height:34px; padding:0 10px; font-size:12px" data-v-edit="' + safeId + '">Sửa</button>' +
-          '<button class="btn btn-danger-text btn-sm" style="min-height:34px; padding:0 10px; font-size:12px" data-v-del="' + esc(v.ref) + '" data-label="' + esc(v.label) + '">Xoá</button>' +
+    return '<div class="row clickable" data-vault-ref="' + esc(v.ref) + '">' +
+      '<div class="glyph" style="flex-shrink:0">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>' +
+      '</div>' +
+      '<div class="r-main" style="min-width:0; flex:1">' +
+        '<div class="r-title" style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">' + esc(v.label) + '</div>' +
+        '<div class="r-sub" style="font-size:11px; opacity:0.65; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">' + esc(v.ref) +
+          (v.created_at ? " · " + esc(todayLabel(v.created_at)) : "") +
         '</div>' +
       '</div>' +
-      '<div id="vedit-' + safeId + '" class="hidden" style="margin-top:10px; padding:10px 12px; background:var(--surface2); border-radius:8px">' +
-        '<div style="font-size:12px; font-weight:600; margin-bottom:6px">Chỉnh sửa bí mật</div>' +
-        '<input class="field-input" id="vedit-lbl-' + safeId + '" type="text" placeholder="Nhãn mới" value="' + esc(v.label) + '" style="margin-bottom:6px">' +
-        '<input class="field-input" id="vedit-val-' + safeId + '" type="password" placeholder="Giá trị bí mật mới (để trống nếu giữ nguyên)" autocomplete="off">' +
-        '<div style="display:flex; gap:8px; margin-top:8px">' +
-          '<button class="btn btn-accent btn-sm" style="min-height:34px; padding:0 12px; font-size:12px" data-v-save="' + esc(v.ref) + '" data-sid="' + safeId + '">Lưu</button>' +
-          '<button class="btn btn-ghost btn-sm" style="min-height:34px; padding:0 12px; font-size:12px" data-v-cancel="' + safeId + '">Huỷ</button>' +
-        '</div>' +
-      '</div>' +
+      '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
     '</div>';
   }).join("");
+}
 
-  box.querySelectorAll("[data-v-edit]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const sid = btn.dataset.vEdit;
-      const form = $("vedit-" + sid);
-      if (form) form.classList.toggle("hidden");
-    });
-  });
-  box.querySelectorAll("[data-v-cancel]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const sid = btn.dataset.vCancel;
-      const form = $("vedit-" + sid);
-      if (form) form.classList.add("hidden");
-    });
-  });
-  box.querySelectorAll("[data-v-save]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const ref = btn.dataset.vSave;
-      const sid = btn.dataset.sid;
-      const lblInput = $("vedit-lbl-" + sid);
-      const valInput = $("vedit-val-" + sid);
-      const newLabel = lblInput ? lblInput.value.trim() : "";
-      const newVal = valInput ? valInput.value : "";
-      if (!newLabel){
-        toast("Nhãn không được để trống.");
-        return;
-      }
-      btn.disabled = true;
+function openVaultDetail(ref){
+  const list = (S && S.vault) || [];
+  const it = list.find(v => v.ref === ref || v.label === ref) || {ref: ref, label: ref};
+  $("vault-detail-title").textContent = it.label || "Chi tiết bí mật";
+  $("vd-label").textContent = it.label || "—";
+  $("vd-ref").textContent = it.ref || "—";
+  $("vd-created").textContent = it.created_at ? todayLabel(it.created_at) : "—";
+  $("vd-edit-label").value = it.label || "";
+  $("vd-edit-value").value = "";
+
+  $("vd-btn-save").onclick = async () => {
+    const newLbl = $("vd-edit-label").value.trim();
+    const newVal = $("vd-edit-value").value;
+    if (!newLbl){
+      toast("Nhãn không được để trống.");
+      return;
+    }
+    const btn = $("vd-btn-save");
+    btn.disabled = true;
+    try {
+      await api("/api/vault/update", "POST", {
+        ref: it.ref,
+        label: newLbl,
+        value: newVal || undefined,
+      });
+      toast("Đã cập nhật bí mật.");
+      haptic("impact");
+      await load();
+      openVaultDetail(it.ref);
+    } catch (e) {
+      toast("Lỗi cập nhật: " + e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  $("vd-btn-delete").onclick = () => {
+    confirmDialog("Xoá vĩnh viễn bí mật '" + (it.label || it.ref) + "' khỏi kho an toàn? Hành động này không thể hoàn tác.", async () => {
       try {
-        await api("/api/vault/update", "POST", {
-          ref: ref,
-          label: newLabel,
-          value: newVal || undefined,
-        });
-        toast("Đã cập nhật bí mật.");
+        await api("/api/vault/delete", "POST", {ref: it.ref});
+        toast("Đã xoá bí mật khỏi kho.");
         haptic("impact");
         await load();
+        showSub("screen-vault");
       } catch (e) {
-        toast("Lỗi cập nhật: " + e.message);
-        btn.disabled = false;
+        toast("Lỗi xoá: " + e.message);
       }
     });
-  });
-  box.querySelectorAll("[data-v-del]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const ref = btn.dataset.vDel;
-      const label = btn.dataset.label || "bí mật này";
-      const doDel = async () => {
-        btn.disabled = true;
-        try {
-          await api("/api/vault/delete", "POST", {ref: ref});
-          toast("Đã xoá bí mật khỏi kho.");
-          haptic("impact");
-          await load();
-        } catch (e) {
-          toast("Lỗi xoá: " + e.message);
-          btn.disabled = false;
-        }
-      };
-      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showConfirm){
-        window.Telegram.WebApp.showConfirm("Xoá '" + label + "' khỏi kho an toàn?", ok => {
-          if (ok) doDel();
-        });
-      } else {
-        if (confirm("Xoá '" + label + "' khỏi kho an toàn?")) doDel();
-      }
-    });
-  });
+  };
+
+  showSub("screen-vault-detail");
 }
 /* Vault nhập ngay trong app (1.3.0): POST /api/vault/capture
    (auth initData như mọi /api/*) — server ghi thẳng vào kho và
@@ -4817,30 +4913,112 @@ document.querySelectorAll("#pol-menu button").forEach(b =>
     } catch (e) { toast(e.message); }
   }));
 let curConnPolCname = null;
-function openConnectorPolicy(cname){
+function openConnectorPolicy(cname, returnScreen){
   curConnPolCname = cname;
+  if (returnScreen) connPolReturnScreen = returnScreen;
   const pol = (S && S.policy) || {};
-  const specs = (pol.connector_specs || {})[cname];
-  if (!specs) return;
+  const specs = pol.connector_specs || {};
+  const cleanName = cname.startsWith("connector:") ? cname.slice(10) : cname.startsWith("mcp:") ? cname.slice(4) : cname;
+  const spec = specs[cleanName] || specs[cname] || specs["connector:" + cleanName] || specs["mcp:" + cleanName];
   showSub("screen-connector-policy");
-  $("conn-pol-title").textContent = "Quyền " + (specs.title || cname);
+  $("conn-pol-title").textContent = spec ? (spec.title || cleanName) : ("Chi tiết: " + cleanName);
+  $("conn-pol-desc").textContent = spec && spec.description ? spec.description : "Trạng thái kết nối và phân quyền chi tiết theo từng hành động.";
   renderConnectorPolicyDetail();
 }
 
 function renderConnectorPolicyDetail(){
   if (!curConnPolCname) return;
   const pol = (S && S.policy) || {};
-  const specs = (pol.connector_specs || {})[curConnPolCname];
-  if (!specs) return;
-  const acts = specs.actions || [];
+  const specs = pol.connector_specs || {};
+  const cleanName = curConnPolCname.startsWith("connector:") ? curConnPolCname.slice(10) : curConnPolCname.startsWith("mcp:") ? curConnPolCname.slice(4) : curConnPolCname;
+  const spec = specs[cleanName] || specs[curConnPolCname] || specs["connector:" + cleanName] || specs["mcp:" + cleanName];
+
+  // Render Status & Actions
+  const connList = (S && S.connectors) || [];
+  const connObj = connList.find(c => c.id === cleanName || c.name === cleanName || c.id === curConnPolCname || c.id === "connector:" + cleanName || c.id === "mcp:" + cleanName);
+  const statusBody = $("conn-pol-status-body");
+  if (connObj) {
+    let stHtml = '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">' +
+      '<div>' +
+        '<div style="font-weight:600; font-size:13px;">' + (connObj.enabled !== false && connObj.ok !== false ? '<span style="color:var(--ink3)">●</span> Đang hoạt động' : '<span style="color:var(--ink3)">○</span> Chưa kết nối / Đã tắt') + '</div>' +
+        '<div class="r-sub" style="font-size:11px;">' + esc(connSub(connObj)) + '</div>' +
+      '</div>';
+    if (connObj.google) {
+      stHtml += '<div style="display:flex; gap:6px;">' +
+        '<button type="button" class="btn btn-soft btn-sm" onclick="openGoogleConfig()">Cấu hình</button>' +
+        (connObj.google.connected
+          ? '<button type="button" class="btn btn-danger-text btn-sm" data-gdisconnect="1">Ngắt</button>'
+          : '<button type="button" class="btn btn-accent btn-sm" data-gconnect="1">Kết nối</button>') +
+      '</div>';
+    } else if (connObj.zalo || connObj.telegram_personal || connObj.facebook_personal || connObj.instagram_messages || connObj.threads_messages) {
+      stHtml += '<div style="display:flex; gap:6px;">' + personalConnectorAction(connObj) + '</div>';
+    } else if (connObj.toggleable) {
+      stHtml += '<label class="tgl"><input type="checkbox" data-conn="' + esc(connObj.id) + '"' + (connObj.enabled ? ' checked' : '') + '><span class="tr"></span></label>';
+    }
+    stHtml += '</div>';
+    statusBody.innerHTML = stHtml;
+    statusBody.querySelectorAll("[data-gdisconnect]").forEach(btn =>
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        confirmDialog("Ngắt kết nối Google Workspace? Các tác vụ đọc/gửi email và lịch sẽ bị dừng.", async () => {
+          try {
+            await api("/api/google/disconnect", "POST", {});
+            toast("Đã ngắt kết nối Google.");
+            await load();
+            renderConnectorPolicyDetail();
+          } catch (err) { toast(err.message); }
+        });
+      }));
+    statusBody.querySelectorAll("[data-pdisconnect]").forEach(btn =>
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const name = btn.dataset.pdisconnect;
+        confirmDialog("Ngắt kết nối tài khoản '" + name + "'? Các tác vụ đọc/gửi tin nhắn sẽ bị dừng.", async () => {
+          try {
+            await api("/api/personal-connector/disconnect", "POST", { name });
+            toast("Đã ngắt kết nối tài khoản cá nhân.");
+            await load();
+            renderConnectorPolicyDetail();
+          } catch (err) { toast(err.message); }
+        });
+      }));
+    statusBody.querySelectorAll("[data-gconnect]").forEach(btn =>
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        try {
+          const r = await api("/api/google/auth-url");
+          if (!r.url) throw new Error(r.error || "không lấy được link");
+          if (tg && tg.openLink) tg.openLink(r.url);
+          else window.open(r.url, "_blank");
+          toast("Đã mở trang ủy quyền Google — xong quay lại đây.");
+        } catch (err) { toast(err.message); }
+      }));
+    statusBody.querySelectorAll("[data-conn]").forEach(inp =>
+      inp.addEventListener("change", async () => {
+        try {
+          const r = await api("/api/connector", "POST",
+            {name: inp.dataset.conn, enabled: inp.checked});
+          toast(r.note || "Đã đổi trạng thái connector.");
+          await load();
+          renderConnectorPolicyDetail();
+        } catch (e) { toast(e.message); inp.checked = !inp.checked; }
+      }));
+  } else {
+    statusBody.innerHTML = '<div style="font-size:12px; color:var(--ink2);">Connector hệ thống tích hợp sẵn.</div>';
+  }
+
+  // Render Actions / Tools
+  const acts = (spec && spec.actions) || [];
   const readActs = acts.filter(a => a.kind === "read");
   const writeActs = acts.filter(a => a.kind === "write");
+  const otherActs = acts.filter(a => a.kind !== "read" && a.kind !== "write");
 
   const renderActs = (list) => {
-    if (!list.length) return '<div class="empty">Không có hành động nào.</div>';
+    if (!list.length) return '<div class="empty">Không có hành động nào trong nhóm này.</div>';
     return list.map(a => {
-      const verd = (pol.groups || {})[a.name] || a.effective;
-      return '<div class="row pol-row" data-scope="group" data-name="' + esc(a.name) +
+      const verd = (pol.groups || {})[a.name] || (pol.tools || {})[a.name] || a.effective || a.default || "allow";
+      const scope = (a.name.startsWith("connector:") || a.name.startsWith("mcp:")) ? "group" : "tool";
+      return '<div class="row pol-row" data-scope="' + scope + '" data-name="' + esc(a.name) +
         '" data-verdict="' + esc(verd) + '">' +
         '<div class="r-main"><div class="r-title">' + esc(a.label || a.id) + '</div>' +
         '<div class="r-sub">' + esc(a.name) + '</div></div>' +
@@ -4851,15 +5029,39 @@ function renderConnectorPolicyDetail(){
 
   $("conn-pol-read").innerHTML = renderActs(readActs);
   $("conn-pol-write").innerHTML = renderActs(writeActs);
+  if (otherActs.length) {
+    $("conn-pol-other-card").classList.remove("hidden");
+    $("conn-pol-other").innerHTML = renderActs(otherActs);
+  } else {
+    $("conn-pol-other-card").classList.add("hidden");
+  }
+
   $("screen-connector-policy").querySelectorAll(".pol-row").forEach(row =>
     row.addEventListener("click", () => openPolMenu(row)));
 }
 
 function renderPolicy(){
   const pol = (S && S.policy) || {groups:{}, tools:{}};
-  /* Tên hiển thị ưu tiên nhãn tiếng Việt (pol.group_labels từ
-     server); key thô chỉ là fallback và vẫn là giá trị gửi về
-     API qua data-name của hàng — không đổi hành vi đổi quyền. */
+  const tools = pol.tools || {};
+  const toolNames = Object.keys(tools);
+  let allowCount = 0, askCount = 0, denyCount = 0;
+  toolNames.forEach(t => {
+    const v = tools[t];
+    if (v === "allow") allowCount++;
+    else if (v === "ask") askCount++;
+    else if (v === "deny") denyCount++;
+  });
+  const totalCount = toolNames.length;
+  $("policy-overview-text").textContent =
+    "Đang mở " + allowCount + "/" + totalCount + " công cụ tự chạy (Cho phép) · " +
+    askCount + " công cụ cần hỏi trước" +
+    (denyCount ? " · " + denyCount + " công cụ bị chặn" : "");
+
+  const globDef = pol.default || "allow";
+  $("policy-global-default-val").textContent = VERDICT_LABELS[globDef] || globDef;
+  $("policy-global-default-row").dataset.verdict = globDef;
+
+  // Render Groups
   const grow = (obj, scope, labels) => Object.keys(obj).sort().map(name =>
     '<div class="row pol-row" data-scope="' + scope +
     '" data-name="' + esc(name) + '" data-verdict="' +
@@ -4868,38 +5070,96 @@ function renderPolicy(){
     '</div></div><span class="pol-val">' +
     esc(VERDICT_LABELS[obj[name]] || obj[name]) +
     '</span><span class="pol-chev">' + CHEV_UD + '</span></div>'
-    ).join("");
+  ).join("");
   $("policy-groups").innerHTML =
     grow(pol.groups, "group", pol.group_labels) ||
     '<div class="empty">Chưa có nhóm việc nào.</div>';
 
+  // Render Connectors
   const connSpecs = pol.connector_specs || {};
-  const connRows = Object.keys(pol.connectors || {}).sort().map(key => {
-    const cname = key.startsWith("connector:") ? key.slice(10) : key;
-    const spec = connSpecs[cname];
-    if (spec) {
-      return '<div class="row" data-open-conn-pol="' + esc(cname) + '">' +
-        '<div class="r-main"><div class="r-title">' + esc(spec.title || (pol.connector_labels || {})[key] || key) + '</div>' +
-        '<div class="r-sub">Phân quyền chi tiết theo từng hành động</div></div>' +
-        '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
-        '</div>';
+  const connList = Object.keys(pol.connectors || {}).sort();
+  $("policy-connectors").innerHTML = connList.map(key => {
+    const cname = key.startsWith("connector:") ? key.slice(10) : key.startsWith("mcp:") ? key.slice(4) : key;
+    const spec = connSpecs[cname] || connSpecs[key];
+    const title = (spec && spec.title) || (pol.connector_labels || {})[key] || key;
+    const acts = (spec && spec.actions) || [];
+    const readCount = acts.filter(a => a.kind === "read").length;
+    const writeCount = acts.filter(a => a.kind === "write").length;
+    let actSummary = "";
+    if (acts.length > 0) {
+      actSummary = acts.length + " hành động chi tiết (" + readCount + " đọc, " + writeCount + " ghi/xoá)";
+    } else {
+      actSummary = "Phân quyền chi tiết theo từng hành động";
     }
-    return '<div class="row pol-row" data-scope="group" data-name="' + esc(key) +
-      '" data-verdict="' + esc(pol.connectors[key]) + '">' +
-      '<div class="r-main"><div class="r-title">' + esc((pol.connector_labels || {})[key] || key) + '</div></div>' +
-      '<span class="pol-val">' + esc(VERDICT_LABELS[pol.connectors[key]] || pol.connectors[key]) + '</span>' +
-      '<span class="pol-chev">' + CHEV_UD + '</span></div>';
-  }).join("");
-  $("policy-connectors").innerHTML = connRows ||
-    '<div class="empty">Chưa có connector nào.</div>';
+    return '<div class="row clickable" data-open-conn-pol="' + esc(cname) + '">' +
+      '<div class="r-main"><div class="r-title">' + esc(title) + '</div>' +
+      '<div class="r-sub">' + esc(actSummary) + '</div></div>' +
+      '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
+      '</div>';
+  }).join("") || '<div class="empty">Chưa có connector nào.</div>';
 
-  $("policy-tools").innerHTML = grow(pol.tools, "tool") ||
-    '<div class="empty">Chưa có tool nào.</div>';
-  document.querySelectorAll("#policy-groups .pol-row, #policy-connectors .pol-row, #policy-tools .pol-row").forEach(row =>
+  $("policy-tools-sub").textContent = totalCount + " công cụ trong hệ thống (tìm kiếm & lọc)";
+
+  document.querySelectorAll("#policy-summary-card .pol-row, #policy-groups .pol-row").forEach(row =>
     row.addEventListener("click", () => openPolMenu(row)));
 
   if (subScreen === "screen-connector-policy") renderConnectorPolicyDetail();
+  if (subScreen === "screen-all-tools-policy") renderAllToolsPolicy();
 }
+
+let allToolsCat = "all";
+function renderAllToolsPolicy(){
+  const pol = (S && S.policy) || {groups:{}, tools:{}};
+  const tools = pol.tools || {};
+  const searchInput = $("all-tools-search");
+  const q = searchInput ? searchInput.value.trim().toLowerCase() : "";
+  const box = $("all-tools-list");
+  if (!box) return;
+
+  const names = Object.keys(tools).sort().filter(name => {
+    if (q && !name.toLowerCase().includes(q)) return false;
+    if (allToolsCat === "shell") return name.includes("command") || name.includes("shell") || name.includes("restart");
+    if (allToolsCat === "file") return name.includes("file") || name.includes("dir");
+    if (allToolsCat === "web") return name.includes("web");
+    if (allToolsCat === "memory") return name.includes("memory") || name.includes("session");
+    if (allToolsCat === "vault") return name.includes("vault");
+    if (allToolsCat === "planning") return name.includes("schedule") || name.includes("goal");
+    return true;
+  });
+
+  if (!names.length){
+    box.innerHTML = '<div class="empty">Không tìm thấy công cụ nào phù hợp.</div>';
+    return;
+  }
+
+  box.innerHTML = names.map(name => {
+    const verd = tools[name] || "allow";
+    return '<div class="row pol-row" data-scope="tool" data-name="' + esc(name) + '" data-verdict="' + esc(verd) + '">' +
+      '<div class="r-main">' +
+        '<div class="r-title">' + esc(name) + '</div>' +
+        '<div class="r-sub">Mặc định: ' + (verd === "ask" ? "Hỏi trước" : "Cho phép") + '</div>' +
+      '</div>' +
+      '<span class="pol-val">' + esc(VERDICT_LABELS[verd] || verd) + '</span>' +
+      '<span class="pol-chev">' + CHEV_UD + '</span>' +
+    '</div>';
+  }).join("");
+
+  box.querySelectorAll(".pol-row").forEach(row =>
+    row.addEventListener("click", () => openPolMenu(row)));
+}
+
+if ($("all-tools-search")) {
+  $("all-tools-search").addEventListener("input", () => renderAllToolsPolicy());
+}
+document.querySelectorAll("#all-tools-chips button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    haptic("select");
+    document.querySelectorAll("#all-tools-chips button").forEach(b => b.classList.remove("cur"));
+    btn.classList.add("cur");
+    allToolsCat = btn.dataset.toolCat || "all";
+    renderAllToolsPolicy();
+  });
+});
 
 /* ---------------- Thiết bị & hệ thống ---------------- */
 function fv(x){ return (x === undefined || x === null || x === "")
@@ -5609,16 +5869,26 @@ function renderListingDetail(){
 async function prepareInstall(){
   const L = curListing;
   if (!L) return;
-  try {
-    const body = curDraftId
-      ? {draft_id: curDraftId, auto_install: true}
-      : {provider_id: L.provider_id, slug: L.slug, auto_install: true};
-    const d = await api("/api/marketplace/install/prepare",
-      "POST", body);
-    if (d.ok === false)
-      throw new Error(d.error || "không chuẩn bị được");
-    openInstall(d.operation);
-  } catch (e) { toast(e.message); }
+  const doPrepare = async () => {
+    try {
+      const body = curDraftId
+        ? {draft_id: curDraftId, auto_install: true}
+        : {provider_id: L.provider_id, slug: L.slug, auto_install: true};
+      const d = await api("/api/marketplace/install/prepare",
+        "POST", body);
+      if (d.ok === false)
+        throw new Error(d.error || "không chuẩn bị được");
+      openInstall(d.operation);
+    } catch (e) { toast(e.message); }
+  };
+  const filePerms = (L.permissions || []).filter(p => /file|tệp|đĩa|filesystem|git/i.test(p));
+  if (filePerms.length > 0) {
+    confirmDialog("Connector này yêu cầu quyền đọc/ghi file trên hệ thống (" + filePerms.join(", ") + "). Bạn có chắc chắn muốn cài đặt không?", () => {
+      doPrepare();
+    });
+  } else {
+    doPrepare();
+  }
 }
 
 /* ----- Wizard / operation ----- */
