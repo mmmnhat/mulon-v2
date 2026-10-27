@@ -38,8 +38,9 @@ def test_is_and_resolve_muse_model():
 
 def test_gateway_alias_muse_spark():
     gateway = _gateway()
-    assert gateway._litellm_model("muse/muse-spark") == "muse/muse-spark"
-    assert gateway._litellm_model("muse-spark") == "muse/muse-spark"
+    assert gateway._litellm_model("muse/muse-spark") == "openai/muse/muse-spark"
+    assert gateway._litellm_model("muse-spark") == "openai/muse/muse-spark"
+    assert gateway._litellm_model("openai/muse/muse-spark") == "openai/muse/muse-spark"
     # Model thường không bị ảnh hưởng bởi alias mới.
     assert gateway._litellm_model(None) == "openai/gemini-3.8-flash-high"
 
@@ -107,3 +108,57 @@ def test_muse2api_module_has_no_direct_call_target():
     # Module chỉ sinh cấu hình, không gõ chết cổng gọi trực tiếp.
     assert "18610" not in source
     assert "sk-" not in source
+
+
+@pytest.mark.asyncio
+async def test_gateway_complete_via_stub_proxy(monkeypatch):
+    """Test tích hợp complete() model muse-spark qua stub OpenAI-compatible proxy (sửa NEEDS-FIX T-16)."""
+    from aiohttp import web
+    from mulon.config import Config
+
+    monkeypatch.setenv("MULON_ALLOW_REMOTE_PROXY", "1")
+
+    received_requests = []
+
+    async def handle_completion(request):
+        data = await request.json()
+        received_requests.append(data)
+        return web.json_response({
+            "id": "chatcmpl-test",
+            "object": "chat.completion",
+            "created": 1234567890,
+            "model": data.get("model"),
+            "choices": [{
+                "index": 0,
+                "message": {"role": "assistant", "content": "Phản hồi thử từ muse2api stub."},
+                "finish_reason": "stop"
+            }],
+            "usage": {"prompt_tokens": 12, "completion_tokens": 8, "total_tokens": 20}
+        })
+
+    app = web.Application()
+    app.router.add_post("/v1/chat/completions", handle_completion)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", 0)
+    await site.start()
+    port = site._server.sockets[0].getsockname()[1]
+
+    try:
+        cfg = Config(proxy_base_url=f"http://127.0.0.1:{port}/v1")
+        gw = ModelGateway(cfg)
+
+        # 1. Gọi với model alias ngắn: muse-spark
+        res1 = await gw.complete([{"role": "user", "content": "xin chào"}], model="muse-spark")
+        assert res1.text == "Phản hồi thử từ muse2api stub."
+        assert len(received_requests) == 1
+        # LiteLLM chuyển wire model 'muse/muse-spark' tới proxy OpenAI-compatible
+        assert received_requests[0]["model"] == "muse/muse-spark"
+
+        # 2. Gọi với model đầy đủ: muse/muse-spark
+        res2 = await gw.complete([{"role": "user", "content": "xin chào 2"}], model="muse/muse-spark")
+        assert res2.text == "Phản hồi thử từ muse2api stub."
+        assert len(received_requests) == 2
+        assert received_requests[1]["model"] == "muse/muse-spark"
+    finally:
+        await runner.cleanup()

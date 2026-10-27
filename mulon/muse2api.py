@@ -38,10 +38,10 @@ _MULON_PROXY_PORT = 8317
 
 
 def is_muse_model(model: str | None) -> bool:
-    """Trả True nếu model là model Muse qua muse2api (2 dạng tên)."""
+    """Trả True nếu model là model Muse qua muse2api (các dạng tên)."""
     if not model:
         return False
-    return model.strip() in {MULON_MODEL, MUSE2API_MODEL}
+    return model.strip() in {MULON_MODEL, MUSE2API_MODEL, f"openai/{MULON_MODEL}"}
 
 
 def resolve_muse_model(model: str | None) -> str | None:

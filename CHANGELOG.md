@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 1.7.29 — 2026-10-27 — Sửa alias LiteLLM cho muse2api (T-16 NEEDS-FIX, LUỒNG 5 — ký: Antigravity [L5])
+
+- **Khắc phục triệt để lỗi LiteLLM từ chối provider muse (`mulon/gateway.py`, `mulon/muse2api.py`, T-16):**
+  - Sửa alias `_MODEL_ALIASES` map cả `muse-spark` và `muse/muse-spark` sang `openai/muse/muse-spark` thay vì `muse/muse-spark`. Trước đây LiteLLM lấy tiền tố trước `/` và báo lỗi `LLM Provider NOT provided. You passed model=muse/muse-spark` trước khi gọi mạng, gây lỗi và cộng dồn vào circuit breaker chung làm tắc nghẽn các model khác.
+  - Với alias `openai/muse/muse-spark`, LiteLLM nhận diện provider `openai` hợp lệ, định tuyến tới `api_base` local `127.0.0.1:8317` và gửi đúng wire model `muse/muse-spark` trong body request cho CLIProxyAPI bắt prefix `muse` điều hướng tới muse2api.
+  - Cập nhật `is_muse_model` trong `mulon/muse2api.py` nhận diện cả định dạng `openai/muse/muse-spark`.
+- **Hiệu đính tài liệu (`docs/muse2api-duong-a.md`):**
+  - Sửa câu chữ về phạm vi không gọi thẳng muse2api ở đường chat/model, cập nhật hướng dẫn alias chuẩn hóa.
+- **Kiểm thử tích hợp (`tests/test_v17_muse2api.py`):**
+  - Bổ sung test tích hợp `test_gateway_complete_via_stub_proxy` kiểm chứng `ModelGateway.complete` thực tế qua stub server OpenAI-compatible trên cả hai dạng tên model `muse-spark` và `muse/muse-spark`, xác nhận wire model nhận được tại server đúng `muse/muse-spark`.
+  - 10/10 test T-16 PASS 100%.
+
 ## 1.7.28 — 2026-10-27 — Bề mặt đầy đủ Facebook + Threads cá nhân theo chuẩn Muse (T-30, LUỒNG 3 — ký: Antigravity [L3])
 
 - **Facebook cá nhân mở rộng toàn diện (`mulon/personal_connectors.py`, T-30):**

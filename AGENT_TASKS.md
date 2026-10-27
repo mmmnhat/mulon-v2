@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~23:51 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): T-16 (phần sửa NEEDS-FIX) chuyển `DONE` (version 1.7.29, 635/635 test passed, evals vàng 31/36 = 86%, sửa dứt điểm alias LiteLLM `openai/muse/muse-spark`, test tích hợp qua stub proxy PASS 100%). Nhận tiếp T-28 `DOING` (ƯU TIÊN 27, LUỒNG 5) theo thứ tự hàng chờ LUỒNG 5. Ky: Antigravity [L5]
+
 Cập nhật 2026-10-27 ~23:46 bởi Antigravity (LUỒNG 3, ký: Antigravity [L3]): T-30 chuyển `DONE` (version 1.7.28, commit `ad8a1c6`, 629/629 test passed; mở rộng bề mặt Facebook cá nhân 31 hành động, bổ sung Threads cá nhân Graph API + Web session fallback, bọc frame_external, chốt Checkpoint Guard, cấm stub giả, phân quyền Action-Level allow/ask). Nhận tiếp T-17 `DOING` (ƯU TIÊN 22, LUỒNG 3) theo thứ tự hàng chờ LUỒNG 3. Ky: Antigravity [L3]
 
 Cập nhật 2026-10-27 ~23:46 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): nhận T-24.6 DOING (ƯU TIÊN 22, LUỒNG 1) theo thứ tự hàng chờ. Ky: Antigravity [L1]
@@ -625,7 +627,22 @@ trong AGENTS.md mục 3.4 (sửa luật trong cùng đợt này):
   - Checklist parity liên quan: K2 (tách lớp OS), H3 (CLIProxyAPI — không đụng), M (tác vụ đời thật — bản cài tự định chủ). Không hardcode mới (không `/Users/`, `/Volumes/`, ID cá nhân trong code mới); không nới chốt bảo mật (auth bot + Mini App đều đối chiếu allowlist).
   - Trong cùng commit này Mac cũng nhận T-10.1 `DOING` (theo LUẬT HÀNG ĐỢI: T-15 DONE xong thì mục ƯU TIÊN 3 là tiếp theo — đúng thứ tự).
 
-### [T-16] Tích hợp muse2api — Giao: LUỒNG 5 (phần sửa NEEDS-FIX) — `DOING` — LUỒNG 5 (nền code của LUỒNG PHỤ 2 ở `ee04931`)
+### [T-16] Tích hợp muse2api — Giao: LUỒNG 5 (phần sửa NEEDS-FIX) — `DONE` — LUỒNG 5 (nền code của LUỒNG PHỤ 2 ở `ee04931`)
+- **Kết quả sửa NEEDS-FIX — LUỒNG 5 (2026-10-27 ~23:51 +07, version 1.7.29, ký: Antigravity [L5]):**
+  1. *Version + commit:* 1.7.29 (rebase trên main mới nhất sau T-30, T-24.5, T-27, T-14, T-24.4).
+  2. *Đã sửa triệt để lỗi LiteLLM từ chối provider `muse` (`mulon/gateway.py`, `mulon/muse2api.py`):*
+     - Map alias `_MODEL_ALIASES["muse-spark"]` và `_MODEL_ALIASES["muse/muse-spark"]` sang `"openai/muse/muse-spark"`. LiteLLM nhận diện provider `openai` hợp lệ, gọi tới `api_base` local `127.0.0.1:8317` và truyền đúng wire model `muse/muse-spark` trong body request cho CLIProxyAPI bắt prefix `muse` điều hướng tới muse2api.
+     - Triệt tiêu hoàn toàn lỗi `litellm.BadRequestError: LLM Provider NOT provided. You passed model=muse/muse-spark` và ngăn ngừa cộng dồn lỗi vào circuit breaker làm nghẽn các model khác.
+     - Cập nhật `is_muse_model` trong `mulon/muse2api.py` nhận diện cả định dạng `openai/muse/muse-spark`.
+     - Hiệu đính `docs/muse2api-duong-a.md` câu chữ phạm vi không gọi thẳng muse2api ở đường chat/model.
+  3. *Kiểm thử tích hợp & Unit tests (`tests/test_v17_muse2api.py`):*
+     - Bổ sung test tích hợp `test_gateway_complete_via_stub_proxy` kiểm chứng `ModelGateway.complete` thực tế qua stub server OpenAI-compatible trên cả hai dạng tên model `muse-spark` và `muse/muse-spark`, xác nhận wire model nhận được tại server đúng `muse/muse-spark`.
+     - 10/10 test T-16 PASS 100%. Full suite toàn dự án: 635/635 passed 100%. Eval vàng: 31/36 = 86% đạt cổng 85%.
+  4. *Hành vi thay đổi cần biết:*
+     - Lời gọi model `muse-spark` hoặc `muse/muse-spark` qua gateway được LiteLLM gửi thành công tới proxy 8317 với model payload `muse/muse-spark`.
+  5. *Còn treo / Rủi ro còn lại:*
+     - Nghiệm thu sống 3 bước còn lại (GET /v1/models qua 8317 thấy muse-spark; 1 lượt chat thật qua muse.ai; tắt muse2api degrade rõ) cần service Docker muse2api và tài khoản Muse trên máy cài thật.
+     - Nhận tiếp T-28 (chẩn đoán CI đỏ, lấy log GitHub Actions trên máy Mac) theo hàng chờ của LUỒNG 5.
 - **Nhận tiếp — Antigravity [L5] (2026-10-27 ~23:18 +07, phiên mới sau 22:47):** nhận T-16 DOING (phần sửa NEEDS-FIX) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L5]
 - **Nhận việc — LUỒNG PHỤ 2 (2026-10-27 ~21:44 +07, theo lệnh chủ dự án qua chat phụ, ký: Phu2):** chuyển giao từ LUỒNG 4 sang LUỒNG PHỤ 2; làm theo Đường A đã chốt, không gọi thẳng 18610, không nới validate_proxy_base_url, không commit key thật.
 - **Kết quả — LUỒNG PHỤ 2 (2026-10-27, version 1.7.23, commit `ee0493125a44be1328d9e834bd94ddacc463424b`, ký: Phu2):**
@@ -1365,7 +1382,8 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Thiếu/thừa từng màn: liệt kê đầy đủ ở mục 2.2 (Việc, Phê duyệt — xoá dữ liệu thử + thêm timestamp lịch sử, Lịch, Hồ sơ — bỏ ~400 nút lộ thiên + hết trùng bộ nhớ, Cài đặt — bỏ danh sách tool phẳng + chi tiết connector, Kho, Chợ — tìm kiếm/danh mục/phân trang, Feed — hết hardcode nhãn giờ).
 - Nghiệm thu (mục 2.3): render thật trước/sau từng màn + chạm thử 0 hàng chết + đo lại thời gian mở màn + đối chiếu checklist 2.1 từng dòng. Không nghiệm thu bằng lời.
 
-### [T-28] CI đỏ mọi commit — tìm chân gãy macOS/Windows — Giao: LUỒNG 5 — `TODO` (ƯU TIÊN 27; kẹt billing GitHub, cần log Actions phía Mac) — LUỒNG 5
+### [T-28] CI đỏ mọi commit — tìm chân gãy macOS/Windows — Giao: LUỒNG 5 — `DOING` (ƯU TIÊN 27; kẹt billing GitHub, cần log Actions phía Mac) — LUỒNG 5
+- **Nhận tiếp — Antigravity [L5] (2026-10-27 ~23:51 +07, phiên mới sau 22:47):** nhận T-28 DOING theo LUẬT ĐA LUỒNG và thứ tự hàng chờ LUỒNG 5 sau khi hoàn tất T-16; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L5]
 - **Nhận việc 2026-10-27 ~22:35 bởi LUỒNG PHỤ 1 (ký: Phu1):** khôi phục claim ở commit `8dd7914` đã bị restore ghi đè; T-22.3 vẫn DOING (kẹt ở DM thật, không ghi DONE/VERIFIED). Bước đầu: xác định job + test gãy macOS/Windows — connector GitHub của Muse không có tool đọc log Actions, sẽ thử đường trình duyệt vào tab Actions, nếu không vào được thì báo chặn rõ ràng (cần phía Mac mở tab Actions).
 - **Chuyển giao 2026-10-27 ~21:40 bởi Muse (lệnh chủ dự án):** từ LUỒNG 4 sang LUỒNG PHỤ 1; thứ tự trong LUỒNG PHỤ 1: T-22.3 -> T-28 -> T-29 -> T-26 -> T-25; chỉ LUỒNG PHỤ 1 nhận mục này.
 - Hiện tượng (chủ dự án phát hiện 27/10 03:27 qua app GitHub): gần như mọi commit gần đây đều bị đánh ✗. CI là `.github/workflows/ci.yml` (pytest trên ubuntu/macos/windows).

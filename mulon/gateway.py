@@ -137,9 +137,11 @@ class ModelGateway:
         "muse-wonder-1.0": "muse-wonder-full-1.0",
         "muse-wonder": "muse-wonder-full-1.0",
         # T-16 Đường A: model muse-spark của muse2api qua CLIProxyAPI.
-        # MuLon gọi qua proxy 8317 với tên muse/muse-spark, không gọi
-        # thẳng muse2api; alias này chỉ chuẩn hóa tên người dùng gõ.
-        "muse-spark": "muse/muse-spark",
+        # MuLon gọi qua proxy 8317 với wire model muse/muse-spark. LiteLLM cần
+        # prefix 'openai/' để định tuyến tới OpenAI-compatible proxy (8317)
+        # thay vì hiểu 'muse' là provider không tồn tại (sửa NEEDS-FIX T-16).
+        "muse-spark": "openai/muse/muse-spark",
+        "muse/muse-spark": "openai/muse/muse-spark",
     }
 
     def _litellm_model(self, model: Optional[str]) -> str:

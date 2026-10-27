@@ -23,7 +23,7 @@ Người dùng -> MuLon -> ModelGateway (model muse/muse-spark)
       -> tài khoản Muse trong pool muse2api -> muse.ai
 ```
 
-MuLon không có đường nào đi thẳng tới muse2api. Module
+MuLon (ở đường chat/model) không có đường nào đi thẳng tới muse2api. Module
 `mulon/muse2api.py` chỉ sinh cấu hình upstream cho CLIProxyAPI và
 kiểm tra tên model, không gọi HTTP.
 
@@ -37,8 +37,9 @@ kiểm tra tên model, không gọi HTTP.
    Vault), không commit file đã điền key.
 3. Chọn model trong MuLon: đặt `MODEL_BRAIN=muse/muse-spark` (hoặc
    chọn `muse/muse-spark` qua cơ chế chọn model khi khung T-14 hoàn
-   thiện). Gõ `muse-spark` cũng được chuẩn hóa về `muse/muse-spark`
-   qua alias trong `mulon/gateway.py`.
+   thiện). Gõ `muse-spark` hoặc `muse/muse-spark` được chuẩn hóa về
+   `openai/muse/muse-spark` qua alias trong `mulon/gateway.py` để LiteLLM
+   định tuyến đúng tới proxy OpenAI-compatible local 8317.
 
 ## Nghiệm thu sống (bắt buộc, không chỉ unit test)
 
