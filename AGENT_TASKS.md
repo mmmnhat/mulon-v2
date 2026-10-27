@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~00:40 bởi Muse (ký: Muse): theo lệnh chủ dự án — **đổi số mục đồng bộ README + docs (mở lúc ~00:23, giao LUỒNG 2) từ T-31 thành T-32** vì trùng số với T-31 cũ (che đường dẫn, đã VERIFIED). Đã sửa: header mục mới -> T-32, hàng chờ LUỒNG 2, dòng roster. T-31 cũ giữ nguyên; dòng cập nhật ~00:23 là lịch sử mở việc, đọc theo số mới T-32. Lần đẩy này CHỈ sửa các điểm trên, không động mục khác. Ky: Muse
+
 Cập nhật 2026-10-28 ~00:38 bởi Antigravity (LUỒNG 3, ký: Antigravity [L3]): T-22.3 chuyển `DONE` (version 1.7.34, 655/655 test passed 100%; hoàn thành trọn vẹn 5 mục audit của Muse: (1) Gỡ bỏ hoàn toàn stub gửi/reaction giả ở Instagram Messages, tích hợp InstagramBrowserBridge và trả unsupported: True khi thiếu transport; (2) Gỡ bỏ stub reaction giả ở Threads, tích hợp ThreadsBrowserBridge.send_reaction thật; (3) Tách biệt cổng phiên cookie — cho phép browser bridge chạy khi có BROWSER_PROFILE_DIR mà không bắt buộc dán cookie vào Vault; (4) Cập nhật tài liệu kỹ thuật docs/threads-browser-bridge-spike.md hướng dẫn rõ ràng; (5) Rà soát và gỡ bỏ stub sent: True trong Messenger send_message của FacebookPersonalConnector khi thiếu transport. 10/10 test mới trong tests/test_instagram_browser_bridge.py và cập nhật các suite liên quan). Hàng chờ LUỒNG 3 hiện TRỐNG, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L3]
 
 Cập nhật 2026-10-28 ~00:32 bởi Muse (ký: Muse): lật header T-17 `DONE` -> `VERIFIED` cho khớp với nghiệm thu autowatch đã ghi trong mục (28/10 ~00:27, head `610a187c`, test sống connectors 24/24) — lần đẩy này CHỈ sửa: dòng cập nhật này + header T-17, không động mục khác. Ky: Muse
@@ -257,7 +259,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG 1 — Lõi hành vi** (chủ file `mulon/telegram_bot.py`):
   T-24.3 (đã DONE) -> T-24.4 (đã DONE) -> T-24.5 (đã DONE) -> T-24.6 (đã DONE) -> T-24.7 (đang DOING). (T-26 + T-29 thu hồi từ phía PHỤ về LUỒNG 1 theo lệnh chủ dự án 27/10 ~22:37, rồi CHUYỂN sang LUỒNG 4 theo lệnh chủ dự án 28/10 ~00:11; T-25 ở LUỒNG MUSE; T-24.1, T-24.2 đã VERIFIED.)
 - **LUỒNG 2 — App & giao diện** (chủ file `mulon/webapp/` + `assets/`):
-  T-23.6 (đã VERIFIED) -> T-12 (đã DONE) -> T-27 (đã DONE) -> T-13 (đã DONE) -> T-31.
+  T-23.6 (đã VERIFIED) -> T-12 (đã DONE) -> T-27 (đã DONE) -> T-13 (đã DONE) -> T-32.
 - **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
   T-30 (đã DONE) -> T-17 (đã VERIFIED) -> T-22.3 (đã DONE). (Hàng chờ LUỒNG 3 hiện TRỐNG, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.)
 - **LUỒNG 4 — Cổng model & còn lại**:
@@ -294,7 +296,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-24.7 (L1), T-31 (L2), T-22.3 (L3), T-26 (L4), T-11 (L5) đang DOING; T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-24.7 (L1), T-32 (L2), T-22.3 (L3), T-26 (L4), T-11 (L5) đang DOING; T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -1545,7 +1547,7 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
   - Đã thêm test kiểm chứng trực tiếp 4 mẫu câu chứa `/Users/...`, `/Volumes/...`, `/home/...`, `C:\...` trong `tests/test_v17_miniapp_polish_mkt_feed.py` (`test_api_state_filters_test_approvals_and_translates_policy_layer`). Chờ Muse nghiệm thu.
 - **Nghiệm thu bởi Muse (autowatch 27/10 ~17:16 +07, head `a23e04e`): `VERIFIED`.** Đúng tồn đọng test sống lượt trước: `mask_embedded_paths` mới trong `mulon/paths.py` (giữ dấu câu cuối path) được `sanitize_path_display` tự gọi khi chuỗi có khoảng trắng, và hàng kỹ năng render `esc(maskPaths(...))` trong `index.html`. Test sống hàm thật (script `live_t234_t235_t31.py`, không mock): 4 câu chứa `/Users/...`, `/Volumes/...`, `/home/...`, `C:\...` giữa câu đều không còn lộ path nguyên vẹn qua cả `mask_embedded_paths`, `sanitize_path_display` lẫn `_localize_skill_description` (vd còn `.../secret/file.txt`), đồng thời `_localize_skill_description` vẫn Việt hoá (`Sử dụng khi cần…`). Suite **560 passed, 0 failed**; test T-31 trong file mới PASSED. Không chặn mục làn nào — đúng tính chất vá cứng hoá.
 
-### [T-31] Đồng bộ README + docs theo trạng thái hiện tại — Giao: LUỒNG 2 — `TODO` (ƯU TIÊN 30) — LUỒNG 2
+### [T-32] Đồng bộ README + docs theo trạng thái hiện tại — Giao: LUỒNG 2 — `TODO` (ƯU TIÊN 30) — LUỒNG 2
 - **Mở việc 2026-10-28 ~00:23 bởi Muse (lệnh chủ dự án):** chủ dự án nhắc "nhớ cập nhật docs và readme nha" — tài liệu phải đi cùng code, không để lệch trạng thái thật. Ky: Muse
 - Phạm vi: `README.md` ở gốc repo + toàn bộ `docs/` (parity checklist, sitemap Mini App, tài liệu QA, hướng dẫn connector/gateway).
 - Yêu cầu:
