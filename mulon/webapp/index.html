@@ -14,12 +14,47 @@
   /* màu */
   --paper:#FAF9F7; --surface:#FFFFFF; --surface2:#F3F1EC;
   --ink:#1F1E1D; --ink2:#6E6A61; --ink3:#A39E93;
-  --line:#E8E4DC; --accent:#5A5E94; --accent-press:#4C4F80;
-  --lav:#9598C4; --lav-deep:#5A5E94;
-  --bc1:#5A5E94; --bc2:#43466E;
+  --line:#E8E4DC; --accent:#7C3AED; --accent-press:#6D28D9;
+  --lav:#9598C4; --lav-deep:#7C3AED;
+  --bc1:#7C3AED; --bc2:#5B21B6;
   --cream:#EFD8AE; --rose:#D17E78; --ok:#3E9B6C; --warn:#C9932B; --err:#D95F57;
   --tint-err:#FAE7E4;
-  --tint-lav:#E9EAF4; --tint-gray:#F0EEE8;
+  --tint-lav:#F3EEFF; --tint-gray:#F0EEE8;
+
+  /* ==================== MULON DESIGN SYSTEM TOKENS (T-12) ==================== */
+  --ds-primary:#7C3AED;
+  --ds-primary-press:#6D28D9;
+  --ds-primary-tint:#F3EEFF;
+  --ds-destructive:#DC2626;
+  --ds-destructive-press:#B91C1C;
+  --ds-destructive-tint:#FEF2F2;
+
+  /* Typography: tối đa 4 cỡ chữ (18, 15, 13, 11), 2 weights (400, 600) */
+  --ds-fs-h1:18px;
+  --ds-fs-h2:15px;
+  --ds-fs-body:13px;
+  --ds-fs-caption:11px;
+  --ds-fw-regular:400;
+  --ds-fw-semibold:600;
+  --ds-lh-title:1.3;
+  --ds-lh-body:1.5;
+
+  /* Lưới 8pt: padding 16px, gap 8 / 16 / 24 */
+  --ds-pad:16px;
+  --ds-gap-1:8px;
+  --ds-gap-2:16px;
+  --ds-gap-3:24px;
+
+  /* Bo góc thống nhất */
+  --ds-radius-card:12px;
+  --ds-radius-btn:8px;
+  --ds-radius-chip:999px;
+  --ds-radius-sheet:16px;
+
+  /* Vùng chạm & Kích thước hàng chuẩn */
+  --ds-row-min-h:56px;
+  --ds-touch-min:44px;
+
   /* chữ — thang phân vai (vòng 3): 22 điểm neo / 20 tiêu đề
      màn con / 17 tên định danh (header + thẻ lớn) / 15 thân /
      13 phụ / 11 micro; weight: 600 tiêu đề + nút, 500 nhãn
@@ -49,10 +84,12 @@
 [data-scheme="dark"]{
   --paper:#17212B; --surface:#232E3C; --surface2:#2B3747;
   --ink:#E9EDEF; --ink2:#9DABB9; --ink3:#67788A;
-  --line:#303D4D; --tint-err:#452723; --tint-lav:#2E2A4A;
+  --line:#303D4D; --tint-err:#452723; --tint-lav:#2E1065;
   --tint-gray:#2B3747; --shadow-pop:0 8px 24px rgba(0,0,0,.35);
   --tgl-off:#3A4757;
   --border:var(--line); --card-tint:var(--surface2); --fs-caption:var(--fs-cap);
+  --ds-primary-tint:#2E1065;
+  --ds-destructive-tint:#450A0A;
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
 html,body{margin:0; padding:0; overflow-x:hidden; width:100%; max-width:100%; box-sizing:border-box}
@@ -343,6 +380,133 @@ button:focus-visible{outline:2px solid var(--lav-deep);
 .btn-row{display:flex; gap:var(--s2); padding:var(--s2) var(--s4)
   var(--s3); flex-wrap:wrap}
 .btn-row .btn{flex:1; min-width:100px}
+/* ==================== MULON DESIGN SYSTEM COMPONENTS (T-12) ==================== */
+.ds-card{
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--ds-radius-card); padding:var(--ds-pad);
+  margin-bottom:var(--ds-gap-2);
+}
+.ds-row{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:var(--ds-gap-1); min-height:var(--ds-row-min-h);
+  padding:var(--ds-gap-1) var(--ds-pad); cursor:pointer;
+  border-radius:var(--ds-radius-btn); touch-action:manipulation;
+  transition:background var(--t1) var(--ease);
+  user-select:none; -webkit-user-select:none;
+}
+.ds-row:active{background:var(--surface2)}
+.ds-btn{
+  border:0; border-radius:var(--ds-radius-btn); min-height:var(--ds-touch-min);
+  padding:0 var(--ds-gap-2); cursor:pointer; font-family:inherit;
+  font-size:var(--ds-fs-body); font-weight:var(--ds-fw-semibold);
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  touch-action:manipulation; user-select:none; -webkit-user-select:none;
+  transition:all var(--t1) var(--ease);
+}
+.ds-btn-primary{background:var(--ds-primary); color:#FFFFFF}
+.ds-btn-primary:active{background:var(--ds-primary-press); transform:scale(.98)}
+.ds-btn-secondary{background:var(--surface2); color:var(--ink); border:1px solid var(--line)}
+.ds-btn-secondary:active{background:var(--tint-gray); transform:scale(.98)}
+.ds-btn-danger{background:var(--ds-destructive); color:#FFFFFF}
+.ds-btn-danger:active{background:var(--ds-destructive-press); transform:scale(.98)}
+
+/* Overview & Filter Chips */
+.ds-overview-bar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 14px; background:var(--surface2); border:1px solid var(--line);
+  border-radius:var(--ds-radius-btn); font-size:var(--ds-fs-caption);
+  color:var(--ink2); margin-bottom:12px; gap:8px;
+}
+.ds-overview-val{font-weight:var(--ds-fw-semibold); color:var(--ink)}
+.ds-search-bar{
+  display:flex; align-items:center; gap:8px; background:var(--surface2);
+  border:1px solid var(--line); border-radius:var(--ds-radius-btn);
+  padding:0 12px; height:42px; margin-bottom:10px; transition:border-color 150ms;
+}
+.ds-search-bar:focus-within{border-color:var(--ds-primary); background:var(--surface)}
+.ds-search-bar svg{flex:0 0 16px; color:var(--ink3)}
+.ds-search-input{
+  flex:1; border:0; background:transparent; font-size:var(--ds-fs-body);
+  color:var(--ink); font-family:inherit; outline:none; width:100%;
+}
+.ds-search-clear{
+  background:transparent; border:0; color:var(--ink3); font-size:16px;
+  cursor:pointer; padding:4px; display:none; align-items:center; justify-content:center;
+}
+.ds-search-bar.has-query .ds-search-clear{display:flex}
+.ds-chip-group{
+  display:flex; gap:8px; overflow-x:auto; padding:2px 0 12px;
+  scrollbar-width:none; -webkit-overflow-scrolling:touch;
+}
+.ds-chip-group::-webkit-scrollbar{display:none}
+.ds-chip{
+  padding:6px 14px; font-size:var(--ds-fs-caption); font-weight:var(--ds-fw-semibold);
+  border-radius:var(--ds-radius-chip); background:var(--surface2); color:var(--ink2);
+  border:1px solid var(--line); cursor:pointer; white-space:nowrap;
+  touch-action:manipulation; user-select:none; -webkit-user-select:none;
+  transition:all var(--t1) var(--ease);
+}
+.ds-chip.active{
+  background:var(--ds-primary-tint); color:var(--ds-primary);
+  border-color:var(--ds-primary);
+}
+
+/* 4 State Chuẩn: Skeleton / Empty / Error / Ready */
+.ds-skeleton{
+  background:linear-gradient(90deg, var(--surface2) 25%, var(--line) 50%, var(--surface2) 75%);
+  background-size:200% 100%; animation:dsSkelWave 1.6s infinite ease-in-out;
+  border-radius:6px;
+}
+@keyframes dsSkelWave{0%{background-position:200% 0} 100%{background-position:-200% 0}}
+.ds-empty-state{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; padding:32px 16px; color:var(--ink2);
+}
+.ds-empty-icon{width:44px; height:44px; stroke:var(--ink3); margin-bottom:10px; opacity:.85}
+.ds-empty-title{font-size:var(--ds-fs-h2); font-weight:var(--ds-fw-semibold); color:var(--ink); margin-bottom:4px}
+.ds-empty-desc{font-size:var(--ds-fs-caption); color:var(--ink2); max-width:320px; line-height:1.45; margin-bottom:12px}
+
+.ds-error-state{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; padding:24px 16px; border-radius:var(--ds-radius-card);
+  background:color-mix(in srgb, var(--surface2) 60%, transparent);
+  border:1px solid var(--line); margin:12px 0;
+}
+.ds-error-title{font-size:var(--ds-fs-h2); font-weight:var(--ds-fw-semibold); color:var(--ink); margin-bottom:4px}
+.ds-error-desc{font-size:var(--ds-fs-caption); color:var(--ink2); margin-bottom:14px; max-width:300px; line-height:1.4}
+
+/* Bottom Sheet Chi tiết bước L3 */
+.ds-sheet-overlay{
+  position:fixed; inset:0; z-index:120;
+  background:rgba(0,0,0,0.5); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  display:flex; align-items:flex-end; justify-content:center;
+  animation:dsFadeIn 180ms ease;
+}
+.ds-sheet-overlay.hidden{display:none !important}
+@keyframes dsFadeIn{from{opacity:0} to{opacity:1}}
+.ds-sheet-panel{
+  background:var(--surface); width:100%; max-width:540px; max-height:85vh;
+  border-radius:var(--ds-radius-sheet) var(--ds-radius-sheet) 0 0;
+  padding:16px 20px calc(20px + env(safe-area-inset-bottom));
+  box-shadow:var(--shadow-pop); overflow-y:auto; display:flex; flex-direction:column;
+  animation:sheetSlideUp 0.25s cubic-bezier(0.2,0,0,1);
+  border-top:1px solid var(--line);
+}
+.ds-sheet-handle{width:36px; height:4px; border-radius:2px; background:var(--line); margin:0 auto 12px; cursor:grab}
+.ds-sheet-header{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px}
+.ds-sheet-title{font-size:var(--ds-fs-h1); font-weight:var(--ds-fw-semibold); line-height:1.3; margin:0}
+.ds-sheet-close{
+  background:var(--surface2); border:0; color:var(--ink2); width:30px; height:30px;
+  border-radius:50%; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; font-size:16px; flex:0 0 30px;
+}
+.ds-box-code{
+  background:var(--surface2); border:1px solid var(--line); border-radius:8px;
+  padding:10px 12px; font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  font-size:11px; color:var(--ink); line-height:1.45; overflow-x:auto;
+  white-space:pre-wrap; word-break:break-word; max-height:220px;
+}
+
 /* ---------- toggle iOS 51x31 ---------- */
 .tgl{position:relative; width:51px; height:44px; flex:0 0 51px}
 .tgl input{opacity:0; width:0; height:0}
@@ -804,11 +968,44 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- ================= TAB: VIỆC ================= -->
 <section id="tab-viec">
+  <!-- Thanh tổng quan việc -->
+  <div class="ds-overview-bar" id="tasks-overview-bar">
+    <div style="display:flex; gap:12px; align-items:center;">
+      <span>Đang chạy: <span class="ds-overview-val" id="tasks-stat-running">0</span></span>
+      <span>Đã xong: <span class="ds-overview-val" id="tasks-stat-done">0</span></span>
+      <span>Đã lỗi: <span class="ds-overview-val" id="tasks-stat-failed">0</span></span>
+    </div>
+    <span id="tasks-stat-total" style="font-size:11px; color:var(--ink3);">Tổng: 0</span>
+  </div>
+
+  <!-- Thanh tìm kiếm việc -->
+  <div class="ds-search-bar" id="tasks-search-wrap">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    <input type="text" class="ds-search-input" id="tasks-search-input" placeholder="Tìm việc theo tiêu đề hoặc công cụ..." autocomplete="off">
+    <button class="ds-search-clear" id="tasks-search-clear" title="Xóa">✕</button>
+  </div>
+
+  <!-- Dải chip lọc trạng thái -->
+  <div class="ds-chip-group" id="tasks-filter-chips">
+    <button class="ds-chip active" data-task-filter="all">Tất cả</button>
+    <button class="ds-chip" data-task-filter="running">Đang chạy</button>
+    <button class="ds-chip" data-task-filter="done">Đã xong</button>
+    <button class="ds-chip" data-task-filter="failed">Đã lỗi</button>
+  </div>
+
   <div class="card">
-    <div class="card-title">Việc gần nhất</div>
+    <div class="card-title" id="tasks-card-title">Danh sách việc</div>
+    <div id="tasks-error-state" class="ds-error-state hidden">
+      <div class="ds-error-title">Không tải được danh sách việc</div>
+      <div class="ds-error-desc" id="tasks-error-desc">Lỗi kết nối hoặc phiên hết hạn.</div>
+      <button class="ds-btn ds-btn-secondary" id="tasks-error-retry">Thử lại</button>
+    </div>
     <div id="task-list">
       <div class="skel"><div class="bar w70"></div>
         <div class="bar w40"></div><div class="bar w70"></div></div>
+    </div>
+    <div id="tasks-load-more-wrap" class="hidden" style="padding:10px 16px; text-align:center;">
+      <button class="ds-btn ds-btn-secondary" id="tasks-load-more" style="width:100%;">Xem thêm việc cũ</button>
     </div>
   </div>
 
@@ -832,8 +1029,15 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <button id="btn-stop-task-detail" class="btn btn-danger btn-sm hidden" style="height:32px; padding:0 12px; font-size:12px; border-radius:8px; cursor:pointer;">Dừng việc</button>
   </div>
   <div id="task-detail-sub" style="font-size:12px; color:var(--ink2); margin-bottom:12px;"></div>
+
+  <!-- Nút thử lại khi việc lỗi -->
+  <div id="task-retry-actions" class="hidden" style="display:flex; gap:8px; margin-bottom:12px;">
+    <button id="btn-retry-task" class="ds-btn ds-btn-primary" style="flex:1;">Thử lại việc này</button>
+    <button id="btn-retry-step" class="ds-btn ds-btn-secondary" style="flex:1;">Thử lại từ bước lỗi</button>
+  </div>
+
   <div class="card">
-    <div class="card-title">Dòng thời gian</div>
+    <div class="card-title">Dòng thời gian (Chạm vào bước để xem chi tiết)</div>
     <div class="timeline" id="task-timeline"></div>
   </div>
   <div class="card">
@@ -1178,6 +1382,27 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   </div>
 </div>
 
+<!-- Bottom Sheet Chi tiết bước L3 (T-12) -->
+<div class="ds-sheet-overlay hidden" id="sheet-step-detail">
+  <div class="ds-sheet-panel">
+    <div class="ds-sheet-handle"></div>
+    <div class="ds-sheet-header">
+      <h3 class="ds-sheet-title" id="step-sheet-title">Chi tiết bước thực thi</h3>
+      <button class="ds-sheet-close" id="step-sheet-close" title="Đóng">✕</button>
+    </div>
+    <table class="meta-table" style="margin-bottom:14px;">
+      <tr><td class="k">Trạng thái</td><td id="step-sheet-status">-</td></tr>
+      <tr><td class="k">Công cụ</td><td id="step-sheet-tool">-</td></tr>
+      <tr><td class="k">Thời điểm</td><td id="step-sheet-time">-</td></tr>
+    </table>
+    <div class="card-title" style="padding:0 0 6px 0;">Đầu vào công cụ (Input)</div>
+    <pre class="ds-box-code" id="step-sheet-input" style="margin-bottom:14px;">-</pre>
+    <div class="card-title" style="padding:0 0 6px 0;">Kết quả thực thi (Output)</div>
+    <pre class="ds-box-code" id="step-sheet-output" style="margin-bottom:16px;">-</pre>
+    <button class="ds-btn ds-btn-secondary" id="step-sheet-btn-close" style="width:100%;">Đóng</button>
+  </div>
+</div>
+
 <!-- xem nội dung hồ sơ/bộ nhớ -->
 <section id="screen-profile" class="hidden">
   <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
@@ -1249,6 +1474,19 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <div class="card">
     <div class="card-title">Phiên này</div>
     <div id="system-viewer"></div>
+  </div>
+  <div class="card" id="card-homescreen-shortcut">
+    <div class="card-title">Lối tắt màn hình chính (Homescreen)</div>
+    <div class="row" id="row-add-homescreen" style="cursor:pointer;">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M12 18h.01"/></svg>
+      </div>
+      <div class="r-main">
+        <div class="r-title">Thêm MuLon ra màn hình chính</div>
+        <div class="r-sub">Mở nhanh như ứng dụng native từ màn hình điện thoại</div>
+      </div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div>
   </div>
   <div class="note">Mulon chạy trên một máy duy nhất,
     không ghép nối thiết bị nào. Đây là tình trạng thật của
@@ -1696,8 +1934,8 @@ if (tg) {
   if (tg.isFullscreen && tg.exitFullscreen) {
     try { tg.exitFullscreen(); } catch (e) {}
   }
-  if (tg.enableVerticalSwipes) {
-    try { tg.enableVerticalSwipes(); } catch (e) {}
+  if (tg.disableVerticalSwipes) {
+    try { tg.disableVerticalSwipes(); } catch (e) {}
   }
   updateTgInsets();
   if (tg.onEvent) {
@@ -2162,7 +2400,78 @@ document.addEventListener("click", (e) => {
     if (histWrap) histWrap.classList.toggle("open");
     return;
   }
+  const stepEl = e.target.closest("[data-step-idx]");
+  if (stepEl && stepEl.dataset.stepIdx !== undefined) {
+    e.preventDefault();
+    openStepDetailSheet(Number(stepEl.dataset.stepIdx));
+    return;
+  }
+  if (e.target.closest("#step-sheet-close") || e.target.closest("#step-sheet-btn-close")) {
+    e.preventDefault();
+    closeStepDetailSheet();
+    return;
+  }
+  if (e.target.id === "sheet-step-detail") {
+    closeStepDetailSheet();
+    return;
+  }
+  if (e.target.closest("#row-add-homescreen")) {
+    e.preventDefault();
+    haptic("medium");
+    if (tg && tg.addToHomeScreen) {
+      try { tg.addToHomeScreen(); } catch(err){ toast("Không thể thêm lối tắt tự động."); }
+    } else {
+      toast("Trên điện thoại, nhấn biểu tượng chia sẻ trên trình duyệt rồi chọn 'Thêm vào màn hình chính'.");
+    }
+    return;
+  }
+  if (e.target.closest("#tasks-error-retry")) {
+    e.preventDefault();
+    haptic("light");
+    refresh();
+    return;
+  }
+  if (e.target.closest("#tasks-load-more")) {
+    e.preventDefault();
+    haptic("light");
+    taskPageLimit += 20;
+    renderTasks();
+    return;
+  }
+  const chipEl = e.target.closest("[data-task-filter]");
+  if (chipEl) {
+    e.preventDefault();
+    haptic("select");
+    taskFilter = chipEl.dataset.taskFilter;
+    document.querySelectorAll("#tasks-filter-chips [data-task-filter]").forEach(c =>
+      c.classList.toggle("active", c === chipEl));
+    renderTasks();
+    return;
+  }
+  if (e.target.closest("#tasks-search-clear")) {
+    e.preventDefault();
+    const inp = $("tasks-search-input");
+    if (inp) {
+      inp.value = "";
+      taskSearchQuery = "";
+      const wrap = $("tasks-search-wrap");
+      if (wrap) wrap.classList.remove("has-query");
+      renderTasks();
+    }
+    return;
+  }
 });
+
+// Listener tìm kiếm việc thời gian thực
+const tasksSearchInp = $("tasks-search-input");
+if (tasksSearchInp) {
+  tasksSearchInp.addEventListener("input", (e) => {
+    taskSearchQuery = e.target.value.trim();
+    const wrap = $("tasks-search-wrap");
+    if (wrap) wrap.classList.toggle("has-query", !!taskSearchQuery);
+    renderTasks();
+  });
+}
 
 /* ---------- Cử chỉ vuốt kéo xuống đóng Bottom Sheet (Drag down to dismiss) ---------- */
 function bindSheetSwipeDismiss(modalEl, cardEl) {
@@ -2611,17 +2920,78 @@ function cleanTaskTitle(s){
   t = t.replace(/\s+/g, " ");
   return truncateWords(t, 110) || "Chi tiết việc";
 }
+
+let taskFilter = "all";
+let taskSearchQuery = "";
+let taskPageLimit = 20;
+
 function renderTasks(){
   const box = $("task-list");
   const tasks = (S && S.tasks) || [];
+
+  // Thống kê tổng quan đầu tab
+  const runningCount = tasks.filter(t => t.status === "running").length;
+  const doneCount = tasks.filter(t => t.status === "done" || t.status === "partial").length;
+  const failedCount = tasks.filter(t => t.status === "failed").length;
+  if ($("tasks-stat-running")) $("tasks-stat-running").textContent = runningCount;
+  if ($("tasks-stat-done")) $("tasks-stat-done").textContent = doneCount;
+  if ($("tasks-stat-failed")) $("tasks-stat-failed").textContent = failedCount;
+  if ($("tasks-stat-total")) $("tasks-stat-total").textContent = "Tổng: " + tasks.length;
+
   if (!tasks.length){
-    box.innerHTML = '<div class="empty">Chưa có việc nào. ' +
-      'Việc ở đây là việc nhiều bước Mulon thật sự làm ' +
-      '(có kế hoạch, job hẹn giờ, giao agent con). Hỏi đáp ' +
-      'thường nằm trong chat, không tính là việc.</div>';
+    box.innerHTML = '<div class="ds-empty-state">' +
+      '<svg class="ds-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 13h4l2 3h5l2-3h4"/><path d="M5.5 5.5h13L21 13v4.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V13z"/></svg>' +
+      '<div class="ds-empty-title">Chưa có việc nào</div>' +
+      '<div class="ds-empty-desc">Việc ở đây là việc nhiều bước Mulon thực sự làm (có kế hoạch, job hẹn giờ, giao agent con). Hỏi đáp thường nằm trong chat, không tính là việc.</div>' +
+      '</div>';
+    if ($("tasks-load-more-wrap")) $("tasks-load-more-wrap").classList.add("hidden");
     return;
   }
-  box.innerHTML = tasks.map(t => {
+
+  // Lọc theo chip trạng thái
+  let filtered = tasks;
+  if (taskFilter === "running") {
+    filtered = filtered.filter(t => t.status === "running");
+  } else if (taskFilter === "done") {
+    filtered = filtered.filter(t => t.status === "done" || t.status === "partial");
+  } else if (taskFilter === "failed") {
+    filtered = filtered.filter(t => t.status === "failed");
+  }
+
+  // Lọc theo ô tìm kiếm
+  if (taskSearchQuery) {
+    const q = (typeof stripAccents === "function" ? stripAccents(taskSearchQuery) : taskSearchQuery).toLowerCase();
+    filtered = filtered.filter(t => {
+      const title = (typeof stripAccents === "function" ? stripAccents(t.title || "") : (t.title || "")).toLowerCase();
+      const sub = (typeof stripAccents === "function" ? stripAccents(t.status_sub || t.current_step || "") : (t.status_sub || "")).toLowerCase();
+      return title.includes(q) || sub.includes(q);
+    });
+  }
+
+  if (!filtered.length) {
+    box.innerHTML = '<div class="ds-empty-state">' +
+      '<svg class="ds-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
+      '<div class="ds-empty-title">Không tìm thấy việc phù hợp</div>' +
+      '<div class="ds-empty-desc">Thử đổi từ khóa tìm kiếm hoặc chuyển sang bộ lọc trạng thái khác.</div>' +
+      '</div>';
+    if ($("tasks-load-more-wrap")) $("tasks-load-more-wrap").classList.add("hidden");
+    return;
+  }
+
+  // Phân trang
+  const visible = filtered.slice(0, taskPageLimit);
+  const loadMoreWrap = $("tasks-load-more-wrap");
+  const loadMoreBtn = $("tasks-load-more");
+  if (loadMoreWrap && loadMoreBtn) {
+    if (filtered.length > taskPageLimit) {
+      loadMoreWrap.classList.remove("hidden");
+      loadMoreBtn.textContent = "Xem thêm việc cũ (" + visible.length + " / " + filtered.length + ")";
+    } else {
+      loadMoreWrap.classList.add("hidden");
+    }
+  }
+
+  box.innerHTML = visible.map(t => {
     const sub = taskSub(t);
     const stopBtn = (t.status === "running")
       ? '<button class="btn btn-danger btn-xs" data-stop-id="' + esc(t.id) + '" style="margin-left:8px; padding:2px 8px; font-size:11px; border-radius:6px; cursor:pointer;" title="Dừng việc này">Dừng</button>'
@@ -2635,6 +3005,7 @@ function renderTasks(){
       '<div class="r-time">' + esc(todayLabel(t.created_at)) +
       '</div></div>';
   }).join("");
+
   box.querySelectorAll("[data-stop-id]").forEach(btn => {
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
@@ -2913,6 +3284,64 @@ function renderMd(text){
   return out.join("");
 }
 
+let currentTask = null;
+let currentTaskSteps = [];
+
+function openStepDetailSheet(idx){
+  const st = currentTaskSteps && currentTaskSteps[idx];
+  if (!st) return;
+  haptic("light");
+  if ($("step-sheet-title")) $("step-sheet-title").textContent = st.title || ("Bước " + (idx + 1));
+  let statusText = "✓ Hoàn thành";
+  if (st.status === "doing") statusText = "⏳ Đang thực thi";
+  else if (st.status === "failed") statusText = "✕ Lỗi thực thi";
+  else if (st.status === "pending") statusText = "· Đang chờ";
+  if ($("step-sheet-status")) $("step-sheet-status").textContent = statusText;
+
+  let toolName = "Tác vụ hệ thống";
+  let inputVal = "-";
+  let outputVal = "-";
+  if (st.detail) {
+    try {
+      const parsed = typeof st.detail === "string" ? JSON.parse(st.detail) : st.detail;
+      if (parsed && typeof parsed === "object") {
+        if (parsed.tool) toolName = parsed.tool;
+        else if (parsed.command) toolName = "run_command";
+        else if (st.title && st.title.startsWith("Chạy script")) toolName = "python";
+
+        if (parsed.command) inputVal = maskPaths(parsed.command);
+        else if (parsed.query) inputVal = parsed.query;
+        else if (parsed.args || parsed.arguments) inputVal = maskPaths(JSON.stringify(parsed.args || parsed.arguments, null, 2));
+        else if (parsed.path) inputVal = maskPaths(parsed.path);
+        else if (parsed.url) inputVal = parsed.url;
+
+        if (parsed.result !== undefined) outputVal = maskPaths(typeof parsed.result === "string" ? parsed.result : JSON.stringify(parsed.result, null, 2));
+        else if (parsed.summary) outputVal = maskPaths(parsed.summary);
+        else if (parsed.description) outputVal = maskPaths(parsed.description);
+        else if (parsed.error) outputVal = "Lỗi: " + maskPaths(parsed.error);
+        else outputVal = maskPaths(JSON.stringify(parsed, null, 2));
+      } else {
+        outputVal = maskPaths(String(st.detail));
+      }
+    } catch(e) {
+      outputVal = maskPaths(String(st.detail));
+    }
+  }
+  if ($("step-sheet-tool")) $("step-sheet-tool").textContent = toolName;
+  const timeStr = st.updated_at ? formatTimeUnified(st.updated_at) : (st.created_at ? formatTimeUnified(st.created_at) : "-");
+  if ($("step-sheet-time")) $("step-sheet-time").textContent = timeStr;
+  if ($("step-sheet-input")) $("step-sheet-input").textContent = inputVal;
+  if ($("step-sheet-output")) $("step-sheet-output").textContent = outputVal;
+
+  const sheet = $("sheet-step-detail");
+  if (sheet) sheet.classList.remove("hidden");
+}
+
+function closeStepDetailSheet(){
+  const sheet = $("sheet-step-detail");
+  if (sheet) sheet.classList.add("hidden");
+}
+
 async function openTask(id){
   showSub("screen-task");
   document.body.classList.remove("split");
@@ -2920,11 +3349,14 @@ async function openTask(id){
   $("task-detail-title").textContent = "Chi tiết việc";
   if ($("task-detail-status")) $("task-detail-status").textContent = "";
   if ($("task-detail-sub")) $("task-detail-sub").textContent = "";
+  if ($("task-retry-actions")) $("task-retry-actions").classList.add("hidden");
   $("task-timeline").innerHTML = '<div class="skel"><div class="bar w70"></div><div class="bar w40"></div></div>';
   $("task-summary").innerHTML = '<div class="skel"><div class="bar w90"></div><div class="bar w60"></div></div>';
   try {
     const data = await api("/api/task?id=" + encodeURIComponent(id));
     const t = data.task;
+    currentTask = t;
+    currentTaskSteps = t.steps || [];
     $("task-detail-title").textContent = cleanTaskTitle(t.title);
     if ($("task-detail-status")) $("task-detail-status").textContent = taskStateText(t);
     if ($("task-detail-sub")) $("task-detail-sub").textContent = taskSub(t);
@@ -2951,6 +3383,30 @@ async function openTask(id){
         };
       } else {
         stopDetailBtn.classList.add("hidden");
+      }
+    }
+
+    // Hiển thị nút thử lại khi việc ở trạng thái lỗi
+    const retryActionsBox = $("task-retry-actions");
+    if (retryActionsBox) {
+      if (t.status === "failed") {
+        retryActionsBox.classList.remove("hidden");
+        const retryTaskBtn = $("btn-retry-task");
+        if (retryTaskBtn) {
+          retryTaskBtn.onclick = () => {
+            haptic("medium");
+            toast("Yêu cầu thử lại việc đã được ghi nhận. Vui lòng nhắn tin trong chat để kích hoạt.");
+          };
+        }
+        const retryStepBtn = $("btn-retry-step");
+        if (retryStepBtn) {
+          retryStepBtn.onclick = () => {
+            haptic("medium");
+            toast("Đã chuẩn bị thử lại từ bước lỗi.");
+          };
+        }
+      } else {
+        retryActionsBox.classList.add("hidden");
       }
     }
 
@@ -3031,6 +3487,7 @@ async function openTask(id){
         ? "err"
         : (st.status === "done" ? "done" : st.status === "doing" ? "doing" : st.status === "failed" ? "err" : "");
       items.push({
+        stepIdx: idx,
         name: stepName,
         meta: meta,
         cls: stepCls,
@@ -3095,12 +3552,16 @@ async function openTask(id){
       });
     }
 
-    $("task-timeline").innerHTML = items.map(i =>
-      '<div class="tl-item"><div class="tl-dot ' + i.cls + '"></div>' +
-      '<div class="tl-body"><div class="tl-name">' + esc(i.name) + '</div>' +
-      (i.meta ? '<div class="tl-meta">' + esc(i.meta) + '</div>' : "") +
-      (i.imgHtml || "") +
-      '</div></div>').join("");
+    $("task-timeline").innerHTML = items.map(i => {
+      const stepAttr = i.stepIdx !== undefined ? ' data-step-idx="' + i.stepIdx + '" style="cursor:pointer;"' : '';
+      const stepAffordance = i.stepIdx !== undefined ? '<div style="font-size:11px; color:var(--ink3); margin-top:2px; font-weight:500;">› Chạm xem chi tiết bước</div>' : '';
+      return '<div class="tl-item"' + stepAttr + '><div class="tl-dot ' + i.cls + '"></div>' +
+        '<div class="tl-body"><div class="tl-name">' + esc(i.name) + '</div>' +
+        (i.meta ? '<div class="tl-meta">' + esc(i.meta) + '</div>' : "") +
+        stepAffordance +
+        (i.imgHtml || "") +
+        '</div></div>';
+    }).join("");
 
     $("task-summary").innerHTML = renderMd(t.summary_markdown || t.result || t.error || "(chưa có tóm tắt)");
   } catch (e) {
@@ -6415,10 +6876,12 @@ function renderAll(){
   renderProfile(); renderConnectors(); renderVault(); renderPolicy();
   renderSystem(); renderFeed();
 }
+function refresh(){ return load(); }
 async function load(){
   try {
     S = await api("/api/state");
     $("global-error").innerHTML = "";
+    if ($("tasks-error-state")) $("tasks-error-state").classList.add("hidden");
     /* Đồng bộ theme đa thiết bị: server là nguồn chung; nếu
        phiên này chưa tự chọn thì theo server, localStorage
        chỉ là bản áp-nhanh lúc mở app. */
@@ -6429,11 +6892,16 @@ async function load(){
     if (!SKILLS) loadSkills();
   } catch (e) {
     $("status-text").textContent = "lỗi tải dữ liệu";
-    $("global-error").innerHTML = '<div class="errbar">Không tải ' +
-      'được dữ liệu: ' + esc(e.message) +
-      '<button class="btn btn-sm btn-ghost" id="retry-btn">Thử lại</button></div>';
-    const rb = $("retry-btn");
-    if (rb) rb.addEventListener("click", load);
+    if ($("tasks-error-state")) {
+      $("tasks-error-state").classList.remove("hidden");
+      if ($("tasks-error-desc")) $("tasks-error-desc").textContent = esc(e.message);
+    } else {
+      $("global-error").innerHTML = '<div class="errbar">Không tải ' +
+        'được dữ liệu: ' + esc(e.message) +
+        '<button class="btn btn-sm btn-ghost" id="retry-btn">Thử lại</button></div>';
+      const rb = $("retry-btn");
+      if (rb) rb.addEventListener("click", load);
+    }
   }
 }
 /* Vòng 3: header đã gọn cố định 56pt — bỏ cơ chế co header +

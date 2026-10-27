@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## 1.7.19 — 2026-10-27 — Hệ thống thiết kế chuẩn mực, Design Tokens, tích hợp Native Telegram SDK & tái cấu trúc Tab Việc (T-12, Làn 1)
+
+- **Báo cáo nghiên cứu khả năng 'app' của Telegram Mini App (`docs/nghien-cuu-telegram-mini-app-capabilities.md`, T-12):**
+  - Khảo sát toàn diện Bot API 7.0 - 8.0, Telegram WebApp JavaScript SDK trên iOS/Android/Desktop: các entry points (Menu Button, Direct Link, Inline Keyboard, Attachment Menu), viewport controls (`expand()`, `requestFullscreen()`, `disableVerticalSwipes()`), Homescreen Shortcut (`addToHomeScreen()`), native controls (`BackButton`, `MainButton`, `HapticFeedback`).
+  - Xác định rõ các giới hạn bất biến: không chạy nền độc lập (background daemon phải chạy ở backend Python `mulon.main`), không truy cập low-level FS ngoài file picker, phụ thuộc phiên `initData` HMAC (24h).
+- **Hệ thống thiết kế chuẩn mực & Design Tokens (`mulon/webapp/index.html`, T-12):**
+  - Bộ Design Tokens chuẩn: màu 60/30/10 với tím Mulon (`--ds-primary: #7C3AED`, `--ds-destructive: #DC2626`, `--ds-primary-tint: #F3EEFF`), typography tối đa 4 cỡ chữ (18px, 15px, 13px, 11px), 2 weights (400, 600), lưới 8pt (padding 16px, gap 8/16/24), bo góc thống nhất (12 card / 8 nút / chip 999 / sheet 16).
+  - Thư viện component chuẩn: `.ds-card`, `.ds-row`, `.ds-btn` (primary, secondary, danger), `.ds-chip`, `.ds-search-bar`, `.ds-skeleton`, `.ds-empty-state`, `.ds-error-state`, `.ds-sheet-overlay`, `.ds-sheet-panel`.
+- **Tái cấu trúc Tab Việc theo cây IA mới (`mulon/webapp/index.html`, T-12):**
+  - Thanh tổng quan số liệu (`#tasks-overview-bar`): Đang chạy / Đã xong / Đã lỗi / Tổng.
+  - Ô tìm kiếm việc (`#tasks-search-input`) kèm nút xoá tìm kiếm nhanh (`#tasks-search-clear`).
+  - Dải chip lọc trạng thái (`#tasks-filter-chips`: Tất cả, Đang chạy, Đã xong, Đã lỗi).
+  - Bộ 4 trạng thái chuẩn: Đang tải (skeleton), Rỗng (empty state chuẩn kèm hướng dẫn), Lỗi tại chỗ (`#tasks-error-state` có nút Thử lại không dính tab khác), Sẵn sàng.
+  - Phân trang chuẩn với nút Xem thêm (`#tasks-load-more`).
+  - Cụm nút thử lại cho việc lỗi (`#task-retry-actions`: Thử lại việc `#btn-retry-task` / Thử lại từ bước lỗi `#btn-retry-step`).
+- **Màn Chi tiết bước L3 dạng Bottom Sheet (`mulon/webapp/index.html`, T-12):**
+  - Chạm vào từng bước trên timeline mở Bottom Sheet `#sheet-step-detail` hiển thị đầy đủ công cụ (`#step-sheet-tool`), mô tả đầu vào (đã che bí mật, `#step-sheet-input`), kết quả (`#step-sheet-output`), thời lượng (`#step-sheet-time`), và trạng thái bằng chữ (`#step-sheet-status`).
+- **Tích hợp Native Telegram WebApp SDK (`mulon/webapp/index.html`, T-12):**
+  - Tự động gọi `Telegram.WebApp.ready()`, `expand()`, `disableVerticalSwipes()`, `requestFullscreen()` (khi hỗ trợ).
+  - Đồng bộ `BackButton` native với nút quay lại HTML qua `handleNativeBack()`.
+  - Haptic feedback cho mọi thao tác chuyển tab, nhấn nút, lọc.
+  - Bổ sung nút tiện ích "Thêm ra màn hình chính" (`addToHomeScreen()`) trong Cài đặt > Thiết bị & Hệ thống (`#card-homescreen-shortcut`, `#row-add-homescreen`).
+- **Kiểm thử hồi quy & Render thật Chromium (`tests/test_v17_design_system_and_native.py`, T-12):**
+  - Viết mới `tests/test_v17_design_system_and_native.py` (3/3 test PASS, toàn bộ suite 568/568 test PASS 100%, evals vàng 31/36 = 86%). Render thật Chromium 390×844 chụp 3 ảnh: `t12_tab_viec_ds.png`, `t12_task_detail_with_sheet.png`, `t12_screen_system_homescreen.png`.
+
 ## 1.7.18 — 2026-10-27 — Siết quyền mặc định chuẩn F4, gom quyền vào màn chi tiết connector & hộp thoại xác nhận hành động phá huỷ (T-23.6, Làn 1)
 
 - **Khôi phục nguồn sự thật Policy tuân thủ nghiêm ngặt chuẩn F4 (`config/policy.json`, `mulon/policy.py`, QA Q-09 / T-23.6):**
