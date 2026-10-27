@@ -1238,7 +1238,8 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Thiếu/thừa từng màn: liệt kê đầy đủ ở mục 2.2 (Việc, Phê duyệt — xoá dữ liệu thử + thêm timestamp lịch sử, Lịch, Hồ sơ — bỏ ~400 nút lộ thiên + hết trùng bộ nhớ, Cài đặt — bỏ danh sách tool phẳng + chi tiết connector, Kho, Chợ — tìm kiếm/danh mục/phân trang, Feed — hết hardcode nhãn giờ).
 - Nghiệm thu (mục 2.3): render thật trước/sau từng màn + chạm thử 0 hàng chết + đo lại thời gian mở màn + đối chiếu checklist 2.1 từng dòng. Không nghiệm thu bằng lời.
 
-### [T-28] CI đỏ mọi commit — tìm chân gãy macOS/Windows — Giao: LUỒNG PHỤ 1 — `TODO` (ƯU TIÊN 27) — LUỒNG PHỤ 1
+### [T-28] CI đỏ mọi commit — tìm chân gãy macOS/Windows — Giao: LUỒNG PHỤ 1 — `DOING` (ƯU TIÊN 27) — LUỒNG PHỤ 1
+- **Nhận việc — LUỒNG PHỤ 1 (2026-10-27 ~21:57 +07, ký: Phu1):** nhận T-28 theo lệnh trực tiếp của chủ dự án 'Chuyển sang T-28 luôn'. T-22.3 vẫn DOING nhưng kẹt chờ phía Mac (full suite + DM thật), nên chủ dự án duyệt ngoại lệ 1-luồng-2-DOING tạm thời cho LUỒNG PHỤ 1; T-22.3 không bị bỏ. Bước đầu: đọc ci.yml + xác định job/test gãy — cần log Actions từ phía Mac (Muse không đọc được log Actions). Ky: Phu1
 - **Chuyển giao 2026-10-27 ~21:40 bởi Muse (lệnh chủ dự án):** từ LUỒNG 4 sang LUỒNG PHỤ 1; thứ tự trong LUỒNG PHỤ 1: T-22.3 -> T-28 -> T-29 -> T-26 -> T-25; chỉ LUỒNG PHỤ 1 nhận mục này.
 - Hiện tượng (chủ dự án phát hiện 27/10 03:27 qua app GitHub): gần như mọi commit gần đây đều bị đánh ✗. CI là `.github/workflows/ci.yml` (pytest trên ubuntu/macos/windows).
 - Đã kiểm từ phía Muse: chạy full suite trên cây hiện tại ở Linux = **496/496 passed** -> chân Ubuntu xanh; chân gãy là macOS và/hoặc Windows (nghi phạm: test quyền file 0600 của Vault, symlink, dữ liệu múi giờ). Connector GitHub của Muse không đọc được log Actions — việc này cần phía Mac mở tab Actions lấy đúng job/test gãy.
