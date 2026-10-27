@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~22:47 bởi Muse (ký: Muse): chủ dự án xác nhận 5 luồng Antigravity hiện tại là **5 phiên MỚI tạo, toàn bộ phiên/luồng cũ đã bị tắt (kill)**. Hệ quả phối hợp: mọi claim `DOING` ghi trước thời điểm này là của các phiên cũ đã chết — luồng mới nào đọc tới mục đang `DOING` của đúng luồng mình thì **tự nhận tiếp** (ghi một dòng nhận tiếp ký `Antigravity` + nhãn luồng của mình ngay trong mục), làm tiếp từ trạng thái code trên `main`, không chờ chủ cũ, không làm lại từ đầu; phần việc dở chưa push của phiên cũ coi như không có. Mục T-24.3 đã ghi `DONE` (chờ Muse nghiệm thu) giữ nguyên. Ky: Muse
+
 Cập nhật 2026-10-27 ~22:44 bởi Muse (ký: Muse): **Chốt đội hình 5 phiên Antigravity** (lệnh chủ dự án ~22:43 "5 phiên thôi"): thêm LUỒNG 5 (phiên Antigravity thứ 5 trên Mac, worktree riêng) nhận sửa T-16 NEEDS-FIX -> T-28; T-16/T-28 rút khỏi hàng LUỒNG 4 (LUỒNG 4 còn T-14). Không mở thêm phiên nào nữa. Đã sửa: mục LUỒNG 5 mới + hàng LUỒNG 4 + tiêu đề T-16/T-28 + hàng Antigravity trong BẢNG KÝ TÊN, không động mục khác. Ky: Muse
 
 Cập nhật 2026-10-27 ~22:42 bởi Antigravity (LUỒNG 1, ký: Antigravity): khôi phục ghi DONE T-24.3 (version 1.7.22, commit `c73ce23`); nhận tiếp T-24.4 `DOING` (ƯU TIÊN 20, LUỒNG 1) theo LUẬT ĐA LUỒNG. Ky: Antigravity
