@@ -6,9 +6,9 @@
 5. Điều hướng đa cấp (L1 -> L2 -> L3 -> L2 -> L1) hoạt động nhất quán, không kẹt trạng thái.
 """
 
+import re
 from pathlib import Path
 import pytest
-from bs4 import BeautifulSoup
 
 INDEX_HTML_PATH = Path(__file__).resolve().parent.parent / "mulon" / "webapp" / "index.html"
 
@@ -31,7 +31,6 @@ def test_row_user_select_and_divider_pointer_events():
 
 def test_all_subscreens_have_backrow():
     html = INDEX_HTML_PATH.read_text(encoding="utf-8")
-    soup = BeautifulSoup(html, "html.parser")
     
     expected_subscreens = [
         "screen-task",
@@ -51,13 +50,13 @@ def test_all_subscreens_have_backrow():
     ]
     
     for scr_id in expected_subscreens:
-        sec = soup.find("section", id=scr_id)
-        assert sec is not None, f"Màn {scr_id} phải tồn tại trong index.html"
-        backrow = sec.find(class_="backrow")
-        assert backrow is not None, f"Màn {scr_id} phải có nút quay lại (.backrow)"
-        assert backrow.has_attr("data-back"), f"Nút quay lại của {scr_id} phải có thuộc tính data-back"
-        svg = backrow.find("svg")
-        assert svg is not None, f"Nút quay lại của {scr_id} phải có icon SVG"
+        pattern = rf'<section[^>]*id=["\']{scr_id}["\'][^>]*>(.*?)</section>'
+        m = re.search(pattern, html, re.DOTALL)
+        assert m is not None, f"Màn {scr_id} phải tồn tại trong index.html"
+        sec_content = m.group(1)
+        assert 'class="backrow"' in sec_content or "class='backrow'" in sec_content, f"Màn {scr_id} phải có nút quay lại (.backrow)"
+        assert "data-back" in sec_content, f"Nút quay lại của {scr_id} phải có thuộc tính data-back"
+        assert "<svg" in sec_content, f"Nút quay lại của {scr_id} phải có icon SVG"
 
 
 def test_heartbeat_run_history_no_dead_chevron():
@@ -68,18 +67,15 @@ def test_heartbeat_run_history_no_dead_chevron():
 
 def test_screen_titles_and_navigation_labels_match():
     html = INDEX_HTML_PATH.read_text(encoding="utf-8")
-    soup = BeautifulSoup(html, "html.parser")
     
     # Hàng Nhập thủ công trong connectors và tiêu đề screen-import phải khớp nhau
-    conn_manual = soup.find("div", id="conn-add-manual")
-    assert conn_manual is not None
-    assert "Nhập thủ công" in conn_manual.text
+    m_conn = re.search(r'id=["\']conn-add-manual["\'][^>]*>.*?class=["\']r-title["\']>\s*([^<]+)', html, re.DOTALL)
+    assert m_conn is not None
+    assert "Nhập thủ công" in m_conn.group(1)
     
-    import_sec = soup.find("section", id="screen-import")
-    assert import_sec is not None
-    import_title = import_sec.find(class_="screen-title")
-    assert import_title is not None
-    assert "Nhập thủ công" in import_title.text
+    m_import = re.search(r'id=["\']screen-import["\'][^>]*>.*?class=["\']screen-title["\']>\s*([^<]+)', html, re.DOTALL)
+    assert m_import is not None
+    assert "Nhập thủ công" in m_import.group(1)
 
 
 def test_browser_navigation_flow_with_playwright():

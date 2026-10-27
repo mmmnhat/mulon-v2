@@ -1347,6 +1347,118 @@ class ThreadsMessagesConnector(Connector):
             "limitations": LIMITATION_THREADS_MSG,
         }
 
+    def _get_existing_threads(self, user_info: dict, args: Optional[dict] = None) -> set[str]:
+        """Tập hợp các hội thoại/người nhận đã tồn tại từ trước."""
+        existing = set(user_info.get("existing_threads") or [])
+        if args and "existing_threads" in args and isinstance(args["existing_threads"], (list, set, tuple)):
+            existing.update(str(x) for x in args["existing_threads"])
+
+        cached_inbox = user_info.get("cached_inbox") or []
+        cached_messages = user_info.get("cached_messages") or {}
+        for t in cached_inbox:
+            if t.get("thread_id"):
+                existing.add(str(t["thread_id"]))
+            if t.get("participant"):
+                existing.add(str(t["participant"]).lstrip("@").lower())
+            if t.get("username"):
+                existing.add(str(t["username"]).lstrip("@").lower())
+        for tid in cached_messages.keys():
+            existing.add(str(tid))
+        return existing
+
+    def _check_send_message_guard(self, args: dict, user_info: dict) -> Optional[dict]:
+        """Thực thi GIỚI HẠN CỨNG của Threads cho send_message.
+
+        Chỉ cho phép nhắn tin vào hội thoại đã tồn tại từ trước hoặc khi người đó đã nhắn cho bạn trước.
+        Tuyệt đối không mở DM mới tới người lạ chỉ bằng @handle.
+        Trả về None nếu hợp lệ, trả về dict lỗi nếu vi phạm giới hạn.
+        """
+        text = args.get("text") or args.get("msg")
+        if not text:
+            return {"ok": False, "error": "Thiếu nội dung tin nhắn (text)."}
+
+        existing_threads = self._get_existing_threads(user_info, args)
+        cached_inbox = user_info.get("cached_inbox") or []
+        thread_id = args.get("thread_id")
+        recipient = (args.get("username") or args.get("handle") or args.get("recipient") or "").strip()
+
+        # 1) Nếu người dùng chỉ định recipient/handle nhưng chưa có hội thoại từ trước
+        if recipient:
+            clean_rec = recipient.lstrip("@").lower()
+            if clean_rec not in existing_threads:
+                return {
+                    "ok": False,
+                    "error": (
+                        f"Giới hạn Threads: Không thể mở DM mới tới người lạ (@{clean_rec}) chỉ bằng @handle. "
+                        "Threads chỉ cho phép gửi tin nhắn vào hội thoại đã tồn tại từ trước hoặc khi người đó đã nhắn cho bạn trước."
+                    ),
+                    "limitations": LIMITATION_THREADS_MSG,
+                    "warning": WARNING_THREADS_MSG,
+                }
+            # Nếu có recipient hợp lệ, ánh xạ thành thread_id nếu chưa có
+            if not thread_id:
+                for t in cached_inbox:
+                    p = str(t.get("participant") or t.get("username") or "").lstrip("@").lower()
+                    if p == clean_rec:
+                        thread_id = t.get("thread_id")
+                        break
+                if not thread_id:
+                    thread_id = clean_rec
+                args["thread_id"] = thread_id
+
+        # 2) Nếu không có recipient, bắt buộc phải có thread_id
+        if not thread_id:
+            return {
+                "ok": False,
+                "error": (
+                    "Giới hạn Threads: Thiếu thread_id của hội thoại đã có. "
+                    "Bạn không thể mở hội thoại mới tới người lạ chỉ bằng @handle."
+                ),
+                "limitations": LIMITATION_THREADS_MSG,
+            }
+
+        # 3) Nếu thread_id lạ hoàn toàn (chưa từng có và existing_threads không rỗng)
+        str_tid = str(thread_id)
+        is_valid_thread = (
+            str_tid in existing_threads
+            or str_tid.lstrip("@").lower() in existing_threads
+            or (bool(recipient) and clean_rec in existing_threads)
+        )
+        if existing_threads and not is_valid_thread:
+            return {
+                "ok": False,
+                "error": (
+                    f"Giới hạn Threads: Hội thoại '{str_tid}' không tồn tại từ trước. "
+                    "Threads chỉ cho phép gửi tin nhắn vào hội thoại đã có từ trước."
+                ),
+                "limitations": LIMITATION_THREADS_MSG,
+                "warning": WARNING_THREADS_MSG,
+            }
+
+        return None
+
+    def _check_reaction_guard(self, args: dict, user_info: dict) -> Optional[dict]:
+        """Thực thi kiểm tra GIỚI HẠN CỨNG cho send_reaction / react trên Threads."""
+        thread_id = args.get("thread_id")
+        message_id = args.get("message_id")
+        if not thread_id or not message_id:
+            return {"ok": False, "error": "Thiếu thread_id hoặc message_id để thả reaction."}
+
+        existing_threads = self._get_existing_threads(user_info, args)
+        str_tid = str(thread_id)
+        if existing_threads and str_tid not in existing_threads and str_tid.lstrip("@").lower() not in existing_threads:
+            return {
+                "ok": False,
+                "error": (
+                    f"Giới hạn Threads: Hội thoại '{str_tid}' không tồn tại từ trước. "
+                    "Threads chỉ cho phép tương tác trong hội thoại đã có từ trước."
+                ),
+                "limitations": LIMITATION_THREADS_MSG,
+                "warning": WARNING_THREADS_MSG,
+            }
+
+        return None
+
     async def call(self, action: str, args: dict) -> dict:
         # 1. Cấu hình session
         if action in ("configure", "configure_session", "connect"):
@@ -1401,7 +1513,23 @@ class ThreadsMessagesConnector(Connector):
                 "warning": WARNING_THREADS_MSG,
             }
 
-        # Runner tùy biến nếu có
+        user_info = _vault_get_json(self.vault, LBL_TH_USER) or {}
+
+        # -----------------------------------------------------------------
+        # CHỐT GIỚI HẠN CỨNG THREADS (Parity Guard):
+        # Bắt buộc thực hiện TRƯỚC KHI dispatch session runner hay stub gửi tin
+        # -----------------------------------------------------------------
+        if action == "send_message":
+            guard_err = self._check_send_message_guard(args, user_info)
+            if guard_err is not None:
+                return guard_err
+
+        if action in ("send_reaction", "react"):
+            guard_err = self._check_reaction_guard(args, user_info)
+            if guard_err is not None:
+                return guard_err
+
+        # Runner tùy biến nếu có (chỉ gọi sau khi đã vượt qua chốt guard kiểm tra giới hạn cứng)
         if self._session_runner is not None:
             res = self._session_runner(action, args, cookies)
             if hasattr(res, "__await__"):
@@ -1436,8 +1564,6 @@ class ThreadsMessagesConnector(Connector):
                 "user_id": cookies.get("ds_user_id"),
                 "warning": WARNING_THREADS_MSG,
             }
-
-        user_info = _vault_get_json(self.vault, LBL_TH_USER) or {}
 
         # 4. Đọc hộp thư (read_inbox): inbox, pending
         if action in ("read_inbox", "get_inbox"):
@@ -1484,81 +1610,12 @@ class ThreadsMessagesConnector(Connector):
                 "limitations": LIMITATION_THREADS_MSG,
             }
 
-        # 6. Gửi tin nhắn (send_message) - Tuân thủ GIỚI HẠN CỨNG
+        # 6. Gửi tin nhắn (send_message) stub khi không có session_runner
         if action == "send_message":
             thread_id = args.get("thread_id")
             recipient = (args.get("username") or args.get("handle") or args.get("recipient") or "").strip()
             text = args.get("text") or args.get("msg")
-            if not text:
-                return {"ok": False, "error": "Thiếu nội dung tin nhắn (text)."}
-
-            # Tập hợp các hội thoại/người nhận đã tồn tại từ trước
-            existing_threads = set(user_info.get("existing_threads") or [])
-            cached_inbox = user_info.get("cached_inbox") or []
-            cached_messages = user_info.get("cached_messages") or {}
-            for t in cached_inbox:
-                if t.get("thread_id"):
-                    existing_threads.add(str(t["thread_id"]))
-                if t.get("participant"):
-                    existing_threads.add(str(t["participant"]).lstrip("@").lower())
-                if t.get("username"):
-                    existing_threads.add(str(t["username"]).lstrip("@").lower())
-            for tid in cached_messages.keys():
-                existing_threads.add(str(tid))
-
-            # Ràng buộc GIỚI HẠN CỨNG: Không mở DM mới tới người lạ qua @handle
-            # 1) Nếu người dùng chỉ định recipient/handle nhưng chưa có hội thoại từ trước
-            if recipient:
-                clean_rec = recipient.lstrip("@").lower()
-                if clean_rec not in existing_threads:
-                    return {
-                        "ok": False,
-                        "error": (
-                            f"Giới hạn Threads: Không thể mở DM mới tới người lạ (@{clean_rec}) chỉ bằng @handle. "
-                            "Threads chỉ cho phép gửi tin nhắn vào hội thoại đã tồn tại từ trước hoặc khi người đó đã nhắn cho bạn trước."
-                        ),
-                        "limitations": LIMITATION_THREADS_MSG,
-                        "warning": WARNING_THREADS_MSG,
-                    }
-                # Nếu có recipient hợp lệ, ánh xạ thành thread_id nếu chưa có
-                if not thread_id:
-                    for t in cached_inbox:
-                        p = str(t.get("participant") or t.get("username") or "").lstrip("@").lower()
-                        if p == clean_rec:
-                            thread_id = t.get("thread_id")
-                            break
-                    if not thread_id:
-                        thread_id = clean_rec
-
-            # 2) Nếu không có recipient, bắt buộc phải có thread_id
-            if not thread_id:
-                return {
-                    "ok": False,
-                    "error": (
-                        "Giới hạn Threads: Thiếu thread_id của hội thoại đã có. "
-                        "Bạn không thể mở hội thoại mới tới người lạ chỉ bằng @handle."
-                    ),
-                    "limitations": LIMITATION_THREADS_MSG,
-                }
-
-            # 3) Nếu thread_id lạ hoàn toàn (chưa từng có và existing_threads không rỗng)
-            str_tid = str(thread_id)
-            is_valid_thread = (
-                str_tid in existing_threads
-                or str_tid.lstrip("@").lower() in existing_threads
-                or (bool(recipient) and clean_rec in existing_threads)
-            )
-            if existing_threads and not is_valid_thread:
-                return {
-                    "ok": False,
-                    "error": (
-                        f"Giới hạn Threads: Hội thoại '{str_tid}' không tồn tại từ trước. "
-                        "Threads chỉ cho phép gửi tin nhắn vào hội thoại đã có từ trước."
-                    ),
-                    "limitations": LIMITATION_THREADS_MSG,
-                    "warning": WARNING_THREADS_MSG,
-                }
-
+            str_tid = str(thread_id or recipient)
             return {
                 "ok": True,
                 "sent": True,
@@ -1568,13 +1625,11 @@ class ThreadsMessagesConnector(Connector):
                 "limitations": LIMITATION_THREADS_MSG,
             }
 
-        # 7. Thả reaction (send_reaction)
+        # 7. Thả reaction (send_reaction) stub khi không có session_runner
         if action in ("send_reaction", "react"):
             thread_id = args.get("thread_id")
             message_id = args.get("message_id")
             reaction = args.get("reaction") or args.get("emoji") or "❤️"
-            if not thread_id or not message_id:
-                return {"ok": False, "error": "Thiếu thread_id hoặc message_id để thả reaction."}
             return {
                 "ok": True,
                 "reacted": True,

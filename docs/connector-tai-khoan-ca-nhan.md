@@ -76,7 +76,7 @@ MuLon bổ sung hai connector tích hợp sẵn (built-in) dành cho tài khoả
 ### Cơ chế & Đăng nhập
 - Sử dụng phiên Web Cookies (`c_user`, `xs`, `fr`, `datr`).
 - Người dùng trích xuất chuỗi cookies từ trình duyệt thực tế đang chạy trên cùng máy cài bot (chia sẻ cùng IP/ASN mạng gia đình).
-- Phiên cookie được lưu trữ mã hóa tuyệt đối trong Vault (`facebook_personal:session`).
+- Phiên cookie được lưu an toàn qua Vault (`facebook_personal:session`).
 
 ### Các hành động hỗ trợ
 - `configure` / `connect`: Nhập và kiểm tra chuỗi cookie phiên.

@@ -3484,7 +3484,7 @@ class TelegramSurface:
                         "ℹ️ <b>HƯỚNG DẪN KẾT NỐI TIN NHẮN INSTAGRAM</b>\n\n"
                         "Cú pháp: <code>/instagram connect sessionid=...; ds_user_id=...;</code>\n\n"
                         "⚠️ <b>LƯU Ý BẢO MẬT:</b>\n"
-                        "• Phiên cookie/token được lưu mã hóa an toàn trong Kho bảo mật (Vault).\n"
+                        "• Phiên cookie/token được lưu an toàn qua Kho bảo mật (Vault).\n"
                         "• Giữ tần suất gửi tin nhắn ở mức bình thường để tránh bị Meta hạn chế tài khoản.",
                         parse_mode="HTML"
                     )

@@ -103,7 +103,7 @@ Từ các phân tích thực nghiệm trên, nhóm phát triển Antigravity rú
 
 1. **Chỉ hỗ trợ phiên Cookie trên máy Local**:
    - Người dùng tự lấy session cookie từ chính trình duyệt đang dùng trên máy cài MuLon (cùng IP mạng gia đình).
-   - Tuyệt đối không lưu mật khẩu tài khoản Facebook, chỉ lưu session trong Vault mã hóa (`facebook_personal:session`).
+   - Tuyệt đối không lưu mật khẩu tài khoản Facebook, chỉ lưu session an toàn qua Vault (`facebook_personal:session`).
 2. **Cơ chế Checkpoint Guard (Tự ngắt bảo vệ)**:
    - Module có cơ chế phát hiện sớm phản hồi Checkpoint từ Facebook (mã HTTP 302 chuyển hướng tới `/checkpoint/`, hoặc thẻ HTML chứa `checkpoint_required`).
    - Khi phát hiện checkpoint, connector **NGAY LẬP TỨC DỪNG MỌI REQUEST TIẾP THEO**, chuyển trạng thái sang `checkpoint_detected` và cảnh báo người dùng mở trình duyệt xử lý, tránh spam request làm trầm trọng thêm mức độ khóa nick.

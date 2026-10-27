@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 1.7.12 — 2026-10-27 — Khắc phục Threads Checkpoint & Parity Guard khi có Session Runner (T-22.3)
+
+- **Khắc phục triệt để lỗ hổng bypass Giới hạn cứng của Threads:**
+  - Bổ sung `_check_send_message_guard` và `_check_reaction_guard` trong `ThreadsMessagesConnector` (`mulon/personal_connectors.py`).
+  - Đưa toàn bộ việc kiểm tra GIỚI HẠN CỨNG (từ chối mở DM mới tới người lạ qua @handle, từ chối thread lạ không có từ trước) lên **TRƯỚC KHI** dispatch `session_runner`.
+  - Đảm bảo khi phát hiện gửi tin hoặc thả reaction tới người lạ / thread lạ, connector từ chối ngay lập tức và session runner tuyệt đối không bao giờ được gọi.
+  - Viết mới test hồi quy `test_threads_messages_strict_limitation_with_session_runner` trong `tests/test_v17_personal_connectors.py` kiểm chứng đầy đủ 6 trường hợp gửi/thả reaction có session runner.
+- **Chuẩn hóa câu chữ bảo mật Vault:**
+  - Điều chỉnh toàn bộ tài liệu và thông báo trong bot từ "lưu trữ mã hóa" thành "lưu an toàn qua Vault" đúng với kiến trúc thực tế của `VaultStore` (file quyền 0600, hỗ trợ Fernet tuỳ chọn).
+- **Loại bỏ dependency ngầm bs4 trong test suite:**
+  - Viết lại các hàm kiểm thử HTML trong `tests/test_v17_miniapp_navigation.py` dùng regex chuẩn, không phụ thuộc vào `bs4`.
+  - Khai báo bổ sung `beautifulsoup4>=4.12` trong `requirements-dev.txt` đảm bảo test suite xanh 100% trên cả môi trường tối giản lẫn môi trường dev sạch.
+
 ## 1.7.11 — 2026-10-27 — Sửa điều hướng Mini App theo QA Q-01 (T-23.1)
 
 - **Khắc phục lỗi điều hướng và affordance Mini App (QA Q-01):**

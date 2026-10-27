@@ -1164,6 +1164,94 @@ async def test_threads_messages_strict_limitation_and_send(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_threads_messages_strict_limitation_with_session_runner(tmp_path):
+    vault = VaultStore(tmp_path / "vault.json")
+
+    runner_calls = []
+
+    def fake_session_runner(action, args, cookies):
+        runner_calls.append({"action": action, "args": args})
+        return {"ok": True, "runner_executed": True, "sent": True, "reacted": True}
+
+    conn = ThreadsMessagesConnector(vault_store=vault, session_runner=fake_session_runner)
+
+    await conn.call("configure", {
+        "cookies": "sessionid=threads_valid_session;",
+        "user": {
+            "existing_threads": ["th_valid_1", "known_friend"],
+            "cached_inbox": [
+                {"thread_id": "th_valid_1", "participant": "known_friend", "snippet": "Hey"},
+            ]
+        }
+    })
+
+    # 1. Thử gửi tới người lạ hoàn toàn @stranger_user_99 qua session runner
+    # -> BẮT BUỘC bị chặn bởi guard, runner KHÔNG ĐƯỢC PHÉP ĐƯỢC GỌI
+    stranger_res = await conn.call("send_message", {
+        "username": "@stranger_user_99",
+        "text": "Hello stranger!",
+    })
+    assert stranger_res["ok"] is False
+    assert "Không thể mở DM mới tới người lạ (@stranger_user_99) chỉ bằng @handle" in stranger_res["error"]
+    assert len(runner_calls) == 0, "Session runner tuyệt đối không được gọi khi vi phạm giới hạn người lạ"
+
+    # 2. Thử gửi tới thread_id lạ hoàn toàn "th-99999" qua session runner
+    # -> BẮT BUỘC bị chặn bởi guard, runner KHÔNG ĐƯỢC PHÉP ĐƯỢC GỌI
+    unknown_res = await conn.call("send_message", {
+        "thread_id": "th-99999",
+        "text": "Hello stranger in strange thread?",
+    })
+    assert unknown_res["ok"] is False
+    assert "không tồn tại từ trước" in unknown_res["error"]
+    assert len(runner_calls) == 0, "Session runner tuyệt đối không được gọi khi thread_id lạ hoàn toàn"
+
+    # 3. Thử thả reaction vào thread lạ "th-99999" qua session runner
+    # -> BẮT BUỘC bị chặn bởi guard
+    react_bad = await conn.call("send_reaction", {
+        "thread_id": "th-99999",
+        "message_id": "msg_001",
+        "reaction": "❤️",
+    })
+    assert react_bad["ok"] is False
+    assert "không tồn tại từ trước" in react_bad["error"]
+    assert len(runner_calls) == 0, "Session runner không được gọi khi reaction vào thread lạ"
+
+    # 4. Gửi tới hội thoại hợp lệ "th_valid_1" qua session runner
+    # -> Được phép đi qua runner
+    valid_res = await conn.call("send_message", {
+        "thread_id": "th_valid_1",
+        "text": "Tin nhắn gửi vào hội thoại hợp lệ",
+    })
+    assert valid_res["ok"] is True
+    assert valid_res.get("runner_executed") is True
+    assert len(runner_calls) == 1
+    assert runner_calls[-1]["action"] == "send_message"
+    assert runner_calls[-1]["args"]["thread_id"] == "th_valid_1"
+
+    # 5. Gửi cho participant đã có trong hội thoại cũ (@known_friend) qua session runner
+    # -> Được phép đi qua runner và tự map sang thread_id
+    valid_p_res = await conn.call("send_message", {
+        "username": "@known_friend",
+        "text": "Chào bạn cũ",
+    })
+    assert valid_p_res["ok"] is True
+    assert valid_p_res.get("runner_executed") is True
+    assert len(runner_calls) == 2
+    assert runner_calls[-1]["args"]["thread_id"] == "th_valid_1"
+
+    # 6. Thả reaction vào hội thoại hợp lệ qua session runner
+    # -> Được phép đi qua runner
+    react_ok = await conn.call("send_reaction", {
+        "thread_id": "th_valid_1",
+        "message_id": "msg_001",
+        "reaction": "🔥",
+    })
+    assert react_ok["ok"] is True
+    assert react_ok.get("runner_executed") is True
+    assert len(runner_calls) == 3
+
+
+@pytest.mark.asyncio
 async def test_threads_messages_checkpoint_and_disconnect(tmp_path):
     vault = VaultStore(tmp_path / "vault.json")
     conn = ThreadsMessagesConnector(vault_store=vault)
