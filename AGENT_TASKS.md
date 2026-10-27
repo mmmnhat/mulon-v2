@@ -19,7 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-27 ~10:13 bởi Antigravity: nhận T-22.2 `DOING` (ƯU TIÊN 9) theo LUẬT HÀNG ĐỢI.
+Cập nhật lần cuối: 2026-10-27 ~10:25 bởi Antigravity: T-22.2 đã `DONE` (commit `73f5dee`: hoàn tất báo cáo nghiên cứu kỹ thuật docs/nghien-cuu-facebook-ca-nhan.md; triển khai FacebookPersonalConnector với Checkpoint Guard tự ngắt khi gặp checkpoint; lưu cookie an toàn qua Vault; bọc frame_external; phân quyền đọc allow, gửi ask; cảnh báo rủi ro cao trên UI và chat; lệnh /facebook và Mini App API), 528/528 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
+Cập nhật 2026-10-27 ~10:13 bởi Antigravity: nhận T-22.2 `DOING` (ƯU TIÊN 9) theo LUẬT HÀNG ĐỢI.
 Cập nhật 2026-10-27 ~09:56 bởi Antigravity: T-22.1 đã `DONE` (Zalo cá nhân qua zca-js/Node bridge + Telegram cá nhân MTProto Telethon; đăng nhập QR an toàn qua Vault; bảo vệ dữ liệu ngoài qua frame_external; phân quyền đọc allow, gửi ask; cảnh báo rủi ro userbot và giới hạn nhật ký; lệnh chat /zalo, /telethon và Mini App integration), 521/521 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~09:25 bởi Antigravity: T-10.5 đã `DONE` (commit `b532c12`: gửi đi đủ 5 loại nội dung ảnh/video/voice/audio/tài liệu kèm degrade và 50MB check; nhận MỌI file user gửi vào Thư viện; tìm kiếm ngôn ngữ tự nhiên không dấu; chat phụ cô lập history, dùng chung user memory; R15 định tuyến hội thoại chuẩn), 509/509 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~08:35 bởi Muse (autowatch):
@@ -593,7 +594,7 @@ khẩu, phiên lưu bền — phía Muse đã chạy thật ổn định.
      - Tài liệu kỹ thuật: `docs/connector-tai-khoan-ca-nhan.md`.
   5. *Kiểm chứng:* 521/521 unit tests PASS (thêm 12 test toàn diện trong `tests/test_v17_personal_connectors.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 
-### [T-22.2] Facebook cá nhân — Giao: Antigravity — `DOING` (ƯU TIÊN 9) (NGHIÊN CỨU TRƯỚC)
+### [T-22.2] Facebook cá nhân — Giao: Antigravity — `DONE` (ƯU TIÊN 9) (NGHIÊN CỨU TRƯỚC)
 Mục này KHÓ NHẤT trong T-22, làm theo 2 bước:
 - Bước 1 — NGHIÊN CỨU, viết kết luận vào `docs/` TRƯỚC khi
   code: phía Muse nối Facebook cá nhân qua liên kết Meta
@@ -613,6 +614,18 @@ Mục này KHÓ NHẤT trong T-22, làm theo 2 bước:
   (đúng tiền lệ TikTok ở T-17).
 - Nghiệm thu: tài liệu nghiên cứu có kết luận rõ; nếu code:
   test sống như T-22.1 (đọc + gửi thử có duyệt + degrade).
+- **Kết quả thực hiện (Antigravity 27/10/2026, version 1.7.9, commit `73f5dee`):**
+  1. *Báo cáo Nghiên cứu Kỹ thuật (Bước 1):* Hoàn thành tài liệu chuyên sâu `docs/nghien-cuu-facebook-ca-nhan.md` và cập nhật `docs/connector-tai-khoan-ca-nhan.md`. Phân tích tường tận:
+     - Meta Accounts Center của Muse thật là cơ chế nội bộ First-Party SSO của Meta, MuLon tuyệt đối không thể dùng lại.
+     - Graph API v21.0 của Meta đã khai tử User News Feed (`/me/feed`), hạn chế Friend List (`/me/friends` chỉ trả bạn cùng cài app) và hoàn toàn không cấp API Messenger User-to-User cho cá nhân.
+     - Đường đi qua phiên web cookies (`c_user`, `xs`) tiềm ẩn nguy cơ Checkpoint và khóa tài khoản ToS Điều 3.2.3 nếu chạy trên cloud/datacenter IP; tuy nhiên chấp nhận được có điều kiện trên máy local của người dùng (cùng IP mạng gia đình) với cơ chế Checkpoint Guard và cảnh báo rủi ro cao minh bạch.
+  2. *Cơ chế Checkpoint Guard & An toàn phiên (Bước 2):* Module `FacebookPersonalConnector` (`mulon/personal_connectors.py`) tích hợp bộ lọc nhận diện sớm Checkpoint (phản hồi 302 chuyển hướng tới `/checkpoint/`, hoặc chuỗi `checkpoint_required`). Khi phát hiện checkpoint, connector lập tức ngắt phiên, bật cờ `checkpoint_detected` trong Vault để dừng gửi toàn bộ request tiếp theo, ngăn ngừa nguy cơ tài khoản bị khóa vĩnh viễn do spam request lặp lại.
+  3. *Bảo mật & Phân quyền hành động:* Toàn bộ session cookies (`c_user`, `xs`, `fr`, `datr`) được mã hóa và lưu trữ an toàn trong Vault (`facebook_personal:session`), không bao giờ lọt vào git, log, trajectory hay chat. Phân quyền: các thao tác đọc (`get_profile`, `get_friends`, `read_feed`, `read_messages`, `check_session`) mặc định Cho phép (`allow`); các thao tác gửi (`send_message`, `send_post`) mặc định Hỏi trước (`ask`) qua `ApprovalBroker`. Mọi bài đăng và tin nhắn đọc từ bên ngoài đều bọc qua `frame_external`.
+  4. *Giao diện Mini App & Lệnh chat Telegram:*
+     - Telegram chat: Thêm các lệnh `/facebook status` (kiểm tra trạng thái, phát hiện checkpoint, cảnh báo rủi ro), `/facebook connect <cookies>`, `/facebook disconnect`.
+     - Mini App (Cài đặt -> Công cụ kết nối): Thẻ Facebook cá nhân hiển thị trạng thái kết nối, nhãn Cảnh báo Rủi ro cao, nút Nhập Cookie (hộp thoại cảnh báo rủi ro trước khi dán cookie) và nút Ngắt.
+     - REST API: `GET /api/personal-connector/status`, `POST /api/personal-connector/connect`, `POST /api/personal-connector/disconnect`.
+  5. *Kiểm chứng:* 528/528 unit tests PASS (thêm 7 test toàn diện trong `tests/test_v17_personal_connectors.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 
 ### [T-22.3] Tin nhắn Instagram + tin nhắn Threads — Giao: Antigravity — `TODO` (ƯU TIÊN 10)
 Tiền lệ phía Muse: kết nối TIN NHẮN tách riêng với kết nối
