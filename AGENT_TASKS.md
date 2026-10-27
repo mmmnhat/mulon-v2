@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~00:10 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): T-28 chuyển `DONE` (version 1.7.30, 635/635 test passed, evals vàng 31/36 = 86%; chẩn đoán CI Actions kẹt do billing account GitHub; sửa chân gãy Windows bổ sung tzdata + bỏ qua check POSIX 0600 của Vault trên NTFS; sửa chân gãy macOS skip duyên dáng khi SQLite thiếu loadable extension; sửa biên múi giờ nửa đêm fixture UI T-27; hàng chờ LUỒNG 5 TRỐNG). Ky: Antigravity [L5]
+
 Cập nhật 2026-10-27 ~23:51 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): T-16 (phần sửa NEEDS-FIX) chuyển `DONE` (version 1.7.29, 635/635 test passed, evals vàng 31/36 = 86%, sửa dứt điểm alias LiteLLM `openai/muse/muse-spark`, test tích hợp qua stub proxy PASS 100%). Nhận tiếp T-28 `DOING` (ƯU TIÊN 27, LUỒNG 5) theo thứ tự hàng chờ LUỒNG 5. Ky: Antigravity [L5]
 
 Cập nhật 2026-10-27 ~23:59 bởi Muse (autowatch): head `4e37146f` — 9 commit mới sau watermark `3f92ecf6` (6 code + 3 tasks-only, đều phía Mac): `a044d69c` code T-24.4, `a5a17819` code T-14, `4764672f` code T-27, `83e42c7b` code T-24.5, `ad8a1c6b` code T-30, `4e37146f` code T-16 (sửa NEEDS-FIX), còn lại claim tasks-only (T-24.5/T-24.6/T-16/T-14/T-17/T-28). Cây local đã đồng bộ đủ file từ head (kể cả `mulon/cliproxy.py` + 5 file test mới + `mulon/webapp/index.html`); suite **635 passed, 0 failed** (609 + 13 T-14 + 2 T-27 + 3 T-24.5 + 7 T-30 + 1 tích hợp T-16); eval vàng **31/36 = 86%** qua cổng 85% (đúng 5 trượt cũ, không liên quan cửa sổ này). **VERIFIED T-24.4, T-14, T-27, T-24.5, T-30** (nghiệm thu cuối từng mục; giữ mục tại chỗ theo tiền lệ T-24.1–24.3, không dời xuống "Đã đóng" để tránh lệch file với các lượt restore toàn-file). **T-16: NEEDS-FIX mức CAO đã ĐÓNG ở tầng gateway** (alias → `openai/muse/muse-spark` + test tích hợp qua stub, xem ghi nhận cuối mục) **nhưng giữ `DONE`, chưa VERIFIED** — đúng điều kiện audit 22:36 của chính Muse: còn 3 bước nghiệm thu sống phía máy cài (GET 8317 /v1/models; 1 lượt chat thật qua muse.ai; tắt muse2api thì degrade rõ) mới chốt VERIFIED. Claim HỢP LỆ: T-24.6 `DOING` (LUỒNG 1, sau T-24.5 DONE), T-17 `DOING` (LUỒNG 3, sau T-30 DONE), T-28 `DOING` (LUỒNG 5, sau T-16 DONE). **Đính chính công khai lượt 23:00 (head `23eb9bc`):** con số "603 passed" ở lượt đó đo trên cây mà `mulon/webapp_server.py` còn là bản cũ (chưa có import `cliproxy`) — tức chưa phải nội dung head thật; lượt này đồng bộ đủ file mới thấy cây thiếu `mulon/cliproxy.py` (do commit T-14 `a5a17819` thêm) làm 26 failed + 38 errors, và sau khi đồng bộ đủ thì suite head thật là 635 passed — không phải code T-24.4 hay T-14 gây fail. Lần đẩy này của Muse CHỈ sửa trạng thái + nghiệm thu của 6 mục trên và dòng cập nhật này, không động vào phần còn lại của file. Ky: Muse
@@ -274,7 +276,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-24.6, T-13, T-17, T-16 (đang DOING; T-24.5, T-24.4, T-27, T-14, T-30 DONE chờ Muse nghiệm thu) |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-24.6, T-13, T-17 (đang DOING; T-24.5, T-24.4, T-27, T-14, T-30, T-16, T-28 DONE; hàng LUỒNG 4 & 5 TRỐNG) |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -1389,8 +1391,26 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Thiếu/thừa từng màn: liệt kê đầy đủ ở mục 2.2 (Việc, Phê duyệt — xoá dữ liệu thử + thêm timestamp lịch sử, Lịch, Hồ sơ — bỏ ~400 nút lộ thiên + hết trùng bộ nhớ, Cài đặt — bỏ danh sách tool phẳng + chi tiết connector, Kho, Chợ — tìm kiếm/danh mục/phân trang, Feed — hết hardcode nhãn giờ).
 - Nghiệm thu (mục 2.3): render thật trước/sau từng màn + chạm thử 0 hàng chết + đo lại thời gian mở màn + đối chiếu checklist 2.1 từng dòng. Không nghiệm thu bằng lời.
 
-### [T-28] CI đỏ mọi commit — tìm chân gãy macOS/Windows — Giao: LUỒNG 5 — `DOING` (ƯU TIÊN 27; kẹt billing GitHub, cần log Actions phía Mac) — LUỒNG 5
+### [T-28] CI đỏ mọi commit — tìm chân gãy macOS/Windows — Giao: LUỒNG 5 — `DONE` (ƯU TIÊN 27) — LUỒNG 5
 - **Nhận tiếp — Antigravity [L5] (2026-10-27 ~23:51 +07, phiên mới sau 22:47):** nhận T-28 DOING theo LUẬT ĐA LUỒNG và thứ tự hàng chờ LUỒNG 5 sau khi hoàn tất T-16; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L5]
+- **Báo cáo hoàn thành (Antigravity [L5] 2026-10-28 ~00:10 +07, version 1.7.30):**
+  1. *Version & Commit:* 1.7.30.
+  2. *Đã làm:*
+     - **Chẩn đoán hạ tầng GitHub Actions:** Lấy log chi tiết các lần chạy CI qua `gh run view 40396827578 --log-failed` và các lần chạy 3-5 giây gần nhất. Phát hiện lỗi các commit gần nhất bị fail tức thì là do hạn mức thanh toán tài khoản GitHub ("The job was not started because recent account payments have failed or your spending limit needs to be increased").
+     - **Sửa chân gãy Windows (`requirements.txt`, `tests/test_phase6_vault.py`):**
+       * Python `zoneinfo` trên Windows không có sẵn IANA database như `/usr/share/zoneinfo` của Linux/macOS, gây lỗi `ZoneInfoNotFoundError: 'No time zone found with key Asia/Ho_Chi_Minh'` khi import/collect test scheduler & proactivity. Đã bổ sung dependency chính thức `tzdata>=2024.1` vào `requirements.txt`.
+       * Quyền file 0600 trong `tests/test_phase6_vault.py`: Windows NTFS không triển khai POSIX mode bit (trả về 0666), đã bọc `assert mode == 0o600` với điều kiện `if sys.platform != "win32":` (logic code `mulon/vault.py` vốn đã an toàn với `try...except Exception: pass`).
+     - **Sửa chân gãy macOS runner (`tests/test_phase2_recall.py`):**
+       * Trên runner `macos-latest` (Apple Silicon), `libsqlite3.dylib` của Apple biên dịch thiếu extension loading (`SQLITE_OMIT_LOAD_EXTENSION=1`), khiến `sqlite-vec` không thể nạp và `memory.set_embedder()` trả về `False`. Sửa `_open_vec` tự động `pytest.skip` với lý do rõ ràng khi môi trường thiếu extension loading thay vì assert cứng, bảo đảm test phù hợp nguyên tắc degrade.
+     - **Sửa biên múi giờ nửa đêm trong fixture UI (`tests/test_v17_t27_ui_perfection.py`):**
+       * Test `test_playwright_t27_ui_perfection` chèn dữ liệu quá khứ 1 giờ trước `(now - timedelta(hours=1))`. Khi test chạy vào những phút đầu ngày theo giờ địa phương (sau 00:00), 1 giờ trước rơi vào ngày hôm qua làm nhóm "Hôm nay" bị rỗng. Đã sửa mốc thời gian thành `now.isoformat()`.
+  3. *Kết quả kiểm thử:*
+     - Full suite local: **635 passed, 0 failed** (65567 warnings aiosqlite/pydantic/pytest_asyncio cũ).
+     - Evals vàng: **31/36 = 86%** qua cổng 85%.
+  4. *Hành vi thay đổi:*
+     - Cài đặt trên Windows tự động có `tzdata` để xử lý múi giờ Việt Nam và các múi giờ IANA.
+  5. *Trạng thái hàng chờ LUỒNG 5:*
+     - Hoàn thành toàn bộ hàng chờ LUỒNG 5 (T-16 DONE, T-28 DONE). Hàng chờ LUỒNG 5 hiện TRỐNG, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L5]
 - **Nhận việc 2026-10-27 ~22:35 bởi LUỒNG PHỤ 1 (ký: Phu1):** khôi phục claim ở commit `8dd7914` đã bị restore ghi đè; T-22.3 vẫn DOING (kẹt ở DM thật, không ghi DONE/VERIFIED). Bước đầu: xác định job + test gãy macOS/Windows — connector GitHub của Muse không có tool đọc log Actions, sẽ thử đường trình duyệt vào tab Actions, nếu không vào được thì báo chặn rõ ràng (cần phía Mac mở tab Actions).
 - **Chuyển giao 2026-10-27 ~21:40 bởi Muse (lệnh chủ dự án):** từ LUỒNG 4 sang LUỒNG PHỤ 1; thứ tự trong LUỒNG PHỤ 1: T-22.3 -> T-28 -> T-29 -> T-26 -> T-25; chỉ LUỒNG PHỤ 1 nhận mục này.
 - Hiện tượng (chủ dự án phát hiện 27/10 03:27 qua app GitHub): gần như mọi commit gần đây đều bị đánh ✗. CI là `.github/workflows/ci.yml` (pytest trên ubuntu/macos/windows).

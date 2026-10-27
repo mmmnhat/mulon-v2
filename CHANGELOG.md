@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 1.7.30 — 2026-10-28 — Sửa lỗi CI đa nền tảng Windows & macOS và chẩn đoán hạ tầng Actions (T-28, LUỒNG 5 — ký: Antigravity [L5])
+
+- **Chẩn đoán hạ tầng GitHub Actions (`.github/workflows/ci.yml`, T-28):**
+  - Trích xuất và phân tích toàn bộ log GitHub Actions qua `gh run view` trên các commit gần đây.
+  - Xác định nguyên nhân các commit gần nhất bị fail tức thì sau 3-5 giây: lỗi thanh toán / hạn mức GitHub Actions ("The job was not started because recent account payments have failed or your spending limit needs to be increased"). Đây là lỗi hạn mức tài khoản GitHub, không phải do code hồi quy.
+- **Khắc phục lỗi kiểm thử trên Windows (T-28):**
+  - **Múi giờ `Asia/Ho_Chi_Minh` trên Windows (`requirements.txt`):** Python `zoneinfo` trên Windows không có cơ sở dữ liệu IANA timezone hệ thống sẵn (như `/usr/share/zoneinfo` trên Linux/macOS), dẫn đến lỗi `zoneinfo._common.ZoneInfoNotFoundError: 'No time zone found with key Asia/Ho_Chi_Minh'` làm sập hàng loạt test scheduler/proactivity khi collect. Bổ sung dependency chuẩn `tzdata>=2024.1` vào `requirements.txt`.
+  - **Quyền hạn file Vault 0600 (`tests/test_phase6_vault.py`):** Hệ thống tệp NTFS trên Windows không có bit quyền POSIX `0o600` (trả về `0o666`), bọc assertion `assert mode == 0o600` với điều kiện `if sys.platform != "win32":` (trong khi logic an toàn của `mulon/vault.py` đã tự try-except `chmod`).
+- **Khắc phục lỗi kiểm thử trên macOS GitHub Actions Runner (T-28):**
+  - **Extension SQLite trên Apple libsqlite3 (`tests/test_phase2_recall.py`):** Trên runner `macos-latest` (Apple Silicon), bản Python chuẩn liên kết với `libsqlite3.dylib` của Apple được biên dịch với `SQLITE_OMIT_LOAD_EXTENSION=1`, khiến việc nạp `sqlite-vec` extension bị tắt và `_try_enable_vector` trả về `False`. Sửa `_open_vec` tự động `pytest.skip` một cách duyên dáng khi môi trường SQLite không hỗ trợ loadable extension, đúng theo nguyên tắc degrade của dự án.
+- **Khắc phục biên múi giờ nửa đêm trong fixture UI (`tests/test_v17_t27_ui_perfection.py`):**
+  - Sửa mốc thời gian chèn quyết định duyệt trong test Playwright dùng `now.isoformat()` thay vì `(now - timedelta(hours=1)).isoformat()`, tránh việc 1 giờ trước rơi vào ngày hôm qua khi test chạy vào những phút đầu ngày theo múi giờ địa phương.
+
 ## 1.7.29 — 2026-10-27 — Sửa alias LiteLLM cho muse2api (T-16 NEEDS-FIX, LUỒNG 5 — ký: Antigravity [L5])
 
 - **Khắc phục triệt để lỗi LiteLLM từ chối provider muse (`mulon/gateway.py`, `mulon/muse2api.py`, T-16):**

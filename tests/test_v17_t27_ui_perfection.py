@@ -229,7 +229,7 @@ def test_playwright_t27_ui_perfection(cfg: Config):
                         "approved": False,
                         "remember": False,
                     }),
-                    (now - timedelta(hours=1)).isoformat(),
+                    now.isoformat(),
                 ),
             )
             await mem.db.commit()

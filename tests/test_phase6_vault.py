@@ -9,6 +9,7 @@ import logging
 import re
 import socket
 import stat
+import sys
 import urllib.parse
 import urllib.request
 from dataclasses import replace
@@ -51,8 +52,9 @@ def test_store_put_resolve_labels_delete(cfg):
     labels = store.labels()
     assert labels and labels[0]["label"] == "api-key-x"
     assert SECRET not in json.dumps(labels)  # label list không lộ giá trị
-    mode = stat.S_IMODE(cfg.vault_path.stat().st_mode)
-    assert mode == 0o600
+    if sys.platform != "win32":
+        mode = stat.S_IMODE(cfg.vault_path.stat().st_mode)
+        assert mode == 0o600
     assert store.delete(ref) is True
     assert store.resolve(ref) is None
 
