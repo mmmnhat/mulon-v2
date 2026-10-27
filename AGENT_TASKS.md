@@ -19,7 +19,9 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-27 ~08:10 bởi Muse (autowatch):
+Cập nhật lần cuối: 2026-10-27 ~08:28 bởi Antigravity: nhận T-10.5
+`DOING` (ƯU TIÊN 7) theo LUẬT HÀNG ĐỢI.
+Cập nhật 2026-10-27 ~08:10 bởi Muse (autowatch):
 KIỂM CHỨNG LẠI + ĐẨY verdict T-10.4 (lượt 03:50 đã viết verdict
 local nhưng chưa từng push lên remote, watermark vẫn kẹt ở
 `3f96935` trong khi head đã là `a7fe5c6`; lượt này chạy lại độc
@@ -313,7 +315,7 @@ Checklist: D1 + D2/C8 (MỘT PHẦN/CHƯA) + D3 (giữ regression).
   nội dung đã đối chiếu qua bản AGENT_TASKS.md head, không có
   thay đổi code nào từ 3 commit đó.
 
-### [T-10.5] Gửi/nhận mọi loại nội dung + Chat phụ (regression) — Giao: Antigravity — `TODO` (ƯU TIÊN 7)
+### [T-10.5] Gửi/nhận mọi loại nội dung + Chat phụ (regression) — Giao: Antigravity — `DOING` (ƯU TIÊN 7)
 Checklist: E2 (MỘT PHẦN) + E3 (checklist ghi ĐẠT — mục này
 là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
 - Gửi đi: nội dung bot tạo (file, ảnh, video, voice, tài
