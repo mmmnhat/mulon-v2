@@ -592,6 +592,13 @@ class WebAppServer:
                            self._handle_google_callback)
         app.router.add_get("/oauth2callback",
                            self._handle_mcp_oauth2callback)
+        # 1.7.8 (T-22.1): Personal Connectors (Zalo cá nhân + Telegram cá nhân)
+        app.router.add_get("/api/personal-connector/status",
+                           self._handle_personal_connector_status)
+        app.router.add_post("/api/personal-connector/qr",
+                            self._handle_personal_connector_qr)
+        app.router.add_post("/api/personal-connector/disconnect",
+                            self._handle_personal_connector_disconnect)
         # 1.3.0: Chợ MCP — mọi route qua cùng middleware auth
         # initData owner-only như các /api/* khác.
         app.router.add_get("/api/marketplace/summary",
@@ -794,6 +801,22 @@ class WebAppServer:
                 # theo trạng thái này (cả 2 connector dùng
                 # chung 1 ủy quyền Google).
                 item["google"] = self.google_auth.status()
+            elif name == "zalo_personal":
+                # 1.7.8 (T-22.1): Zalo cá nhân
+                item["zalo"] = {
+                    "configured": bool(h.get("configured")),
+                    "connected": bool(h.get("connected")),
+                    "user": h.get("user"),
+                    "limitations": h.get("limitations", ""),
+                }
+            elif name == "telegram_personal":
+                # 1.7.8 (T-22.1): Telegram cá nhân
+                item["telegram_personal"] = {
+                    "configured": bool(h.get("configured")),
+                    "connected": bool(h.get("connected")),
+                    "user": h.get("user"),
+                    "warning": h.get("warning", ""),
+                }
             out.append(item)
         # MCP servers: trạng thái nối từ manager + enabled từ file
         # cấu hình (đọc tươi để toggle phản ánh đúng).
@@ -2115,6 +2138,58 @@ class WebAppServer:
         await self.memory.log_trajectory(
             "webapp", "google_disconnected", {"revoked": revoked})
         return web.json_response({"ok": True})
+
+    # ---------- Personal Connectors (T-22.1) ----------
+    async def _handle_personal_connector_status(self, request):
+        name = request.query.get("name") or ""
+        if name not in ("zalo_personal", "telegram_personal"):
+            return web.json_response(
+                {"ok": False, "error": "Tên connector không hợp lệ (phải là zalo_personal hoặc telegram_personal)"},
+                status=400,
+            )
+        conn = await self.connectors.get(name)
+        if conn is None:
+            return web.json_response(
+                {"ok": False, "error": f"Connector {name} không khả dụng."},
+                status=503,
+            )
+        health = await conn.health_check()
+        return web.json_response({"ok": True, "health": health})
+
+    async def _handle_personal_connector_qr(self, request):
+        body = await self._json_body(request)
+        name = str(body.get("name") or request.query.get("name") or "")
+        if name not in ("zalo_personal", "telegram_personal"):
+            return web.json_response(
+                {"ok": False, "error": "Tên connector không hợp lệ (phải là zalo_personal hoặc telegram_personal)"},
+                status=400,
+            )
+        conn = await self.connectors.get(name)
+        if conn is None:
+            return web.json_response(
+                {"ok": False, "error": f"Connector {name} không khả dụng."},
+                status=503,
+            )
+        step = body.get("step", "start")
+        result = await conn.call("qr_login", {"step": step})
+        return web.json_response(result)
+
+    async def _handle_personal_connector_disconnect(self, request):
+        body = await self._json_body(request)
+        name = str(body.get("name") or request.query.get("name") or "")
+        if name not in ("zalo_personal", "telegram_personal"):
+            return web.json_response(
+                {"ok": False, "error": "Tên connector không hợp lệ (phải là zalo_personal hoặc telegram_personal)"},
+                status=400,
+            )
+        conn = await self.connectors.get(name)
+        if conn is None:
+            return web.json_response(
+                {"ok": False, "error": f"Connector {name} không khả dụng."},
+                status=503,
+            )
+        result = await conn.call("disconnect", {})
+        return web.json_response(result)
 
     async def _handle_google_callback(self, request):
         """Route CÔNG KHAI duy nhất của webapp: trình duyệt

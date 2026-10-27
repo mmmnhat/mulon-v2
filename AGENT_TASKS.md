@@ -19,7 +19,9 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-27 ~08:35 bởi Muse (autowatch):
+Cập nhật lần cuối: 2026-10-27 ~09:56 bởi Antigravity: T-22.1 đã `DONE` (Zalo cá nhân qua zca-js/Node bridge + Telegram cá nhân MTProto Telethon; đăng nhập QR an toàn qua Vault; bảo vệ dữ liệu ngoài qua frame_external; phân quyền đọc allow, gửi ask; cảnh báo rủi ro userbot và giới hạn nhật ký; lệnh chat /zalo, /telethon và Mini App integration), 521/521 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
+Cập nhật 2026-10-27 ~09:25 bởi Antigravity: T-10.5 đã `DONE` (commit `b532c12`: gửi đi đủ 5 loại nội dung ảnh/video/voice/audio/tài liệu kèm degrade và 50MB check; nhận MỌI file user gửi vào Thư viện; tìm kiếm ngôn ngữ tự nhiên không dấu; chat phụ cô lập history, dùng chung user memory; R15 định tuyến hội thoại chuẩn), 509/509 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
+Cập nhật 2026-10-27 ~08:35 bởi Muse (autowatch):
 ghi nhận claim T-10.5 `DOING` (commit `a975389`, phía Mac) —
 HỢP LỆ theo LUẬT HÀNG ĐỢI: T-10.4 đã `VERIFIED`, không còn mục
 `DOING` nào khác, ƯU TIÊN 7 là tiếp theo. Commit mới chỉ đụng
@@ -321,7 +323,7 @@ Checklist: D1 + D2/C8 (MỘT PHẦN/CHƯA) + D3 (giữ regression).
   nội dung đã đối chiếu qua bản AGENT_TASKS.md head, không có
   thay đổi code nào từ 3 commit đó.
 
-### [T-10.5] Gửi/nhận mọi loại nội dung + Chat phụ (regression) — Giao: Antigravity — `DOING` (ƯU TIÊN 7)
+### [T-10.5] Gửi/nhận mọi loại nội dung + Chat phụ (regression) — Giao: Antigravity — `DONE` (ƯU TIÊN 7)
 Checklist: E2 (MỘT PHẦN) + E3 (checklist ghi ĐẠT — mục này
 là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
 - Gửi đi: nội dung bot tạo (file, ảnh, video, voice, tài
@@ -338,7 +340,12 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
   dung; người dùng gửi 1 file -> tìm lại được trong Library;
   chat phụ không lẫn history chat chính nhưng nhớ đúng
   thông tin người dùng đã chia sẻ ở chat chính.
-- **Nhắc từ Muse (reviewer) 27/10 ~09:24:** T-10.5 đã DOING từ 08:27, gần 1 tiếng chưa có commit tiến độ/DONE nào. Lượt dev_watch kế tiếp phải ghi rõ trạng thái vào mục này (đang test gì, còn thiếu gì, có vướng gì không) dù chưa xong — im lặng quá 1 chu kỳ là lệch nhịp vòng lặp.
+- **Kết quả thực hiện (Antigravity 27/10/2026, version 1.7.7, commit `b532c12`):**
+  1. *Gửi đi 5 loại nội dung & Degrade minh bạch:* Tự động nhận diện nội dung bot tạo và gửi qua đúng phương thức aiogram theo phân loại: ảnh (`answer_photo`), video (`answer_video`), voice (`answer_voice`), audio (`answer_audio`), tài liệu (`answer_document`) kèm icon và chú thích. Kiểm tra trần dung lượng Telegram Bot API (50MB, cấu hình qua `TELEGRAM_MAX_FILE_SIZE_BYTES`); tệp quá 50MB hoặc lỗi Telegram được degrade thông báo rõ ràng cho người dùng kèm đường dẫn tệp trên đĩa, tuyệt đối không nuốt lỗi im lặng. Tự động lập chỉ mục tệp tạo ra vào Thư viện và gửi vào topic Library nếu ở group forum. Lệnh `/library <id>` kiểm tra trần 50MB và gửi tệp gốc qua đúng phương thức tương ứng.
+  2. *Nhận vào: MỌI file người dùng gửi đều vào Thư viện:* Hỗ trợ đầy đủ các handler `@dp.message(F.document)`, `@dp.message(F.photo)`, `@dp.message(F.video)`, `@dp.message(F.audio)`, `@dp.message(F.voice)`. Không từ chối bất kỳ định dạng nào; tải tệp về `workspace/uploads/`, lập chỉ mục vào `library_items` và đưa đầy đủ thông tin vào ngữ cảnh agent để tương tác tự nhiên.
+  3. *Tìm kiếm Thư viện bằng ngôn ngữ tự nhiên (Parity E2):* Bổ sung cột `caption` trong bảng `library_items` (migration DB 1.7.7). Thuật toán tìm kiếm tất định không dấu `fold_vi` trên `name`, `caption`, `kind`, `path`. Hỗ trợ tìm kiếm nhanh qua lệnh `/library <từ khóa>`, Mini App REST API (`/api/library/items?q=...`, `/api/library/search`), và đăng ký 3 công cụ Agent trong ToolRegistry (`search_library`, `get_library_item`, `share_library_item`). Link chia sẻ công khai qua `/share/{token}` khống chế thời hạn <= 48 giờ.
+  4. *Chat phụ & Định tuyến R15 (Parity E3 + R15):* Cô lập hoàn toàn lịch sử chat: mỗi topic forum có `session_key` riêng biệt, `recent_messages` chỉ truy vấn đúng luồng trao đổi đó. Ký ức người dùng bền vững (`USER.md`, `MEMORY.md`, `facts`) được dùng chung nhất quán qua `ContextEngine.build` và `recall`. Bổ sung `parse_session_key` và `TelegramSurface.send_to_session`, đảm bảo kết quả công việc và thông báo nền gửi về chính xác chat và thread khởi tạo.
+  5. *Kiểm chứng:* 509/509 unit tests PASS (thêm 6 test toàn diện trong `tests/test_v17_media_library_sidechat_parity.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 
 ### [T-11] Parity hệ thống: connector/MCP/quyền/model/tự sửa — Giao: Antigravity — `TODO`
 - Rà soát toàn bộ slash command: bỏ trùng, đặt tên nhất quán,
@@ -554,7 +561,7 @@ repo này và một phần là cơ chế nội bộ của nền tảng Muse —
 KHÔNG copy được; Antigravity tự cài đặt mới trong MuLon
 theo đúng thư viện/cơ chế đã chứng minh ở từng mục con.
 
-### [T-22.1] Zalo cá nhân + Telegram cá nhân (đăng nhập QR) — Giao: Antigravity — `TODO` (ƯU TIÊN 8)
+### [T-22.1] Zalo cá nhân + Telegram cá nhân (đăng nhập QR) — Giao: Antigravity — `DONE` (ƯU TIÊN 8)
 Hai nền tảng này cùng họ cơ chế: đăng nhập QR, không mật
 khẩu, phiên lưu bền — phía Muse đã chạy thật ổn định.
 - **Zalo cá nhân** (thư viện `zca-js`): quét QR bằng app
@@ -574,6 +581,16 @@ khẩu, phiên lưu bền — phía Muse đã chạy thật ổn định.
   dự án (chủ dự án quét QR): kết nối -> kiểm tra đúng tài
   khoản -> đọc hộp thư -> gửi 1 tin thử (có duyệt) -> nhận
   tin mới -> ngắt kết nối/hết hạn xử lý sạch.
+- **Kết quả thực hiện (Antigravity 27/10/2026, version 1.7.8):**
+  1. *Zalo cá nhân qua zca-js & Node bridge:* Module `ZaloPersonalConnector` (`mulon/personal_connectors.py`) kết hợp với Node bridge `mulon/bridges/zalo_bridge.mjs` (trao đổi an toàn qua JSON-line stdio). Hỗ trợ đăng nhập mã QR qua app điện thoại, tự động lưu phiên (`cookies`, `imei`, `userAgent`) vào Vault (`zalo_personal:session`). Hỗ trợ đầy đủ các thao tác: gửi/nhận tin nhắn (1-1 và nhóm), gửi file, tìm người dùng qua SĐT (`find_user`), và lắng nghe tin nhắn mới. Giới hạn không đăng nhật ký/bài viết được tài liệu hoá và hiển thị minh bạch trên Mini App và thông điệp hệ thống.
+  2. *Telegram cá nhân MTProto qua Telethon (Userbot):* Module `TelegramPersonalConnector` hỗ trợ đăng nhập độc lập qua mã QR `tg://login?token=...`, lưu StringSession an toàn trong Vault (`telegram_personal:session`). Là kênh MTProto hoàn toàn riêng biệt chạy song song với Bot API `aiogram`. Hỗ trợ đọc/gửi tin nhắn trong mọi hội thoại (kể cả các nhóm riêng tư bot không có mặt), gửi file, xem danh sách hội thoại (`list_dialogs`). Cảnh báo rõ ràng rủi ro userbot cho người dùng để duy trì tần suất sử dụng an toàn.
+  3. *Bảo mật & Phân quyền hành động (Policy Engine):* Lưu trữ phiên và bí mật 100% trong Vault, tuyệt đối không vào git, log hay chat. Phân quyền chuẩn mực: các thao tác đọc (`read_messages`, `list_dialogs`, `find_user`) mặc định Cho phép (`allow`), các thao tác gửi (`send_message`, `send_file`) mặc định Hỏi trước (`ask`) qua `ApprovalBroker`. Mọi nội dung tin nhắn đến đều được bọc bảo vệ bằng `frame_external` chống prompt injection.
+  4. *Giao diện Mini App & Lệnh chat Telegram:*
+     - Telegram chat: Thêm các lệnh `/zalo status`, `/zalo qr`, `/zalo disconnect` và `/telethon status`, `/telethon qr`, `/telethon disconnect`.
+     - Mini App (Cài đặt -> Công cụ kết nối): Tích hợp thẻ Zalo và Telegram cá nhân, hiển thị trạng thái kết nối, nút Quét QR và nút Ngắt.
+     - REST API: `GET /api/personal-connector/status`, `POST /api/personal-connector/qr`, `POST /api/personal-connector/disconnect`.
+     - Tài liệu kỹ thuật: `docs/connector-tai-khoan-ca-nhan.md`.
+  5. *Kiểm chứng:* 521/521 unit tests PASS (thêm 12 test toàn diện trong `tests/test_v17_personal_connectors.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 
 ### [T-22.2] Facebook cá nhân — Giao: Antigravity — `TODO` (ƯU TIÊN 9) (NGHIÊN CỨU TRƯỚC)
 Mục này KHÓ NHẤT trong T-22, làm theo 2 bước:

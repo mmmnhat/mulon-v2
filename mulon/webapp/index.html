@@ -2860,6 +2860,14 @@ function googleAction(g){
     '<button class="btn btn-soft btn-sm" data-gconfig="1">Cấu hình</button>' +
     '<button class="btn btn-soft btn-sm" data-gdisconnect="1">Ngắt</button></div>';
 }
+function personalConnectorAction(c){
+  const p = c.zalo || c.telegram_personal;
+  if (!p) return '';
+  if (p.connected) {
+    return '<button class="btn btn-soft btn-sm" data-pdisconnect="' + esc(c.id) + '">Ngắt</button>';
+  }
+  return '<button class="btn btn-accent btn-sm" data-pqr="' + esc(c.id) + '">Quét QR</button>';
+}
 function renderConnectors(){
   const list = (S && S.connectors) || [];
   const box = $("connector-list");
@@ -2869,6 +2877,7 @@ function renderConnectors(){
   }
   box.innerHTML = list.map(c => {
     const isGoogle = !!c.google;
+    const isPersonal = !!(c.zalo || c.telegram_personal);
     return '<div class="row ' + (isGoogle ? 'clickable' : 'static') + '"' +
       (isGoogle ? ' data-open-gconfig="1"' : '') + '>' +
       '<div class="mono">' + (c.kind === "mcp" ? "M" : "S") + '</div>' +
@@ -2876,12 +2885,14 @@ function renderConnectors(){
       '<div class="r-sub">' + esc(connSub(c)) + '</div></div>' +
       (c.google
         ? googleAction(c.google)
-        : c.toggleable
-          ? '<label class="tgl"><input type="checkbox" data-conn="' +
-            esc(c.id) + '"' + (c.enabled ? " checked" : "") +
-            '><span class="tr"></span></label>'
-          : '<span class="r-state">' +
-            (c.enabled ? "Đang bật" : "Đã tắt") + '</span>') +
+        : isPersonal
+          ? personalConnectorAction(c)
+          : c.toggleable
+            ? '<label class="tgl"><input type="checkbox" data-conn="' +
+              esc(c.id) + '"' + (c.enabled ? " checked" : "") +
+              '><span class="tr"></span></label>'
+            : '<span class="r-state">' +
+              (c.enabled ? "Đang bật" : "Đã tắt") + '</span>') +
       '</div>';
   }).join("");
   box.querySelectorAll("[data-open-gconfig]").forEach(row =>
@@ -2911,6 +2922,37 @@ function renderConnectors(){
       try {
         await api("/api/google/disconnect", "POST", {});
         toast("Đã ngắt kết nối Google.");
+        await load();
+      } catch (err) { toast(err.message); }
+    }));
+  box.querySelectorAll("[data-pqr]").forEach(btn =>
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const name = btn.dataset.pqr;
+      try {
+        const r = await api("/api/personal-connector/qr", "POST", { name });
+        if (!r.ok) throw new Error(r.error || "Không thể khởi tạo QR");
+        if (r.qr_url) {
+          if (r.qr_url.startsWith("tg://") && tg && tg.openTelegramLink) {
+            tg.openTelegramLink(r.qr_url);
+          } else if (tg && tg.openLink) {
+            tg.openLink(r.qr_url);
+          } else {
+            window.open(r.qr_url, "_blank");
+          }
+          toast("Đã mở phiên QR — ní hãy quét mã trên app để kết nối!");
+        } else {
+          toast(r.instructions || "Đã tạo phiên QR — kiểm tra trong chat bot!");
+        }
+      } catch (err) { toast(err.message); }
+    }));
+  box.querySelectorAll("[data-pdisconnect]").forEach(btn =>
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const name = btn.dataset.pdisconnect;
+      try {
+        await api("/api/personal-connector/disconnect", "POST", { name });
+        toast("Đã ngắt kết nối tài khoản cá nhân.");
         await load();
       } catch (err) { toast(err.message); }
     }));

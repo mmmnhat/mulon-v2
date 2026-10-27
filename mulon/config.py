@@ -330,6 +330,10 @@ class Config:
     image_gen_model: str = "agnes-image-2.1-flash"
     google_client_secret: str = ""
     google_legacy_connectors: bool = False
+    # --- 1.7.8 (T-22.1): Connector tài khoản cá nhân ---
+    telegram_user_api_id: Optional[str] = None
+    telegram_user_api_hash: Optional[str] = None
+    zalo_bridge_dir: Optional[str] = None
     # Thẻ duyệt (policy nấc "ask") hết hạn sau ngần này giây.
     approval_timeout_s: float = 60.0
     # Hành vi thẻ duyệt khi có kết quả: "update" (chuẩn Parity T-10.1: cập nhật
@@ -523,6 +527,9 @@ class Config:
             image_gen_model=_env("IMAGE_GEN_MODEL", "agnes-image-2.1-flash"),
             google_client_secret=_env("GOOGLE_CLIENT_SECRET", ""),
             google_legacy_connectors=_env_bool("GOOGLE_LEGACY_CONNECTORS", False),
+            telegram_user_api_id=_env("TELEGRAM_USER_API_ID", None),
+            telegram_user_api_hash=_env("TELEGRAM_USER_API_HASH", None),
+            zalo_bridge_dir=_env("ZALO_BRIDGE_DIR", None),
             approval_timeout_s=_env_float("APPROVAL_TIMEOUT_S", 60.0),
             approval_card_action=_env("APPROVAL_CARD_ACTION", "update").lower().strip() or "update",
             marketplace_enabled=_env_bool("MARKETPLACE_ENABLED", True),

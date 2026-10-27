@@ -100,7 +100,7 @@ async def build_system(cfg: Config):
         from .google_conn import build_google_auth
 
         google_auth = build_google_auth(cfg, vault_store)
-    connectors = build_default_connectors(cfg, google_auth=google_auth)
+    connectors = build_default_connectors(cfg, google_auth=google_auth, vault_store=vault_store)
     register_connector_tools(registry, connectors)
     # MCP client: nối server đã bật trong config, đăng ký tool của
     # chúng vào registry chung. Server lỗi/vắng -> degrade sạch.
@@ -200,6 +200,7 @@ async def build_system(cfg: Config):
         "library": LibraryService(cfg, memory),
         "vault_server": VaultFormServer(cfg, vault_store),
         "vault_store": vault_store,
+        "connectors": connectors,
     }
     from .library import register_library_tools
     register_library_tools(registry, phase6["library"])

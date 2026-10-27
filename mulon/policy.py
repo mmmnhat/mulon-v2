@@ -57,6 +57,21 @@ CONNECTOR_ACTION_DEFAULTS = {
     "connector:gcalendar:create": VERDICT_ASK,
     "connector:gcalendar:delete_event": VERDICT_ASK,
     "connector:gcalendar:delete": VERDICT_ASK,
+    # 1.7.8 (T-22.1): Zalo cá nhân
+    "connector:zalo_personal:read_messages": VERDICT_ALLOW,
+    "connector:zalo_personal:get_messages": VERDICT_ALLOW,
+    "connector:zalo_personal:find_user": VERDICT_ALLOW,
+    "connector:zalo_personal:listen": VERDICT_ALLOW,
+    "connector:zalo_personal:send_message": VERDICT_ASK,
+    "connector:zalo_personal:send_file": VERDICT_ASK,
+    # 1.7.8 (T-22.1): Telegram cá nhân (MTProto userbot)
+    "connector:telegram_personal:read_messages": VERDICT_ALLOW,
+    "connector:telegram_personal:get_messages": VERDICT_ALLOW,
+    "connector:telegram_personal:list_dialogs": VERDICT_ALLOW,
+    "connector:telegram_personal:find_dialog": VERDICT_ALLOW,
+    "connector:telegram_personal:listen": VERDICT_ALLOW,
+    "connector:telegram_personal:send_message": VERDICT_ASK,
+    "connector:telegram_personal:send_file": VERDICT_ASK,
 }
 
 # Mặc định theo tên tool (sửa 1.6.2): tool tương tác web LUÔN ở
@@ -81,7 +96,7 @@ _CONNECTOR_WRITE_TOKENS = {
     "send", "create", "delete", "update", "remove", "trash", "edit",
     "write",
 }
-_CONNECTOR_READ_TOKENS = {"search", "read", "list", "get", "view"}
+_CONNECTOR_READ_TOKENS = {"search", "read", "list", "get", "view", "find"}
 
 
 def connector_fallback_verdict(group: str) -> Optional[str]:
@@ -125,6 +140,34 @@ CONNECTOR_SPECS = {
             {"id": "delete_event", "alias": "delete",
              "name": "connector:gcalendar:delete_event",
              "label": "Xoá sự kiện", "kind": "delete", "default": VERDICT_ASK},
+        ],
+    },
+    "zalo_personal": {
+        "title": "Zalo cá nhân",
+        "description": "Kết nối tài khoản Zalo cá nhân qua mã QR (thư viện zca-js). Đọc/gửi tin nhắn, gửi file, tìm người dùng. Không hỗ trợ đăng nhật ký/bài viết.",
+        "actions": [
+            {"id": "read_messages", "name": "connector:zalo_personal:read_messages",
+             "label": "Đọc tin nhắn Zalo", "kind": "read", "default": VERDICT_ALLOW},
+            {"id": "find_user", "name": "connector:zalo_personal:find_user",
+             "label": "Tìm người dùng theo SĐT", "kind": "read", "default": VERDICT_ALLOW},
+            {"id": "send_message", "name": "connector:zalo_personal:send_message",
+             "label": "Gửi tin nhắn Zalo", "kind": "write", "default": VERDICT_ASK},
+            {"id": "send_file", "name": "connector:zalo_personal:send_file",
+             "label": "Gửi tệp Zalo", "kind": "write", "default": VERDICT_ASK},
+        ],
+    },
+    "telegram_personal": {
+        "title": "Telegram cá nhân",
+        "description": "Kết nối tài khoản Telegram cá nhân qua mã QR (Telethon MTProto userbot). Kênh riêng biệt chạy song song với Bot API. Giữ lượng dùng ở mức bình thường.",
+        "actions": [
+            {"id": "read_messages", "name": "connector:telegram_personal:read_messages",
+             "label": "Đọc tin nhắn Telegram cá nhân", "kind": "read", "default": VERDICT_ALLOW},
+            {"id": "list_dialogs", "name": "connector:telegram_personal:list_dialogs",
+             "label": "Xem danh sách hội thoại", "kind": "read", "default": VERDICT_ALLOW},
+            {"id": "send_message", "name": "connector:telegram_personal:send_message",
+             "label": "Gửi tin nhắn Telegram cá nhân", "kind": "write", "default": VERDICT_ASK},
+            {"id": "send_file", "name": "connector:telegram_personal:send_file",
+             "label": "Gửi tệp Telegram cá nhân", "kind": "write", "default": VERDICT_ASK},
         ],
     },
 }

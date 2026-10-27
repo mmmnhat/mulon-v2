@@ -1,0 +1,9 @@
+{
+  "name": "mulon-zalo-bridge",
+  "version": "1.0.0",
+  "description": "Node.js bridge for Zalo personal account connector using zca-js",
+  "type": "module",
+  "dependencies": {
+    "zca-js": "^2.2.0"
+  }
+}

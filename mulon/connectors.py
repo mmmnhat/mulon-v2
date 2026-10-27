@@ -182,7 +182,7 @@ class SystemConnector(Connector):
                 "error": f"system không hỗ trợ action: {action}"}
 
 
-def build_default_connectors(cfg, google_auth=None) -> ConnectorRegistry:
+def build_default_connectors(cfg, google_auth=None, vault_store=None) -> ConnectorRegistry:
     registry = ConnectorRegistry()
     registry.register(SystemConnector())
     if google_auth is not None:
@@ -196,6 +196,14 @@ def build_default_connectors(cfg, google_auth=None) -> ConnectorRegistry:
         registry.register(GCalendarConnector(
             google_auth,
             default_tz=getattr(cfg, "default_timezone", "UTC")))
+
+    # 1.7.8 (T-22.1): Connector tài khoản cá nhân (Zalo cá nhân + Telegram cá nhân)
+    from .personal_connectors import (
+        TelegramPersonalConnector,
+        ZaloPersonalConnector,
+    )
+    registry.register(ZaloPersonalConnector(cfg=cfg, vault_store=vault_store))
+    registry.register(TelegramPersonalConnector(cfg=cfg, vault_store=vault_store))
     return registry
 
 

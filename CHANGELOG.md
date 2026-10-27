@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## 1.7.8 — 2026-10-27 — Connector tài khoản cá nhân: Zalo cá nhân + Telegram cá nhân (T-22.1)
+
+- **Zalo cá nhân (zca-js qua Node bridge):**
+  - Đăng nhập an toàn qua mã QR trên ứng dụng Zalo điện thoại (`login_qr` / `login_session`).
+  - Hỗ trợ gửi/nhận tin nhắn cả 1-1 lẫn nhóm (`send_message`, `read_messages`), gửi tệp đính kèm (`send_file`), tìm người dùng theo số điện thoại (`find_user`), và lắng nghe tin nhắn mới (`listen`).
+  - Minh bạch giới hạn: ghi rõ trong tài liệu kỹ thuật, màn Kết nối Mini App và trạng thái hệ thống: KHÔNG hỗ trợ đăng nhật ký/bài viết (muốn đăng phải qua Zalo OA API — ngoài phạm vi connector cá nhân).
+  - Tách lớp Node bridge `mulon/bridges/zalo_bridge.mjs` giao tiếp qua stdin/stdout JSON dòng (chuẩn stdio an toàn).
+- **Telegram cá nhân (Telethon MTProto userbot):**
+  - Đăng nhập QR độc lập qua ứng dụng Telegram di động (`tg://login?token=...`).
+  - Kênh MTProto riêng biệt chạy song song với Telegram Bot API (`aiogram`) hiện tại — không thay thế, không can thiệp lẫn nhau.
+  - Hỗ trợ đọc/gửi tin nhắn trong mọi hội thoại tài khoản tham gia (kể cả nhóm bot không có mặt), gửi tệp, xem danh sách hội thoại (`list_dialogs`) và nghe tin mới.
+  - Cảnh báo rủi ro userbot: ghi rõ trên Mini App và thông điệp chat để người dùng giữ tần suất sử dụng ở mức bình thường, tránh spam hàng loạt.
+- **Bảo mật và Kiến trúc bất biến:**
+  - Phiên đăng nhập (`telegram_personal:session`, `zalo_personal:session`) và bí mật CHỈ lưu trữ an toàn trong Vault của bản cài (quyền 0600), không bao giờ lọt vào log, trajectory, commit, hay chat.
+  - Quyền theo từng hành động (Policy Engine): các thao tác đọc (`read_messages`, `list_dialogs`, `find_user`) mặc định Cho phép (allow); các thao tác gửi (`send_message`, `send_file`) mặc định Hỏi trước (ask).
+  - Bảo vệ dữ liệu ngoài: 100% nội dung tin nhắn nhận từ bên ngoài đều đi qua `frame_external`.
+  - Degrade sạch: nếu thiếu Node.js hoặc gói `telethon`, bot vẫn hoạt động 100% bình thường, connector báo trạng thái chưa sẵn sàng kèm hướng dẫn.
+- **Giao diện & Lệnh chat:**
+  - Lệnh chat Telegram: `/zalo status`, `/zalo qr`, `/zalo disconnect`, `/telethon status`, `/telethon qr`, `/telethon disconnect`.
+  - Mini App (Cài đặt -> Công cụ kết nối): tích hợp thẻ hiển thị trạng thái kết nối, nút Quét QR và nút Ngắt kết nối.
+  - REST API: `GET /api/personal-connector/status`, `POST /api/personal-connector/qr`, `POST /api/personal-connector/disconnect`.
+  - Tài liệu chi tiết: `docs/connector-tai-khoan-ca-nhan.md`.
+- **Kiểm chứng:** 521/521 unit tests PASS (thêm 12 test toàn diện trong `tests/test_v17_personal_connectors.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
+
+
 ## 1.7.7 — 2026-10-27 — Gửi/nhận mọi loại nội dung, Thư viện và Chat phụ & Định tuyến R15 (T-10.5 Parity E2 + E3 + R15)
 
 - **Gửi đi đa dạng mọi loại nội dung (Outgoing Multi-Content Types):**

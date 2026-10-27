@@ -85,6 +85,8 @@ BOT_COMMANDS: list[tuple[str, str]] = MENU_COMMANDS + [
     ("the_duyet", "Gửi thẻ phê duyệt thử (thật, vô hại)"),
     ("pin_item", "Ghim item Library theo id"),
     ("rename_item", "Đổi tên item Library theo id"),
+    ("zalo", "Zalo cá nhân (/zalo status, qr, disconnect)"),
+    ("telethon", "Telegram cá nhân userbot (/telethon status, qr, disconnect)"),
 ]
 
 
@@ -3262,6 +3264,118 @@ class TelegramSurface:
                 parse_mode="HTML",
                 disable_web_page_preview=True,
             )
+
+        @dp.message(F.text.startswith("/zalo"))
+        async def cmd_zalo(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            arg = _arg_text(message).strip().lower()
+            connectors = self.surfaces.get("connectors") if self.surfaces else None
+            conn = await connectors.get("zalo_personal") if connectors else None
+            if not conn:
+                await message.answer("⚠️ Connector Zalo cá nhân chưa sẵn sàng hoặc chưa nạp.")
+                return
+
+            if arg == "disconnect":
+                res = await conn.call("disconnect", {})
+                await message.answer("✅ Đã ngắt kết nối và xoá phiên Zalo cá nhân khỏi Kho an toàn.")
+                return
+
+            if arg == "qr":
+                res = await conn.call("qr_login", {"step": "start"})
+                if not res.get("ok"):
+                    await message.answer(f"⚠️ Không thể khởi tạo đăng nhập QR Zalo: {res.get('error')}")
+                    return
+                qr_path = res.get("qr_path")
+                msg_out = (
+                    "📱 <b>ĐĂNG NHẬP ZALO CÁ NHÂN (QR CODE)</b>\n\n"
+                    "👉 Ní hãy dùng app Zalo trên điện thoại quét mã QR để đăng nhập.\n"
+                    f"ℹ️ <i>{res.get('limitations', '')}</i>"
+                )
+                if qr_path and os.path.exists(qr_path):
+                    from aiogram.types import FSInputFile
+                    await message.answer_photo(FSInputFile(qr_path), caption=msg_out, parse_mode="HTML")
+                else:
+                    await message.answer(msg_out, parse_mode="HTML")
+                return
+
+            # Mặc định: status
+            health = await conn.health_check()
+            if health.get("connected"):
+                user = health.get("user") or {}
+                uid = user.get("id") or "chưa rõ"
+                await message.answer(
+                    f"✅ <b>ZALO CÁ NHÂN ĐÃ KẾT NỐI</b>\n"
+                    f"• User ID: <code>{uid}</code>\n"
+                    f"• Trạng thái: Sẵn sàng gửi/nhận tin nhắn và tệp.\n\n"
+                    f"ℹ️ <i>{health.get('limitations', '')}</i>\n"
+                    f"👉 Để ngắt kết nối: <code>/zalo disconnect</code>",
+                    parse_mode="HTML"
+                )
+            else:
+                await message.answer(
+                    "⚠️ <b>ZALO CÁ NHÂN CHƯA KẾT NỐI</b>\n\n"
+                    f"• Chi tiết: {health.get('detail', 'Chưa đăng nhập')}\n"
+                    f"ℹ️ <i>{health.get('limitations', '')}</i>\n\n"
+                    "👉 Gõ <code>/zalo qr</code> để bắt đầu quét mã QR đăng nhập.",
+                    parse_mode="HTML"
+                )
+
+        @dp.message(F.text.startswith("/telethon") | F.text.startswith("/telegram_user"))
+        async def cmd_telethon(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            arg = _arg_text(message).strip().lower()
+            connectors = self.surfaces.get("connectors") if self.surfaces else None
+            conn = await connectors.get("telegram_personal") if connectors else None
+            if not conn:
+                await message.answer("⚠️ Connector Telegram cá nhân chưa sẵn sàng hoặc chưa nạp.")
+                return
+
+            if arg == "disconnect":
+                res = await conn.call("disconnect", {})
+                await message.answer("✅ Đã ngắt kết nối và xoá phiên Telegram cá nhân khỏi Kho an toàn.")
+                return
+
+            if arg == "qr":
+                res = await conn.call("qr_login", {"step": "start"})
+                if not res.get("ok"):
+                    await message.answer(f"⚠️ Không thể khởi tạo đăng nhập QR Telegram: {res.get('error')}")
+                    return
+                qr_url = res.get("qr_url", "")
+                await message.answer(
+                    "📱 <b>ĐĂNG NHẬP TELEGRAM CÁ NHÂN (MTProto)</b>\n\n"
+                    f"👉 Link đăng nhập thiết bị: <code>{qr_url}</code>\n\n"
+                    "✨ <b>Cách quét mã trên điện thoại:</b>\n"
+                    "1. Mở app Telegram -> Cài đặt (Settings)\n"
+                    "2. Thiết bị (Devices) -> Quét mã QR (Link Desktop Device)\n\n"
+                    f"⚠️ <i>{res.get('warning', '')}</i>\n"
+                    "👉 Sau khi quét xong, gõ <code>/telethon status</code> để kiểm tra.",
+                    parse_mode="HTML"
+                )
+                return
+
+            # Mặc định: status
+            health = await conn.health_check()
+            if health.get("connected"):
+                user = health.get("user") or {}
+                uname = f"@{user.get('username')}" if user.get('username') else str(user.get('id', ''))
+                await message.answer(
+                    f"✅ <b>TELEGRAM CÁ NHÂN ĐÃ KẾT NỐI</b>\n"
+                    f"• Tài khoản: <b>{uname}</b>\n"
+                    f"• Trạng thái: Sẵn sàng đọc/gửi tin nhắn qua kênh MTProto độc lập.\n\n"
+                    f"⚠️ <i>{health.get('warning', '')}</i>\n"
+                    f"👉 Để ngắt kết nối: <code>/telethon disconnect</code>",
+                    parse_mode="HTML"
+                )
+            else:
+                await message.answer(
+                    "⚠️ <b>TELEGRAM CÁ NHÂN CHƯA KẾT NỐI</b>\n\n"
+                    f"• Chi tiết: {health.get('detail', 'Chưa đăng nhập')}\n"
+                    f"⚠️ <i>{health.get('warning', '')}</i>\n\n"
+                    "👉 Gõ <code>/telethon qr</code> để lấy link/mã QR kết nối.",
+                    parse_mode="HTML"
+                )
 
         @dp.message(F.text.startswith("/forget"))
         async def cmd_forget(message: Message) -> None:
