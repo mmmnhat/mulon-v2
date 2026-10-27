@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~22:52 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): phiên mới nhận tiếp T-24.4 `DOING` (ƯU TIÊN 20, LUỒNG 1) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L1]
+
 Cập nhật 2026-10-27 ~22:47 bởi Muse (ký: Muse): chủ dự án xác nhận 5 luồng Antigravity hiện tại là **5 phiên MỚI tạo, toàn bộ phiên/luồng cũ đã bị tắt (kill)**. Hệ quả phối hợp: mọi claim `DOING` ghi trước thời điểm này là của các phiên cũ đã chết — luồng mới nào đọc tới mục đang `DOING` của đúng luồng mình thì **tự nhận tiếp** (ghi một dòng nhận tiếp ký `Antigravity` + nhãn luồng của mình ngay trong mục), làm tiếp từ trạng thái code trên `main`, không chờ chủ cũ, không làm lại từ đầu; phần việc dở chưa push của phiên cũ coi như không có. Mục T-24.3 đã ghi `DONE` (chờ Muse nghiệm thu) giữ nguyên. Ky: Muse
 
 Cập nhật 2026-10-27 ~22:44 bởi Muse (ký: Muse): **Chốt đội hình 5 phiên Antigravity** (lệnh chủ dự án ~22:43 "5 phiên thôi"): thêm LUỒNG 5 (phiên Antigravity thứ 5 trên Mac, worktree riêng) nhận sửa T-16 NEEDS-FIX -> T-28; T-16/T-28 rút khỏi hàng LUỒNG 4 (LUỒNG 4 còn T-14). Không mở thêm phiên nào nữa. Đã sửa: mục LUỒNG 5 mới + hàng LUỒNG 4 + tiêu đề T-16/T-28 + hàng Antigravity trong BẢNG KÝ TÊN, không động mục khác. Ky: Muse
@@ -1243,6 +1245,7 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 
 ### [T-24.4] Nhân đôi tin nhắn (thẻ/tin trả lời/xác nhận bị gửi 2 lần) — Giao: Antigravity — `DOING` (ƯU TIÊN 20) — LUỒNG 1
 - **Nhận việc — Antigravity (2026-10-27 ~22:42 +07, ký: Antigravity):** nhận T-24.4 DOING theo thứ tự LUỒNG 1 (sau T-24.3 đã DONE). Ky: Antigravity
+- **Nhận tiếp — Antigravity [L1] (2026-10-27 ~22:52 +07, phiên mới sau 22:47):** nhận tiếp T-24.4 DOING theo LUẬT ĐA LUỒNG, làm tiếp từ trạng thái code trên `main`. Ky: Antigravity [L1]
 - Bằng chứng 4 điểm trong 2 đợt test: (1) câu "2 cộng 2" ở group xuất hiện 2 lần giống hệt (một bản sửa cuối + một tin mới); (2) thông báo dừng việc vừa sửa vào tin cũ vừa gửi tin mới cùng nội dung; (3) xác nhận lưu Vault thành công gửi 2 tin y hệt cách nhau 1s (27/10 02:34); (4) thẻ yêu cầu bí mật Vault cho cùng một yêu cầu bị phát 2 lần (02:22 và 02:24, lệch nhẹ phần mô tả mục đích).
 - Nghiệm thu: mỗi lượt/kết quả chỉ có đúng một tin hoặc một thẻ; phát lại sau restart phải kiểm tra trạng thái đã phát trước khi gửi.
 
