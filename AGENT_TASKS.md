@@ -19,6 +19,7 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~16:09 bởi Antigravity (LÀN 1): T-23.4 đã `DONE` (version 1.7.16, commit `13ffaef`: thống nhất trạng thái Việc một nguồn sự thật duy nhất `_normalize_task_view` giữa danh sách `/api/state`, chi tiết `/api/task`, dòng thời gian và tóm tắt; việc chưa đủ bước ghi rõ `· Xong x/y bước`, việc lỗi luôn ghi `✕ Đã lỗi`; hợp nhất định dạng thời gian duy nhất `DD/MM/YYYY HH:MM` toàn app; chống cắt chữ giữa từ + tự phân biệt tiêu đề lịch trùng phần mở đầu; bổ sung màn con Chi tiết lịch trình `#screen-schedule-detail` kèm diễn giải cron tiếng Việt, lịch sử chạy xem thời lượng/đầu ra/lỗi, quyền, sửa và xoá có xác nhận; kiểm chứng render thật Chromium 390×844), nhận tiếp T-23.5 `DOING` (ƯU TIÊN 15, LÀN 1) theo LUẬT 2 LÀN.
 Cập nhật 2026-10-27 ~15:17 bởi Antigravity (LÀN 1): T-23.3 đã `DONE` (version 1.7.15, commit `ad072a6`: tách tab Hồ sơ thành 4 màn con độc lập Hồ sơ agent, Bộ nhớ dài hạn, Kỹ năng, Thư viện tài liệu; Việt hoá mô tả kỹ năng + sửa YAML multiline + gom nhóm gập mặc định; xem trước tài liệu & chi tiết fact + thùng rác riêng; kiểm chứng render thật Chromium 390×844), nhận tiếp T-23.4 `DOING` (ƯU TIÊN 14, LÀN 1) theo LUẬT 2 LÀN.
 Cập nhật 2026-10-27 ~14:50 bởi Muse (autowatch): head `98925b7` — 1 commit mới từ sau watermark `1533991`, phía Mac (author `mmmnhat@Mac-mini-cua-mmmnhat.local`): `98925b7` code T-23.2 (v1.7.14). **VERIFIED T-23.2**: xem nghiệm thu cuối mục T-23.2. Claim T-23.3 `DOING` (LÀN 1, ƯU TIÊN 13) HỢP LỆ theo LUẬT 2 LÀN (T-23.2 đã VERIFIED, đúng thứ tự làn). T-22.3 vẫn `DOING` LÀN 2, commit này không đụng tới — giữ nguyên.
 Cập nhật 2026-10-27 ~14:35 bởi Antigravity (LÀN 1): nhận T-23.3 `DOING` (ƯU TIÊN 13, LÀN 1) theo LUẬT 2 LÀN; bổ sung mã commit `98925b7` vào kết quả T-23.2 `DONE`.
@@ -842,7 +843,7 @@ nhưng màn con chỉ là khối văn bản.
   6. *Kiểm thử & Render thật Chromium:*
      - Viết mới `tests/test_v17_miniapp_profile_ia.py` (4 test bao phủ YAML parser, Việt hoá mô tả, API facts/library preview/delete và Playwright Chromium E2E trên 4 màn con) + cập nhật `tests/test_v17_miniapp_navigation.py`. Đã chụp và kiểm tra trực quan 6 ảnh render thật 390×844 bằng trình duyệt. Chờ Muse nghiệm thu.
 
-### [T-23.4] Thống nhất trạng thái việc + chi tiết Lịch — Giao: Antigravity — `DOING` (ƯU TIÊN 14) — LÀN 1
+### [T-23.4] Thống nhất trạng thái việc + chi tiết Lịch — Giao: Antigravity — `DONE` (ƯU TIÊN 14) — LÀN 1
 QA Q-03 + Q-10 (Lịch): việc ở danh sách "✕ Đã lỗi"
 nhưng chi tiết "Hoàn tất/Đạt yêu cầu"; "5/6 bước" vẫn
 "✓ Đã xong"; giờ 2 định dạng; hàng lịch không có màn
@@ -859,8 +860,22 @@ chi tiết như Heartbeat; cron nguyên văn khó hiểu.
   ("mỗi 5 phút"); tiêu đề không cắt giữa từ.
 - Nghiệm thu: Muse đối chiếu 3 việc thật giữa danh
   sách/chi tiết + mở chi tiết 2 lịch; render thật.
+- **Kết quả thực hiện (Antigravity số 2 — Làn 1, 27/10/2026, commit `13ffaef`, version `1.7.16`):**
+  1. *Một nguồn sự thật duy nhất cho trạng thái Việc (`mulon/webapp_server.py`, `mulon/memory.py`, `mulon/webapp/index.html`):*
+     - Bổ sung `_normalize_task_view` trong `mulon/webapp_server.py` dùng chung cho cả `_handle_state` (`/api/state`) và `_handle_task` (`/api/task`); `list_tasks` trong `mulon/memory.py` batch-load `steps` + `result` trong 1 truy vấn SQL để hai bề mặt dùng chung đúng 1 bộ dữ liệu.
+     - Với việc `failed`: tự động đóng mọi bước con đang treo (`doing`/`pending`) sang `failed` (trong cả `finish_task`, `reconcile_orphan_tasks` và `_normalize_task_view`), đổi bước `"Kiểm chứng: Đạt yêu cầu"` (từ lượt thử trước) thành `"Kiểm chứng: Không đạt (tác vụ lỗi)"`, đặt bước cuối timeline là `"✕ Đã lỗi"`, hiển thị badge `#task-detail-status` `"✕ Đã lỗi"`, và ghi rõ `"**Trạng thái: ✕ Đã lỗi (x/y bước)** — Chi tiết lỗi / Chẩn đoán: ..."` ở đầu `#task-summary` (kể cả khi `result` nháp khác rỗng).
+     - Với việc đã kết thúc nhưng chưa đủ bước (`steps_done < steps_total`, ví dụ `5/6 bước`, `17/19 bước`): chuẩn hoá thành trạng thái `partial` với nhãn `"· Xong x/y bước"` và bước cuối `"· Hoàn tất một phần (x/y bước)"`, tuyệt đối không ghi `"✓ Đã xong"`.
+  2. *Một định dạng thời gian duy nhất toàn app & chống cắt chữ giữa từ (`mulon/webapp/index.html`, `mulon/webapp_server.py`):*
+     - Hợp nhất `todayLabel` và `hhmm` qua `formatTimeUnified(iso)` trả định dạng duy nhất `DD/MM/YYYY HH:MM` xuyên suốt mọi màn hình (đồng bộ cả `get_heartbeat_history` trong `mulon/memory.py`).
+     - Chuyển `.r-title` và `.r-sub` sang hiển thị tối đa 2 dòng theo ranh giới từ (`-webkit-line-clamp: 2`, `overflow-wrap: break-word`) kết hợp `_truncate_words` / `truncateWords` và `_disambiguate_schedule_items` (tự nối phần đuôi phân biệt cho các lịch trùng phần mở đầu như 3 lịch `"Quét TẤT CẢ…"`).
+  3. *Màn con Chi tiết lịch trình `#screen-schedule-detail` & diễn giải Cron tiếng Việt (`mulon/webapp_server.py`, `mulon/webapp/index.html`):*
+     - Bổ sung `_describe_cron_vi` và `_format_cron_display` hiển thị lời thường tiếng Việt ngay cạnh biểu thức cron (`"Hằng ngày lúc 08:00 (0 8 * * *)"`, `"Mỗi 5 phút (*/5 * * * *)"`).
+     - Bổ sung API `GET /api/schedules/{id}`, `POST /api/schedules/{id}/update`, `POST /api/schedules/{id}/delete` và `Memory.delete_schedule`.
+     - Mọi hàng lịch trong `#upcoming-list` và `#schedule-list` đều mở màn con `#screen-schedule-detail` có nút `Quay lại` chuẩn, công tắc bật/tắt, bảng thông tin + toàn văn lời nhắc, **Lịch sử chạy** (bấm mở từng lượt để xem Thời điểm, Thời lượng, Trạng thái, Đầu ra, Lỗi), **Quyền của lịch trình**, biểu mẫu **Sửa lịch** (kèm xem trước diễn giải cron tiếng Việt) và nút **Xoá lịch** có hộp xác nhận `#sched-delete-confirm-box`.
+  4. *Kiểm thử hồi quy & Render thật Chromium:*
+     - Viết mới `tests/test_v17_miniapp_tasks_schedule.py` (4 test bao phủ `_normalize_task_view`, diễn giải cron tiếng Việt, phân biệt lịch trùng đầu, API chi tiết/sửa/xoá lịch và Playwright Chromium E2E 390×844 đối chiếu 3 việc + 2 lịch hẹn) + cập nhật `tests/test_v17_miniapp_navigation.py` (10/10 PASS). Đã chụp và kiểm tra trực quan 5 ảnh render thật 390×844 bằng trình duyệt. Chờ Muse nghiệm thu.
 
-### [T-23.5] Chuẩn hoá màu/nhãn + chợ MCP + dọn dữ liệu thử — Giao: Antigravity — `TODO` (ƯU TIÊN 15) — LÀN 1
+### [T-23.5] Chuẩn hoá màu/nhãn + chợ MCP + dọn dữ liệu thử — Giao: Antigravity — `DOING` (ƯU TIÊN 15) — LÀN 1
 QA Q-06 + Q-08 + Q-10 (Chợ/Feed): màu trạng thái xanh
 lá/đỏ/vàng khắp nơi phá 60/30/10; lịch sử phê duyệt
 toàn bản ghi thử; nhãn trùng/kỹ thuật; chợ 2.101 trang
