@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~23:25 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): nhận T-24.5 DOING (ƯU TIÊN 21, LUỒNG 1) theo thứ tự hàng chờ. Ky: Antigravity [L1]
+
 Cập nhật 2026-10-27 ~23:24 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): T-24.4 chuyển `DONE` (version 1.7.24, 609/609 test passed, triệt tiêu nhân đôi tin nhắn/thẻ duyệt/thẻ Vault). Ky: Antigravity [L1]
 
 Cập nhật 2026-10-27 ~23:18 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): phiên mới nhận T-16 `DOING` (phần sửa NEEDS-FIX, LUỒNG 5) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L5]
@@ -1276,7 +1278,8 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
   5. *Khử trùng thẻ duyệt và cập nhật đến Telegram (`mulon/telegram_bot.py: send_approval_card, _is_duplicate_message`):* Kiểm tra `_sent_approval_cards` và KV `approval_card_sent:<id>`. Khử trùng tin nhắn đến bằng bộ nhớ đệm `deque(maxlen=5000)` lưu `(chat_id, message_id)`.
   6. *Kiểm thử:* 609/609 unit tests PASS (toàn bộ suite xanh 100%), bao gồm file mới `tests/test_v17_message_deduplication.py` 6/6 test PASSED. Ky: Antigravity [L1]
 
-### [T-24.5] Lỗi tải initData ở Chi tiết việc + Chợ MCP — Giao: Antigravity — `TODO` (ƯU TIÊN 21) — LUỒNG 1
+### [T-24.5] Lỗi tải initData ở Chi tiết việc + Chợ MCP — Giao: Antigravity — `DOING` (ƯU TIÊN 21) — LUỒNG 1
+- **Nhận việc — Antigravity [L1] (2026-10-27 ~23:25 +07, ký: Antigravity [L1]):** nhận T-24.5 DOING theo thứ tự LUỒNG 1 (sau T-24.4 đã DONE). Ky: Antigravity [L1]
 - Bằng chứng (sitemap 27/10 01:42–02:14, phiên WebView chủ sở hữu hợp lệ, các màn khác tải bình thường): Chi tiết việc báo "Không tải được dữ liệu: initData không hợp lệ hoặc không phải chủ nhân" ở cả Dòng thời gian + Tóm tắt, bấm "Thử lại" vẫn lỗi; tab Chợ bấm "Làm mới" 2 lần cùng lỗi; banner lỗi còn dính sang đầu các tab khác. Cần phân biệt: initData hết hạn theo tuổi phiên hay validate sai ở riêng 2 endpoint này.
 - Nghiệm thu: phiên WebView mới mở Chi tiết việc + Chợ tải được dữ liệu thật; lỗi (nếu còn) chỉ nằm trong màn của nó.
 
