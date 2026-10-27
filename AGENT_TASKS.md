@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~22:58 bởi Antigravity (LUỒNG 2, ký: Antigravity [L2]): phiên mới nhận tiếp T-27 `DOING` (ƯU TIÊN 26, LUỒNG 2) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L2]
+
 Cập nhật 2026-10-27 ~22:52 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): phiên mới nhận tiếp T-24.4 `DOING` (ƯU TIÊN 20, LUỒNG 1) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L1]
 
 Cập nhật 2026-10-27 ~22:47 bởi Muse (ký: Muse): chủ dự án xác nhận 5 luồng Antigravity hiện tại là **5 phiên MỚI tạo, toàn bộ phiên/luồng cũ đã bị tắt (kill)**. Hệ quả phối hợp: mọi claim `DOING` ghi trước thời điểm này là của các phiên cũ đã chết — luồng mới nào đọc tới mục đang `DOING` của đúng luồng mình thì **tự nhận tiếp** (ghi một dòng nhận tiếp ký `Antigravity` + nhãn luồng của mình ngay trong mục), làm tiếp từ trạng thái code trên `main`, không chờ chủ cũ, không làm lại từ đầu; phần việc dở chưa push của phiên cũ coi như không có. Mục T-24.3 đã ghi `DONE` (chờ Muse nghiệm thu) giữ nguyên. Ky: Muse
@@ -1282,6 +1284,7 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Yêu cầu tóm tắt (chi tiết + nghiệm thu ở tài liệu audit mục 1.4): một danh sách lệnh khai duy nhất sinh ra menu + /help + tài liệu, có test tĩnh quét handler đối chiếu; thêm /help theo nhóm; gộp alias ẩn (saptol/lich -> upcoming, stop -> cancel, dongchat -> chatphu_dong); lệnh lạ trả lời ngay không vào vòng agent; lệnh-theo-id rút khỏi bề mặt công bố (giữ làm đường nội bộ cho nút bấm); lệnh nâng cao/phá huỷ (restart, forget, export_memory, google_auth, claim, setup) gom nhóm Nâng cao trong /help kèm cảnh báo; the_duyet chỉ bật khi có cờ dev, mặc định tắt; /memory trả tóm tắt có cấu trúc thay vì dump thô.
 
 ### [T-27] Giao diện Mini App đạt chuẩn chuyên nghiệp 100% — Giao: Antigravity — `DOING` (ƯU TIÊN 26) — LUỒNG 2
+- **Nhận tiếp — Antigravity [L2] (2026-10-27 ~22:58 +07, phiên mới sau 22:47):** nhận tiếp T-27 DOING theo LUẬT ĐA LUỒNG, làm tiếp từ trạng thái code trên `main`. Ky: Antigravity [L2]
 - Nguồn: `docs/ui-professional-audit-2026-10-27.md` mục 2 (đối chiếu sitemap đo thật + cây IA `docs/miniapp-ia-redesign-2026-10-27.md`; liên quan T-12, T-23.1..T-23.6, T-24.5, T-25 — đợt này là lớp HOÀN THIỆN CHUYÊN NGHIỆP trên cấu trúc IA đó, không thay thế chúng).
 - Chuẩn xuyên suốt phải đạt (chi tiết mục 2.1): native Telegram (BackButton mọi màn con, MainButton cho hành động chính, haptic, themeParams + một màu nhấn); design system đo được (lưới 8pt, padding 16, hàng ≥56/vùng chạm ≥44, tối đa 4 cỡ chữ/2 weight, bo góc thống nhất); mọi màn đủ 4 trạng thái (skeleton/rỗng/lỗi-tại-chỗ/có dữ liệu) và mở màn con < 1s cảm nhận; nhãn = đích đến; xác nhận cho thao tác phá huỷ.
 - Thiếu/thừa từng màn: liệt kê đầy đủ ở mục 2.2 (Việc, Phê duyệt — xoá dữ liệu thử + thêm timestamp lịch sử, Lịch, Hồ sơ — bỏ ~400 nút lộ thiên + hết trùng bộ nhớ, Cài đặt — bỏ danh sách tool phẳng + chi tiết connector, Kho, Chợ — tìm kiếm/danh mục/phân trang, Feed — hết hardcode nhãn giờ).
