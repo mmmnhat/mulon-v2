@@ -197,18 +197,20 @@ def build_default_connectors(cfg, google_auth=None, vault_store=None) -> Connect
             google_auth,
             default_tz=getattr(cfg, "default_timezone", "UTC")))
 
-    # 1.7.8 (T-22.1 / T-22.2 / T-22.3): Connector tài khoản cá nhân (Zalo, Telegram MTProto, Facebook, Instagram DM, Threads DM)
+    # 1.7.8 (T-22.1 / T-22.2 / T-22.3 / T-30): Connector tài khoản cá nhân (Zalo, Telegram MTProto, Facebook, Instagram DM, Threads DM, Threads Content)
     from .personal_connectors import (
         FacebookPersonalConnector,
         InstagramMessagesConnector,
         TelegramPersonalConnector,
         ThreadsMessagesConnector,
+        ThreadsPersonalConnector,
         ZaloPersonalConnector,
     )
     registry.register(ZaloPersonalConnector(cfg=cfg, vault_store=vault_store))
     registry.register(TelegramPersonalConnector(cfg=cfg, vault_store=vault_store))
     registry.register(FacebookPersonalConnector(cfg=cfg, vault_store=vault_store))
     registry.register(InstagramMessagesConnector(cfg=cfg, vault_store=vault_store))
+    registry.register(ThreadsPersonalConnector(cfg=cfg, vault_store=vault_store))
     # Spike T-22.3: bridge gửi DM Threads thật qua web. Dựng lỗi
     # thì degrade về None (connector sẽ báo chưa có đường gửi thật
     # thay vì sập hệ thống) — Playwright/profile chỉ kiểm tra lúc

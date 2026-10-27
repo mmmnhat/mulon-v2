@@ -79,13 +79,47 @@ MuLon bổ sung hai connector tích hợp sẵn (built-in) dành cho tài khoả
 - Phiên cookie được lưu an toàn qua Vault (`facebook_personal:session`).
 
 ### Các hành động hỗ trợ
-- `configure` / `connect`: Nhập và kiểm tra chuỗi cookie phiên.
+- `configure` / `connect`: Nhập và kiểm tra chuỗi cookie phiên (`c_user`, `xs`).
 - `check_session`: Kiểm tra tính hợp lệ của cookie.
-- `get_profile`: Đọc thông tin trang cá nhân (`id`, `name`, `profile_url`, `bio`).
-- `get_friends`: Đọc danh sách bạn bè gần đây.
-- `read_feed`: Đọc các bài viết gần nhất trên Bảng tin (bọc bảo vệ bằng `frame_external`).
-- `read_messages` / `get_messages`: Đọc tin nhắn Messenger (bọc bảo vệ bằng `frame_external`).
-- `send_message`: Gửi tin nhắn Messenger (bắt buộc phân quyền `ask` qua thẻ phê duyệt).
+- **Danh tính & Quan hệ**:
+  - `get_profile` / `get_me`: Đọc thông tin trang cá nhân (`id`, `name`, `profile_url`, `bio`).
+  - `get_friends` / `list_friends`: Đọc danh sách bạn bè.
+  - `view_user_profile`: Xem trang cá nhân / timeline người khác theo `user_id` (nội dung bọc qua `frame_external`).
+- **Bảng tin (Feed)**:
+  - `read_feed` / `read_news_feed`: Đọc các bài viết gần nhất trên Bảng tin chính (bọc `frame_external`).
+  - `read_friends_feed`: Đọc các bài viết từ bạn bè (bọc `frame_external`).
+- **Nhóm (Groups)**:
+  - `list_groups`: Liệt kê **TOÀN BỘ nhóm tài khoản đang tham gia** (kể cả nhóm kín/ẩn bí mật).
+  - `get_group_detail`: Xem chi tiết nhóm (tên, luật, số thành viên, mức riêng tư public/closed/secret).
+  - `read_group_posts`: Đọc bài viết trong nhóm (bọc `frame_external`).
+  - `search_groups`: Tìm kiếm nhóm theo từ khóa.
+- **Bài viết & Tương tác**:
+  - `read_post`: Đọc chi tiết bài viết (bọc `frame_external`).
+  - `read_comments`: Đọc bình luận bài viết (bọc `frame_external`).
+  - `read_reactions`: Đọc reaction (like, love, haha, wow, sad, angry).
+  - `write_comment`: Viết bình luận lên bài viết (phân quyền `ask` duyệt từng lần; yêu cầu transport thật, cấm stub ok).
+  - `reply_comment`: Trả lời bình luận (phân quyền `ask` duyệt từng lần; yêu cầu transport thật).
+  - `create_post`: Đăng bài viết lên trang cá nhân (phân quyền `ask` duyệt từng lần; yêu cầu transport thật).
+- **Fanpage đang quản lý**:
+  - `list_pages`: Liệt kê các Fanpage người dùng đang quản lý.
+  - `get_page_insights`: Xem số liệu thống kê, reach, tương tác của Page.
+  - `create_page_draft`: Tạo bài viết nháp trên Page (phân quyền `ask`).
+  - `create_page_post`: Đăng bài trực tiếp lên Page (phân quyền `ask`).
+- **Sự kiện (Events)**:
+  - `search_events`: Tìm kiếm sự kiện theo từ khóa.
+  - `get_event_detail`: Xem chi tiết sự kiện (thời gian, địa điểm, mô tả bọc `frame_external`).
+- **Story**:
+  - `read_stories`: Đọc tin Story đang hoạt động (caption bọc `frame_external`).
+- **Đã lưu (Saved)**:
+  - `list_saved`: Xem danh sách bài viết / liên kết đã lưu.
+  - `save_item`: Lưu mục vào Saved (phân quyền `ask`).
+  - `unsave_item`: Bỏ lưu mục (phân quyền `ask`).
+- **Marketplace**:
+  - `search_marketplace`: Tìm kiếm sản phẩm Marketplace theo từ khóa / danh mục (bọc `frame_external`).
+  - `get_my_marketplace_listings`: Xem danh sách tin đăng Marketplace của tôi.
+- **Messenger**:
+  - `read_messages` / `get_messages`: Đọc tin nhắn Messenger (bọc `frame_external`).
+  - `send_message`: Gửi tin nhắn Messenger (phân quyền `ask`).
 - `disconnect`: Xoá sạch session cookies, thông tin cache và cờ checkpoint khỏi Vault.
 
 ### Cơ chế Checkpoint Guard (Tự ngắt bảo vệ)
@@ -142,6 +176,28 @@ MuLon bổ sung hai connector tích hợp sẵn (built-in) dành cho tài khoả
 
 ---
 
+## 6.2. Chi tiết Connector Threads cá nhân — Nội dung & Bài viết (`threads_personal`) - T-30
+
+> Khác biệt với `threads_messages` (chỉ chuyên DM), `threads_personal` phụ trách toàn bộ bề mặt nội dung, bài đăng, bảng tin và tương tác Threads.
+
+### Nguyên tắc kết nối ưu tiên API chính thức
+1. **Ưu tiên API Threads chính thức (Graph API)**:
+   - Sử dụng Graph API User Token lưu trong Vault (`threads_personal:token`).
+   - Hỗ trợ các hành động: `get_profile`, `list_posts`, `get_post`, `get_post_replies`, `get_insights`, `create_post`, `create_reply`.
+2. **Fallback phiên Web Cookie (`threads_personal:session`) cho endpoint Web-Only**:
+   - Meta Graph API chưa hỗ trợ một số endpoint người dùng cá nhân (Feed, Xu hướng, Tìm kiếm, Gợi ý feed).
+   - Connector tự động fallback sang phiên Web Cookie cho:
+     * `read_feed`: Đọc Bảng tin Threads cá nhân.
+     * `get_trends`: Xem các chủ đề xu hướng.
+     * `search_posts`: Tìm kiếm bài đăng theo từ khóa.
+     * `set_feed_suggestions`: Điều chỉnh gợi ý chủ đề Bảng tin (phân quyền `ask`).
+3. **Kỷ luật & Bảo mật (T-30)**:
+   - Đọc = allow, Ghi (`create_post`, `create_reply`, `set_feed_suggestions`) = ask duyệt từng lần.
+   - Toàn bộ nội dung bên ngoài bọc qua `frame_external`.
+   - CẤM trả `ok: True` stub khi không có transport thực tế — trả `unsupported: True` rõ ràng.
+
+---
+
 ## 7. Bề mặt Sử dụng
 
 ### 1. Telegram Chat Bot
@@ -153,20 +209,23 @@ MuLon bổ sung hai connector tích hợp sẵn (built-in) dành cho tài khoả
 - `/telethon disconnect`: Ngắt kết nối Telegram cá nhân.
 - `/facebook status`: Kiểm tra trạng thái kết nối Facebook, phát hiện checkpoint và xem cảnh báo rủi ro.
 - `/facebook connect <cookies>`: Kết nối Facebook cá nhân bằng chuỗi cookie web.
+- `/facebook groups`: Liệt kê danh sách nhóm Facebook đã tham gia (kể cả kín/ẩn).
+- `/facebook feed`: Đọc tóm tắt Bảng tin Facebook gần nhất.
 - `/facebook disconnect`: Đăng xuất và ngắt kết nối Facebook cá nhân.
 - `/instagram status`: Kiểm tra trạng thái kết nối tin nhắn Instagram.
 - `/instagram connect <cookies/session>`: Kết nối tin nhắn Instagram bằng chuỗi cookie/sessionid.
 - `/instagram inbox [pending|spam]`: Xem tóm tắt hộp thư tin nhắn Instagram.
 - `/instagram disconnect`: Đăng xuất và ngắt kết nối tin nhắn Instagram.
-- `/threads status`: Kiểm tra trạng thái tin nhắn Threads và xem thông tin giới hạn cứng.
-- `/threads connect <cookies/session>`: Kết nối tin nhắn Threads.
+- `/threads status`: Kiểm tra trạng thái tin nhắn và nội dung Threads.
+- `/threads connect <cookies/session>`: Kết nối phiên Threads.
 - `/threads inbox [pending]`: Xem tóm tắt hộp thư tin nhắn Threads.
-- `/threads disconnect`: Đăng xuất và ngắt kết nối tin nhắn Threads.
+- `/threads posts`: Xem các bài đăng Threads gần nhất.
+- `/threads disconnect`: Đăng xuất và ngắt kết nối Threads.
 
 ### 2. Telegram Mini App
 - Truy cập tab **Cài đặt** -> **Công cụ kết nối**.
-- Các thẻ `zalo_personal`, `telegram_personal`, `facebook_personal`, `instagram_messages`, và `threads_messages` hiển thị trạng thái kết nối trực quan.
-- Thẻ `instagram_messages` và `threads_messages` hỗ trợ nút **Nhập Phiên** và nút **Ngắt**. Thẻ Threads ghi rõ giới hạn cứng.
+- Các thẻ `zalo_personal`, `telegram_personal`, `facebook_personal`, `instagram_messages`, `threads_messages`, và `threads_personal` hiển thị trạng thái kết nối trực quan.
+- Thẻ `threads_personal` hiển thị chế độ hoạt động (Graph API, Web Session hoặc Hybrid) và trạng thái phân quyền.
 
 ---
 

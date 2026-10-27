@@ -3604,6 +3604,42 @@ class TelegramSurface:
                 )
                 return
 
+            if subcmd in ("groups", "list_groups"):
+                res = await conn.call("list_groups", {"all": True})
+                if not res.get("ok"):
+                    await message.answer(f"⚠️ Không đọc được danh sách nhóm: {res.get('error')}")
+                    return
+                groups = res.get("groups") or []
+                if not groups:
+                    await message.answer("👥 Chưa có nhóm Facebook nào trong danh sách.")
+                    return
+                lines = [f"👥 <b>DANH SÁCH NHÓM FACEBOOK ĐÃ THAM GIA ({len(groups)} nhóm):</b>\n"]
+                for g in groups[:10]:
+                    gid = g.get("id", "")
+                    gname = g.get("name", gid)
+                    privacy = g.get("privacy", "closed")
+                    lines.append(f"• <b>{gname}</b> (<code>{gid}</code>) - <i>{privacy}</i>")
+                await message.answer("\n".join(lines), parse_mode="HTML")
+                return
+
+            if subcmd in ("feed", "read_feed"):
+                res = await conn.call("read_feed", {})
+                if not res.get("ok"):
+                    await message.answer(f"⚠️ Không đọc được Bảng tin: {res.get('error')}")
+                    return
+                posts = res.get("posts") or []
+                if not posts:
+                    await message.answer("📰 Bảng tin Facebook hiện đang trống.")
+                    return
+                lines = [f"📰 <b>BẢNG TIN FACEBOOK ({len(posts)} bài viết):</b>\n"]
+                for p in posts[:5]:
+                    author = p.get("author", "Facebook User")
+                    content = p.get("raw_text") or p.get("content") or ""
+                    snippet = (content[:80] + "...") if len(content) > 80 else content
+                    lines.append(f"• <b>{author}</b>: {html.escape(snippet)}")
+                await message.answer("\n".join(lines), parse_mode="HTML")
+                return
+
             # Mặc định: status
             health = await conn.health_check()
             warning_txt = health.get("warning", "")
@@ -3795,6 +3831,28 @@ class TelegramSurface:
                     title = t.get("title") or t.get("participant") or tid
                     snippet = t.get("snippet", "")
                     lines.append(f"• <b>{title}</b> (<code>{tid}</code>): {snippet}")
+                await message.answer("\n".join(lines), parse_mode="HTML")
+                return
+
+            if subcmd in ("posts", "list_posts"):
+                p_conn = await connectors.get("threads_personal") if connectors else None
+                if not p_conn:
+                    await message.answer("⚠️ Connector Threads cá nhân (nội dung) chưa sẵn sàng.")
+                    return
+                res = await p_conn.call("list_posts", {})
+                if not res.get("ok"):
+                    await message.answer(f"⚠️ Không đọc được bài viết: {res.get('error')}")
+                    return
+                posts = res.get("posts") or []
+                if not posts:
+                    await message.answer("🧵 Chưa có bài viết Threads nào.")
+                    return
+                lines = [f"🧵 <b>BÀI ĐĂNG THREADS ({len(posts)} bài):</b>\n"]
+                for p in posts[:5]:
+                    pid = p.get("id", "")
+                    content = p.get("raw_text") or p.get("text") or ""
+                    snippet = (content[:80] + "...") if len(content) > 80 else content
+                    lines.append(f"• (<code>{pid}</code>): {html.escape(snippet)}")
                 await message.answer("\n".join(lines), parse_mode="HTML")
                 return
 

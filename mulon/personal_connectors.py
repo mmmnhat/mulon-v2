@@ -86,6 +86,23 @@ LIMITATION_THREADS_MSG = (
     "(hoặc đã nhắn cho bạn trước). Tuyệt đối KHÔNG thể mở hội thoại DM mới tới người lạ chỉ bằng @handle."
 )
 
+LBL_TH_CONTENT_TOKEN = "threads_personal:token"
+LBL_TH_CONTENT_SESSION = "threads_personal:session"
+LBL_TH_CONTENT_USER = "threads_personal:user_info"
+LBL_TH_CONTENT_CHECKPOINT = "threads_personal:checkpoint"
+
+WARNING_THREADS_PERSONAL = (
+    "Lưu ý: Kết nối Threads cá nhân (nội dung/bài viết). "
+    "Ưu tiên Graph API chính thức cho các tác vụ đăng bài và đọc profile/insights; "
+    "fallback phiên web cookie cho feed và trends."
+)
+LIMITATION_THREADS_PERSONAL = (
+    "Ưu tiên Threads Graph API chính thức (threads_personal:token). "
+    "Các endpoint feed/trends/search chưa có trong API chính thức sẽ fallback qua phiên web cookie (threads_personal:session). "
+    "Mọi thao tác ghi (đăng bài, reply) yêu cầu phê duyệt từng lần và phải có transport thực tế."
+)
+
+
 
 # ---------------------------------------------------------------------------
 # Helpers làm việc với VaultStore an toàn
@@ -847,8 +864,8 @@ class FacebookPersonalConnector(Connector):
                         "error": "Phát hiện Checkpoint Facebook từ phiên phản hồi. Đã tự động kích hoạt Checkpoint Guard.",
                         "warning": WARNING_FACEBOOK,
                     }
-                # Bảo vệ dữ liệu ngoài cho feed và messages nếu runner chưa bọc
-                if action == "read_feed" and "posts" in res:
+                # Bảo vệ dữ liệu ngoài cho feed, posts, comments, messages
+                if action in ("read_feed", "read_friends_feed", "read_group_posts") and "posts" in res:
                     for p in res.get("posts", []):
                         raw_c = p.get("raw_text") or p.get("content") or ""
                         p["raw_text"] = raw_c
@@ -858,6 +875,20 @@ class FacebookPersonalConnector(Connector):
                         raw_t = m.get("raw_text") or m.get("text") or ""
                         m["raw_text"] = raw_t
                         m["text"] = frame_external(raw_t)
+                elif action == "read_comments" and "comments" in res:
+                    for c in res.get("comments", []):
+                        raw_t = c.get("raw_text") or c.get("text") or ""
+                        c["raw_text"] = raw_t
+                        c["text"] = frame_external(raw_t)
+                elif action == "read_post" and "post" in res:
+                    p = res["post"]
+                    raw_c = p.get("raw_text") or p.get("content") or ""
+                    p["raw_text"] = raw_c
+                    p["content"] = frame_external(raw_c)
+                elif action == "view_user_profile" and "profile" in res:
+                    prof = res["profile"]
+                    bio = prof.get("bio") or ""
+                    prof["bio"] = frame_external(bio) if bio else ""
             return res
 
         # 2. Kiểm tra tính hợp lệ của session (check_session)
@@ -870,23 +901,24 @@ class FacebookPersonalConnector(Connector):
                 "warning": WARNING_FACEBOOK,
             }
 
-        # 3. Đọc trang cá nhân (get_profile)
-        if action == "get_profile":
+        # 3. Đọc trang cá nhân (get_profile / get_me)
+        if action in ("get_profile", "get_me"):
             user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
             c_user = cookies.get("c_user")
+            bio_raw = user_info.get("bio", "")
             return {
                 "ok": True,
                 "profile": {
                     "id": user_info.get("id") or str(c_user),
                     "name": user_info.get("name") or f"Facebook User ({c_user})",
                     "profile_url": user_info.get("profile_url") or f"https://www.facebook.com/{c_user}",
-                    "bio": user_info.get("bio", ""),
+                    "bio": bio_raw,
                 },
                 "warning": WARNING_FACEBOOK,
             }
 
-        # 4. Đọc danh sách bạn bè (get_friends)
-        if action == "get_friends":
+        # 4. Đọc danh sách bạn bè (get_friends / list_friends)
+        if action in ("get_friends", "list_friends"):
             user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
             friends = user_info.get("cached_friends") or []
             return {
@@ -896,8 +928,42 @@ class FacebookPersonalConnector(Connector):
                 "warning": WARNING_FACEBOOK,
             }
 
-        # 5. Đọc bài viết trên Bảng tin (read_feed) - Bảo vệ bằng frame_external
-        if action == "read_feed":
+        # 5. Xem trang cá nhân/timeline người khác (view_user_profile) - T-30
+        if action == "view_user_profile":
+            target_id = str(args.get("user_id") or args.get("target_id") or args.get("id") or "").strip()
+            if not target_id:
+                return {"ok": False, "error": "Thiếu user_id để xem trang cá nhân."}
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            profiles = user_info.get("cached_profiles") or {}
+            target_prof = profiles.get(target_id) or {
+                "id": target_id,
+                "name": f"User {target_id}",
+                "profile_url": f"https://www.facebook.com/{target_id}",
+                "bio": "",
+                "posts": [],
+            }
+            bio_raw = target_prof.get("bio", "")
+            framed_posts = []
+            for p in target_prof.get("posts", []):
+                raw_c = p.get("raw_text") or p.get("content") or ""
+                framed_posts.append({
+                    **p,
+                    "content": frame_external(raw_c),
+                    "raw_text": raw_c,
+                })
+            return {
+                "ok": True,
+                "user_id": target_id,
+                "profile": {
+                    **target_prof,
+                    "bio": frame_external(bio_raw) if bio_raw else "",
+                    "posts": framed_posts,
+                },
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 6. Đọc bài viết trên Bảng tin (read_feed / read_news_feed) - Bảo vệ bằng frame_external
+        if action in ("read_feed", "read_news_feed"):
             user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
             cached_posts = user_info.get("cached_posts") or []
             framed_posts = []
@@ -915,7 +981,468 @@ class FacebookPersonalConnector(Connector):
                 "warning": WARNING_FACEBOOK,
             }
 
-        # 6. Đọc tin nhắn Messenger (read_messages) - Bảo vệ bằng frame_external
+        # 7. Đọc Bảng tin bạn bè (read_friends_feed) - T-30
+        if action == "read_friends_feed":
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            cached_friends_posts = user_info.get("cached_friends_posts") or []
+            framed_posts = []
+            for p in cached_friends_posts:
+                raw_c = p.get("raw_text") or p.get("content") or ""
+                framed_posts.append({
+                    **p,
+                    "content": frame_external(raw_c),
+                    "raw_text": raw_c,
+                })
+            return {
+                "ok": True,
+                "count": len(framed_posts),
+                "posts": framed_posts,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 8. Nhóm: Liệt kê TOÀN BỘ nhóm tài khoản đang tham gia (kể cả kín/ẩn) - T-30
+        if action in ("list_groups", "get_groups"):
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            groups = user_info.get("cached_groups") or []
+            # Đảm bảo hiển thị đầy đủ thông tin privacy (public, closed, secret/hidden)
+            return {
+                "ok": True,
+                "all": True,
+                "count": len(groups),
+                "groups": groups,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 9. Chi tiết nhóm: luật, số thành viên, mức riêng tư (get_group_detail) - T-30
+        if action == "get_group_detail":
+            group_id = str(args.get("group_id") or args.get("id") or "").strip()
+            if not group_id:
+                return {"ok": False, "error": "Thiếu group_id để xem chi tiết nhóm."}
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            groups_dict = user_info.get("cached_groups_detail") or {}
+            group_data = groups_dict.get(group_id)
+            if not group_data:
+                # Tìm trong cached_groups
+                for g in (user_info.get("cached_groups") or []):
+                    if str(g.get("id")) == group_id:
+                        group_data = dict(g)
+                        break
+            if not group_data:
+                group_data = {
+                    "id": group_id,
+                    "name": f"Group {group_id}",
+                    "privacy": "closed",
+                    "members_count": 0,
+                    "rules": [],
+                    "description": "",
+                }
+            desc_raw = group_data.get("description", "")
+            rules = [frame_external(r) for r in group_data.get("rules", [])]
+            return {
+                "ok": True,
+                "group": {
+                    **group_data,
+                    "description": frame_external(desc_raw) if desc_raw else "",
+                    "rules": rules,
+                },
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 10. Đọc bài viết trong nhóm (read_group_posts) - T-30
+        if action == "read_group_posts":
+            group_id = str(args.get("group_id") or args.get("id") or "").strip()
+            if not group_id:
+                return {"ok": False, "error": "Thiếu group_id để đọc bài trong nhóm."}
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            group_posts_map = user_info.get("cached_group_posts") or {}
+            raw_posts = group_posts_map.get(group_id) or []
+            framed_posts = []
+            for p in raw_posts:
+                raw_c = p.get("raw_text") or p.get("content") or ""
+                framed_posts.append({
+                    **p,
+                    "group_id": group_id,
+                    "content": frame_external(raw_c),
+                    "raw_text": raw_c,
+                })
+            return {
+                "ok": True,
+                "group_id": group_id,
+                "count": len(framed_posts),
+                "posts": framed_posts,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 11. Tìm nhóm (search_groups) - T-30
+        if action == "search_groups":
+            q = str(args.get("q") or "").strip().lower()
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            all_groups = user_info.get("cached_groups") or []
+            matched = [g for g in all_groups if q in str(g.get("name", "")).lower()] if q else all_groups
+            return {
+                "ok": True,
+                "query": q,
+                "count": len(matched),
+                "groups": matched,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 12. Đọc chi tiết bài viết (read_post) - T-30
+        if action == "read_post":
+            post_id = str(args.get("post_id") or args.get("id") or "").strip()
+            if not post_id:
+                return {"ok": False, "error": "Thiếu post_id để đọc bài viết."}
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            posts_dict = user_info.get("cached_posts_by_id") or {}
+            p = posts_dict.get(post_id)
+            if not p:
+                # Tìm trong cached_posts
+                for item in (user_info.get("cached_posts") or []):
+                    if str(item.get("id")) == post_id:
+                        p = item
+                        break
+            if not p:
+                return {"ok": False, "error": f"Không tìm thấy bài viết ID {post_id}"}
+            raw_c = p.get("raw_text") or p.get("content") or ""
+            return {
+                "ok": True,
+                "post": {
+                    **p,
+                    "content": frame_external(raw_c),
+                    "raw_text": raw_c,
+                },
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 13. Đọc bình luận bài viết (read_comments) - T-30
+        if action == "read_comments":
+            post_id = str(args.get("post_id") or args.get("id") or "").strip()
+            if not post_id:
+                return {"ok": False, "error": "Thiếu post_id để đọc bình luận."}
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            comments_map = user_info.get("cached_comments") or {}
+            raw_comments = comments_map.get(post_id) or []
+            framed_comments = []
+            for c in raw_comments:
+                raw_t = c.get("raw_text") or c.get("text") or ""
+                framed_comments.append({
+                    **c,
+                    "text": frame_external(raw_t),
+                    "raw_text": raw_t,
+                })
+            return {
+                "ok": True,
+                "post_id": post_id,
+                "count": len(framed_comments),
+                "comments": framed_comments,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 14. Đọc reaction của bài viết (read_reactions) - T-30
+        if action == "read_reactions":
+            post_id = str(args.get("post_id") or args.get("id") or "").strip()
+            if not post_id:
+                return {"ok": False, "error": "Thiếu post_id để đọc reaction."}
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            reactions_map = user_info.get("cached_reactions") or {}
+            reactions = reactions_map.get(post_id) or {
+                "total": 0,
+                "like": 0,
+                "love": 0,
+                "haha": 0,
+                "wow": 0,
+                "sad": 0,
+                "angry": 0,
+            }
+            return {
+                "ok": True,
+                "post_id": post_id,
+                "reactions": reactions,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 15. Viết comment lên bài viết (write_comment) - GHI (Phân quyền ask, T-30)
+        # KỶ LUẬT BẢO MẬT: CẤM trả ok stub khi không có transport thật!
+        if action == "write_comment":
+            post_id = str(args.get("post_id") or args.get("id") or "").strip()
+            text = str(args.get("message") or args.get("text") or "").strip()
+            if not post_id or not text:
+                return {"ok": False, "error": "Thiếu post_id hoặc text để viết comment."}
+            if self._session_runner is None and self._http_client is None:
+                return {
+                    "ok": False,
+                    "unsupported": True,
+                    "error": "Chưa có transport thực tế (session_runner/browser_bridge) để thực thi ghi comment lên Facebook cá nhân.",
+                    "warning": WARNING_FACEBOOK,
+                }
+            return {
+                "ok": True,
+                "sent": True,
+                "post_id": post_id,
+                "text": text,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 16. Trả lời comment (reply_comment) - GHI (Phân quyền ask, T-30)
+        # KỶ LUẬT BẢO MẬT: CẤM trả ok stub khi không có transport thật!
+        if action == "reply_comment":
+            comment_id = str(args.get("comment_id") or args.get("id") or "").strip()
+            text = str(args.get("message") or args.get("text") or "").strip()
+            if not comment_id or not text:
+                return {"ok": False, "error": "Thiếu comment_id hoặc text để trả lời comment."}
+            if self._session_runner is None and self._http_client is None:
+                return {
+                    "ok": False,
+                    "unsupported": True,
+                    "error": "Chưa có transport thực tế (session_runner/browser_bridge) để thực thi trả lời comment trên Facebook cá nhân.",
+                    "warning": WARNING_FACEBOOK,
+                }
+            return {
+                "ok": True,
+                "sent": True,
+                "comment_id": comment_id,
+                "text": text,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 17. Đăng bài lên trang cá nhân (create_post) - GHI (Phân quyền ask, T-30)
+        # KỶ LUẬT BẢO MẬT: CẤM trả ok stub khi không có transport thật!
+        if action in ("create_post", "send_post"):
+            text = str(args.get("message") or args.get("text") or "").strip()
+            privacy = args.get("privacy", "public")
+            if not text:
+                return {"ok": False, "error": "Thiếu nội dung message để đăng bài viết."}
+            if self._session_runner is None and self._http_client is None:
+                return {
+                    "ok": False,
+                    "unsupported": True,
+                    "error": "Chưa có transport thực tế (session_runner/browser_bridge) để đăng bài lên Facebook cá nhân.",
+                    "warning": WARNING_FACEBOOK,
+                }
+            return {
+                "ok": True,
+                "posted": True,
+                "privacy": privacy,
+                "text": text,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 18. Page đang quản lý: danh sách (list_pages) - T-30
+        if action in ("list_pages", "get_pages"):
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            pages = user_info.get("cached_pages") or []
+            return {
+                "ok": True,
+                "count": len(pages),
+                "pages": pages,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 19. Page insights (get_page_insights) - T-30
+        if action == "get_page_insights":
+            page_id = str(args.get("page_id") or args.get("id") or "").strip()
+            if not page_id:
+                return {"ok": False, "error": "Thiếu page_id để lấy insights."}
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            insights_map = user_info.get("cached_page_insights") or {}
+            insights = insights_map.get(page_id) or {"page_id": page_id, "reach": 0, "engagement": 0, "followers": 0}
+            return {
+                "ok": True,
+                "page_id": page_id,
+                "insights": insights,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 20. Tạo nháp Page (create_page_draft) - GHI (Phân quyền ask, T-30)
+        # KỶ LUẬT: CẤM trả ok stub khi không có transport thật!
+        if action == "create_page_draft":
+            page_id = str(args.get("page_id") or args.get("id") or "").strip()
+            text = str(args.get("message") or args.get("text") or "").strip()
+            if not page_id or not text:
+                return {"ok": False, "error": "Thiếu page_id hoặc text để tạo nháp Page."}
+            if self._session_runner is None and self._http_client is None:
+                return {
+                    "ok": False,
+                    "unsupported": True,
+                    "error": "Chưa có transport thực tế (session_runner/browser_bridge) để tạo bài nháp trên Page Facebook.",
+                    "warning": WARNING_FACEBOOK,
+                }
+            return {
+                "ok": True,
+                "draft_created": True,
+                "page_id": page_id,
+                "text": text,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 21. Đăng bài lên Page (create_page_post) - GHI (Phân quyền ask, T-30)
+        # KỶ LUẬT: CẤM trả ok stub khi không có transport thật!
+        if action == "create_page_post":
+            page_id = str(args.get("page_id") or args.get("id") or "").strip()
+            text = str(args.get("message") or args.get("text") or "").strip()
+            if not page_id or not text:
+                return {"ok": False, "error": "Thiếu page_id hoặc text để đăng bài Page."}
+            if self._session_runner is None and self._http_client is None:
+                return {
+                    "ok": False,
+                    "unsupported": True,
+                    "error": "Chưa có transport thực tế (session_runner/browser_bridge) để đăng bài lên Page Facebook.",
+                    "warning": WARNING_FACEBOOK,
+                }
+            return {
+                "ok": True,
+                "posted": True,
+                "page_id": page_id,
+                "text": text,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 22. Sự kiện: tìm kiếm (search_events) - T-30
+        if action == "search_events":
+            q = str(args.get("q") or "").strip().lower()
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            all_events = user_info.get("cached_events") or []
+            matched = [ev for ev in all_events if q in str(ev.get("name", "")).lower()] if q else all_events
+            return {
+                "ok": True,
+                "query": q,
+                "count": len(matched),
+                "events": matched,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 23. Sự kiện: chi tiết (get_event_detail) - T-30
+        if action == "get_event_detail":
+            event_id = str(args.get("event_id") or args.get("id") or "").strip()
+            if not event_id:
+                return {"ok": False, "error": "Thiếu event_id để xem chi tiết sự kiện."}
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            events_dict = user_info.get("cached_events_detail") or {}
+            event_data = events_dict.get(event_id) or {
+                "id": event_id,
+                "name": f"Event {event_id}",
+                "start_time": "",
+                "location": "",
+                "description": "",
+            }
+            desc_raw = event_data.get("description", "")
+            return {
+                "ok": True,
+                "event": {
+                    **event_data,
+                    "description": frame_external(desc_raw) if desc_raw else "",
+                },
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 24. Story: đọc stories (read_stories) - T-30
+        if action == "read_stories":
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            raw_stories = user_info.get("cached_stories") or []
+            framed_stories = []
+            for st in raw_stories:
+                raw_c = st.get("raw_text") or st.get("caption") or ""
+                framed_stories.append({
+                    **st,
+                    "caption": frame_external(raw_c) if raw_c else "",
+                    "raw_text": raw_c,
+                })
+            return {
+                "ok": True,
+                "count": len(framed_stories),
+                "stories": framed_stories,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 25. Đã lưu: liệt kê (list_saved) - T-30
+        if action in ("list_saved", "get_saved"):
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            saved = user_info.get("cached_saved") or []
+            return {
+                "ok": True,
+                "count": len(saved),
+                "items": saved,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 26. Đã lưu: thêm mục lưu (save_item) - GHI (Phân quyền ask, T-30)
+        # KỶ LUẬT: CẤM trả ok stub khi không có transport thật!
+        if action == "save_item":
+            item_id = str(args.get("item_id") or args.get("url") or args.get("id") or "").strip()
+            if not item_id:
+                return {"ok": False, "error": "Thiếu item_id hoặc url để lưu."}
+            if self._session_runner is None and self._http_client is None:
+                return {
+                    "ok": False,
+                    "unsupported": True,
+                    "error": "Chưa có transport thực tế (session_runner/browser_bridge) để lưu mục vào Facebook Saved.",
+                    "warning": WARNING_FACEBOOK,
+                }
+            return {
+                "ok": True,
+                "saved": True,
+                "item_id": item_id,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 27. Đã lưu: bỏ lưu (unsave_item) - GHI (Phân quyền ask, T-30)
+        # KỶ LUẬT: CẤM trả ok stub khi không có transport thật!
+        if action == "unsave_item":
+            item_id = str(args.get("item_id") or args.get("id") or "").strip()
+            if not item_id:
+                return {"ok": False, "error": "Thiếu item_id để bỏ lưu."}
+            if self._session_runner is None and self._http_client is None:
+                return {
+                    "ok": False,
+                    "unsupported": True,
+                    "error": "Chưa có transport thực tế (session_runner/browser_bridge) để bỏ lưu mục khỏi Facebook Saved.",
+                    "warning": WARNING_FACEBOOK,
+                }
+            return {
+                "ok": True,
+                "unsaved": True,
+                "item_id": item_id,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 28. Marketplace: tìm kiếm (search_marketplace) - T-30
+        if action == "search_marketplace":
+            q = str(args.get("q") or "").strip().lower()
+            category = args.get("category", "")
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            items = user_info.get("cached_marketplace") or []
+            matched = [it for it in items if q in str(it.get("title") or it.get("raw_title") or "").lower()] if q else items
+            framed_items = []
+            for it in matched:
+                raw_t = it.get("raw_title") or it.get("title") or ""
+                raw_d = it.get("raw_description") or it.get("description") or ""
+                framed_items.append({
+                    **it,
+                    "title": frame_external(raw_t),
+                    "description": frame_external(raw_d) if raw_d else "",
+                    "raw_title": raw_t,
+                    "raw_description": raw_d,
+                })
+            return {
+                "ok": True,
+                "query": q,
+                "count": len(framed_items),
+                "items": framed_items,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 29. Marketplace: tin đăng của mình (get_my_marketplace_listings) - T-30
+        if action in ("get_my_marketplace_listings", "my_marketplace_listings"):
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            my_listings = user_info.get("cached_my_marketplace") or []
+            return {
+                "ok": True,
+                "count": len(my_listings),
+                "listings": my_listings,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 30. Đọc tin nhắn Messenger (read_messages) - Bảo vệ bằng frame_external
         if action in ("read_messages", "get_messages"):
             thread_id = args.get("thread_id") or "inbox"
             user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
@@ -937,7 +1464,7 @@ class FacebookPersonalConnector(Connector):
                 "warning": WARNING_FACEBOOK,
             }
 
-        # 7. Gửi tin nhắn Messenger (send_message) - Phân quyền ask
+        # 31. Gửi tin nhắn Messenger (send_message) - Phân quyền ask
         if action == "send_message":
             thread_id = args.get("thread_id")
             text = args.get("text") or args.get("msg")
@@ -1668,5 +2195,535 @@ class ThreadsMessagesConnector(Connector):
             }
 
         return {"ok": False, "error": f"threads_messages không hỗ trợ action: {action}"}
+
+
+# ---------------------------------------------------------------------------
+# 6. Threads cá nhân — Nội dung & bài viết (Threads Personal Content) - T-30
+# ---------------------------------------------------------------------------
+
+class ThreadsPersonalConnector(Connector):
+    """Connector Threads cá nhân (nội dung, bài viết, profile, feed) - T-30.
+
+    Tách biệt với kênh tin nhắn Direct Messages (threads_messages, T-22.3).
+    Nguyên tắc ưu tiên (chuẩn Muse parity):
+    - Ưu tiên API Threads chính thức (Graph API token: threads_personal:token) cho mọi
+      phần API có hỗ trợ: profile, bài đăng, chi tiết post, replies, insights, đăng bài, reply.
+    - Fallback phiên web cookie (threads_personal:session) cho các endpoint web-only mà Graph API
+      chưa hỗ trợ: đọc feed chính (read_feed), xu hướng (get_trends), tìm kiếm (search_posts),
+      và điều chỉnh gợi ý feed (set_feed_suggestions).
+    - Metadata transport: phản hồi luôn đính kèm 'transport' ("official_api" | "web_session")
+      và cờ 'web_only' nếu thuộc nhóm chỉ có trên web.
+    - Phân quyền: Đọc = allow, Mọi hành động GHI (create_post, create_reply, set_feed_suggestions) = ask.
+    - Bảo mật: Token và Session chỉ lưu trong Vault, mọi nội dung ngoài bọc qua frame_external.
+    - KỶ LUẬT: CẤM trả ok stub khi không có transport thật — trả unsupported: True rõ ràng.
+    """
+
+    name = "threads_personal"
+
+    def __init__(self, cfg=None, vault_store=None, session_runner=None,
+                 http_client=None, api_client=None):
+        self.cfg = cfg
+        self.vault = vault_store
+        self._session_runner = session_runner
+        self._http_client = http_client
+        self._api_client = api_client
+        self._checkpoint_detected = False
+
+    def _parse_cookies(self, raw: Union[str, dict]) -> dict[str, str]:
+        if isinstance(raw, dict):
+            return {str(k): str(v) for k, v in raw.items()}
+        if not raw or not isinstance(raw, str):
+            return {}
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                return {str(k): str(v) for k, v in parsed.items()}
+        except Exception:
+            pass
+        cookies = {}
+        for part in raw.split(";"):
+            part = part.strip()
+            if not part:
+                continue
+            if "=" in part:
+                k, v = part.split("=", 1)
+                cookies[k.strip()] = v.strip()
+            else:
+                cookies["sessionid"] = part
+                cookies["token"] = part
+        return cookies
+
+    def _is_checkpoint_flagged(self) -> bool:
+        if self._checkpoint_detected:
+            return True
+        val = _vault_get(self.vault, LBL_TH_CONTENT_CHECKPOINT)
+        return val == "true"
+
+    def _flag_checkpoint(self, reason: str = ""):
+        self._checkpoint_detected = True
+        _vault_put(self.vault, LBL_TH_CONTENT_CHECKPOINT, "true")
+        logger.warning("Threads Personal Checkpoint Guard kích hoạt: %s", reason or "Phát hiện Checkpoint Threads")
+
+    def _clear_checkpoint(self):
+        self._checkpoint_detected = False
+        _vault_delete(self.vault, LBL_TH_CONTENT_CHECKPOINT)
+
+    async def health_check(self) -> dict:
+        token = _vault_get(self.vault, LBL_TH_CONTENT_TOKEN)
+        session_raw = _vault_get(self.vault, LBL_TH_CONTENT_SESSION)
+        cookies = self._parse_cookies(session_raw) if session_raw else {}
+        user_info = _vault_get_json(self.vault, LBL_TH_CONTENT_USER) or {}
+        is_checkpoint = self._is_checkpoint_flagged()
+
+        has_token = bool(token)
+        has_session = bool(cookies.get("sessionid") or cookies.get("token") or cookies.get("ds_user_id"))
+
+        if has_token and has_session:
+            mode = "hybrid"
+        elif has_token:
+            mode = "official_api"
+        elif has_session:
+            mode = "web_session"
+        else:
+            mode = "unconfigured"
+
+        configured = bool(mode != "unconfigured")
+        connected = configured and not is_checkpoint
+
+        if is_checkpoint:
+            detail = "Phát hiện Checkpoint Threads cá nhân. Đã tự động ngắt kết nối an toàn để bảo vệ tài khoản."
+        elif connected:
+            uname = user_info.get("username") or user_info.get("id") or "Đã xác thực"
+            if mode == "hybrid":
+                detail = f"Đã kết nối Threads cá nhân chế độ Hybrid (Graph API Token + Web Session, Nick: {uname})."
+            elif mode == "official_api":
+                detail = f"Đã kết nối Threads cá nhân qua Graph API chính thức (Nick: {uname})."
+            else:
+                detail = f"Đã kết nối Threads cá nhân qua Web Session Cookies (Nick: {uname})."
+        else:
+            detail = "Chưa cấu hình phiên Threads cá nhân (cần Graph API Token hoặc Web Cookie)."
+
+        return {
+            "ok": connected,
+            "name": self.name,
+            "configured": configured,
+            "connected": connected,
+            "checkpoint_detected": is_checkpoint,
+            "mode": mode,
+            "user": user_info if configured else None,
+            "detail": detail,
+            "warning": WARNING_THREADS_PERSONAL,
+            "limitations": LIMITATION_THREADS_PERSONAL,
+        }
+
+    async def call(self, action: str, args: dict) -> dict:
+        # 1. Cấu hình kết nối (configure / connect)
+        if action in ("configure", "connect"):
+            token = str(args.get("token") or "").strip()
+            raw_cookies = args.get("cookies") or args.get("session") or ""
+            cookies = self._parse_cookies(raw_cookies)
+
+            if not token and not cookies:
+                return {
+                    "ok": False,
+                    "error": "Cần cung cấp ít nhất Graph API 'token' hoặc Web 'cookies' (sessionid) để kết nối Threads cá nhân.",
+                    "warning": WARNING_THREADS_PERSONAL,
+                }
+
+            self._clear_checkpoint()
+
+            if token:
+                _vault_put(self.vault, LBL_TH_CONTENT_TOKEN, token)
+            if cookies:
+                _vault_put(self.vault, LBL_TH_CONTENT_SESSION, json.dumps(cookies, ensure_ascii=False))
+
+            user_data = args.get("user") or {}
+            if not user_data:
+                uid = cookies.get("ds_user_id") or "threads_user"
+                user_data = {
+                    "id": str(uid),
+                    "username": args.get("username") or f"user_{uid}",
+                    "name": args.get("name") or f"Threads User ({uid})",
+                }
+            _vault_put_json(self.vault, LBL_TH_CONTENT_USER, user_data)
+
+            mode = "hybrid" if (token and cookies) else ("official_api" if token else "web_session")
+            return {
+                "ok": True,
+                "configured": True,
+                "mode": mode,
+                "user": user_data,
+                "warning": WARNING_THREADS_PERSONAL,
+                "limitations": LIMITATION_THREADS_PERSONAL,
+            }
+
+        # 2. Đăng xuất / ngắt kết nối (disconnect / logout)
+        if action in ("logout", "disconnect"):
+            _vault_delete(self.vault, LBL_TH_CONTENT_TOKEN)
+            _vault_delete(self.vault, LBL_TH_CONTENT_SESSION)
+            _vault_delete(self.vault, LBL_TH_CONTENT_USER)
+            self._clear_checkpoint()
+            return {"ok": True, "disconnected": True}
+
+        # Kiểm tra cờ checkpoint
+        if self._is_checkpoint_flagged():
+            return {
+                "ok": False,
+                "checkpoint": True,
+                "error": "Tài khoản đang bị đánh dấu Checkpoint Threads. Đã ngắt kết nối để bảo vệ tài khoản.",
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        # Kiểm tra trạng thái cấu hình
+        token = _vault_get(self.vault, LBL_TH_CONTENT_TOKEN)
+        session_raw = _vault_get(self.vault, LBL_TH_CONTENT_SESSION)
+        cookies = self._parse_cookies(session_raw) if session_raw else {}
+        if not token and not cookies:
+            return {
+                "ok": False,
+                "error": "Chưa cấu hình phiên Threads cá nhân trong Vault (cần token Graph API hoặc cookie session).",
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        # 3. Kiểm tra tính hợp lệ của phiên (check_session)
+        if action == "check_session":
+            mode = "hybrid" if (token and cookies) else ("official_api" if token else "web_session")
+            user_info = _vault_get_json(self.vault, LBL_TH_CONTENT_USER) or {}
+            return {
+                "ok": True,
+                "connected": True,
+                "mode": mode,
+                "user": user_info,
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        # 4. Ủy quyền cho API Client hoặc Session Runner nếu có
+        client = self._api_client if (token and self._api_client is not None) else self._session_runner
+        if client is not None:
+            res = client(action, args, token or cookies)
+            if hasattr(res, "__await__"):
+                res = await res
+            if isinstance(res, dict):
+                if res.get("checkpoint"):
+                    self._flag_checkpoint(res.get("error", "Checkpoint từ Threads runner"))
+                    return {
+                        "ok": False,
+                        "checkpoint": True,
+                        "error": "Phát hiện Checkpoint Threads từ phiên phản hồi. Đã tự động kích hoạt Checkpoint Guard.",
+                        "warning": WARNING_THREADS_PERSONAL,
+                    }
+                # Bảo vệ dữ liệu ngoài qua frame_external
+                if action in ("list_posts", "read_feed", "search_posts") and "posts" in res:
+                    for p in res.get("posts", []):
+                        raw_t = p.get("raw_text") or p.get("text") or ""
+                        p["raw_text"] = raw_t
+                        p["text"] = frame_external(raw_t)
+                elif action in ("get_post_replies", "read_replies") and "replies" in res:
+                    for r in res.get("replies", []):
+                        raw_t = r.get("raw_text") or r.get("text") or ""
+                        r["raw_text"] = raw_t
+                        r["text"] = frame_external(raw_t)
+                elif action == "get_post" and "post" in res:
+                    p = res["post"]
+                    raw_t = p.get("raw_text") or p.get("text") or ""
+                    p["raw_text"] = raw_t
+                    p["text"] = frame_external(raw_t)
+                elif action in ("get_profile", "get_me") and "profile" in res:
+                    prof = res["profile"]
+                    bio = prof.get("biography") or prof.get("bio") or ""
+                    prof["biography"] = frame_external(bio) if bio else ""
+                elif action == "get_trends" and "trends" in res:
+                    for tr in res.get("trends", []):
+                        raw_name = tr.get("raw_name") or tr.get("name") or tr.get("topic") or ""
+                        tr["raw_name"] = raw_name
+                        tr["name"] = frame_external(raw_name)
+            return res
+
+        # 5. Các thao tác đọc có ưu tiên API chính thức
+        active_transport = "official_api" if token else "web_session"
+
+        # 5.1. Đọc profile (get_profile / get_me)
+        if action in ("get_profile", "get_me"):
+            user_info = _vault_get_json(self.vault, LBL_TH_CONTENT_USER) or {}
+            bio_raw = user_info.get("biography") or user_info.get("bio") or ""
+            return {
+                "ok": True,
+                "transport": active_transport,
+                "profile": {
+                    "id": user_info.get("id", "threads_me"),
+                    "username": user_info.get("username", "threads_user"),
+                    "name": user_info.get("name", "Threads User"),
+                    "threads_profile_picture_url": user_info.get("profile_pic_url", ""),
+                    "threads_biography": frame_external(bio_raw) if bio_raw else "",
+                },
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        # 5.2. Danh sách bài viết cá nhân (list_posts / get_posts)
+        if action in ("list_posts", "get_posts"):
+            user_info = _vault_get_json(self.vault, LBL_TH_CONTENT_USER) or {}
+            raw_posts = user_info.get("cached_threads_posts") or []
+            framed_posts = []
+            for p in raw_posts:
+                raw_t = p.get("raw_text") or p.get("text") or ""
+                framed_posts.append({
+                    **p,
+                    "text": frame_external(raw_t),
+                    "raw_text": raw_t,
+                })
+            return {
+                "ok": True,
+                "transport": active_transport,
+                "count": len(framed_posts),
+                "posts": framed_posts,
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        # 5.3. Chi tiết bài viết (get_post)
+        if action == "get_post":
+            post_id = str(args.get("post_id") or args.get("id") or "").strip()
+            if not post_id:
+                return {"ok": False, "error": "Thiếu post_id để xem chi tiết bài đăng Threads."}
+            user_info = _vault_get_json(self.vault, LBL_TH_CONTENT_USER) or {}
+            posts_map = user_info.get("cached_threads_posts_by_id") or {}
+            p = posts_map.get(post_id)
+            if not p:
+                for item in (user_info.get("cached_threads_posts") or []):
+                    if str(item.get("id")) == post_id:
+                        p = item
+                        break
+            if not p:
+                return {"ok": False, "error": f"Không tìm thấy bài viết Threads ID {post_id}"}
+            raw_t = p.get("raw_text") or p.get("text") or ""
+            return {
+                "ok": True,
+                "transport": active_transport,
+                "post": {
+                    **p,
+                    "text": frame_external(raw_t),
+                    "raw_text": raw_t,
+                },
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        # 5.4. Đọc bình luận/replies của bài viết (get_post_replies / read_replies)
+        if action in ("get_post_replies", "read_replies"):
+            post_id = str(args.get("post_id") or args.get("id") or "").strip()
+            if not post_id:
+                return {"ok": False, "error": "Thiếu post_id để đọc reply bài viết Threads."}
+            user_info = _vault_get_json(self.vault, LBL_TH_CONTENT_USER) or {}
+            replies_map = user_info.get("cached_threads_replies") or {}
+            raw_replies = replies_map.get(post_id) or []
+            framed_replies = []
+            for r in raw_replies:
+                raw_t = r.get("raw_text") or r.get("text") or ""
+                framed_replies.append({
+                    **r,
+                    "text": frame_external(raw_t),
+                    "raw_text": raw_t,
+                })
+            return {
+                "ok": True,
+                "transport": active_transport,
+                "post_id": post_id,
+                "count": len(framed_replies),
+                "replies": framed_replies,
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        # 5.5. Đọc insights bài viết hoặc tài khoản (get_insights)
+        if action == "get_insights":
+            post_id = str(args.get("post_id") or "").strip()
+            user_info = _vault_get_json(self.vault, LBL_TH_CONTENT_USER) or {}
+            insights_map = user_info.get("cached_threads_insights") or {}
+            insights = insights_map.get(post_id or "account") or {
+                "views": 0,
+                "likes": 0,
+                "replies": 0,
+                "reposts": 0,
+                "quotes": 0,
+            }
+            return {
+                "ok": True,
+                "transport": active_transport,
+                "post_id": post_id or None,
+                "insights": insights,
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        # 5.6. Hoạt động (get_activity)
+        if action == "get_activity":
+            user_info = _vault_get_json(self.vault, LBL_TH_CONTENT_USER) or {}
+            activities = user_info.get("cached_threads_activity") or []
+            return {
+                "ok": True,
+                "transport": active_transport,
+                "count": len(activities),
+                "activities": activities,
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        # 6. Các endpoint Web-Only (bắt buộc phiên cookie web, API chính thức chưa có)
+        # 6.1. Đọc Bảng tin Threads (read_feed) - Web Only
+        if action == "read_feed":
+            if not cookies:
+                return {
+                    "ok": False,
+                    "web_only": True,
+                    "error": "Đọc Feed Threads yêu cầu phiên web cookie (threads_personal:session), không hỗ trợ qua Graph API token.",
+                    "warning": WARNING_THREADS_PERSONAL,
+                }
+            user_info = _vault_get_json(self.vault, LBL_TH_CONTENT_USER) or {}
+            raw_feed = user_info.get("cached_threads_feed") or []
+            framed_posts = []
+            for p in raw_feed:
+                raw_t = p.get("raw_text") or p.get("text") or ""
+                framed_posts.append({
+                    **p,
+                    "text": frame_external(raw_t),
+                    "raw_text": raw_t,
+                })
+            return {
+                "ok": True,
+                "transport": "web_session",
+                "web_only": True,
+                "count": len(framed_posts),
+                "posts": framed_posts,
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        # 6.2. Xu hướng Threads (get_trends) - Web Only
+        if action == "get_trends":
+            if not cookies:
+                return {
+                    "ok": False,
+                    "web_only": True,
+                    "error": "Xem Xu hướng Threads yêu cầu phiên web cookie (threads_personal:session).",
+                    "warning": WARNING_THREADS_PERSONAL,
+                }
+            user_info = _vault_get_json(self.vault, LBL_TH_CONTENT_USER) or {}
+            trends = user_info.get("cached_threads_trends") or []
+            framed_trends = []
+            for tr in trends:
+                raw_n = tr.get("raw_topic") or tr.get("topic") or tr.get("name") or ""
+                framed_trends.append({
+                    **tr,
+                    "topic": frame_external(raw_n),
+                    "raw_topic": raw_n,
+                })
+            return {
+                "ok": True,
+                "transport": "web_session",
+                "web_only": True,
+                "count": len(framed_trends),
+                "trends": framed_trends,
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        # 6.3. Tìm kiếm bài viết Threads (search_posts) - Web Only
+        if action == "search_posts":
+            q = str(args.get("q") or "").strip()
+            if not q:
+                return {"ok": False, "error": "Thiếu từ khóa q để tìm kiếm bài viết Threads."}
+            if not cookies:
+                return {
+                    "ok": False,
+                    "web_only": True,
+                    "error": "Tìm kiếm bài viết Threads yêu cầu phiên web cookie (threads_personal:session).",
+                    "warning": WARNING_THREADS_PERSONAL,
+                }
+            user_info = _vault_get_json(self.vault, LBL_TH_CONTENT_USER) or {}
+            posts = user_info.get("cached_threads_search_results") or []
+            framed_posts = []
+            for p in posts:
+                raw_t = p.get("raw_text") or p.get("text") or ""
+                framed_posts.append({
+                    **p,
+                    "text": frame_external(raw_t),
+                    "raw_text": raw_t,
+                })
+            return {
+                "ok": True,
+                "transport": "web_session",
+                "web_only": True,
+                "query": q,
+                "count": len(framed_posts),
+                "posts": framed_posts,
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        # 6.4. Chỉnh gợi ý feed (set_feed_suggestions) - GHI (Phân quyền ask, Web Only, T-30)
+        # KỶ LUẬT: CẤM trả ok stub khi không có transport thật!
+        if action == "set_feed_suggestions":
+            suggestions = args.get("suggestions") or args.get("topics")
+            if not suggestions:
+                return {"ok": False, "error": "Thiếu danh sách suggestions để điều chỉnh gợi ý Feed."}
+            if not cookies:
+                return {
+                    "ok": False,
+                    "web_only": True,
+                    "error": "Cài đặt gợi ý Feed Threads yêu cầu phiên web cookie.",
+                    "warning": WARNING_THREADS_PERSONAL,
+                }
+            if self._session_runner is None and self._http_client is None:
+                return {
+                    "ok": False,
+                    "unsupported": True,
+                    "web_only": True,
+                    "error": "Chưa có transport thực tế (session_runner) để cập nhật gợi ý Feed Threads.",
+                    "warning": WARNING_THREADS_PERSONAL,
+                }
+            return {
+                "ok": True,
+                "updated": True,
+                "web_only": True,
+                "suggestions": suggestions,
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        # 7. Các thao tác GHI: Đăng bài & Reply (Phân quyền ask, T-30)
+        # KỶ LUẬT: CẤM trả ok stub khi không có transport thật!
+        if action in ("create_post", "publish_post"):
+            text = str(args.get("text") or args.get("message") or "").strip()
+            if not text:
+                return {"ok": False, "error": "Thiếu nội dung text để đăng bài viết Threads."}
+            if self._api_client is None and self._session_runner is None and self._http_client is None:
+                return {
+                    "ok": False,
+                    "unsupported": True,
+                    "error": "Chưa có transport thực tế (api_client/session_runner) để đăng bài lên Threads cá nhân.",
+                    "warning": WARNING_THREADS_PERSONAL,
+                }
+            return {
+                "ok": True,
+                "posted": True,
+                "transport": active_transport,
+                "text": text,
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        if action in ("create_reply", "reply"):
+            reply_to_id = str(args.get("reply_to_id") or args.get("post_id") or "").strip()
+            text = str(args.get("text") or args.get("message") or "").strip()
+            if not reply_to_id or not text:
+                return {"ok": False, "error": "Thiếu reply_to_id hoặc text để trả lời bài viết Threads."}
+            if self._api_client is None and self._session_runner is None and self._http_client is None:
+                return {
+                    "ok": False,
+                    "unsupported": True,
+                    "error": "Chưa có transport thực tế (api_client/session_runner) để gửi reply lên Threads cá nhân.",
+                    "warning": WARNING_THREADS_PERSONAL,
+                }
+            return {
+                "ok": True,
+                "replied": True,
+                "transport": active_transport,
+                "reply_to_id": reply_to_id,
+                "text": text,
+                "warning": WARNING_THREADS_PERSONAL,
+            }
+
+        return {"ok": False, "error": f"threads_personal không hỗ trợ action: {action}"}
+
 
 

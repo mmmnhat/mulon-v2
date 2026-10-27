@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## 1.7.28 — 2026-10-27 — Bề mặt đầy đủ Facebook + Threads cá nhân theo chuẩn Muse (T-30, LUỒNG 3 — ký: Antigravity [L3])
+
+- **Facebook cá nhân mở rộng toàn diện (`mulon/personal_connectors.py`, T-30):**
+  - Mở rộng đầy đủ 31 hành động theo chuẩn Muse parity:
+    * Danh tính & quan hệ: `get_profile`, `get_me`, `get_friends`, `list_friends`, `view_user_profile` (xem trang cá nhân/timeline người khác).
+    * Bảng tin: `read_feed`, `read_news_feed`, `read_friends_feed`.
+    * Nhóm Facebook: `list_groups` liệt kê TOÀN BỘ nhóm tham gia (kể cả nhóm kín/ẩn bí mật), `get_group_detail`, `read_group_posts`, `search_groups`.
+    * Bài viết & tương tác: `read_post`, `read_comments`, `read_reactions`, `write_comment`, `reply_comment`, `create_post`.
+    * Fanpage: `list_pages`, `get_page_insights`, `create_page_draft`, `create_page_post`.
+    * Sự kiện, Story, Đã lưu, Marketplace: `search_events`, `get_event_detail`, `read_stories`, `list_saved`, `save_item`, `unsave_item`, `search_marketplace`, `get_my_marketplace_listings`.
+  - Checkpoint Guard tự ngắt an toàn và tự động kích hoạt cờ bảo vệ tài khoản khi phát hiện dấu hiệu checkpoint.
+- **Bổ sung connector Threads cá nhân chuyên nội dung (`mulon/personal_connectors.py`, `mulon/connectors.py`, T-30):**
+  - Triển khai `ThreadsPersonalConnector` (`threads_personal`), tách biệt độc lập với kênh DM `threads_messages`.
+  - Ưu tiên API chính thức (Graph API token qua nhãn `threads_personal:token`) cho profile, bài viết, reply, insights, đăng bài và reply.
+  - Tự động fallback phiên Web Cookie (`threads_personal:session`) cho các endpoint web-only: `read_feed`, `get_trends`, `search_posts`, `set_feed_suggestions`.
+  - Đính kèm metadata `transport` ("official_api" | "web_session") và cờ `web_only` trong mọi phản hồi.
+- **Kỷ luật bảo mật & Chống stub giả (T-30):**
+  - Toàn bộ nội dung văn bản bên ngoài (bài viết, bình luận, bio, mô tả nhóm, tin story, marketplace) đều được bọc bảo vệ bằng `frame_external`.
+  - Phân quyền Action-Level Policy: Đọc = `VERDICT_ALLOW`, Mọi hành động GHI (`create_post`, `write_comment`, `reply_comment`, `create_reply`, `set_feed_suggestions`, `save_item`...) = `VERDICT_ASK` duyệt từng lần.
+  - CẤM trả `ok: True` stub khi không có transport thực tế — trả `unsupported: True` rõ ràng, không giả vờ thành công.
+- **Tích hợp Bot & Mini App (`mulon/telegram_bot.py`, `mulon/webapp_server.py`, `docs/connector-tai-khoan-ca-nhan.md`):**
+  - Thêm lệnh `/facebook groups`, `/facebook feed`, `/threads posts`.
+  - Đăng ký `threads_personal` vào `VALID_PERSONAL_CONNECTORS` và serialize trạng thái `_connectors_state`.
+- **Kiểm thử (`tests/test_v17_personal_full_surface_t30.py`, T-30):**
+  - 7 test suite mới kiểm chứng 100% bề mặt Facebook, Threads, Checkpoint Guard, transport rejection, policy allow/ask và đăng ký registry.
+
 ## 1.7.27 — 2026-10-27 — Sửa lỗi tải initData ở Chi tiết việc + Chợ MCP, cô lập banner lỗi (T-24.5, LUỒNG 1 — ký: Antigravity [L1])
 
 - **Phân biệt nguyên nhân và khắc phục tuổi phiên Mini App (`mulon/config.py`, `mulon/webapp_server.py`, T-24.5):**

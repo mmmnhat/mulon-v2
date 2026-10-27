@@ -1474,6 +1474,17 @@ class WebAppServer:
                     "warning": h.get("warning", ""),
                     "limitations": h.get("limitations", ""),
                 }
+            elif name == "threads_personal":
+                # 1.7.24 (T-30): Threads cá nhân (nội dung/bài viết)
+                item["threads_personal"] = {
+                    "configured": bool(h.get("configured")),
+                    "connected": bool(h.get("connected")),
+                    "checkpoint_detected": bool(h.get("checkpoint_detected")),
+                    "mode": h.get("mode", "unconfigured"),
+                    "user": h.get("user"),
+                    "warning": h.get("warning", ""),
+                    "limitations": h.get("limitations", ""),
+                }
             out.append(item)
         # MCP servers: trạng thái nối từ manager + enabled từ file
         # cấu hình (đọc tươi để toggle phản ánh đúng).
@@ -3578,13 +3589,14 @@ class WebAppServer:
             "webapp", "google_disconnected", {"revoked": revoked})
         return web.json_response({"ok": True})
 
-    # ---------- Personal Connectors (T-22.1 / T-22.2 / T-22.3) ----------
+    # ---------- Personal Connectors (T-22.1 / T-22.2 / T-22.3 / T-30) ----------
     VALID_PERSONAL_CONNECTORS = (
         "zalo_personal",
         "telegram_personal",
         "facebook_personal",
         "instagram_messages",
         "threads_messages",
+        "threads_personal",
     )
 
     async def _handle_personal_connector_status(self, request):
