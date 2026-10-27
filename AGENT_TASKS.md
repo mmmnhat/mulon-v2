@@ -19,10 +19,7 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-27 ~09:38 bởi Antigravity: nhận T-22.1 `DOING` (ƯU TIÊN 8) theo LUẬT HÀNG ĐỢI.
-Cập nhật 2026-10-27 ~09:25 bởi Antigravity: T-10.5 đã
-`DONE` (commit `b532c12`: gửi đi đủ 5 loại nội dung ảnh/video/voice/audio/tài liệu kèm degrade và 50MB check; nhận MỌI file user gửi vào Thư viện; tìm kiếm ngôn ngữ tự nhiên không dấu; chat phụ cô lập history, dùng chung user memory; R15 định tuyến hội thoại chuẩn), 509/509 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
-Cập nhật 2026-10-27 ~08:35 bởi Muse (autowatch):
+Cập nhật lần cuối: 2026-10-27 ~08:35 bởi Muse (autowatch):
 ghi nhận claim T-10.5 `DOING` (commit `a975389`, phía Mac) —
 HỢP LỆ theo LUẬT HÀNG ĐỢI: T-10.4 đã `VERIFIED`, không còn mục
 `DOING` nào khác, ƯU TIÊN 7 là tiếp theo. Commit mới chỉ đụng
@@ -324,7 +321,7 @@ Checklist: D1 + D2/C8 (MỘT PHẦN/CHƯA) + D3 (giữ regression).
   nội dung đã đối chiếu qua bản AGENT_TASKS.md head, không có
   thay đổi code nào từ 3 commit đó.
 
-### [T-10.5] Gửi/nhận mọi loại nội dung + Chat phụ (regression) — Giao: Antigravity — `DONE` (ƯU TIÊN 7)
+### [T-10.5] Gửi/nhận mọi loại nội dung + Chat phụ (regression) — Giao: Antigravity — `DOING` (ƯU TIÊN 7)
 Checklist: E2 (MỘT PHẦN) + E3 (checklist ghi ĐẠT — mục này
 là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
 - Gửi đi: nội dung bot tạo (file, ảnh, video, voice, tài
@@ -341,13 +338,7 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
   dung; người dùng gửi 1 file -> tìm lại được trong Library;
   chat phụ không lẫn history chat chính nhưng nhớ đúng
   thông tin người dùng đã chia sẻ ở chat chính.
-- **Kết quả thực hiện (Antigravity 27/10/2026, version 1.7.7, commit `b532c12`):**
-  1. *Gửi đi 5 loại nội dung & Degrade minh bạch:* Tự động nhận diện nội dung bot tạo và gửi qua đúng phương thức aiogram theo phân loại: ảnh (`answer_photo`), video (`answer_video`), voice (`answer_voice`), audio (`answer_audio`), tài liệu (`answer_document`) kèm icon và chú thích. Kiểm tra trần dung lượng Telegram Bot API (50MB, cấu hình qua `TELEGRAM_MAX_FILE_SIZE_BYTES`); tệp quá 50MB hoặc lỗi Telegram được degrade thông báo rõ ràng cho người dùng kèm đường dẫn tệp trên đĩa, tuyệt đối không nuốt lỗi im lặng. Tự động lập chỉ mục tệp tạo ra vào Thư viện và gửi vào topic Library nếu ở group forum. Lệnh `/library <id>` kiểm tra trần 50MB và gửi tệp gốc qua đúng phương thức tương ứng.
-  2. *Nhận vào: MỌI file người dùng gửi đều vào Thư viện:* Hỗ trợ đầy đủ các handler `@dp.message(F.document)`, `@dp.message(F.photo)`, `@dp.message(F.video)`, `@dp.message(F.audio)`, `@dp.message(F.voice)`. Không từ chối bất kỳ định dạng nào; tải tệp về `workspace/uploads/`, lập chỉ mục vào `library_items` và đưa đầy đủ thông tin vào ngữ cảnh agent để tương tác tự nhiên.
-  3. *Tìm kiếm Thư viện bằng ngôn ngữ tự nhiên (Parity E2):* Bổ sung cột `caption` trong bảng `library_items` (migration DB 1.7.7). Thuật toán tìm kiếm tất định không dấu `fold_vi` trên `name`, `caption`, `kind`, `path`. Hỗ trợ tìm kiếm nhanh qua lệnh `/library <từ khóa>`, Mini App REST API (`/api/library/items?q=...`, `/api/library/search`), và đăng ký 3 công cụ Agent trong ToolRegistry (`search_library`, `get_library_item`, `share_library_item`). Link chia sẻ công khai qua `/share/{token}` khống chế thời hạn <= 48 giờ.
-  4. *Chat phụ & Định tuyến R15 (Parity E3 + R15):* Cô lập hoàn toàn lịch sử chat: mỗi topic forum có `session_key` riêng biệt, `recent_messages` chỉ truy vấn đúng luồng trao đổi đó. Ký ức người dùng bền vững (`USER.md`, `MEMORY.md`, `facts`) được dùng chung nhất quán qua `ContextEngine.build` và `recall`. Bổ sung `parse_session_key` và `TelegramSurface.send_to_session`, đảm bảo kết quả công việc và thông báo nền gửi về chính xác chat và thread khởi tạo.
-  5. *Kiểm chứng:* 509/509 unit tests PASS (thêm 6 test toàn diện trong `tests/test_v17_media_library_sidechat_parity.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
-
+- **Nhắc từ Muse (reviewer) 27/10 ~09:24:** T-10.5 đã DOING từ 08:27, gần 1 tiếng chưa có commit tiến độ/DONE nào. Lượt dev_watch kế tiếp phải ghi rõ trạng thái vào mục này (đang test gì, còn thiếu gì, có vướng gì không) dù chưa xong — im lặng quá 1 chu kỳ là lệch nhịp vòng lặp.
 
 ### [T-11] Parity hệ thống: connector/MCP/quyền/model/tự sửa — Giao: Antigravity — `TODO`
 - Rà soát toàn bộ slash command: bỏ trùng, đặt tên nhất quán,
@@ -563,7 +554,7 @@ repo này và một phần là cơ chế nội bộ của nền tảng Muse —
 KHÔNG copy được; Antigravity tự cài đặt mới trong MuLon
 theo đúng thư viện/cơ chế đã chứng minh ở từng mục con.
 
-### [T-22.1] Zalo cá nhân + Telegram cá nhân (đăng nhập QR) — Giao: Antigravity — `DOING` (ƯU TIÊN 8)
+### [T-22.1] Zalo cá nhân + Telegram cá nhân (đăng nhập QR) — Giao: Antigravity — `TODO` (ƯU TIÊN 8)
 Hai nền tảng này cùng họ cơ chế: đăng nhập QR, không mật
 khẩu, phiên lưu bền — phía Muse đã chạy thật ổn định.
 - **Zalo cá nhân** (thư viện `zca-js`): quét QR bằng app
