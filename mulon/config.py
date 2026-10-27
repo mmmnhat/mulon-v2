@@ -141,6 +141,13 @@ class Config:
     # Lệnh dev thử nghiệm (the_duyet, v.v., T-26)
     enable_dev_commands: bool = False
 
+    # Telegram Business Chatbot (T-29)
+    telegram_business_enabled: bool = False
+    telegram_business_catalog_path: Path = field(
+        default_factory=lambda: PROJECT_ROOT / "config" / "shop_catalog.json"
+    )
+    telegram_business_rate_limit_per_min: int = 10
+
     # --- Telegram & Xác thực quyền (T-15 mở khoá cài đặt) ---
     telegram_bot_token: str = ""
     allowed_user_id: int = 0
@@ -443,6 +450,9 @@ class Config:
             cliproxy_config_path=_resolve(_env("CLIPROXY_CONFIG_PATH", "")) if _env("CLIPROXY_CONFIG_PATH", "") else None,
             cliproxy_dir=_resolve(_env("CLIPROXY_DIR", "")) if _env("CLIPROXY_DIR", "") else None,
             enable_dev_commands=_env_bool("ENABLE_DEV_COMMANDS", False),
+            telegram_business_enabled=_env_bool("TELEGRAM_BUSINESS_ENABLED", False),
+            telegram_business_catalog_path=_resolve(_env("TELEGRAM_BUSINESS_CATALOG_PATH", str(default_config / "shop_catalog.json"))),
+            telegram_business_rate_limit_per_min=_env_int("TELEGRAM_BUSINESS_RATE_LIMIT_PER_MIN", 10),
             telegram_bot_token=_env("TELEGRAM_BOT_TOKEN", ""),
             allowed_user_id=final_owner_id,
             allowed_user_ids=tuple(allowed_list),

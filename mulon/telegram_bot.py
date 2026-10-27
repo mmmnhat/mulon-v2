@@ -42,12 +42,13 @@ from typing import Awaitable, Callable, Optional
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ChatType
-from aiogram.types import (BotCommand, CallbackQuery, FSInputFile,
+from aiogram.types import (BotCommand, BusinessConnection, CallbackQuery, FSInputFile,
                            InlineKeyboardButton, InlineKeyboardMarkup,
                            InputMediaPhoto, Message, ReactionTypeEmoji)
 
 from . import surfaces as surf
 from .agent import clean_task_title
+from .business import TelegramBusinessService
 from .config import PROJECT_ROOT
 from .datafiles import load_json_data
 from .ideas import format_idea_card, parse_do_reply
@@ -596,6 +597,10 @@ class TelegramSurface:
                 self.surfaces["vault_store"].on_captured(self.on_vault_secret_captured)
             except Exception as exc:
                 logger.warning("đăng ký on_captured vault lỗi: %s", exc)
+        # Telegram Business Chatbot (T-29)
+        self.business_service = TelegramBusinessService(
+            cfg=self.cfg, memory=self.memory, broker=self.broker, bot=self.bot
+        )
         self._register_handlers()
 
     def _is_duplicate_message(self, message: Any) -> bool:
@@ -4600,6 +4605,50 @@ class TelegramSurface:
                 await self._notify_queued(key, message)
             await self.batcher.add(key, text)
 
+        # --- Telegram Business Handlers (T-29) ---
+        @dp.business_connection()
+        async def on_business_connection(conn: BusinessConnection) -> None:
+            await self.business_service.handle_business_connection(conn)
+
+        @dp.business_message()
+        async def on_business_message(message: Message) -> None:
+            await self.business_service.process_business_message(message)
+
+        @dp.edited_business_message()
+        async def on_edited_business_message(message: Message) -> None:
+            logger.debug("Khách sửa business_message: %s", getattr(message, "message_id", None))
+
+        @dp.message(F.text.startswith("/business") | F.text.startswith("/biz"))
+        async def cmd_business(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            report = await self.business_service.get_status_report()
+            cfg_on = "Bật (1)" if report["config_enabled"] else "Tắt (0) — đặt TELEGRAM_BUSINESS_ENABLED=1 để bật"
+            conn_info = report.get("connection_info")
+            if conn_info and conn_info.get("is_enabled"):
+                conn_status = f"✅ Đang kết nối (ID: <code>{conn_info.get('connection_id')}</code>)"
+                reply_perm = "Có quyền gửi thay nick chủ" if conn_info.get("can_reply") else "⚠️ Thiếu quyền can_reply"
+            else:
+                conn_status = "❌ Chưa kết nối (hoặc đã ngắt)"
+                reply_perm = "Vào Cài đặt Telegram → Telegram Business → Chatbots để kết nối"
+
+            stats = report.get("stats", {})
+            lines = [
+                "💼 <b>BÁO CÁO TELEGRAM BUSINESS CHATBOT (T-29)</b>",
+                f"• Cấu hình hệ thống: <b>{cfg_on}</b>",
+                f"• Trạng thái kết nối: {conn_status}",
+                f"• Quyền trả lời: <i>{reply_perm}</i>",
+                "",
+                "📊 <b>Thống kê hoạt động:</b>",
+                f"• Tự động trả lời (Auto-reply): <b>{stats.get('auto_replies', 0)}</b>",
+                f"• Bản nháp cần duyệt (Drafts): <b>{stats.get('drafts_created', 0)}</b> (Đã duyệt: {stats.get('drafts_approved', 0)} · Từ chối: {stats.get('drafts_denied', 0)})",
+                f"• Sản phẩm trong catalog: <b>{report.get('products_count', 0)}</b> món (cấm bịa giá)",
+                f"• FAQ giải đáp sẵn: <b>{report.get('faq_count', 0)}</b> chủ đề",
+                "",
+                "🛡️ <i>Nguyên tắc an toàn: STK ngân hàng & giảm giá luôn soạn nháp chờ chủ duyệt, tuyệt đối không tự gửi.</i>",
+            ]
+            await message.answer("\n".join(lines), parse_mode="HTML")
+
     async def _consolidate_closed(self, key: str) -> None:
         try:
             await self.consolidator.run_once(session_key=key)
@@ -4610,6 +4659,8 @@ class TelegramSurface:
         if not self.cfg.telegram_bot_token:
             raise RuntimeError("TELEGRAM_BOT_TOKEN chưa được cấu hình")
         self.bot = Bot(token=self.cfg.telegram_bot_token)
+        if hasattr(self, "business_service") and self.business_service is not None:
+            self.business_service.bot = self.bot
         me = await self.bot.get_me()
         self.bot._me_username = me.username  # type: ignore[attr-defined]
         logger.info("bot @%s bắt đầu polling", me.username)
@@ -4721,4 +4772,12 @@ class TelegramSurface:
                 tok, tok
             )
 
-        await self.dp.start_polling(self.bot)
+        used_updates = self.dp.resolve_used_update_types()
+        business_updates = {
+            "business_connection",
+            "business_message",
+            "edited_business_message",
+            "deleted_business_messages",
+        }
+        all_allowed = list(set(used_updates) | business_updates)
+        await self.dp.start_polling(self.bot, allowed_updates=all_allowed)

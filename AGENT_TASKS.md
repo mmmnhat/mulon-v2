@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~01:00 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): T-29 chuyển `DONE` (version 1.7.37, 683/683 test passed, evals vàng 31/36 = 86%; triển khai toàn diện Telegram Business Chatbot thay nick cá nhân của chủ theo Bot API chính thức: lưu trữ & quản lý kết nối business_connection, tách biệt ngữ cảnh tuyệt đối X-01 bọc frame_external, bỏ qua tin do chính chủ gửi từ client khác, rate-limit chống spam per chat; TỰ REP thông tin/giá sản phẩm từ config/shop_catalog.json giọng miền Nam thân thiện cấm bịa giá; SOẠN NHÁP CHỜ DUYỆT hỏi STK ngân hàng tuyệt đối không tự gửi / giảm giá / khiếu nại qua ApprovalBroker gửi về DM chủ, chủ duyệt mới gửi qua business_connection_id, từ chối thì im lặng; lệnh Telegram /business và API /api/business/status; 11/11 test mới trong tests/test_v17_telegram_business.py). Hàng chờ LUỒNG 4 ĐÃ HOÀN THÀNH 100% (cả T-14, T-26, T-29 đều DONE), sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L4]
+
 Cập nhật 2026-10-28 ~00:50 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): T-24.7 chuyển `DONE` (version 1.7.36, 679/679 test passed, evals vàng 31/36 = 86%; báo xếp hàng ngay < 1s qua _notify_queued kèm reaction ⏳ và tin xác nhận không trùng lặp; hết lóe markdown thô qua safe_stream_markdown_to_html tự đóng thẻ dở dang và nâng ngưỡng stream >= 50 ký tự; dọn sạch các dòng phân cách thô ---, ***, ___ qua CommonMark _HR_RE và clean_final_text bảo toàn YAML code block và bảng Markdown). Hàng chờ LUỒNG 1 ĐÃ HOÀN THÀNH 100% (cả 5 task T-24.3, T-24.4, T-24.5, T-24.6, T-24.7 đều DONE), sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L1]
 
 Cập nhật 2026-10-28 ~00:43 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): T-26 chuyển `DONE` (version 1.7.35, 672/672 test passed, evals vàng 31/36 = 86%; chốt một nguồn sự thật duy nhất cho slash commands trong mulon/commands.py, menu rút gọn 10 lệnh cốt lõi, thêm /help phân nhóm kèm cảnh báo phá huỷ, gộp alias ẩn, chuyển lệnh-theo-id thành nội bộ nút bấm, chặn lệnh lạ không vào agent loop, tóm tắt /memory có cấu trúc không lộ dossier, kiểm soát cờ dev cho /the_duyet, test tĩnh AST đối chiếu 100% handler). Nhận tiếp T-29 `DOING` (ƯU TIÊN 28, LUỒNG 4) theo thứ tự hàng chờ LUỒNG 4. Ky: Antigravity [L4]
@@ -269,7 +271,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
   T-30 (đã DONE) -> T-17 (đã VERIFIED) -> T-22.3 (đã DONE). (Hàng chờ LUỒNG 3 hiện TRỐNG, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.)
 - **LUỒNG 4 — Cổng model & còn lại**:
-  T-14 (đã DONE) -> T-26 (đã DONE) -> T-29 (đang DOING). (T-26 + T-29 nhận chuyển từ hàng chờ LUỒNG 1 theo lệnh chủ dự án 28/10 ~00:11. T-16 phần sửa + T-28 đã chuyển sang LUỒNG 5 theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên Antigravity.)
+  T-14 (đã DONE) -> T-26 (đã DONE) -> T-29 (đã DONE). (Hàng chờ LUỒNG 4 ĐÃ HOÀN THÀNH 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.)
 
 - **LUỒNG PHỤ 1 — Muse phụ — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37: thu hồi toàn bộ việc của các account Muse phụ, kể cả việc đang dở):** hàng chờ đã dọn sạch — T-22.3 (phần còn lại) -> LUỒNG 3, T-28 -> LUỒNG 4, T-29 -> LUỒNG 1, T-26 -> LUỒNG 1. LUỒNG PHỤ 1 không nhận việc mới, không push thêm commit nào cho dự án này.
 
@@ -302,7 +304,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-32 (L2), T-29 (L4), T-11 (L5) đang DOING; Hàng chờ L1 & L3 TRỐNG (T-24.7 L1, T-22.3 L3 DONE, sẵn sàng nhận việc); T-26, T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-32 (L2), T-11 (L5) đang DOING; Hàng chờ L1, L3 & L4 TRỐNG (T-24.7 L1, T-22.3 L3, T-29 L4 DONE, sẵn sàng nhận việc); T-26, T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -1558,7 +1560,27 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Luật chung (không nới): đọc = allow, **mọi hành động ghi = hỏi/duyệt từng lần** (đúng chuẩn Muse + luật của chủ dự án cho FB/Threads); nội dung bên ngoài qua `frame_external`; không lưu hồ sơ người lạ ngoài phiên; tốc độ như người dùng thật (nền tảng siết rate limit — lên kế hoạch dữ liệu trước khi gọi, cấm gọi lặp mò); **cấm trả `ok` stub cho thao tác chưa có transport thật** (bài học T-22.3) — chức năng nào chưa chạy thật được thì docs + UI ghi rõ "chưa hỗ trợ", không giả vờ.
 - Nghiệm thu (test sống trên tài khoản thật của chủ dự án, hành động ghi đều có duyệt): list nhóm đã tham gia khớp thực tế; đọc feed; đọc bài + comment trong 1 nhóm; đăng 1 comment thử (duyệt) và đọc lại thấy đúng; đăng 1 bài Threads qua API chính thức; ngắt kết nối sạch. Mỗi nhóm chức năng báo riêng đạt/chưa đạt kèm bằng chứng.
 
-### [T-29] Telegram Business Chatbot: bot rep thay nick cá nhân của chủ — Giao: LUỒNG 4 — `DOING` (ƯU TIÊN 28) — LUỒNG 4
+### [T-29] Telegram Business Chatbot: bot rep thay nick cá nhân của chủ — Giao: LUỒNG 4 — `DONE` (ƯU TIÊN 28) — LUỒNG 4
+- **Báo cáo hoàn thành (Antigravity [L4] 2026-10-28 ~01:00 +07, version 1.7.37):**
+  1. *Version:* 1.7.37.
+  2. *Đã làm (kèm file chính):*
+     - `mulon/business.py` (mới): Dịch vụ chính quản lý Telegram Business Chatbot. Vòng đời kết nối `business_connection`, tự ngắt rep và cảnh báo DM chủ khi bị ngắt kết nối. Tách biệt ngữ cảnh tuyệt đối (X-01), tin nhắn bọc `frame_external`, từ chối câu hỏi moi móc hệ thống/dossier/vault/prompt injection. Bỏ qua tin nhắn do chính chủ gửi từ client khác (`from_user.id == cfg.allowed_user_id`). Rate limit per chat chống spam.
+     - `config/shop_catalog.json` (mới, Rule 0): Nguồn sự thật duy nhất cho sản phẩm, giá niêm yết, tình trạng tồn kho, chính sách mua/bảo hành, và STK ngân hàng (chỉ dùng soạn nháp, cấm tự gửi).
+     - `mulon/prompts/business_bot_system.txt` (mới): System prompt phong cách bán hàng miền Nam thân thiện, lễ phép, cấm bịa giá, cấm tự gửi STK.
+     - Phân tầng tự chủ theo quyết định chủ dự án:
+       + TỰ REP: Chào hỏi, FAQ, hỏi giá/sản phẩm có trong catalog (lấy đúng giá, không bịa giá) qua `bot.send_message(business_connection_id=...)`.
+       + SOẠN NHÁP CHỜ DUYỆT: Khách hỏi STK ngân hàng (TUYỆT ĐỐI KHÔNG TỰ GỬI), thương lượng giảm giá, khiếu nại, gặp người thật -> soạn nháp mở thẻ duyệt qua `ApprovalBroker` gửi về DM chủ. Chủ bấm Cho phép -> bot gửi thay nick chủ; Chủ từ chối/im lặng -> bot im lặng tuyệt đối.
+     - `mulon/telegram_bot.py`: Đăng ký các handler aiogram `@dp.business_connection()`, `@dp.business_message()`, `@dp.edited_business_message()`, và lệnh `@dp.message("/business", "/biz")`; bổ sung `allowed_updates` trong `start_polling`.
+     - `mulon/webapp_server.py`: Thêm API endpoint `/api/business/status` trả về báo cáo kết nối và thống kê.
+     - `mulon/config.py` & `.env.example`: Cấu hình `TELEGRAM_BUSINESS_ENABLED`, `TELEGRAM_BUSINESS_CATALOG_PATH`, `TELEGRAM_BUSINESS_RATE_LIMIT_PER_MIN`.
+     - `tests/test_v17_telegram_business.py` (mới): 11 unit tests kiểm tra toàn diện mọi khía cạnh kỹ thuật & nghiệp vụ.
+  3. *Kết quả test:* 683/683 test passed (55.15s), evals vàng 31/36 = 86% qua cổng 85%.
+  4. *Thay đổi hành vi cần biết:*
+     - Khi bật `TELEGRAM_BUSINESS_ENABLED=1`, bot sẽ tự động nhận và rep tin nhắn Telegram Business dưới tên nick cá nhân của chủ.
+     - Khách hỏi STK hoặc mặc cả giá sẽ kích hoạt thẻ duyệt gửi về DM của chủ — chủ bấm duyệt mới gửi đi.
+     - Lệnh `/business` cho phép chủ xem nhanh trạng thái kết nối và số liệu thống kê.
+  5. *Hàng chờ LUỒNG 4:* Hàng chờ LUỒNG 4 hiện TRỐNG, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.
+  - Ky: Antigravity [L4]
 - **Nhận việc — Antigravity [L4] (2026-10-28 ~00:43 +07):** nhận T-29 DOING (LUỒNG 4) theo thứ tự hàng chờ LUỒNG 4 sau khi hoàn tất T-26; tiếp tục từ trạng thái code trên main. Ky: Antigravity [L4]
 - **Chuyển giao 2026-10-28 ~00:12 bởi Muse (lệnh chủ dự án):** từ LUỒNG 1 sang LUỒNG 4 (san tải; LUỒNG 4 trống sau T-14 DONE; hàng chờ LUỒNG 4: T-26 -> T-29). Ky: Muse
 - **Nhận việc — LUỒNG PHỤ 1 (2026-10-27 ~22:22 +07, ký: Phu1):** nhận T-29 theo luật tự lấy việc tiếp của chủ dự án (22:21). T-28 vẫn DOING nhưng kẹt Billing GitHub phía chủ dự án (CI #146 job không chạy), T-22.3 vẫn DOING kẹt chờ Mac — hai mục đó không bị bỏ, chờ hết kẹt sẽ quay lại. LUỒNG 1 (T-24.3) đã đẩy code xong ở `c73ce23` và theo nghiệm thu sớm của Muse không đụng `telegram_bot.py` (chỉ agent + prompt + intent hints + test), nên rủi ro đụng file wiring thấp; code T-29 sẽ nằm chủ yếu ở file mới, chỉ nối handler tối thiểu vào `telegram_bot.py`, rebase kỹ trước khi push. Ky: Phu1

@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 1.7.37 — 2026-10-28 — Telegram Business Chatbot: bot rep thay nick cá nhân của chủ (T-29, LUỒNG 4 — ký: Antigravity [L4])
+
+- **Triển khai toàn diện Telegram Business Service (`mulon/business.py`, T-29):**
+  - Quản lý vòng đời kết nối Bot API Telegram Business: nhận và lưu trữ trạng thái `business_connection`, tự động ngắt rep khi bị ngắt kết nối trong Telegram Settings và cảnh báo về DM chủ.
+  - Tách biệt ngữ cảnh tuyệt đối (bài học X-01): tin nhắn của khách là vũ trụ riêng biệt, bảo vệ dữ liệu ngoài qua `frame_external`, tuyệt đối không truy cập file/vault/system tools của chủ, chặn triệt để prompt injection hoặc yêu cầu xem dossier/mã nguồn.
+  - Bỏ qua tin nhắn gửi từ client khác do chính chủ gửi (`from_user.id == cfg.allowed_user_id`), tránh can thiệp vào cuộc trò chuyện tay của chủ.
+  - Rate limit per chat chống spam khách hàng (mặc định 10 tin/phút, cấu hình được).
+- **Mức tự chủ phân tầng chặt chẽ theo quyết định của chủ dự án (`mulon/business.py`, `config/shop_catalog.json`, T-29):**
+  - **TỰ REP:** Chào hỏi, hướng dẫn mua hàng, chính sách bảo hành, thông tin/giá sản phẩm dựa trên nguồn sự thật duy nhất từ catalog `config/shop_catalog.json` (nạp qua `load_json_data`, Rule 0). Trả lời bằng giọng bán hàng miền Nam thân thiện, lễ phép (dạ, em chào anh/chị, bên em...), CẤM BỊA GIÁ.
+  - **SOẠN NHÁP CHỜ DUYỆT:** Khi khách hỏi STK/chuyển khoản (TUYỆT ĐỐI KHÔNG TỰ GỬI STK), thương lượng giảm giá ngoài bảng, khiếu nại, phản ánh chất lượng, hoặc ca không chắc chắn — tự động soạn nháp câu trả lời lịch sự và mở thẻ phê duyệt về DM chủ qua `ApprovalBroker`. Chủ bấm Cho phép -> bot gửi tin qua `business_connection_id`; Chủ từ chối/im lặng -> bot im lặng tuyệt đối.
+- **Bề mặt điều khiển & API Mini App (`mulon/telegram_bot.py`, `mulon/webapp_server.py`, `mulon/commands.py`, T-29):**
+  - Đăng ký lệnh Telegram `/business` (alias `/biz`) cho chủ xem báo cáo trạng thái kết nối, thống kê lượt auto-rep và nháp duyệt.
+  - Endpoint API `/api/business/status` trong Mini App server.
+  - Khai báo cấu hình `TELEGRAM_BUSINESS_ENABLED`, `TELEGRAM_BUSINESS_CATALOG_PATH`, `TELEGRAM_BUSINESS_RATE_LIMIT_PER_MIN` trong `mulon/config.py` và `.env.example`.
+- **Kiểm thử (`tests/test_v17_telegram_business.py`, T-29):**
+  - 11 unit tests mới bao phủ 100% yêu cầu: vòng đời connection, bỏ qua tin chủ, tự rep giá sản phẩm chuẩn catalog, soạn nháp STK/giảm giá, chờ duyệt thẻ, im lặng khi từ chối, rate limit, chặn moi thông tin hệ thống, và lệnh /business.
+
 ## 1.7.36 — 2026-10-28 — Polish X-06/X-07: Báo xếp hàng ngay, hết lóe markdown thô, dọn dòng phân cách (T-24.7, LUỒNG 1 — ký: Antigravity [L1])
 
 - **Xác nhận xếp hàng ngay khi bot đang bận (`mulon/telegram_bot.py`, T-24.7, X-06):**

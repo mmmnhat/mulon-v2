@@ -1218,6 +1218,9 @@ class WebAppServer:
                             self._handle_personal_connector_connect)
         app.router.add_post("/api/personal-connector/disconnect",
                             self._handle_personal_connector_disconnect)
+        # 1.7.36 (T-29): Telegram Business Chatbot
+        app.router.add_get("/api/business/status",
+                           self._handle_business_status)
         # 1.3.0: Chợ MCP — mọi route qua cùng middleware auth
         # initData owner-only như các /api/* khác.
         app.router.add_get("/api/marketplace/summary",
@@ -3901,6 +3904,14 @@ p {{ line-height: 1.5; color: #6E6A61; margin-bottom: 24px; }}
 </body>
 </html>"""
             return web.Response(text=fail_html, content_type="text/html", status=400)
+
+    # ---------- 1.7.36: Telegram Business (T-29) ----------
+    async def _handle_business_status(self, request):
+        """Báo cáo trạng thái Telegram Business Chatbot (T-29)."""
+        from .business import TelegramBusinessService
+        svc = TelegramBusinessService(cfg=self.cfg, memory=self.memory, broker=self.broker)
+        report = await svc.get_status_report()
+        return web.json_response({"ok": True, "business": report})
 
     # ---------- 1.3.0: Chợ MCP ----------
     def _mkt_guard(self):

@@ -263,6 +263,12 @@ COMMAND_DEFINITIONS: list[CommandDef] = [
         category=CommandCategory.ADVANCED,
     ),
     CommandDef(
+        name="business",
+        description="Xem trạng thái Telegram Business Chatbot (/business)",
+        category=CommandCategory.ADVANCED,
+        aliases=("biz",),
+    ),
+    CommandDef(
         name="the_duyet",
         description="Gửi thẻ phê duyệt thử nghiệm (chỉ bật khi dev)",
         category=CommandCategory.ADVANCED,

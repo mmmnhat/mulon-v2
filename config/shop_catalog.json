@@ -1,0 +1,62 @@
+{
+  "shop_name": "Tiệm Nhà Mulon",
+  "tagline": "Cửa hàng phụ kiện & giải pháp công nghệ cá nhân",
+  "tone": "miền Nam, ngắn gọn, thân thiện, lễ phép (dạ, em chào anh/chị)",
+  "greeting_default": "Dạ em chào anh/chị nha! Em là trợ lý của shop, em có thể hỗ trợ gì cho mình về sản phẩm hoặc đơn hàng ạ?",
+  "products": [
+    {
+      "id": "ml-key-01",
+      "name": "Bàn phím cơ không dây Mulon Spark Pro",
+      "keywords": ["bàn phím", "ban phim", "spark pro", "bàn phím cơ", "keyboard"],
+      "price": 1490000,
+      "currency": "VND",
+      "formatted_price": "1.490.000đ",
+      "category": "Bàn phím",
+      "description": "Bàn phím cơ 75%, 3 mode kết nối (Bluetooth 5.1, 2.4GHz, Type-C), switch custom êm ái, pin 4000mAh dùng 3 tuần.",
+      "warranty": "12 tháng 1 đổi 1 trong 30 ngày đầu",
+      "in_stock": true
+    },
+    {
+      "id": "ml-mouse-02",
+      "name": "Chuột công thái học không dây Mulon Glide",
+      "keywords": ["chuột", "chuot", "glide", "chuột công thái học", "mouse"],
+      "price": 690000,
+      "currency": "VND",
+      "formatted_price": "690.000đ",
+      "category": "Chuột",
+      "description": "Thiết kế nghiêng 57 độ giảm mỏi cổ tay, mắt đọc 4000 DPI siêu nhạy trên mọi mặt phẳng, sạc Type-C.",
+      "warranty": "12 tháng chính hãng",
+      "in_stock": true
+    },
+    {
+      "id": "ml-hub-03",
+      "name": "Hub chuyển đổi 8-in-1 Mulon Dock",
+      "keywords": ["hub", "dock", "cổng chuyển", "chuyển đổi", "type c"],
+      "price": 550000,
+      "currency": "VND",
+      "formatted_price": "550.000đ",
+      "category": "Phụ kiện",
+      "description": "Hỗ trợ xuất hình HDMI 4K 60Hz, sạc nhanh PD 100W, 3 cổng USB 3.0, khe thẻ nhớ SD/TF và cổng mạng LAN Gigabit.",
+      "warranty": "6 tháng đổi mới",
+      "in_stock": true
+    }
+  ],
+  "faq": [
+    {
+      "topic": "shipping",
+      "keywords": ["mua hàng", "đặt hàng", "cách mua", "ship", "vận chuyển", "giao hàng"],
+      "answer": "Dạ bên em hỗ trợ giao hàng toàn quốc nha anh/chị: nội thành nhận trong 24h, tỉnh khác từ 2-3 ngày. Đơn từ 500k bên em miễn phí ship ạ!"
+    },
+    {
+      "topic": "warranty",
+      "keywords": ["bảo hành", "đổi trả", "chính sách bảo hành", "hỏng", "lỗi"],
+      "answer": "Dạ tất cả sản phẩm bên em đều bảo hành chính hãng từ 6 đến 12 tháng, lỗi nhà sản xuất được 1 đổi 1 trong 30 ngày đầu tiên ạ."
+    }
+  ],
+  "bank_info": {
+    "bank_name": "Ngân hàng TMCP Quân đội (MBBank)",
+    "account_number": "999988886666",
+    "account_holder": "TRAN MINH NHAT",
+    "note": "THÔNG TIN NÀY CHỈ ĐỂ SOẠN NHÁP TRÌNH CHỦ DUYỆT. TUYỆT ĐỐI CẤM BOT TỰ GỬI STK CHO KHÁCH."
+  }
+}
