@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~23:46 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): nhận T-24.6 DOING (ƯU TIÊN 22, LUỒNG 1) theo thứ tự hàng chờ. Ky: Antigravity [L1]
+
 Cập nhật 2026-10-27 ~23:42 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): T-24.5 chuyển `DONE` (version 1.7.27, sửa lỗi initData Chi tiết việc + Chợ MCP, cô lập banner lỗi). Ky: Antigravity [L1]
 
 Cập nhật 2026-10-27 ~23:42 bởi Antigravity (LUỒNG 2, ký: Antigravity [L2]): nhận T-13 `DOING` (LUỒNG 2) theo thứ tự hàng chờ sau khi hoàn tất T-27. Ky: Antigravity [L2]
@@ -1315,7 +1317,8 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
      - Đóng gói lỗi trong màn Chi tiết việc (`screen-task`): khi `openTask` gặp lỗi mạng, giao diện hiển thị khung lỗi nội bộ kèm nút "Thử lại" (`id="btn-retry-open-task"`) gọi lại trực tiếp `openTask(id)`, không rò rỉ lỗi ra banner toàn cục.
   4. *Kiểm thử:* Toàn bộ pytest suite xanh 100%, bổ sung 3 test toàn diện trong `tests/test_v17_miniapp_initdata_task_mkt.py` kiểm chứng: phiên mới tải dữ liệu thật 200 OK, phiên 2 giờ (7200s) được chấp nhận thành công, phiên quá 24 giờ (90000s) bị từ chối 403, kiểm tra cô lập lỗi giao diện và `getInitData()` động. Ky: Antigravity [L1]
 
-### [T-24.6] Yêu cầu dùng bí mật có sẵn phải đi thẳng đường kho -> API — Giao: Antigravity — `TODO` (ƯU TIÊN 22) — LUỒNG 1
+### [T-24.6] Yêu cầu dùng bí mật có sẵn phải đi thẳng đường kho -> API — Giao: Antigravity — `DOING` (ƯU TIÊN 22) — LUỒNG 1
+- **Nhận việc — Antigravity [L1] (2026-10-27 ~23:46 +07, ký: Antigravity [L1]):** nhận T-24.6 DOING theo thứ tự hàng chờ LUỒNG 1 (sau T-24.5 đã DONE). Ky: Antigravity [L1]
 - Bằng chứng (27/10 02:18–02:22): yêu cầu "dùng API key Accesstrade đang lưu trong kho kiểm tra số dư" — bot không dùng giá trị trong kho để gọi API, mà grep/find khắp repo, chạy curl, đọc đi đọc lại cùng một trang tài liệu developer (3–4 lần) nhiều phút không ra kết quả; lượt gửi email sau đó cũng bị kéo lệch theo (kết quả gửi không xác minh được vì lượt bị chiếm).
 - Điểm dữ liệu thêm (battery v5, 27/10 03:14): yêu cầu hẹp "check bài đăng Threads mới nhất, tóm tắt 1 câu" — KẾT QUẢ đúng phạm vi (đúng 1 bài, 1 câu) nhưng đường đi vẫn vòng: connector_health -> `find . -maxdepth 3 -name "*threads*"` trong repo -> chạy 2 script Python -> kiểm chứng, tổng 62 giây cho một việc đáng lẽ một lần gọi connector. Tức X-05 đã hết phóng đại ở ĐẦU RA nhưng chưa hết ở ĐƯỜNG ĐI.
 - Phân biệt với T-24.2: đây là lỗi chọn đường ngay trong lượt đầu, không cần có việc cũ. Nghiệm thu: yêu cầu tương tự kết thúc trong một lượt — hoặc hoàn tất bằng bí mật trong kho, hoặc báo rõ thiếu gì; không lặp đọc cùng một trang.
