@@ -19,7 +19,9 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật 2026-10-27 ~21:44 bởi Muse (chat phụ, LUỒNG PHỤ 2, theo lệnh chủ dự án): head `6a94927` — chuyển giao T-16 từ LUỒNG 4 sang LUỒNG PHỤ 2, nhận T-16 `DOING`; LUỒNG PHỤ 1 không đụng lại (đang DOING T-22.3, hàng đợi T-28 -> T-29 -> T-26 -> T-25); LUỒNG 4 còn T-14 DOING. Lần đẩy này CHỈ sửa dòng cập nhật này + hàng LUỒNG trong LUẬT ĐA LUỒNG + tiêu đề/ghi chú mục T-16, không động mục khác.
+Cập nhật 2026-10-27 ~21:47 bởi LUỒNG PHỤ 2 (ký: Phu2): KHÔI PHỤC commit `1162d5f` bị commit `13da843` ghi đè — commit claim T-16 trước đó push từ base cũ `6a94927` trong lúc chờ duyệt, đúng lúc `1162d5f` (LUẬT KÝ TÊN + BẢNG KÝ TÊN + LUỒNG MUSE nhận T-25) vừa lên main, nên toàn bộ thay đổi của `1162d5f` đã bị revert tạm thời. Lần đẩy này khôi phục NGUYÊN VẸN nội dung `1162d5f` và giữ nguyên claim T-16 DOING LUỒNG PHỤ 2 (ký: Phu2) trên nền đó; đăng ký tên ký `Phu2` cho LUỒNG PHỤ 2 vào BẢNG KÝ TÊN. Lần đẩy này CHỈ sửa: dòng cập nhật này + hàng LUỒNG PHỤ 2 + BẢNG KÝ TÊN + tiêu đề/ghi chú T-16 + câu chuyển giao T-16 trong LUẬT ĐA LUỒNG, không động nội dung khác của `1162d5f`.
+
+Cập nhật 2026-10-27 ~21:45 bởi Muse (ký: Muse): theo lệnh chủ dự án — thêm LUẬT KÝ TÊN RIÊNG (kỷ luật 6) + BẢNG KÝ TÊN trong LUẬT ĐA LUỒNG: mỗi phía tự chọn 1 tên riêng, ký khi nhận việc/báo cáo/dòng cập nhật/commit; LUỒNG PHỤ 1 chưa đăng ký tên, phải tự chọn và ghi vào bảng ở lần cập nhật kế. Muse chính tham gia builder dưới tên LUỒNG MUSE, nhận T-25 (chuyển từ LUỒNG PHỤ 1) sang DOING, ký `Muse`; việc của LUỒNG MUSE nghiệm thu chéo, không tự VERIFIED. Lần đẩy này CHỈ sửa: dòng cập nhật này + hàng LUỒNG MUSE + hàng LUỒNG 1/LUỒNG PHỤ 1 (bỏ T-25) + kỷ luật 3/6 + BẢNG KÝ TÊN + tiêu đề và ghi chú nhận việc của T-25, không động mục khác. Ky: Muse
 
 Cập nhật 2026-10-27 ~21:40 bởi Muse (theo lệnh chủ dự án, chat phụ): head `058ca98` — T-22.3 spike browser bridge đã DOING LUỒNG PHỤ 1 từ commit `058ca98` (không đụng lại); chuyển giao T-28, T-29, T-26, T-25 sang LUỒNG PHỤ 1, thứ tự T-22.3 -> T-28 -> T-29 -> T-26 -> T-25; LUỒNG 1 còn T-24.3 DOING -> T-24.4 -> T-24.5 -> T-24.6 -> T-24.7, LUỒNG 4 còn T-14 DOING -> T-16. Lần đẩy này CHỈ sửa dòng cập nhật này + hàng LUỒNG PHỤ trong LUẬT ĐA LUỒNG + tiêu đề 4 mục chuyển giao, không động mục khác.
 
@@ -167,7 +169,7 @@ cùng đợt (chủ dự án đã duyệt hướng này).
 Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển thành 4 luồng song song ngay trên máy Mac. Mỗi luồng là MỘT BẢN CLONE / WORKTREE RIÊNG + đúng MỘT mục `DOING` tại một thời điểm, làm đúng thứ tự trong luồng:
 
 - **LUỒNG 1 — Lõi hành vi** (chủ file `mulon/telegram_bot.py`):
-  T-24.3 (đang DOING) -> T-24.4 -> T-24.5 -> T-24.6 -> T-24.7. (T-22.3 và T-25 đã chuyển sang LUỒNG PHỤ 1; T-24.1, T-24.2 đã VERIFIED.)
+  T-24.3 (đang DOING) -> T-24.4 -> T-24.5 -> T-24.6 -> T-24.7. (T-22.3 đã chuyển sang LUỒNG PHỤ 1, T-25 sang LUỒNG MUSE; T-24.1, T-24.2 đã VERIFIED.)
 - **LUỒNG 2 — App & giao diện** (chủ file `mulon/webapp/` + `assets/`):
   T-23.6 (đã VERIFIED) -> T-12 (đã DONE) -> T-27 (đang DOING dở, làm tiếp tới DONE) -> T-13.
 - **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
@@ -177,19 +179,33 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
   *Lưu ý an toàn:* T-29 và T-26 có đụng `telegram_bot.py` — chỉ bắt đầu hai mục này khi Luồng 1 không đang sửa dở file đó, và rebase kỹ trước khi push.
 
 - **LUỒNG PHỤ 1 — Muse phụ** (chạy trên VM, push qua GitHub connector, không có clone/worktree trên Mac, không chạy bot thật trên Mac):
-  T-22.3 spike browser bridge (đang DOING, commit `058ca98`) -> T-28 -> T-29 -> T-26 -> T-25.
+  T-22.3 spike browser bridge (đang DOING, commit `058ca98`) -> T-28 -> T-29 -> T-26. (T-25 đã chuyển sang LUỒNG MUSE.)
   *Lưu ý:* T-28 cần log Actions từ phía Mac (Muse không đọc được log Actions); T-29 và T-26 đụng `telegram_bot.py` — chỉ bắt đầu khi LUỒNG 1 không đang sửa dở file đó; mỗi lúc đúng MỘT mục DOING; không tự ghi VERIFIED — Muse chính nghiệm thu.
 
-- **LUỒNG PHỤ 2 — Muse phụ (chat này)** (chạy trên VM, push qua GitHub connector, không có clone/worktree trên Mac, không chạy bot thật trên Mac):
+- **LUỒNG PHỤ 2 — Muse phụ (chat này, ký: Phu2)** (chạy trên VM, push qua GitHub connector, không có clone/worktree trên Mac, không chạy bot thật trên Mac):
   T-16 (nhận DOING).
   *Lưu ý:* T-16 làm theo Đường A đã chốt (muse2api làm upstream của CLIProxyAPI, MuLon không gọi thẳng 18610, không nới validate_proxy_base_url); key/phiên chỉ ở Vault/config, không commit key thật; nghiệm thu sống cần muse2api Docker + tài khoản Muse trên máy cài; mỗi lúc đúng MỘT mục DOING; không tự ghi VERIFIED — Muse chính nghiệm thu.
+
+- **LUỒNG MUSE — Muse chính làm builder** (chạy trên VM của Muse, push qua GitHub connector; Muse vẫn giữ vai reviewer cho mọi luồng khác):
+  T-25 (đang DOING, chuyển từ LUỒNG PHỤ 1 theo lệnh chủ dự án 27/10 ~21:42).
+  *Lưu ý:* việc của LUỒNG MUSE do Antigravity hoặc chủ dự án nghiệm thu chéo — Muse KHÔNG tự ghi VERIFIED cho code của chính mình.
 
 **Kỷ luật chung cho mọi luồng (không nới):**
 1. Trước khi sửa `AGENT_TASKS.md` phải pull `main` mới nhất; mỗi luồng chỉ sửa các mục thuộc luồng mình + dòng cập nhật của mình; nhận việc bằng commit claim `DOING` như cũ.
 2. `pytest` phải xanh 100% mới commit. Version: lấy số cao nhất trên `main` rồi cộng tiếp, không ghi đè số của luồng khác. Push sau phải rebase trên `main` mới nhất.
-3. Chỉ đánh dấu `DONE` + ghi kết quả và commit SHA vào mục việc. KHÔNG tự `VERIFIED` — Muse nghiệm thu độc lập cả 4 luồng + LUỒNG PHỤ 1 + LUỒNG PHỤ 2.
+3. Chỉ đánh dấu `DONE` + ghi kết quả và commit SHA vào mục việc. KHÔNG tự `VERIFIED` — Muse nghiệm thu độc lập cả 4 luồng + LUỒNG PHỤ 1 + LUỒNG PHỤ 2. (Ngoại lệ: việc của LUỒNG MUSE do Antigravity hoặc chủ dự án nghiệm thu chéo, Muse không tự chấm việc mình làm.)
 4. Không sửa `dossier/`, không nới lỏng chốt bảo mật, không hardcode. Việc UI chỉ tính khi có render thật từ HTML/CSS của app; chuẩn màu 60/30/10, tím Mulon là màu nhấn duy nhất.
-5. Luồng nào xong hết việc của nó thì báo chủ dự án, không tự lấy việc của luồng khác. (Ngoại lệ do chủ dự án duyệt: 27/10 ~21:37, 5 mục T-22.3, T-28, T-29, T-26, T-25 chuyển từ LUỒNG 1/4 sang LUỒNG PHỤ 1; 27/10 ~21:44, T-16 chuyển từ LUỒNG 4 sang LUỒNG PHỤ 2; các luồng cũ không nhận lại các mục này.)
+5. Luồng nào xong hết việc của nó thì báo chủ dự án, không tự lấy việc của luồng khác. (Ngoại lệ duy nhất do chủ dự án duyệt 27/10 ~21:37: 5 mục T-22.3, T-28, T-29, T-26, T-25 chuyển từ LUỒNG 1/4 sang LUỒNG PHỤ 1; LUỒNG 1/4 không nhận lại các mục này. Bổ sung 27/10 ~21:42: T-25 chuyển tiếp từ LUỒNG PHỤ 1 sang LUỒNG MUSE; 27/10 ~21:44: T-16 chuyển từ LUỒNG 4 sang LUỒNG PHỤ 2.)
+6. **KÝ TÊN RIÊNG (lệnh chủ dự án 27/10 ~21:42):** mỗi phía tự chọn MỘT tên riêng duy nhất, ghi vào BẢNG KÝ TÊN dưới đây TRƯỚC khi nhận việc, và ký tên đó trong mọi lần nhận việc (`DOING`), báo cáo `DONE`, dòng cập nhật ở đầu file, và cuối mỗi commit message (thêm dòng `Ky: <tên>`). Không đổi tên giữa chừng. Tên `Muse` đã có chủ (Muse chính) — các phía khác không dùng lại, kể cả các account Muse phụ.
+
+**BẢNG KÝ TÊN — ai làm phần nào (cập nhật khi có phía mới hoặc đổi việc):**
+
+| Tên ký | Phía | Phần đang phụ trách |
+|---|---|---|
+| `Muse` | Muse chính — reviewer + LUỒNG MUSE (builder) | Nghiệm thu mọi luồng; builder: T-25 (DOING) |
+| `Phu2` | LUỒNG PHỤ 2 (chat phụ này, VM) | T-16 (DOING) |
+| _(chưa đăng ký — phải tự chọn tên và ghi vào đây ở lần cập nhật kế)_ | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | T-22.3 spike browser bridge (DOING) -> T-28 -> T-29 -> T-26 |
+| `Antigravity` | LUỒNG 1–4 (máy Mac) | T-24.3, T-27, T-30, T-14 (đang DOING) |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -530,8 +546,8 @@ trong AGENTS.md mục 3.4 (sửa luật trong cùng đợt này):
   - Checklist parity liên quan: K2 (tách lớp OS), H3 (CLIProxyAPI — không đụng), M (tác vụ đời thật — bản cài tự định chủ). Không hardcode mới (không `/Users/`, `/Volumes/`, ID cá nhân trong code mới); không nới chốt bảo mật (auth bot + Mini App đều đối chiếu allowlist).
   - Trong cùng commit này Mac cũng nhận T-10.1 `DOING` (theo LUẬT HÀNG ĐỢI: T-15 DONE xong thì mục ƯU TIÊN 3 là tiếp theo — đúng thứ tự).
 
-### [T-16] Tích hợp muse2api — Giao: LUỒNG PHỤ 2 — `DOING` — LUỒNG PHỤ 2
-- **Nhận việc — LUỒNG PHỤ 2 (2026-10-27 ~21:44 +07, theo lệnh chủ dự án qua chat phụ):** chuyển giao từ LUỒNG 4 sang LUỒNG PHỤ 2; làm theo Đường A đã chốt, không gọi thẳng 18610, không nới validate_proxy_base_url, không commit key thật.
+### [T-16] Tích hợp muse2api — Giao: LUỒNG PHỤ 2 — `DOING` — LUỒNG PHỤ 2 (ký: Phu2)
+- **Nhận việc — LUỒNG PHỤ 2 (2026-10-27 ~21:44 +07, theo lệnh chủ dự án qua chat phụ, ký: Phu2):** chuyển giao từ LUỒNG 4 sang LUỒNG PHỤ 2; làm theo Đường A đã chốt, không gọi thẳng 18610, không nới validate_proxy_base_url, không commit key thật.
 Chủ dự án đã fork sẵn: `mmmnhat/muse2api` (gốc czg86389-hub/
 muse2api) — cầu nối đóng gói muse.ai thành API tương thích
 OpenAI: chat completions + responses, sinh ảnh, sinh video,
@@ -1189,8 +1205,9 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Điểm dữ liệu thêm (battery v5, 27/10 03:14): yêu cầu hẹp "check bài đăng Threads mới nhất, tóm tắt 1 câu" — KẾT QUẢ đúng phạm vi (đúng 1 bài, 1 câu) nhưng đường đi vẫn vòng: connector_health -> `find . -maxdepth 3 -name "*threads*"` trong repo -> chạy 2 script Python -> kiểm chứng, tổng 62 giây cho một việc đáng lẽ một lần gọi connector. Tức X-05 đã hết phóng đại ở ĐẦU RA nhưng chưa hết ở ĐƯỜNG ĐI.
 - Phân biệt với T-24.2: đây là lỗi chọn đường ngay trong lượt đầu, không cần có việc cũ. Nghiệm thu: yêu cầu tương tự kết thúc trong một lượt — hoặc hoàn tất bằng bí mật trong kho, hoặc báo rõ thiếu gì; không lặp đọc cùng một trang.
 
-### [T-25] Nhãn giờ Feed trong Sắp tới sai + hardcode — Giao: LUỒNG PHỤ 1 — `TODO` (ƯU TIÊN 23) — LUỒNG PHỤ 1
-- **Chuyển giao 2026-10-27 ~21:40 bởi Muse (lệnh chủ dự án):** từ LUỒNG 1 sang LUỒNG PHỤ 1; thứ tự trong LUỒNG PHỤ 1: T-22.3 -> T-28 -> T-29 -> T-26 -> T-25; chỉ LUỒNG PHỤ 1 nhận mục này.
+### [T-25] Nhãn giờ Feed trong Sắp tới sai + hardcode — Giao: Muse — `DOING` (ƯU TIÊN 23) — LUỒNG MUSE (ký: Muse)
+- **Nhận việc — LUỒNG MUSE (2026-10-27 ~21:45 +07, ký: Muse):** chuyển tiếp từ LUỒNG PHỤ 1 sang LUỒNG MUSE theo lệnh chủ dự án ("bạn cũng tham gia luôn đi"); Muse làm builder mục này, nghiệm thu chéo bởi Antigravity/chủ dự án (Muse không tự VERIFIED). Phạm vi làm trước: helper suy nhãn giờ từ cron thật trong `mulon/feed_auto.py` + sửa `_upcoming_state` trong `mulon/webapp_server.py` dùng helper đó + test. Dòng hiển thị trong `mulon/telegram_bot.py` (file LUỒNG 1 đang sửa dở cho T-24.3) chỉ đụng khi LUỒNG 1 không đang sửa dở, theo lưu ý an toàn của LUẬT ĐA LUỒNG.
+- **Chuyển giao 2026-10-27 ~21:40 bởi Muse (lệnh chủ dự án):** từ LUỒNG 1 sang LUỒNG PHỤ 1; thứ tự trong LUỒNG PHỤ 1 lúc đó: T-22.3 -> T-28 -> T-29 -> T-26 -> T-25. (Đã chuyển tiếp sang LUỒNG MUSE ở ghi chú trên.)
 - Phát hiện khi Muse nghiệm thu T-10.2 (27/10/2026, đọc code `mulon/webapp_server.py` `_upcoming_state`): mục Feed chủ động trong `/api/upcoming` ghi cứng `time_label = "Hằng ngày (08:00 & 17:00)"`, trong khi cron mặc định thật là `feed_auto_cron = "0 8,20 * * *"` (`mulon/config.py`, `mulon/feed_auto.py` DEFAULT_CRON) tức 08:00 & **20:00** — nhãn lệch 3 tiếng so với lịch thật, và hardcode thay vì suy từ cron đang chạy (vi phạm luật AGENTS.md mục 4: giá trị đổi theo cấu hình thì không nằm trong code).
 - Nghiệm thu: `time_label` của mục feed_auto suy từ cron thật của `feed_auto.get_state()` (mặc định ra 08:00 & 20:00); đổi `FEED_AUTO_CRON` thì nhãn đổi theo; không còn chuỗi giờ hardcode trong `_upcoming_state`.
 
