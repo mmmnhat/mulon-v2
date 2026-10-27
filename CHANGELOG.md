@@ -10,6 +10,20 @@
   - 4 test mới: nhãn giờ cho các mẫu cron cố định + mẫu không cố định trả rỗng; mục feed_auto trong `_upcoming_state` dùng đúng cron hiệu lực từ `get_state()` (06:30 & 21:30, không dính 17:00); fallback khi thiếu cron cho ra đúng `DEFAULT_CRON` (08:00 & 20:00).
 - **Còn lại (ghi rõ, không giấu):** dòng hiển thị Feed trong handler `/upcoming` của `mulon/telegram_bot.py` vẫn ghi cứng `08:00 & 17:00 (2 bài/ngày)` — file này đang thuộc LUỒNG 1 sửa dở cho T-24.3 nên LUỒNG MUSE không đụng theo lưu ý an toàn của LUẬT ĐA LUỒNG; khi T-24.3 lên main, dòng đó được thay bằng nhãn suy từ `cron_times_label(settings cron)` trong một commit nối tiếp của T-25.
 
+## 1.7.22 — 2026-10-27 — Spike browser bridge cho DM Threads thật (T-22.3, LUỒNG PHỤ 1) — [BẢN KHÔI PHỤC]
+
+> Mục này do Muse (LUỒNG MUSE) khôi phục ngày 27/10/2026: bản gốc của LUỒNG PHỤ 1 trong commit `d9d2a853` đã bị lượt push `8fe2e97d` của LUỒNG MUSE ghi đè mất (nền CHANGELOG cũ). Nội dung dưới đây dựng lại theo commit message + danh sách file của `d9d2a853`; LUỒNG PHỤ 1 có thể thay bằng bản gốc của mình.
+
+- Thêm `mulon/threads_browser_bridge.py` + `config/threads_web_selectors.json`: cầu nối trình duyệt mở hộp thư Threads web trên phiên đã đăng nhập của người cài để gửi DM thật vào hội thoại có sẵn, giữ giới hạn cứng chỉ-nhắn-người-đã-có-hội-thoại.
+- Nối bridge vào `mulon/personal_connectors.py` + `mulon/connectors.py`; cấu hình ở `mulon/config.py` + `.env.example`; tài liệu spike ở `docs/threads-browser-bridge-spike.md`; test ở `tests/test_threads_browser_bridge.py` + cập nhật `tests/test_v17_personal_connectors.py`. (Trạng thái tại thời điểm đó: spike, T-22.3 vẫn DOING.)
+
+## 1.7.22 — 2026-10-27 — Không lộ chữ nội bộ kiểm chứng/chẩn đoán vào câu trả lời chat (T-24.3, LUỒNG 1) — [BẢN KHÔI PHỤC]
+
+> Mục này do Muse (LUỒNG MUSE) khôi phục ngày 27/10/2026: bản gốc của LUỒNG 1 trong commit `c73ce23d` đã bị lượt push `8fe2e97d` của LUỒNG MUSE ghi đè mất (nền CHANGELOG cũ). Nội dung dưới đây dựng lại theo commit message + danh sách file của `c73ce23d`; LUỒNG 1 có thể thay bằng bản gốc của mình.
+
+- Sửa `mulon/agent.py` + `mulon/prompts/verify_system.txt` + `mulon/prompts/muse_reply_style.txt` + `config/intent_hints.json`: lớp tự kiểm vẫn chạy nhưng kết luận/chẩn đoán nội bộ không còn in vào mặt chat; khi kiểm chứng mâu thuẫn ngữ cảnh hội thoại thật thì ưu tiên ngữ cảnh.
+- Test hồi quy: `tests/test_v17_verification_privacy.py`.
+
 ## 1.7.21 — 2026-10-27 — Huỷ việc dứt điểm, ngắt sạch mục tiêu cũ khỏi ngữ cảnh làm việc (T-24.2, Luồng 1)
 
 - **Cơ chế huỷ dứt điểm lượt xử lý (`mulon/memory.py: cancel_turn`, `cancel_running_tasks_for_session`, T-24.2):**
