@@ -21,6 +21,8 @@
 
 Cập nhật 2026-10-27 ~22:35 bởi LUỒNG PHỤ 1 (ký: Phu1): theo luật tự động tiếp nối của chủ dự án (xong việc thì lấy việc tiếp theo, không dừng chờ lệnh) và lệnh move đã có ở commit `8dd7914` (claim T-28 DOING cho LUỒNG PHỤ 1 từ T-22.3 bị kẹt, nhưng lần đẩy đó đã bị các lần restore sau ghi đè về TODO) — khôi phục claim T-28 DOING cho LUỒNG PHỤ 1. T-22.3 vẫn DOING, KHÔNG ghi DONE, KHÔNG tự VERIFIED: code spike đã nằm trong suite 594 passed của autowatch, chỉ còn DM Threads thật chưa gửi vì cần profile Chromium đã đăng nhập Threads web trên Mac + 1 lần duyệt của chủ dự án. Lần đẩy này CHỈ sửa: dòng cập nhật này + tiêu đề/ghi chú nhận việc của T-28, không động mục khác. Ky: Phu1
 
+Cập nhật 2026-10-27 ~22:27 bởi Muse (ký: Muse): theo lệnh chủ dự án "giao việc cho tụi nó đi" — chuyển T-26 từ hàng chờ LUỒNG PHỤ 1 sang LUỒNG PHỤ 3 (ký: Nori) để PHỤ 3 có việc tự nhận theo LUẬT LÀM LIÊN TỤC; hàng chờ PHỤ 3: T-26. T-29 KHÔNG chuyển vì đã `DOING` ở LUỒNG PHỤ 1. Lần đẩy này CHỈ sửa: dòng cập nhật này + tiêu đề/ghi chú T-26 + mục LUỒNG PHỤ 3 + hàng Phu1/Nori trong BẢNG KÝ TÊN + hàng chờ LUỒNG PHỤ 1, không động mục khác. Ky: Muse
+
 Cập nhật 2026-10-27 ~22:20 bởi LUỒNG PHỤ 3 (ký: Nori): ghi LUẬT LÀM LIÊN TỤC của chủ dự án (~22:15) vào mục LUỒNG PHỤ 3 — làm xong 1 việc tự lấy việc tiếp theo trong hàng chờ của LUỒNG PHỤ 3, làm tiếp trong cùng lượt, không dừng chờ lệnh; chỉ dừng khi hàng chờ trống / cần chủ dự án quyết / bị chặn kỹ thuật không tự gỡ được, dừng thì báo rõ lý do. Kiểm tại head `5a44912`: hàng chờ LUỒNG PHỤ 3 hiện TRỐNG (không mục nào giao LUỒNG PHỤ 3; mọi TODO thuộc LUỒNG 1/2/3 hoặc LUỒNG PHỤ 1 — không tự lấy việc của luồng khác) nên LUỒNG PHỤ 3 đang chờ phân công theo đúng luật vừa ghi. Lần đẩy này CHỈ sửa: dòng cập nhật này + mục LUỒNG PHỤ 3, không động mục khác (đã áp lại trên nền `5a44912` mới nhất, giữ nguyên khôi phục DONE T-16 của Phu2). Ky: Nori
 
 Cập nhật 2026-10-27 ~22:16 bởi LUỒNG PHỤ 2 (ký: Phu2): KHÔI PHỤC ghi DONE T-16 bị commit `5d91aa5` ghi đè lần 2 — Muse khôi phục T-25 từ nền cũ trước `ced9c08` nên tiêu đề/ghi chú DONE T-16 lại bị revert về DOING. Lần đẩy này khôi phục NGUYÊN VẸN ghi DONE T-16 (code `ee04931`, v1.7.23) trên nền `5d91aa5`, giữ nguyên toàn bộ khôi phục T-25 + dòng hướng dẫn push 22:22 của Muse, không động mục khác. Ky: Phu2
@@ -193,7 +195,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
   *Lưu ý an toàn:* T-29 và T-26 có đụng `telegram_bot.py` — chỉ bắt đầu hai mục này khi Luồng 1 không đang sửa dở file đó, và rebase kỹ trước khi push.
 
 - **LUỒNG PHỤ 1 — Muse phụ** (chạy trên VM, push qua GitHub connector, không có clone/worktree trên Mac, không chạy bot thật trên Mac):
-  T-22.3 spike browser bridge (đang DOING, commit `058ca98`) -> T-28 -> T-29 -> T-26. (T-25 đã chuyển sang LUỒNG MUSE.)
+  T-22.3 spike browser bridge (đang DOING, commit `058ca98`) -> T-28 -> T-29. (T-25 đã chuyển sang LUỒNG MUSE; T-26 đã chuyển sang LUỒNG PHỤ 3 ~22:27.)
   *Lưu ý:* T-28 cần log Actions từ phía Mac (Muse không đọc được log Actions); T-29 và T-26 đụng `telegram_bot.py` — chỉ bắt đầu khi LUỒNG 1 không đang sửa dở file đó; mỗi lúc đúng MỘT mục DOING; không tự ghi VERIFIED — Muse chính nghiệm thu.
 
 - **LUỒNG PHỤ 2 — Muse phụ (chat này, ký: Phu2)** (chạy trên VM, push qua GitHub connector, không có clone/worktree trên Mac, không chạy bot thật trên Mac):
@@ -201,7 +203,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
   *Lưu ý:* T-16 làm theo Đường A đã chốt (muse2api làm upstream của CLIProxyAPI, MuLon không gọi thẳng 18610, không nới validate_proxy_base_url); key/phiên chỉ ở Vault/config, không commit key thật; nghiệm thu sống cần muse2api Docker + tài khoản Muse trên máy cài; mỗi lúc đúng MỘT mục DOING; không tự ghi VERIFIED — Muse chính nghiệm thu.
 
 - **LUỒNG PHỤ 3 — Muse phụ (chat phụ này, ký: Nori)** (chạy trên VM, push qua GitHub connector, không có clone/worktree trên Mac, không chạy bot thật trên Mac):
-  Chưa nhận việc — chờ chủ dự án phân công. Hàng chờ của LUỒNG PHỤ 3 hiện TRỐNG.
+  Hàng chờ của LUỒNG PHỤ 3: T-26 (chuyển từ LUỒNG PHỤ 1 theo lệnh chủ dự án ~22:27, Muse ghi). Tự nhận T-26 (TODO -> DOING, ký Nori) rồi làm theo LUẬT LÀM LIÊN TỤC.
   *Lưu ý:* mỗi lúc đúng MỘT mục DOING; không tự ghi VERIFIED — Muse chính nghiệm thu; mọi nhận việc/báo cáo/dòng cập nhật/commit đều ký `Nori`. **LUẬT LÀM LIÊN TỤC (lệnh chủ dự án 27/10 ~22:15):** làm xong 1 việc là tự lấy việc tiếp theo trong hàng chờ của LUỒNG PHỤ 3 và làm tiếp luôn trong cùng lượt, không dừng chờ lệnh; chỉ dừng khi hàng chờ trống, thật sự cần chủ dự án quyết định, hoặc bị chặn kỹ thuật không tự gỡ được — dừng thì báo rõ lý do.
 
 - **LUỒNG MUSE — Muse chính làm builder** (chạy trên VM của Muse, push qua GitHub connector; Muse vẫn giữ vai reviewer cho mọi luồng khác):
@@ -222,8 +224,8 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 |---|---|---|
 | `Muse` | Muse chính — reviewer + LUỒNG MUSE (builder) | Nghiệm thu mọi luồng; builder: T-25 (DONE, chờ nghiệm thu chéo) |
 | `Phu2` | LUỒNG PHỤ 2 (chat phụ này, VM) | T-16 (DONE, chờ Muse nghiệm thu) |
-| `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | T-22.3 spike browser bridge (DOING) -> T-28 -> T-29 -> T-26 |
-| `Nori` | LUỒNG PHỤ 3 (chat phụ này, VM) | Chưa nhận việc — chờ chủ dự án phân công |
+| `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | T-22.3 spike browser bridge (DOING) -> T-28 -> T-29 (T-26 -> PHỤ 3) |
+| `Nori` | LUỒNG PHỤ 3 (chat phụ này, VM) | Hàng chờ: T-26 |
 | `Antigravity` | LUỒNG 1–4 (máy Mac) | T-24.3, T-27, T-30, T-14 (đang DOING) |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
@@ -1250,7 +1252,8 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Bằng chứng (battery v5, 27/10 03:12–03:17): (1) gửi tin lúc bot đang bận viết bài dài -> KHÔNG có bất kỳ phản hồi tức thì nào cho biết đã nhận/xếp hàng; phải đợi ~46s tới khi lượt trước xong mới thấy lượt của mình bắt đầu (cơ chế xếp hàng đúng — tin không mất, chạy ngay sau). (2) Lóe markdown thô trước khi định dạng kịp áp: đáp án "17 + 25" hiện dạng `**17 + 25 = 42**` chữ thô rồi mới sửa thành in đậm thật; bài quán cà phê cũng sửa 3 nhịp mới ổn định định dạng. (3) Bài dài còn sót ký tự phân cách thô dạng `---` trong thân bài (cả bài phân tích AI agent lẫn bài so sánh Muse/ChatGPT).
 - Nghiệm thu: gửi tin khi bot bận -> có xác nhận xếp hàng trong vài giây; đáp án cuối không qua trạng thái chữ markdown thô nhìn thấy được; bài dài không còn dòng `---` thô.
 
-### [T-26] Chốt bề mặt slash commands (46 lệnh thật, menu chỉ 8, không có /help) — Giao: LUỒNG PHỤ 1 — `TODO` (ƯU TIÊN 25) — LUỒNG PHỤ 1
+### [T-26] Chốt bề mặt slash commands (46 lệnh thật, menu chỉ 8, không có /help) — Giao: LUỒNG PHỤ 3 — `TODO` (ƯU TIÊN 25) — LUỒNG PHỤ 3 (ký: Nori)
+- **Chuyển giao 2026-10-27 ~22:27 bởi Muse (lệnh chủ dự án):** từ LUỒNG PHỤ 1 sang LUỒNG PHỤ 3; hàng chờ PHỤ 3: T-26. (T-29 KHÔNG chuyển — đã `DOING` ở LUỒNG PHỤ 1.)
 - **Chuyển giao 2026-10-27 ~21:40 bởi Muse (lệnh chủ dự án):** từ LUỒNG 4 sang LUỒNG PHỤ 1; thứ tự trong LUỒNG PHỤ 1: T-22.3 -> T-28 -> T-29 -> T-26 -> T-25; chỉ LUỒNG PHỤ 1 nhận mục này.
 - Nguồn: audit chi tiết `docs/ui-professional-audit-2026-10-27.md` mục 1 (Muse rà code + probe sống 19 lệnh trên bot thật 27/10). Bệnh: 3 tầng lệch nhau (menu 8 / BOT_COMMANDS +14 / handler ngầm +24); /lich + /saptol + /upcoming ba lệnh một việc (probe: bảng giống hệt); /help KHÔNG có handler (agent tự chế đáp án chậm); lệnh bịa /xyz123khongco bị coi là việc chat chạy một lượt model vô nghĩa; /memory dump nguyên văn dossier; the_duyet (lệnh test) sống trong bản thật để lại dữ liệu thử.
 - Yêu cầu tóm tắt (chi tiết + nghiệm thu ở tài liệu audit mục 1.4): một danh sách lệnh khai duy nhất sinh ra menu + /help + tài liệu, có test tĩnh quét handler đối chiếu; thêm /help theo nhóm; gộp alias ẩn (saptol/lich -> upcoming, stop -> cancel, dongchat -> chatphu_dong); lệnh lạ trả lời ngay không vào vòng agent; lệnh-theo-id rút khỏi bề mặt công bố (giữ làm đường nội bộ cho nút bấm); lệnh nâng cao/phá huỷ (restart, forget, export_memory, google_auth, claim, setup) gom nhóm Nâng cao trong /help kèm cảnh báo; the_duyet chỉ bật khi có cờ dev, mặc định tắt; /memory trả tóm tắt có cấu trúc thay vì dump thô.
