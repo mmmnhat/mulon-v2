@@ -1065,7 +1065,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   </div>
 
   <div class="card-title" style="margin:8px 0 8px 4px; font-size:15px; font-weight:600; color:var(--ink2);">Hàng ngày &amp; Hệ thống</div>
-  <div class="card" id="card-heartbeat-item" style="cursor:pointer; display:flex; align-items:center; gap:14px; padding:16px; border-radius:18px; margin-bottom:18px;">
+  <div class="card" id="card-heartbeat-item" data-sched-open="heartbeat" style="cursor:pointer; display:flex; align-items:center; gap:14px; padding:16px; border-radius:18px; margin-bottom:18px;">
     <div style="width:44px; height:44px; border-radius:50%; background:var(--tint-lav); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--lav-deep)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
     </div>
@@ -1765,6 +1765,9 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     giá trị. Nhập bí mật mới ngay tại đây: giá trị đi thẳng vào
     kho trên máy đang chạy Mulon, lưu xong không hiện lại ở
     đâu nữa.</div>
+  <div id="vault-search-wrap" class="hidden" style="margin-bottom:8px;">
+    <input id="vault-search" class="field-input" type="text" placeholder="Tìm kiếm bí mật theo nhãn hoặc mã..." style="margin:0; width:100%;">
+  </div>
   <div class="card"><div id="vault-list"></div></div>
   <div class="card">
     <div class="card-title">Thêm bí mật mới</div>
@@ -2090,6 +2093,28 @@ function hhmm(iso){
 function todayLabel(iso){
   return formatTimeUnified(iso);
 }
+function formatTimeOnly(iso){
+  if (!iso) return "";
+  const s = String(iso).trim();
+  const m = s.match(/(\d{2}):(\d{2})/);
+  if (m) return m[1] + ":" + m[2];
+  const d = new Date(s);
+  if (isNaN(d)) return "";
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+function getDayGroupKey(iso){
+  if (!iso) return "Trước đó";
+  const d = new Date(String(iso).trim());
+  if (isNaN(d)) return "Trước đó";
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return "Hôm nay";
+  const yest = new Date(now);
+  yest.setDate(now.getDate() - 1);
+  if (d.toDateString() === yest.toDateString()) return "Hôm qua";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return dd + "/" + mm + "/" + d.getFullYear();
+}
 function truncateWords(text, maxLen){
   const clean = String(text ?? "").replace(/\s+/g, " ").trim();
   const limit = maxLen || 80;
@@ -2290,6 +2315,7 @@ document.addEventListener("click", (e) => {
   if (hbEl) {
     e.preventDefault();
     haptic("select");
+    openScheduleDetail("heartbeat");
     openHeartbeatModal();
     return;
   }
@@ -3672,7 +3698,15 @@ function renderApprovals(){
   const tabDot = $("tab-appr-dot");
   if (tabDot) tabDot.classList.toggle("hidden", pending.length === 0);
   if (pending.length){
-    wrap.innerHTML = pending.map(p =>
+    const bannerHtml = '<div class="card" style="background:var(--tint-lav); border:1px solid var(--line); margin-bottom:12px; padding:14px 16px;">' +
+      '<div style="font-weight:600; font-size:15px; color:var(--lav-deep); margin-bottom:2px;">' +
+        'Yêu cầu đang chờ duyệt (' + pending.length + ')' +
+      '</div>' +
+      '<div style="font-size:12px; color:var(--ink2);">' +
+        'Mulon cần bạn duyệt trước khi thực thi các thao tác nhạy cảm.' +
+      '</div>' +
+    '</div>';
+    wrap.innerHTML = bannerHtml + pending.map(p =>
       p.kind === "marketplace_operation" ? mktApprovalCard(p) :
       '<div class="card appr-card" id="appr-' + esc(p.approval_id) + '">' +
       '<div class="appr-head"><span class="appr-dot"></span>' +
@@ -3720,33 +3754,52 @@ function renderApprovals(){
       }));
   } else {
     wrap.innerHTML = '<div class="card"><div class="empty">' +
-      'Không có yêu cầu nào đang chờ duyệt. Khi Mulon cần anh ' +
-      'quyết, thẻ duyệt sẽ hiện ở đây.</div></div>';
+      '<div style="font-weight:600; font-size:15px; margin-bottom:4px; color:var(--ink);">Không có yêu cầu chờ duyệt</div>' +
+      '<div style="font-size:12px; color:var(--ink2);">Khi Mulon cần quyết định cho hành động quan trọng, thẻ duyệt sẽ hiện ở đây.</div></div></div>';
   }
   const hist = ((S && S.approvals.history) || []).filter(h => !isTestApprovalItem(h));
   const box = $("history-list");
   if (!hist.length){
-    box.innerHTML = '<div class="empty">Chưa có quyết định duyệt nào. Các quyết định anh đã bấm sẽ lưu ở đây để xem lại.</div>';
+    box.innerHTML = '<div class="empty">Chưa có quyết định duyệt nào. Các quyết định bạn đã bấm sẽ lưu ở đây để xem lại.</div>';
     return;
   }
-  box.innerHTML = hist.map((h, i) =>
-    '<div class="hist"><div class="row" data-hist="' + i + '">' +
-    '<div class="r-main"><div class="r-title">' +
-    esc(h.action_label || h.tool) +
-    '</div><div class="r-sub">' +
-    esc(h.group_label || h.group || "—") + '</div></div>' +
-    '<span class="r-state">' + outcomeText(h) + '</span></div>' +
-    '<div class="hist-detail"><table class="fields">' +
-    '<tr><td class="k">Hành động</td><td>' +
-    esc(h.action_label || h.tool) + '</td></tr>' +
-    '<tr><td class="k">Công cụ</td><td>' + esc(h.tool) + '</td></tr>' +
-    '<tr><td class="k">Nhóm việc</td><td>' +
-    esc(h.group_label || h.group || "—") + '</td></tr>' +
-    '<tr><td class="k">Chế độ quyền</td><td>' + esc(h.layer_label || policyLayerLabel(h.layer || "ask")) + '</td></tr>' +
-    '<tr><td class="k">Thời gian</td><td>' + esc(todayLabel(h.at)) + '</td></tr>' +
-    '<tr><td class="k">Kết quả</td><td>' + outcomeLabel(h) +
-      (h.remember ? " (đã nhớ cho phiên)" : "") + '</td></tr>' +
-    '</table></div></div>').join("");
+  const groups = {};
+  const groupOrder = [];
+  hist.forEach((h, i) => {
+    const gKey = getDayGroupKey(h.at);
+    if (!groups[gKey]) {
+      groups[gKey] = [];
+      groupOrder.push(gKey);
+    }
+    groups[gKey].push({item: h, idx: i});
+  });
+
+  box.innerHTML = groupOrder.map(gKey => {
+    const gItems = groups[gKey];
+    return '<div class="hist-day-header" style="font-size:12px; font-weight:600; color:var(--ink2); text-transform:uppercase; letter-spacing:0.5px; padding:10px 4px 6px; border-bottom:1px solid var(--tint-gray); margin-bottom:4px;">' +
+      esc(gKey) + ' (' + gItems.length + ')</div>' +
+      gItems.map(({item: h, idx: i}) => {
+        const timePart = formatTimeOnly(h.at);
+        const subParts = [h.group_label || h.group || "—", timePart ? ("lúc " + timePart) : todayLabel(h.at)].filter(Boolean);
+        return '<div class="hist"><div class="row" data-hist="' + i + '">' +
+          '<div class="r-main"><div class="r-title">' +
+          esc(h.action_label || h.tool) +
+          '</div><div class="r-sub">' +
+          esc(subParts.join(" · ")) + '</div></div>' +
+          '<span class="r-state">' + outcomeText(h) + '</span></div>' +
+          '<div class="hist-detail"><table class="fields">' +
+          '<tr><td class="k">Hành động</td><td>' +
+          esc(h.action_label || h.tool) + '</td></tr>' +
+          '<tr><td class="k">Công cụ</td><td>' + esc(h.tool) + '</td></tr>' +
+          '<tr><td class="k">Nhóm việc</td><td>' +
+          esc(h.group_label || h.group || "—") + '</td></tr>' +
+          '<tr><td class="k">Chế độ quyền</td><td>' + esc(h.layer_label || policyLayerLabel(h.layer || "ask")) + '</td></tr>' +
+          '<tr><td class="k">Thời gian</td><td>' + esc(todayLabel(h.at)) + '</td></tr>' +
+          '<tr><td class="k">Kết quả</td><td>' + outcomeLabel(h) +
+            (h.remember ? " (đã nhớ cho phiên)" : "") + '</td></tr>' +
+          '</table></div></div>';
+      }).join("");
+  }).join("");
 }
 
 /* ---------------- Lịch ---------------- */
@@ -3826,6 +3879,9 @@ function renderSchedule(){
     }));
 }
 
+let schedRunsPage = 1;
+const SCHED_RUNS_PER_PAGE = 5;
+
 function renderScheduleRuns() {
   const runsBox = $("sched-detail-runs");
   if (!runsBox) return;
@@ -3834,7 +3890,11 @@ function renderScheduleRuns() {
     runsBox.innerHTML = '<div class="empty">Chưa có lượt chạy nào được ghi nhận cho lịch trình này.</div>';
     return;
   }
-  runsBox.innerHTML = runs.map((r, idx) => {
+  const maxShown = schedRunsPage * SCHED_RUNS_PER_PAGE;
+  const shownRuns = runs.slice(0, maxShown);
+  const remaining = runs.length - shownRuns.length;
+
+  let html = shownRuns.map((r, idx) => {
     const isExp = Boolean(scheduleExpandedRuns[idx]);
     const stText = r.status_label || (r.status === "failed" ? "✕ Đã lỗi" : "✓ Hoàn tất");
     const timeText = todayLabel(r.started_at || r.time_str || "");
@@ -3858,6 +3918,22 @@ function renderScheduleRuns() {
       '</div>' : '') +
     '</div>';
   }).join("");
+
+  if (remaining > 0) {
+    html += '<div style="text-align:center; padding:10px 0 4px;">' +
+      '<button type="button" class="btn-link" id="btn-sched-runs-more" style="cursor:pointer; font-size:13px; font-weight:600; color:var(--accent); background:transparent; border:0; padding:6px 12px;">Xem thêm (' + remaining + ' lượt cũ hơn)</button>' +
+    '</div>';
+  }
+
+  runsBox.innerHTML = html;
+
+  const moreBtn = $("btn-sched-runs-more");
+  if (moreBtn) {
+    moreBtn.onclick = () => {
+      schedRunsPage++;
+      renderScheduleRuns();
+    };
+  }
 }
 
 function toggleScheduleRunDetail(idx) {
@@ -3869,6 +3945,7 @@ async function openScheduleDetail(rawId) {
   if (!rawId) return;
   let sid = String(rawId).trim();
   if (sid.startsWith("sched_")) sid = sid.slice(6);
+  schedRunsPage = 1;
   showSub("screen-schedule-detail");
   scheduleExpandedRuns = {0: true}; // Mặc định mở lượt chạy gần nhất để dễ đối chiếu
   $("sched-detail-title").textContent = "Chi tiết lịch trình";
@@ -4600,15 +4677,17 @@ function renderSkills(){
         '<span class="acc-chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
       '</div>' +
       '<div class="acc-body">' +
-        shown.map(s =>
-          '<div class="row" data-skill="' + esc(s.name) + '">' +
+        shown.map(s => {
+          let desc = (s.display_description || s.description || "").trim();
+          if (desc === ">" || desc === ">-") desc = "";
+          return '<div class="row" data-skill="' + esc(s.name) + '">' +
             '<div class="r-main">' +
               '<div class="r-title">' + esc(s.name) + '</div>' +
-              (s.description ? '<div class="r-sub">' + esc(maskPaths(s.description)) + '</div>' : '') +
+              (desc ? '<div class="r-sub">' + esc(maskPaths(desc)) + '</div>' : '') +
             '</div>' +
             '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
-          '</div>'
-        ).join("") +
+          '</div>';
+        }).join("") +
         (remain > 0 ? '<button type="button" class="acc-more" data-skill-more="' + esc(gid) + '">Xem thêm (' + remain + ' kỹ năng)</button>' : '') +
       '</div>' +
     '</div>';
@@ -5217,14 +5296,36 @@ $("gconfig-disconnect-btn").addEventListener("click", async () => {
     openGoogleConfig();
   } catch (e) { toast(e.message); }
 });
+let VAULT_FILTER_Q = "";
 function renderVault(){
   const list = (S && S.vault) || [];
   const box = $("vault-list");
+  const searchWrap = $("vault-search-wrap");
+  if (searchWrap) {
+    searchWrap.classList.toggle("hidden", list.length < 5);
+    const sInput = $("vault-search");
+    if (sInput && !sInput._bound) {
+      sInput._bound = true;
+      sInput.addEventListener("input", (e) => {
+        VAULT_FILTER_Q = (e.target.value || "").trim();
+        renderVault();
+      });
+    }
+  }
+  const qNorm = stripAccents(VAULT_FILTER_Q);
+  const filtered = qNorm ? list.filter(v =>
+    stripAccents(v.label || "").includes(qNorm) || stripAccents(v.ref || "").includes(qNorm)
+  ) : list;
+
   if (!list.length){
     box.innerHTML = '<div class="empty">Chưa có bí mật nào trong kho.</div>';
     return;
   }
-  box.innerHTML = list.map(v => {
+  if (!filtered.length){
+    box.innerHTML = '<div class="empty">Không tìm thấy bí mật phù hợp từ khóa.</div>';
+    return;
+  }
+  box.innerHTML = filtered.map(v => {
     return '<div class="row clickable" data-vault-ref="' + esc(v.ref) + '">' +
       '<div class="glyph" style="flex-shrink:0">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>' +
@@ -6834,6 +6935,11 @@ function renderFeed(){
       $("feed-cron-preview").textContent = "Diễn giải: " + formatCronDisplay(f.cron || "");
     }
   }
+  document.querySelectorAll("[data-cron-preset]").forEach(btn => {
+    const isMatch = (btn.dataset.cronPreset === (f.cron || "").trim());
+    btn.classList.toggle("btn-accent", isMatch);
+    btn.classList.toggle("btn-soft", !isMatch);
+  });
   if (document.activeElement !== $("feed-quiet"))
     $("feed-quiet").value = f.quiet_hours || "";
   if (document.activeElement !== $("feed-max-posts"))

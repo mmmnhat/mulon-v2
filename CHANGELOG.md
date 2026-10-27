@@ -1,21 +1,27 @@
 # CHANGELOG
 
-## 1.7.25 — 2026-10-27 — Tích hợp CLIProxyAPI làm cổng model chính thức (T-14, LUỒNG 4 — ký: Antigravity [L4])
+## 1.7.26 — 2026-10-27 — Giao diện Mini App đạt chuẩn chuyên nghiệp 100% (T-27, LUỒNG 2 — ký: Antigravity [L2])
 
-- **Formal hoá CLIProxyAPI làm cổng model chính thức (`mulon/cliproxy.py`, T-14):**
-  - Bổ sung module `mulon/cliproxy.py` với `CLIProxyManager`: quản lý toàn bộ vòng đời, kiểm tra sống/chết (TCP + GET `/v1/models`), phát hiện file thực thi trên đa nền tảng (`cliproxyapi`, `CLIProxyAPI`, `EasyCLIProxyAPI` cho macOS, Linux, Windows), tự động khởi chạy khi bản cài bật cấu hình.
-  - Phân loại model theo nhà cung cấp (`categorize_model_provider`): Google Gemini, Anthropic Claude, OpenAI, Muse (muse2api), Codex, Grok, Kimi, DeepSeek, Qwen.
-  - Quản lý danh sách tài khoản CLI đã đăng nhập (`detect_cliproxy_accounts`): tự động phát hiện các tài khoản từ file cấu hình CLIProxyAPI (`config/cliproxy.yaml`, `~/.cliproxy/config.yaml`), tuân thủ nghiêm ngặt Luật bảo mật số 5: che mờ định danh (`mask_secret_identifier`), tuyệt đối không để lộ token, API key hay bí mật vào giao diện hay mã nguồn.
-- **Tuân thủ nguyên tắc Proxy-only (127.0.0.1:8317) & cơ chế Degrade không sập (`mulon/gateway.py`, `mulon/cliproxy.py`):**
-  - Mọi lời gọi model đều đi qua cổng proxy local `127.0.0.1:8317`, không gọi thẳng API bên ngoài.
-  - Khi proxy chưa chạy hoặc bị tắt: hệ thống chuyển sang chế độ suy giảm (degrade) với thông báo tiếng Việt rõ ràng, bot không sập, tiếp tục phục vụ các tác vụ cục bộ.
-- **API & giao diện quản lý trên Mini App (`mulon/webapp_server.py`, `mulon/webapp/index.html`):**
-  - Bổ sung 5 endpoint quản lý: `GET /api/cliproxy/status`, `GET /api/cliproxy/models`, `GET /api/cliproxy/accounts`, `POST /api/cliproxy/start`, `POST /api/cliproxy/stop`.
-  - Màn hình Cài đặt Mini App có hàng và màn con riêng `#screen-cliproxy`: hiển thị thẻ trạng thái cổng & độ trễ, thẻ danh sách tài khoản CLI, thẻ danh sách model sẵn sàng theo provider.
-- **Cấu hình bản cài (`mulon/config.py`, `.env.example`):**
-  - Bổ sung các trường `cliproxy_auto_start`, `cliproxy_binary_path`, `cliproxy_config_path`, `cliproxy_dir` trong `Config` và tài liệu `.env.example`.
-- **Kiểm thử (`tests/test_v17_cliproxy.py`, T-14):**
-  - 13 unit test mới kiểm chứng toàn diện: phát hiện file thực thi đa OS, che mờ định danh, phân loại model, phát hiện tài khoản không lộ bí mật, kiểm tra sống/chết qua TCP stub và cổng đóng, quản lý tiến trình start/stop, thông báo degrade, nguyên tắc proxy-only khoá cứng 8317, và các endpoint Mini App API.
+- **Tab Phê duyệt đạt chuẩn chuyên nghiệp (`mulon/webapp/index.html`, T-27):**
+  - Thẻ banner nổi bật dạng card ở đầu tab khi có yêu cầu đang chờ duyệt (`Yêu cầu đang chờ duyệt (N)`), kèm thẻ rỗng giải thích rõ ràng khi không có yêu cầu (`Không có yêu cầu chờ duyệt`).
+  - Lịch sử phê duyệt được phân nhóm theo ngày thông minh (`Hôm nay`, `Hôm qua`, hoặc ngày cụ thể `DD/MM/YYYY`) kèm số lượng quyết định trong từng ngày.
+  - Hiển thị mốc thời gian rõ ràng (`lúc HH:MM`) ngay trên hàng tóm tắt thu gọn thay vì chỉ có ngày chung chung.
+- **Tab Lịch & Hợp nhất Heartbeat (`mulon/webapp/index.html`, `mulon/webapp_server.py`, T-27):**
+  - Hợp nhất Heartbeat vào chung màn chi tiết lịch trình L2 (`#screen-schedule-detail` với `data-sched-open="heartbeat"`), xóa bỏ tình trạng sheet chôn sâu 3 cấp; đồng thời vẫn bảo toàn tương thích với modal điều hướng nhanh.
+  - Phân trang lịch sử chạy lịch trình: mặc định hiển thị 5 lượt gần nhất kèm nút "Xem thêm (N lượt cũ hơn)" tự động tải thêm khi cần.
+  - Sửa lỗi trong `_build_schedule_detail` (`webapp_server.py`): gọi `effective_enabled(self.memory, self.cfg)` thay vì gọi method không tồn tại `_heartbeat_state`.
+- **Kho lưu trữ bí mật Vault (`mulon/webapp/index.html`, T-27):**
+  - Tự động hiển thị thanh tìm kiếm `#vault-search` khi danh sách có từ 5 bí mật trở lên, hỗ trợ tìm kiếm và lọc tức thì không giật lag.
+- **Dọn dẹp kỹ năng Skills (`mulon/webapp/index.html`, T-27):**
+  - Loại bỏ hoàn toàn các mô tả lỗi dạng `>` hoặc `>-` từ header YAML để danh sách hiển thị sạch sẽ, chuyên nghiệp.
+- **Feed chủ động (`mulon/webapp/index.html`, T-27):**
+  - Nút preset kích hoạt khớp lịch, chuẩn hóa visual token 60/30/10, phân cấp thị giác rõ ràng với một màu nhấn duy nhất.
+- **Kiểm thử tĩnh và render thật Playwright (`tests/test_v17_t27_ui_perfection.py`, T-27):**
+  - Kiểm thử tĩnh HTML/JS toàn bộ các tiêu chí mới.
+  - Kiểm thử Chromium thật bằng Playwright (viewport iPhone 390×844) tương tác qua 4 tab: Phê duyệt, Lịch & Chi tiết Heartbeat (phân trang lượt chạy), Cài đặt & Kho bí mật (lọc tìm kiếm), Feed chủ động (presets). Tạo đầy đủ ảnh chụp render thật trong `data/artifacts/`.
+  - Bộ kiểm thử toàn dự án đạt 605/605 passed.
+
+## 1.7.25 — 2026-10-27 — Tích hợp CLIProxyAPI làm cổng model chính thức (T-14, LUỒNG 4 — ký: Antigravity [L4])
 
 ## 1.7.24 — 2026-10-27 — Triệt tiêu nhân đôi tin nhắn, thẻ duyệt và thẻ Vault (T-24.4, LUỒNG 1 — ký: Antigravity [L1])
 

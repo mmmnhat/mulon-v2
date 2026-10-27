@@ -2516,12 +2516,12 @@ class WebAppServer:
 
         # 1. Nhịp kiểm tra chủ động (Heartbeat)
         if sid == "heartbeat":
-            hb = await self._heartbeat_state()
+            hb_en = await effective_enabled(self.memory, self.cfg)
             hb_history = await self.memory.get_heartbeat_history(limit=25)
             interval_s = int(getattr(self.cfg, "proactivity_interval_s", 300) or 300)
             mins = max(1, interval_s // 60)
             cron_expr = f"*/{mins} * * * *" if mins < 60 else f"0 */{max(1, mins // 60)} * * *"
-            enabled = bool(hb.get("enabled"))
+            enabled = bool(hb_en)
             runs = []
             for idx, r in enumerate(hb_history):
                 st_raw = str(r.get("status") or "ok")
