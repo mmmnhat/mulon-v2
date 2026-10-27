@@ -19,13 +19,17 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-27 ~00:35 bởi Muse (00:28: CHIA
-NHỎ T-10 thành 5 mục con T-10.1..T-10.5, ƯU TIÊN 3..7 + LUẬT
-HÀNG ĐỢI — bản cục cũ không tag nên bị nhảy cóc 2 lượt;
-00:35: thêm T-22 connector TÀI KHOẢN CÁ NHÂN theo yêu cầu
-chủ dự án — Zalo, Telegram cá nhân, Facebook cá nhân, tin
-nhắn Instagram, tin nhắn Threads, chia 3 mục con ƯU TIÊN
-8..10. T-21 đang `DOING`, T-15 `TODO` (ƯU TIÊN 2)).
+Cập nhật lần cuối: 2026-10-27 ~08:10 bởi Muse (autowatch):
+KIỂM CHỨNG LẠI + ĐẨY verdict T-10.4 (lượt 03:50 đã viết verdict
+local nhưng chưa từng push lên remote, watermark vẫn kẹt ở
+`3f96935` trong khi head đã là `a7fe5c6`; lượt này chạy lại độc
+lập: full suite 503/503 + eval 31/36 + test sống VM mới 9/9 với
+dữ liệu khác — khớp toàn bộ số liệu lượt 03:50, verdict
+`VERIFIED` giữ nguyên). Watermark cập nhật thành `a7fe5c6`.
+Cập nhật 2026-10-27 ~03:50 bởi Muse (autowatch):
+T-10.4 `VERIFIED` (full suite 503/503 + eval 31/36 + test sống VM
+10/10; vòng test sống trên bot thật vẫn chờ phía Mac — xem mục
+T-10.4). Head lúc chốt verdict: `a7fe5c6`.
 Cập nhật 2026-10-27 ~01:30 bởi Muse (autowatch): T-21
 và T-15 đều `VERIFIED` (chi tiết trong từng mục);
 T-10.1 `DOING` phía Mac.
@@ -65,7 +69,14 @@ Cập nhật 2026-10-27 ~03:20 bởi Muse (autowatch): T-10.3
 `VERIFIED` (full suite 496/496 + eval 31/36 + test sống VM
 13/13; vòng test sống trên bot thật vẫn chờ phía Mac —
 xem mục T-10.3). Head lúc chốt verdict: `787094b`.
-T-10.4 đang `DOING` phía Mac, không chạm tới trong lượt này.
+Cập nhật 2026-10-27 ~03:50 bởi Muse (autowatch): T-10.4
+`VERIFIED` (full suite 503/503 + eval 31/36 + test sống VM
+10/10; vòng test sống trên bot thật vẫn chờ phía Mac —
+xem mục T-10.4). Head lúc chốt verdict: `a7fe5c6`.
+Đính chính SHA: Antigravity ghi commit `46b7d37` trong mục
+T-10.4 nhưng SHA này KHÔNG tồn tại trên remote (get_commit
+trả "No commit found"); commit feat T-10.4 thật trên main là
+`a7fe5c6bd2c681f6c4c9d6e3a4bf252c425fb89b`.
 Bổ sung 2026-10-27 ~00:47 bởi Muse: thêm T-23 từ QA Mini
 App đợt 1 (Muse mở app bằng WebView của chủ dự án, chỉ
 đọc, 5 tab + 16 màn con, 00:10–00:46) — chia 6 mục con
@@ -241,7 +252,7 @@ Checklist: C1 + C2 + C3/C7 (MỘT PHẦN) + R11.
   - Chưa tự kiểm được từ VM (ghi rõ, không phải lỗi): 1 chu kỳ Feed thật trên bot thật dùng nguồn ngoài + taste summary và 1 thẻ Ideas thật hiện trên Mini App/bot thật theo đúng nghiệm thu T-10.3 — phần này thuộc máy Mac/bot thật, cần Antigravity hoặc chủ dự án chạy một lượt trước khi coi T-10.3 là hoàn tất ngoài đời.
   - T-10.4 đã `DOING` phía Mac (commit `787094b`) — theo LUẬT HÀNG ĐỢI, lượt autowatch này không chạm vào T-10.4; T-25 xếp cuối hàng đợi (ƯU TIÊN 23).
 
-### [T-10.4] Goals + briefings — Giao: Antigravity — `DONE` (ƯU TIÊN 6)
+### [T-10.4] Goals + briefings — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 6)
 Checklist: D1 + D2/C8 (MỘT PHẦN/CHƯA) + D3 (giữ regression).
 - Goals: tạo/sửa/đóng goal qua chat, goal có subgoal lồng
   1 cấp; Mini App thấy cây goal + tiến triển thật (không
@@ -260,6 +271,47 @@ Checklist: D1 + D2/C8 (MỘT PHẦN/CHƯA) + D3 (giữ regression).
      - Telegram chat: Hỗ trợ cú pháp lệnh đa năng `/goal create <tiêu đề> [--parent <id>] [--desc <mô tả>]`, `/goal update <id> ...`, `/goal close <id>`, `/goal briefing <id>` và `/goals` hiển thị cây phân nhánh trực quan (`├─`, `└─`) kèm tiến triển thật.
      - Mini App: Thêm khối "Mục tiêu & Cây tiến triển" trên tab Việc (`#tab-viec` trong `mulon/webapp/index.html`), nạp dữ liệu cây phân cấp và tiến triển thật qua `/api/state` (`goals`) và các REST endpoints (`/api/goals`, `/api/goals/{id}`, `/api/goals/create`, `/api/goals/update`, `/api/goals/close`, `/api/goals/{id}/briefing`).
   5. *Kiểm chứng:* 503/503 unit tests PASS (thêm 7 test toàn diện trong `tests/test_v17_goals_briefings_parity.py`); golden eval stub đạt 31/36 (86%, qua cổng 85%).
+- **Nghiệm thu Muse (autowatch 27/10 ~03:50 +07, head `a7fe5c6`): `VERIFIED`.**
+  Đồng bộ đủ 13 file của diff (không có file nhị phân) rồi chạy lại:
+  full suite **503/503 passed** (10 warnings cũ ở marketplace tests, không
+  fail), eval stub **31/36 (86%)** — đúng 5 case trượt cũ từ trước
+  (marketplace ×4 + self-read), không trượt mới. Test sống VM bằng hàm
+  thật trên SQLite thật (`~/workspace/mulon-clone/live_t104.py`):
+  **10/10** — tạo goal + 2 subgoal; chặn lồng cấp 2; đóng 1 subgoal ->
+  tiến triển thật 1/2 (50%, label `1/2 subgoal (50%)`); rollup ghi
+  activity lên goal cha; briefing Letter đủ 3 mục, gắn đúng goal, đọc
+  lại được từ DB; C8 chặn `schedule_task` chứa "briefing" bằng đúng
+  thông điệp "không thể đặt lịch thủ công"; cây goal trả về đủ subgoal.
+  Đối chiếu code đã đồng bộ: REST `/api/goals*` đủ 6 endpoint
+  (`webapp_server.py`), router `/goal` trong `telegram_bot.py`, khối
+  "Mục tiêu & Cây tiến triển" trong Mini App (`#card-goals`,
+  `#goals-tree-wrap`). Checklist: **D1 ĐẠT** (từ MỘT PHẦN), **D2 ĐẠT**
+  (từ CHƯA), **C8-phần-briefings ĐẠT**, D3 regression giữ nguyên
+  (suite xanh, không hardcode mới, không nới lỏng chốt bảo mật).
+  Đính chính: SHA `46b7d37` Antigravity ghi trong mục này không tồn
+  tại trên remote — commit feat thật là `a7fe5c6`. Phần chưa tự kiểm
+  được từ VM (ghi rõ theo quy tắc): vòng test sống trên bot thật
+  (tạo goal qua chat `/goal` -> app hiện đúng cây; briefing sinh ra
+  trên bot thật) vẫn chờ phía Mac, như các mục T-10.1/10.2/10.3 trước.
+  Kiểm chứng lại lượt autowatch 27/10 ~08:10 +07 (trước khi đẩy
+  verdict này, vì lượt 03:50 chưa push): đồng bộ lại 11 file code
+  của diff qua connector và đối chiếu byte-for-byte với cây local
+  — KHỚP 11/11 (kể cả `index.html` 201.513 ký tự, có
+  `#card-goals`/`#goals-tree-wrap`); full suite **503/503 passed**;
+  eval **31/36 (86%)**, đúng 5 case trượt cũ; test sống độc lập
+  (`~/workspace/mulon-clone/live_t104_verify2.py`, hàm thật trên
+  SQLite thật, dữ liệu khác lượt 03:50): **9/9** — tạo goal +
+  2 subgoal, chặn lồng cấp 2, cây goal đủ 2 subgoal, tiến triển
+  thật 1/2 (50%, label `1/2 subgoal (50%)`), briefing Letter đủ
+  3 mục gắn đúng goal + đọc lại được từ DB, C8 chặn
+  `schedule_task` qua `ToolRegistry.execute` thật, REST đủ 6
+  endpoint. Checklist D1/D2/C8-phần-briefings: **ĐẠT, giữ nguyên
+  verdict**. 3 commit docs của phía Muse giữa watermark và head
+  (`ff6755f0`, `68eafc72`, `86e05280`: battery v5, T-24.7, T-26/27/28)
+  đã nằm trong bản remote này; lệnh get_commit hàng loạt của
+  chúng bị giữ chờ duyệt nên không lấy diff từng commit được —
+  nội dung đã đối chiếu qua bản AGENT_TASKS.md head, không có
+  thay đổi code nào từ 3 commit đó.
 
 ### [T-10.5] Gửi/nhận mọi loại nội dung + Chat phụ (regression) — Giao: Antigravity — `TODO` (ƯU TIÊN 7)
 Checklist: E2 (MỘT PHẦN) + E3 (checklist ghi ĐẠT — mục này
