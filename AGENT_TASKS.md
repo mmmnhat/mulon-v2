@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~00:23 bởi Muse (ký: Muse): theo lệnh chủ dự án (chat phụ ~00:22) — **mở T-31 (đồng bộ README + docs) giao LUỒNG 2** (LUỒNG 2 vừa xong 100% hàng chờ; chủ dự án nhắc docs/README phải đi cùng code). LUỒNG 5 đã nhận T-11 DOING lúc 00:21 — điều phối khớp. Ky: Muse
+
 Cập nhật 2026-10-28 ~00:21 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): nhận T-11 DOING (Parity hệ thống: connector/MCP/quyền/model/tự sửa, LUỒNG 5) theo điều phối của chủ dự án và Muse; tiếp tục từ trạng thái code trên main. Ky: Antigravity [L5]
 
 Cập nhật 2026-10-28 ~00:18 bởi Muse (ký: Muse): theo lệnh chủ dự án (chat phụ ~00:17) — **chuyển T-11 từ hàng chờ LUỒNG 3 sang LUỒNG 5** (LUỒNG 5 trống sau T-16 + T-28 DONE; T-11 mảng parity hệ thống/model hợp làn LUỒNG 5. T-22.3 phần còn lại GIỮ ở LUỒNG 3 sau T-17 — cùng chủ file connector/bridge). Ky: Muse
@@ -247,7 +249,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG 1 — Lõi hành vi** (chủ file `mulon/telegram_bot.py`):
   T-24.3 (đã DONE) -> T-24.4 (đang DOING) -> T-24.5 -> T-24.6 -> T-24.7. (T-26 + T-29 thu hồi từ phía PHỤ về LUỒNG 1 theo lệnh chủ dự án 27/10 ~22:37, rồi CHUYỂN sang LUỒNG 4 theo lệnh chủ dự án 28/10 ~00:11; T-25 ở LUỒNG MUSE; T-24.1, T-24.2 đã VERIFIED.)
 - **LUỒNG 2 — App & giao diện** (chủ file `mulon/webapp/` + `assets/`):
-  T-23.6 (đã VERIFIED) -> T-12 (đã DONE) -> T-27 (đang DOING dở, làm tiếp tới DONE) -> T-13.
+  T-23.6 (đã VERIFIED) -> T-12 (đã DONE) -> T-27 (đã DONE) -> T-13 (đã DONE) -> T-31.
 - **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
   T-30 (đã DONE) -> T-17 (nhận DOING) -> T-22.3 (phần còn lại: sửa IG báo gửi giả + DM Threads thật; spike code đã có ở `d9d2a853`). (Thu hồi từ LUỒNG PHỤ 1 theo lệnh chủ dự án 27/10 ~22:37.)
 - **LUỒNG 4 — Cổng model & còn lại**:
@@ -1516,6 +1518,15 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
   - Đã thực hiện đồng thời cả (a) và (b): bổ sung `mask_embedded_paths` trong `mulon/paths.py` (được `sanitize_path_display` tự động gọi khi chuỗi có khoảng trắng/câu văn, bảo toàn dấu câu cuối đường dẫn) VÀ bọc `esc(maskPaths(s.description))` khi render hàng kỹ năng trong `mulon/webapp/index.html` (mở rộng regex `maskPaths` bắt mọi ổ đĩa `[A-Za-z]:[\\\/]...`).
   - Đã thêm test kiểm chứng trực tiếp 4 mẫu câu chứa `/Users/...`, `/Volumes/...`, `/home/...`, `C:\...` trong `tests/test_v17_miniapp_polish_mkt_feed.py` (`test_api_state_filters_test_approvals_and_translates_policy_layer`). Chờ Muse nghiệm thu.
 - **Nghiệm thu bởi Muse (autowatch 27/10 ~17:16 +07, head `a23e04e`): `VERIFIED`.** Đúng tồn đọng test sống lượt trước: `mask_embedded_paths` mới trong `mulon/paths.py` (giữ dấu câu cuối path) được `sanitize_path_display` tự gọi khi chuỗi có khoảng trắng, và hàng kỹ năng render `esc(maskPaths(...))` trong `index.html`. Test sống hàm thật (script `live_t234_t235_t31.py`, không mock): 4 câu chứa `/Users/...`, `/Volumes/...`, `/home/...`, `C:\...` giữa câu đều không còn lộ path nguyên vẹn qua cả `mask_embedded_paths`, `sanitize_path_display` lẫn `_localize_skill_description` (vd còn `.../secret/file.txt`), đồng thời `_localize_skill_description` vẫn Việt hoá (`Sử dụng khi cần…`). Suite **560 passed, 0 failed**; test T-31 trong file mới PASSED. Không chặn mục làn nào — đúng tính chất vá cứng hoá.
+
+### [T-31] Đồng bộ README + docs theo trạng thái hiện tại — Giao: LUỒNG 2 — `TODO` (ƯU TIÊN 30) — LUỒNG 2
+- **Mở việc 2026-10-28 ~00:23 bởi Muse (lệnh chủ dự án):** chủ dự án nhắc "nhớ cập nhật docs và readme nha" — tài liệu phải đi cùng code, không để lệch trạng thái thật. Ky: Muse
+- Phạm vi: `README.md` ở gốc repo + toàn bộ `docs/` (parity checklist, sitemap Mini App, tài liệu QA, hướng dẫn connector/gateway).
+- Yêu cầu:
+  1. README: version hiện tại trên main; danh sách tính năng ĐÃ XONG đối chiếu AGENT_TASKS (chỉ VERIFIED/DONE mới ghi là có; việc TODO để mục "đang làm" riêng); hướng dẫn cài đặt Windows/macOS/Linux; cổng model CLIProxyAPI + muse2api (T-14/T-16); tính năng brand/mascot (T-13); connector tích hợp sẵn (T-17/T-30 theo trạng thái DONE của chúng); bề mặt lệnh ghi theo trạng thái hiện tại và ghi chú chờ T-26 chốt.
+  2. docs/: cập nhật trạng thái ở `docs/muse-parity-checklist.md` theo verdict mới nhất; sitemap cập nhật nếu IA đã đổi sau T-12/T-23; tài liệu bị thay thế thì đánh dấu superseded rõ ràng, không để hai tài liệu mâu thuẫn nhau.
+  3. Mục này CHỈ sửa tài liệu, không sửa code. Gặp chỗ code lệch docs thì ghi báo vào mục này cho Muse xử lý, không tự sửa code.
+- Nghiệm thu: Muse đối chiếu README/docs với AGENT_TASKS và kiểm chứng sống các khẳng định trong README (lệnh, cổng, tính năng phải chạy được thật).
 
 ## Đã đóng (VERIFIED)
 
