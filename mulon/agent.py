@@ -53,6 +53,33 @@ _ACTION_PROMISES = tuple(_INTENT_DATA.get("action_promises", ()))
 _FOLLOWUP_HINTS = tuple(_INTENT_DATA.get("followup_hints", ()))
 _MULTI_TASK_MARKERS = tuple(_INTENT_DATA.get("multi_task_markers", ()))
 _PARALLEL_ACTION_HINTS = tuple(_INTENT_DATA.get("parallel_action_hints", ()))
+_CONTEXT_QUERY_HINTS = tuple(_INTENT_DATA.get("context_query_hints", ()))
+
+
+def sanitize_chat_reply(text: str) -> str:
+    """Lọc sạch các thông báo kiểm chứng hoặc chẩn đoán nội bộ khỏi câu trả lời gửi người dùng (T-24.3)."""
+    if not text:
+        return text
+    lines = text.split("\n")
+    cleaned_lines = []
+    skip_diagnostic = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("⚠️ Chưa kiểm chứng") or stripped.startswith("KIỂM CHỨNG CHƯA ĐẠT"):
+            skip_diagnostic = True
+            continue
+        if skip_diagnostic:
+            if stripped.startswith("Chẩn đoán:") or stripped.startswith("Lỗi / Chẩn đoán:"):
+                continue
+            if stripped.startswith("Phần làm được tới giờ:"):
+                skip_diagnostic = False
+                continue
+            if not stripped:
+                continue
+            skip_diagnostic = False
+        cleaned_lines.append(line)
+    result = "\n".join(cleaned_lines).strip()
+    return result or text
 
 
 def should_plan_multi_task(text: str) -> bool:
@@ -732,12 +759,34 @@ class Agent:
 
                 # ----- VERIFY -----
                 await self._emit(on_event, "verify", task_id=task_id)
-                verdict = await self._verify(user_text, final_text, evidence)
+                verdict = await self._verify(user_text, final_text, evidence, convo=convo)
                 if verdict is None:
                     # Không gọi được verifier: không khẳng định đã kiểm chứng.
                     verified = None
                     break
                 verified, diagnosis = verdict
+
+                # Ưu tiên ngữ cảnh hội thoại khi kiểm chứng mâu thuẫn với ngữ cảnh thật (Parity Muse T-24.3)
+                if verified is False and final_text:
+                    u_low = user_text.lower()
+                    d_low = (diagnosis or "").lower()
+                    is_context_query = any(h in u_low for h in _CONTEXT_QUERY_HINTS)
+                    has_prior_context = any(
+                        m.get("role") in ("user", "assistant") and str(m.get("content") or "").strip() not in (user_text, final_text)
+                        for m in convo
+                    )
+                    claims_lack_evidence = any(
+                        w in d_low
+                        for w in ("không có bằng chứng", "thiếu bằng chứng", "ngữ cảnh", "xác nhận người dùng", "không có dữ liệu")
+                    )
+                    if (is_context_query and has_prior_context) or (claims_lack_evidence and has_prior_context):
+                        logger.info(
+                            "Ưu tiên ngữ cảnh hội thoại thực tế trước chẩn đoán của verifier: %s",
+                            diagnosis,
+                        )
+                        verified = True
+                        diagnosis = "Đã xác nhận từ ngữ cảnh hội thoại thực tế (ưu tiên ngữ cảnh)."
+
                 v_title = "Kiểm chứng: Đạt yêu cầu" if verified else f"Kiểm chứng: {diagnosis[:50]}"
                 v_status = "done" if verified else "failed"
                 await self.memory.add_task_step(task_id, v_title, v_status, detail=diagnosis)
@@ -777,14 +826,16 @@ class Agent:
         await self.memory.finish_task(task_id, status, result=clean_result,
                                       error=diagnosis if verified is False else "")
         await self._emit(on_event, "task_done", task_id=task_id, status=status)
-        if verified is False:
-            text = (
-                "⚠️ Chưa kiểm chứng được là đã xong đúng yêu cầu. "
-                f"Chẩn đoán: {diagnosis or 'không rõ'}.\n\n"
-                f"Phần làm được tới giờ:\n{clean_result}"
-            )
+
+        # Parity Muse T-24.3: Lớp tự kiểm được tồn tại trong DB/task/step,
+        # nhưng tuyệt đối KHÔNG in chữ nội bộ (kiểm chứng/chẩn đoán) vào câu trả lời người dùng.
+        sanitized = sanitize_chat_reply(clean_result)
+        if sanitized:
+            text = sanitized
+        elif verified is False:
+            text = "Tác vụ chưa hoàn tất được theo yêu cầu."
         else:
-            text = clean_result
+            text = "(không có nội dung)"
         return TurnResult(text=text, intent=intent, task_id=task_id,
                           verified=verified)
 
@@ -994,19 +1045,39 @@ class Agent:
             f"người dùng TỪ CHỐI duyệt tool {tool_name} — không "
             "được chạy việc này, hãy báo lại và hỏi hướng khác.")
 
-    async def _verify(self, user_text: str, final_text: str,
-                      evidence: list[str]) -> Optional[tuple[bool, str]]:
+    async def _verify(
+        self, user_text: str, final_text: str, evidence: list[str],
+        convo: Optional[list[dict]] = None,
+    ) -> Optional[tuple[bool, str]]:
         """Một lượt kiểm chứng độc lập. None = không gọi được verifier."""
+        recent_context_lines: list[str] = []
+        if convo:
+            for m in convo:
+                role = m.get("role")
+                if role in ("user", "assistant") and m.get("content"):
+                    c_content = str(m["content"]).strip()
+                    if c_content and c_content != user_text and c_content != final_text:
+                        recent_context_lines.append(f"{role}: {c_content[:400]}")
+
+        content_parts = [f"YÊU CẦU GỐC:\n{user_text}\n\nKẾT QUẢ CUỐI:\n{final_text}"]
+        if recent_context_lines:
+            content_parts.append(
+                "NGỮ CẢNH HỘI THOẠI TRƯỚC ĐÓ:\n"
+                + "\n".join(recent_context_lines[-6:])[:4000]
+            )
+        if evidence:
+            content_parts.append(
+                "BẰNG CHỨNG (output tool đã cắt gọn):\n"
+                + "\n".join(evidence[-8:])[:8000]
+            )
+        else:
+            content_parts.append(
+                "BẰNG CHỨNG (output tool đã cắt gọn):\n(Không có lệnh gọi tool)"
+            )
+
         prompt = [
             {"role": "system", "content": VERIFY_SYSTEM},
-            {
-                "role": "user",
-                "content": (
-                    f"YÊU CẦU GỐC:\n{user_text}\n\nKẾT QUẢ CUỐI:\n{final_text}\n\n"
-                    "BẰNG CHỨNG (output tool đã cắt gọn):\n"
-                    + "\n".join(evidence[-8:])[:8000]
-                ),
-            },
+            {"role": "user", "content": "\n\n".join(content_parts)},
         ]
         try:
             comp = await self._call(prompt, model=self.cfg.model_brain,

@@ -239,5 +239,20 @@
   "duyệt",
   "goal",
   "mục tiêu"
+ ],
+ "context_query_hints": [
+  "lúc nãy",
+  "vừa nãy",
+  "hồi nãy",
+  "nãy",
+  "trước đó",
+  "đã nói",
+  "mã bí mật",
+  "mã lúc",
+  "mã vừa",
+  "nhớ không",
+  "vừa gửi",
+  "vừa rồi",
+  "câu trước"
  ]
 }

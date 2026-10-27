@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 1.7.22 — 2026-10-27 — Không để lộ chữ nội bộ (kiểm chứng/chẩn đoán) vào câu trả lời, ưu tiên ngữ cảnh hội thoại thật (T-24.3, Luồng 1)
+
+- **Triệt tiêu hoàn toàn rò rỉ thông báo kiểm chứng/chẩn đoán nội bộ vào chat (`mulon/agent.py: _task_path`, `sanitize_chat_reply`, T-24.3):**
+  - Khắc phục triệt để lỗi kết quả chat bị mở đầu bằng nguyên văn cảnh báo nội bộ: `⚠️ Chưa kiểm chứng được là đã xong đúng yêu cầu. Chẩn đoán: ... Phần làm được tới giờ:`.
+  - Quy định rõ ràng phân tách 2 lớp: lớp tự kiểm (verifier / reflexion) vẫn lưu bền vào cơ sở dữ liệu (`tasks`, `task_steps`, `error=diagnosis`) phục vụ theo dõi chi tiết trên Mini App (tab Việc) và tiến trình quản trị; nhưng ở mặt hội thoại chat (`TurnResult.text`), tuyệt đối KHÔNG in các thông báo hay chẩn đoán kỹ thuật nội bộ vào câu trả lời gửi cho người dùng.
+  - Bổ sung hàm `sanitize_chat_reply`: tự động quét và bóc tách sạch sẽ các tiền tố cảnh báo kiểm chứng hoặc câu chữ chẩn đoán nội bộ nếu mô hình lỡ sao chép từ vòng lặp Reflexion.
+- **Ưu tiên ngữ cảnh hội thoại thực tế trước chẩn đoán của verifier (`mulon/agent.py: _verify`, `_task_path`, `config/intent_hints.json`, T-24.3):**
+  - Khắc phục lỗi verifier bị "mù ngữ cảnh" dẫn đến chẩn đoán sai thực tế (ví dụ: người dùng vừa cung cấp mã bí mật ở tin nhắn trước, sau đó hỏi lại thì verifier không thấy tool evidence nên đánh trượt và chẩn đoán nhầm "Không có bằng chứng hoặc ngữ cảnh hội thoại...").
+  - Mở rộng hàm `_verify`: trích xuất và cung cấp `NGỮ CẢNH HỘI THOẠI TRƯỚC ĐÓ` từ `convo` vào prompt kiểm chứng, giúp mô hình kiểm chứng độc lập thấy được toàn bộ lịch sử trao đổi thật giữa người dùng và trợ lý.
+  - Bổ sung `_CONTEXT_QUERY_HINTS` nạp từ `config/intent_hints.json` (Rule 0, không hardcode): tự động nhận diện các câu hỏi truy vấn lại thông tin hội thoại ("lúc nãy", "vừa nãy", "mã bí mật", "đã nói", "nhớ không", "vừa gửi"...).
+  - Khi câu hỏi truy vấn thông tin hội thoại hoặc verifier chẩn đoán thiếu bằng chứng ngoài trong khi ngữ cảnh hội thoại đã có thật, hệ thống tự động ưu tiên ngữ cảnh hội thoại thực tế (`verified = True`, `status = 'done'`), ghi nhận chẩn đoán xác nhận ngữ cảnh và tránh kích hoạt vòng lặp thử lại vô ích.
+- **Chuẩn hoá phong cách Muse & System prompt kiểm chứng (`mulon/prompts/verify_system.txt`, `mulon/prompts/muse_reply_style.txt`, T-24.3):**
+  - Cập nhật `mulon/prompts/verify_system.txt`: quy định rõ thông tin đã có trong ngữ cảnh hội thoại trước đó được coi là bằng chứng hợp lệ và có độ ưu tiên cao nhất, không bắt buộc phải gọi tool ngoài; khi kiểm chứng mâu thuẫn với ngữ cảnh thực tế đã diễn ra, luôn ưu tiên ngữ cảnh.
+  - Cập nhật `mulon/prompts/muse_reply_style.txt`: bổ sung điều 10 cấm để lộ các từ ngữ, thông báo kiểm chứng hoặc chẩn đoán nội bộ vào câu trả lời.
+- **Kiểm thử hồi quy (`tests/test_v17_verification_privacy.py`, T-24.3):**
+  - Viết mới `tests/test_v17_verification_privacy.py` gồm 4 test toàn diện kiểm chứng: (1) kiểm chứng thất bại không làm rò rỉ chẩn đoán vào chat trong khi DB vẫn lưu đúng, (2) truy vấn dựa trên ngữ cảnh hội thoại tự động ưu tiên ngữ cảnh thật và pass task, (3) prompt gửi tới verifier chứa đầy đủ ngữ cảnh hội thoại trước đó, (4) hàm tiện ích `sanitize_chat_reply`.
+  - Toàn bộ suite đạt 581/581 tests PASS (100%), evals vàng stub đạt 31/36 (86%, vượt ngưỡng 85%).
+
 ## 1.7.21 — 2026-10-27 — Huỷ việc dứt điểm, ngắt sạch mục tiêu cũ khỏi ngữ cảnh làm việc (T-24.2, Luồng 1)
 
 - **Cơ chế huỷ dứt điểm lượt xử lý (`mulon/memory.py: cancel_turn`, `cancel_running_tasks_for_session`, T-24.2):**
