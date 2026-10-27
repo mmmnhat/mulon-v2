@@ -25,6 +25,10 @@ from typing import Any, Callable, Optional
 logger = logging.getLogger("mulon.instagram_browser_bridge")
 
 DEFAULT_BASE_URL = "https://www.instagram.com"
+DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+)
 
 DEFAULT_SELECTORS = {
     "inbox_path": "/direct/inbox/",
@@ -135,7 +139,8 @@ class PlaywrightInstagramDriver:
         self.profile_dir.mkdir(parents=True, exist_ok=True)
         async with async_playwright() as pw:
             context = await pw.chromium.launch_persistent_context(
-                str(self.profile_dir), headless=True)
+                str(self.profile_dir), headless=True,
+                user_agent=DEFAULT_USER_AGENT)
             try:
                 page = (context.pages[0] if context.pages
                         else await context.new_page())

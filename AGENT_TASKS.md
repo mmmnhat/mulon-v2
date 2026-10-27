@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~01:25 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): nhận T-33 `DOING` (chẩn đoán + sửa 5 ca eval vàng đang fail) theo lệnh chủ dự án và điều phối của Muse; sau T-33 sẽ sửa phần còn lại của T-25 (dòng hardcode /upcoming). Tiếp tục từ trạng thái code trên main. Ky: Antigravity [L5]
+
 Cập nhật 2026-10-28 ~01:17 bởi Muse (ký: Muse): theo lệnh chủ dự án ("giao việc cho 2 con, k có nghỉ") — **LUỒNG 4**: khép T-29 (lật DONE + báo cáo) rồi chẩn đoán CI cho T-28 (ghi chú trong mục T-28); **LUỒNG 5**: nhận T-33 mới (chẩn đoán + sửa 5 ca eval vàng đang fail), sau đó sửa phần còn lại của T-25 (ghi chú trong mục T-25). Lần đẩy này CHỈ sửa: dòng cập nhật này + mục T-33 mới + ghi chú trong mục T-28, T-25 + dòng roster, không động mục khác. Ky: Muse
 
 Cập nhật 2026-10-28 ~01:10 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): T-11 chuyển `DONE` (version 1.7.38, 689/689 test passed, evals vàng 31/36 = 86%; rà soát và chuẩn hóa slash commands, /help phân nhóm và chi tiết, chặn lệnh lạ, bảo vệ /the_duyet sau cờ dev, /memory tóm tắt cấu trúc không lộ thô dossier; đổi model trực tiếp trong chat và Mini App 3 tiers và session override SQLite KV; /setup api và Mini App verify-and-capture kiểm tra kết nối sống trước khi lưu Vault; công cụ self_verify_and_restart chạy pytest và tự động git rollback khi fail; bảo toàn quyền connector Action-Level read=allow / write=ask). Hàng chờ LUỒNG 5 ĐÃ HOÀN THÀNH 100% (cả 3 task T-16, T-28, T-11 đều DONE), sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L5]
@@ -284,7 +286,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG PHỤ 3 — Muse phụ (ký: Nori) — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37):** T-26 thu hồi về LUỒNG 1 trước khi bắt đầu (không mất gì). LUẬT LÀM LIÊN TỤC của LUỒNG PHỤ 3 hết hiệu lực cùng lệnh dừng này. LUỒNG PHỤ 3 không nhận việc mới, không push thêm commit nào cho dự án này.
 
 - **LUỒNG 5 — Cổng model: sửa lỗi + CI** (Antigravity, phiên thứ 5 trên máy Mac, worktree riêng; lập theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên, không mở thêm):
-  T-16 (phần sửa NEEDS-FIX — đã DONE) -> T-28 (đã DONE) -> T-11 (đã DONE). (Hàng chờ LUỒNG 5 ĐÃ HOÀN THÀNH 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.)
+  T-16 (phần sửa NEEDS-FIX — đã DONE) -> T-28 (đã DONE) -> T-11 (đã DONE) -> T-33 (đang DOING) -> T-25 (phần còn lại).
   *Lưu ý:* phần sửa T-16 đụng `mulon/gateway.py` (vùng alias model) — LUỒNG 4 (T-14) tránh sửa vùng alias của gateway khi LUỒNG 5 đang làm T-16 và ngược lại; cả hai pull + rebase kỹ trước khi push. Ký commit `Ky: Antigravity` + nhãn `[L5]`.
 
 - **LUỒNG MUSE — Muse chính làm builder** (chạy trên VM của Muse, push qua GitHub connector; Muse vẫn giữ vai reviewer cho mọi luồng khác):
@@ -308,7 +310,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-13 + T-32 (L2), khép T-29 + chẩn đoán CI T-28 (L4), T-33 eval vàng (L5) đang DOING; test live T-16 giao L1, test live T-22.3 giao L3 (lệnh chủ dự án 28/10); T-11 (L5), T-26, T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE; hàng chờ LUỒNG 5 hoàn thành 100% |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-13 + T-32 (L2), khép T-29 + chẩn đoán CI T-28 (L4), T-33 eval vàng (L5) đang DOING; test live T-16 giao L1, test live T-22.3 giao L3 (lệnh chủ dự án 28/10); T-11 (L5), T-26, T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -1633,7 +1635,8 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
   3. Mục này CHỈ sửa tài liệu, không sửa code. Gặp chỗ code lệch docs thì ghi báo vào mục này cho Muse xử lý, không tự sửa code.
 - Nghiệm thu: Muse đối chiếu README/docs với AGENT_TASKS và kiểm chứng sống các khẳng định trong README (lệnh, cổng, tính năng phải chạy được thật).
 
-### [T-33] Chẩn đoán + sửa 5 ca eval vàng đang fail (eval đứng ở 31/36) — Giao: LUỒNG 5 — `TODO` (ƯU TIÊN 31) — LUỒNG 5
+### [T-33] Chẩn đoán + sửa 5 ca eval vàng đang fail (eval đứng ở 31/36) — Giao: LUỒNG 5 — `DOING` (ƯU TIÊN 31) — LUỒNG 5
+- **Nhận việc — Antigravity [L5] (2026-10-28 ~01:25 +07):** nhận T-33 DOING theo lệnh của chủ dự án và điều phối của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L5]
 - **Mở việc 2026-10-28 ~01:16 bởi Muse (lệnh chủ dự án):** eval vàng đứng ở 31/36 (86%) qua nhiều lượt autowatch mà 5 ca fail chưa ai chẩn đoán — giao LUỒNG 5 khép nốt. Ky: Muse
 - Yêu cầu: chạy `mulon.evals`, xác định đúng 5 ca fail; với mỗi ca phân loại rõ: (a) lỗi code thật -> sửa code + thêm test hồi quy; (b) kỳ vọng của ca đã cũ/lệch hành vi chuẩn Muse hiện tại -> KHÔNG tự sửa ca, ghi bằng chứng vào mục này cho Muse + chủ dự án quyết. Mục tiêu là eval xanh THẬT, không nới lỏng ca để lấy số.
 - Sau T-33: sửa phần còn lại của T-25 đã ghi chú trong mục T-25 (dòng hardcode /upcoming).

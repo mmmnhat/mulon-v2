@@ -185,7 +185,8 @@ class PlaywrightThreadsDriver:
         self.profile_dir.mkdir(parents=True, exist_ok=True)
         async with async_playwright() as pw:
             context = await pw.chromium.launch_persistent_context(
-                str(self.profile_dir), headless=True)
+                str(self.profile_dir), headless=True,
+                user_agent=DEFAULT_USER_AGENT)
             try:
                 page = (context.pages[0] if context.pages
                         else await context.new_page())
