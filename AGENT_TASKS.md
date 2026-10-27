@@ -19,6 +19,7 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~11:23 bởi Antigravity: nhận T-23.1 `DOING` (ƯU TIÊN 11) theo LUẬT HÀNG ĐỢI.
 Cập nhật lần cuối: 2026-10-27 ~11:05 bởi Antigravity: T-22.3 đã `DONE` (kết nối tin nhắn Instagram Direct Messages + Threads Direct Messages; tách biệt kết nối tin nhắn với bài đăng; Instagram hỗ trợ inbox/pending/spam, tìm kiếm, gửi tin/file, thả reaction, Checkpoint Guard; Threads tuân thủ nghiêm ngặt GIỚI HẠN CỨNG từ chối mở DM tới người lạ qua @handle; phân quyền đọc allow, gửi ask; phiên Vault an toàn; lệnh chat /instagram, /threads và Mini App UI), 539/539 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~10:47 bởi Antigravity: nhận T-22.3 `DOING` (ƯU TIÊN 10) theo LUẬT HÀNG ĐỢI.
 Cập nhật lần cuối: 2026-10-27 ~10:25 bởi Antigravity: T-22.2 đã `DONE` (commit `73f5dee`: hoàn tất báo cáo nghiên cứu kỹ thuật docs/nghien-cuu-facebook-ca-nhan.md; triển khai FacebookPersonalConnector với Checkpoint Guard tự ngắt khi gặp checkpoint; lưu cookie an toàn qua Vault; bọc frame_external; phân quyền đọc allow, gửi ask; cảnh báo rủi ro cao trên UI và chat; lệnh /facebook và Mini App API), 528/528 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
@@ -685,7 +686,7 @@ thu (luật AGENTS.md mục 6).
 
 - **Bổ sung đợt sitemap (Muse, 27/10/2026):** bản đồ đầy đủ + số liệu ở `docs/sitemap-miniapp-2026-10-27.md`; cây IA đích ở `docs/miniapp-ia-redesign-2026-10-27.md`. Số mới cần biết: 127 hàng chết (7 lịch hẹn + 100 tài liệu + 3 connector + 17 bí mật), cả 10 màn con không có nút quay lại, tìm kiếm chỉ có ở Kỹ năng. Lỗi tải initData ở Chi tiết việc + Chợ tách sang T-24.5.
 
-### [T-23.1] Sửa điều hướng Mini App — Giao: Antigravity — `TODO` (ƯU TIÊN 11)
+### [T-23.1] Sửa điều hướng Mini App — Giao: Antigravity — `DOING` (ƯU TIÊN 11)
 QA Q-01 (nghiêm trọng nhất): nhấn hàng trong Cài đặt mở
 lại màn con TRƯỚC ĐÓ (stale navigation), phải nhấn lần
 hai; chỉ chevron mới mở chắc, thân hàng lúc được lúc
