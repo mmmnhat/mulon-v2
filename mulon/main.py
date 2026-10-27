@@ -15,7 +15,7 @@ import logging
 import sys
 
 from .agent import Agent
-from .approvals import ApprovalBroker
+from .approvals import ApprovalBroker, register_approval_tools
 from .browser_worker import register_browser_tools
 from .config import Config
 from .connectors import build_default_connectors, register_connector_tools
@@ -113,6 +113,7 @@ async def build_system(cfg: Config):
     # App (/api/approve).
     broker = ApprovalBroker(policy=policy,
                             timeout_s=cfg.approval_timeout_s)
+    register_approval_tools(registry, broker)
     # 1.3.0: MCP Marketplace — boot gate chạy giữa start() và
     # register_into(): server managed chỉ được đăng ký tool khi
     # config fingerprint + tool fingerprint khớp bản đã duyệt;

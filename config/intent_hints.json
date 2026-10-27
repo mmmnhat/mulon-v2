@@ -213,5 +213,31 @@
   "sinh ảnh",
   "tạo ảnh",
   "triển"
+ ],
+ "multi_task_markers": [
+  " và ",
+  " đồng thời ",
+  " song song ",
+  " kèm theo ",
+  " vừa ",
+  " tiện thể ",
+  " sẵn tiện ",
+  " ngoài ra ",
+  " với lại "
+ ],
+ "parallel_action_hints": [
+  "tìm",
+  "tra cứu",
+  "xem",
+  "liệt kê",
+  "kiểm tra",
+  "đọc",
+  "check",
+  "báo cáo",
+  "tin tức",
+  "lịch",
+  "duyệt",
+  "goal",
+  "mục tiêu"
  ]
 }

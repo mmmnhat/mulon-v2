@@ -20,32 +20,53 @@ from dataclasses import replace
 from typing import Callable
 
 from .agent import Agent, clean_task_title
+from .datafiles import load_json_data
 from .gateway import Completion
 from .tools import ToolRegistry, ToolSpec
 
 logger = logging.getLogger("mulon.subagents")
 
-# Hồ sơ toolset. Nguyên tắc: mặc định KHÔNG có tool ghi ra ngoài.
-PROFILES: dict[str, dict] = {
+# Hồ sơ toolset. Nạp từ config/subagent_profiles.json (Rule 0).
+_DEFAULT_PROFILES = {
     "researcher": {
         "description": "Chỉ đọc + web + ký ức: tra cứu, tổng hợp.",
-        "tools": {
-            "web_fetch", "web_read", "memory_search", "session_search",
-            "memory_get", "now",
-        },
+        "tools": [
+            "web_search", "web_fetch", "web_read", "memory_search", "session_search",
+            "memory_get", "now", "list_schedules", "list_goals", "get_goal_detail",
+            "list_goal_briefings", "list_approvals", "search_library", "get_library_item",
+        ],
     },
     "coder": {
         "description": "File + lệnh trong workspace (jail giữ nguyên).",
-        "tools": {
+        "tools": [
             "read_file", "write_file", "edit_file", "list_dir",
-            "run_command", "web_fetch", "now",
-        },
+            "run_command", "web_search", "web_fetch", "web_read", "now",
+        ],
     },
     "default": {
-        "description": "Tối thiểu, chỉ đọc: web + ký ức.",
-        "tools": {"web_fetch", "memory_search", "memory_get", "now"},
+        "description": "Tác vụ đa năng, chỉ đọc: web, lập lịch, duyệt, ký ức.",
+        "tools": [
+            "web_search", "web_fetch", "web_read", "memory_search", "session_search",
+            "memory_get", "now", "list_schedules", "list_goals", "get_goal_detail",
+            "list_goal_briefings", "list_approvals", "search_library", "get_library_item",
+        ],
     },
 }
+
+
+def load_subagent_profiles() -> dict[str, dict]:
+    raw = load_json_data("subagent_profiles.json", _DEFAULT_PROFILES)
+    res = {}
+    for k, v in raw.items():
+        if isinstance(v, dict):
+            res[k] = {
+                "description": v.get("description", ""),
+                "tools": set(v.get("tools", [])),
+            }
+    return res
+
+
+PROFILES: dict[str, dict] = load_subagent_profiles()
 
 NEVER_TOOLS = {"spawn_subagent", "spawn_subagents_parallel"}
 
@@ -224,6 +245,8 @@ def register_subagent_tool(registry, runner: SubagentRunner,
                 return {"ok": False, "error": "mỗi item phải là dict"}
             t_text = str(item.get("task") or "")
             t_prof = str(item.get("profile") or "default")
+            if t_prof not in PROFILES:
+                t_prof = "default"
             return await runner.run(t_text, profile=t_prof, parent_session=parent_session)
 
         results = await asyncio.gather(*[_run_single(item) for item in tasks])

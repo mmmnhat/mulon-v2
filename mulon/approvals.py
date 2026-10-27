@@ -315,3 +315,42 @@ class ApprovalBroker:
     def get_record(self, approval_id: str) -> Optional[dict]:
         """Trả toàn bộ record của yêu cầu duyệt nếu đã có kết quả."""
         return self._decided.get(approval_id)
+
+
+def register_approval_tools(registry, broker: ApprovalBroker) -> None:
+    """Đăng ký tool list_approvals vào ToolRegistry."""
+    from .tools import ToolSpec
+
+    async def list_approvals(status: str = "pending", limit: int = 10) -> dict:
+        status_norm = (status or "pending").strip().lower()
+        res = {"ok": True, "status": status_norm}
+        if status_norm in ("pending", "all"):
+            res["pending"] = broker.pending() if broker else []
+        if status_norm in ("history", "all"):
+            res["history"] = broker.recent(limit=limit) if broker else []
+        return res
+
+    registry.register(ToolSpec(
+        name="list_approvals",
+        description="Liệt kê các yêu cầu phê duyệt đang chờ duyệt (pending) hoặc lịch sử các quyết định duyệt/chặn gần đây (history).",
+        parameters={
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": ["pending", "history", "all"],
+                    "default": "pending",
+                    "description": "Trạng thái cần xem: pending (đang chờ duyệt), history (lịch sử duyệt/chặn), all (cả hai)",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "Số lượng bản ghi lịch sử tối đa (mặc định 10)",
+                },
+            },
+        },
+        group="policy",
+        timeout_s=10.0,
+        handler=list_approvals,
+    ))
+

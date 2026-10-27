@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 1.7.20 — 2026-10-27 — Chạy song song sub-agent cho việc nhiều phần độc lập chuẩn Muse (T-24.1, Luồng 1)
+
+- **Tự động nhận diện việc nhiều phần độc lập (`mulon/agent.py: should_plan_multi_task`, `config/intent_hints.json`, T-24.1):**
+  - Bổ sung `multi_task_markers` và `parallel_action_hints` trong `config/intent_hints.json` (nạp qua `load_json_data`, Rule 0).
+  - Tự động nhận diện các yêu cầu có từ 2 hành động độc lập trở lên (phân tách bởi gạch đầu dòng, dấu `/`, từ khoá song song: vừa... vừa, đồng thời, và, kèm theo...) để lập kế hoạch phân rã đa nhánh.
+- **Kế hoạch phân rã song song chuẩn Muse (`mulon/prompts/plan_system.txt`, `mulon/agent.py: _plan`, T-24.1):**
+  - Prompt lập kế hoạch mới `mulon/prompts/plan_system.txt` (nạp qua `load_prompt`, Rule 0) yêu cầu model phân tích và gắn cờ `parallel: true` cùng danh sách `subtasks` kèm hồ sơ (profile: `researcher`, `coder`, `default`).
+  - Trong `_task_path`: khi phát hiện nhiệm vụ song song (`is_parallel and len(subtasks) >= 2`), tự động gọi `spawn_subagents_parallel` để các nhánh sub-agent chạy đồng thời qua `asyncio.gather`, ghi nhận đầy đủ tiến trình task con, timeline và trajectory.
+- **Mở rộng hồ sơ công cụ Sub-agent chỉ đọc (`config/subagent_profiles.json`, `mulon/subagents.py`, T-24.1):**
+  - Đưa định nghĩa hồ sơ subagent ra cấu hình `config/subagent_profiles.json` nạp linh hoạt qua `load_json_data` (Rule 0).
+  - Bổ sung các công cụ tra cứu chỉ đọc cho `researcher` và `default`: `web_search`, `list_approvals`, `list_schedules`, `list_goals`, `get_goal_detail`, `list_goal_briefings`, `search_library`, `get_library_item`.
+  - Đăng ký công cụ `list_approvals` vào `ToolRegistry` qua `mulon/approvals.py: register_approval_tools`.
+- **Đồng bộ phong cách trả lời và giải thích trung thực (`mulon/prompts/muse_reply_style.txt`, `mulon/agent.py: build_self_knowledge`, T-24.1):**
+  - Hướng dẫn mô hình tự nhận thức rõ ràng: khi có nhiều phần việc độc lập phải dùng `spawn_subagents_parallel`, không chạy tuần tự từng tool; khi người dùng hỏi lại thì đối chiếu lịch sử gọi tool và giải thích trung thực cách đã phân chia các nhánh sub-agent song song.
+- **Kiểm thử hồi quy toàn diện (`tests/test_v17_parallel_subagents.py`, T-24.1):**
+  - Thêm bộ test `tests/test_v17_parallel_subagents.py` (5 test PASS, toàn bộ suite 573/573 test PASS 100%, evals vàng 31/36 = 86% qua cổng).
+
 ## 1.7.19 — 2026-10-27 — Hệ thống thiết kế chuẩn mực, Design Tokens, tích hợp Native Telegram SDK & tái cấu trúc Tab Việc (T-12, Làn 1)
 
 - **Báo cáo nghiên cứu khả năng 'app' của Telegram Mini App (`docs/nghien-cuu-telegram-mini-app-capabilities.md`, T-12):**

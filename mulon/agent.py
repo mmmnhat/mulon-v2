@@ -51,6 +51,24 @@ _TOOL_HINTS = tuple(_INTENT_DATA.get("tool_hints", ()))
 _LONG_HINTS = tuple(_INTENT_DATA.get("long_hints", ()))
 _ACTION_PROMISES = tuple(_INTENT_DATA.get("action_promises", ()))
 _FOLLOWUP_HINTS = tuple(_INTENT_DATA.get("followup_hints", ()))
+_MULTI_TASK_MARKERS = tuple(_INTENT_DATA.get("multi_task_markers", ()))
+_PARALLEL_ACTION_HINTS = tuple(_INTENT_DATA.get("parallel_action_hints", ()))
+
+
+def should_plan_multi_task(text: str) -> bool:
+    """Kiểm tra xem yêu cầu có gồm nhiều phần việc độc lập nên chia song song hay không."""
+    if not text:
+        return False
+    low = text.lower()
+    if "\n" in text and any(b in text for b in ("- ", "* ", "1.", "2.")):
+        return True
+    if text.count("/") >= 2:
+        return True
+    has_marker = any(m in low for m in _MULTI_TASK_MARKERS) or ("," in low and any(m in low for m in (" và ", " kèm ", " với ")))
+    action_count = sum(1 for a in _PARALLEL_ACTION_HINTS if a in low)
+    if has_marker and action_count >= 2:
+        return True
+    return False
 
 
 def clean_task_title(text: str) -> str:
@@ -301,7 +319,13 @@ def build_self_knowledge(cfg, registry) -> str:
         "Khi chủ nhân gửi ảnh mẫu (nhân vật, sản phẩm, phong cách) hoặc yêu cầu "
         "tạo ảnh 'giống vầy', 'tương tự ảnh này', 'từ ảnh này', BẠN PHẢI "
         "truyền đường dẫn file ảnh đính kèm vào tham số image_path của tool generate_image "
-        "để thực hiện Image-to-Image (i2i) giữ nguyên nét khuôn mặt và phong cách."
+        "để thực hiện Image-to-Image (i2i) giữ nguyên nét khuôn mặt và phong cách.\n"
+        "- CƠ CHẾ CHIA VIỆC SONG SONG (SUB-AGENTS): Khi yêu cầu có từ 2 phần việc độc lập "
+        "trở lên (ví dụ: vừa tìm tin tức vừa xem lịch, kiểm tra duyệt...), hệ thống tự động "
+        "chia việc cho các sub-agent chạy song song đồng thời qua tool `spawn_subagents_parallel`. "
+        "Mỗi sub-agent chạy trên session riêng biệt và trả về digest tóm tắt. "
+        "Khi người dùng hỏi về cách thức thực hiện, đối chiếu lịch sử tool `spawn_subagents_parallel` "
+        "để giải thích rõ cách bạn đã chia các nhánh sub-agent song song."
     )
     style = load_prompt("muse_reply_style", "")
     if style:
@@ -322,6 +346,12 @@ class Agent:
         # broker thì nấc "ask" của policy degrade thành chặn an
         # toàn thay vì treo chờ một thẻ duyệt không ai thấy.
         self.broker = broker
+        if self.broker is not None and self.registry is not None and self.registry.get("list_approvals") is None:
+            try:
+                from .approvals import register_approval_tools
+                register_approval_tools(self.registry, self.broker)
+            except Exception as exc:
+                logger.warning("Đăng ký list_approvals lỗi (bỏ qua): %s", exc)
         self._llm_calls = 0
         self._self_knowledge_cache: Optional[str] = None
 
@@ -538,38 +568,60 @@ class Agent:
         return TurnResult(text=text, intent=Intent.CHAT, verified=None)
 
     # ---------- task path: plan-act-verify ----------
-    async def _plan(self, user_text: str, intent: Intent) -> list[str]:
-        if intent is not Intent.LONG:
-            return ["Hoàn thành yêu cầu của user"]
+    async def _plan(self, user_text: str, intent: Intent) -> dict:
         prompt = [
             {
                 "role": "system",
-                "content": (
-                    "Bẻ yêu cầu thành 3-6 bước ngắn, mỗi bước một mục tiêu "
-                    "kiểm chứng được. Chỉ trả JSON {\"steps\": [\"...\", ...]}."
-                ),
+                "content": load_prompt("plan_system"),
             },
             {"role": "user", "content": user_text},
         ]
         try:
             comp = await self._call(prompt, model=self.cfg.model_brain,
-                                    purpose="plan", temperature=0.3)
+                                    purpose="plan", temperature=0.2)
             match = re.search(r"\{.*\}", comp.text or "", flags=re.DOTALL)
             if match:
-                steps = json.loads(match.group(0)).get("steps") or []
+                data = json.loads(match.group(0))
+                steps = data.get("steps") or []
                 steps = [str(s).strip() for s in steps if str(s).strip()]
-                if steps:
-                    return steps[:6]
+                parallel = bool(data.get("parallel", False))
+                raw_subtasks = data.get("subtasks") or []
+                subtasks = []
+                if isinstance(raw_subtasks, list):
+                    for st in raw_subtasks:
+                        if isinstance(st, dict) and st.get("task"):
+                            subtasks.append({
+                                "task": str(st["task"]).strip(),
+                                "profile": str(st.get("profile") or "default").strip(),
+                            })
+                return {
+                    "steps": steps[:6] if steps else ["Hoàn thành yêu cầu của user"],
+                    "parallel": parallel and len(subtasks) >= 2,
+                    "subtasks": subtasks,
+                }
         except Exception as exc:
             logger.warning("plan lỗi, dùng kế hoạch 1 bước: %s", exc)
-        return ["Hoàn thành yêu cầu của user"]
+        return {"steps": ["Hoàn thành yêu cầu của user"], "parallel": False, "subtasks": []}
 
     async def _task_path(
         self, session_key: str, user_text: str, messages: list[dict],
         intent: Intent, on_event: Optional[EventFn],
     ) -> TurnResult:
         task_id = uuid.uuid4().hex[:12]
-        steps = await self._plan(user_text, intent)
+        if intent is Intent.LONG or should_plan_multi_task(user_text):
+            plan_data = await self._plan(user_text, intent)
+        else:
+            plan_data = {"steps": ["Hoàn thành yêu cầu của user"], "parallel": False, "subtasks": []}
+
+        if isinstance(plan_data, dict):
+            steps = plan_data.get("steps") or ["Hoàn thành yêu cầu của user"]
+            is_parallel = bool(plan_data.get("parallel", False))
+            subtasks = plan_data.get("subtasks") or []
+        else:
+            steps = list(plan_data) if plan_data else ["Hoàn thành yêu cầu của user"]
+            is_parallel = False
+            subtasks = []
+
         task_title = clean_task_title(user_text)
         await self.memory.create_task(task_id, session_key, task_title, steps)
         await self._emit(on_event, "task_start",
@@ -612,6 +664,47 @@ class Agent:
         diagnosis = ""
         started = time.monotonic()
         attempt = 0
+
+        # Nếu phát hiện các phần việc độc lập chạy song song (Parity Muse T-24.1)
+        if is_parallel and len(subtasks) >= 2 and self.registry.get("spawn_subagents_parallel") is not None:
+            step_title = "Chạy song song các sub-agent"
+            step_idx = await self.memory.add_task_step(task_id, step_title, "doing")
+            await self._emit(on_event, "tool_start", task_id=task_id,
+                             tool="spawn_subagents_parallel", step_title=step_title,
+                             args={"tasks": subtasks})
+            parallel_res = await self.registry.execute("spawn_subagents_parallel", {"tasks": subtasks})
+            ok_parallel = parallel_res.get("ok", False)
+            await self.memory.update_step(task_id, step_idx, "done" if ok_parallel else "failed")
+            await self._emit(on_event, "tool_done", task_id=task_id,
+                             tool="spawn_subagents_parallel", ok=ok_parallel,
+                             step_title=step_title)
+            await self.memory.log_trajectory(
+                session_key, "tool_call",
+                {"task_id": task_id, "tool": "spawn_subagents_parallel",
+                 "args": {"tasks": subtasks}, "ok": ok_parallel},
+            )
+            call_id = f"call_{uuid.uuid4().hex[:6]}"
+            convo.append({
+                "role": "assistant",
+                "content": "Tôi đang chia các phần việc độc lập cho các sub-agent chạy song song.",
+                "tool_calls": [
+                    {
+                        "id": call_id,
+                        "type": "function",
+                        "function": {
+                            "name": "spawn_subagents_parallel",
+                            "arguments": json.dumps({"tasks": subtasks}, ensure_ascii=False),
+                        },
+                    }
+                ],
+            })
+            tool_data_str = f"<external_data tool=\"spawn_subagents_parallel\">\n{json.dumps(parallel_res, ensure_ascii=False)}\n</external_data>"
+            convo.append({
+                "role": "tool",
+                "tool_call_id": call_id,
+                "content": tool_data_str,
+            })
+            evidence.append(tool_data_str)
 
         try:
             while attempt <= self.cfg.verify_max_retries:

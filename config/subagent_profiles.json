@@ -1,0 +1,54 @@
+{
+  "researcher": {
+    "description": "Chỉ đọc + web + ký ức: tra cứu, tổng hợp.",
+    "tools": [
+      "web_search",
+      "web_fetch",
+      "web_read",
+      "memory_search",
+      "session_search",
+      "memory_get",
+      "now",
+      "list_schedules",
+      "list_goals",
+      "get_goal_detail",
+      "list_goal_briefings",
+      "list_approvals",
+      "search_library",
+      "get_library_item"
+    ]
+  },
+  "coder": {
+    "description": "File + lệnh trong workspace (jail giữ nguyên).",
+    "tools": [
+      "read_file",
+      "write_file",
+      "edit_file",
+      "list_dir",
+      "run_command",
+      "web_search",
+      "web_fetch",
+      "web_read",
+      "now"
+    ]
+  },
+  "default": {
+    "description": "Tác vụ đa năng, chỉ đọc: web, lập lịch, duyệt, ký ức.",
+    "tools": [
+      "web_search",
+      "web_fetch",
+      "web_read",
+      "memory_search",
+      "session_search",
+      "memory_get",
+      "now",
+      "list_schedules",
+      "list_goals",
+      "get_goal_detail",
+      "list_goal_briefings",
+      "list_approvals",
+      "search_library",
+      "get_library_item"
+    ]
+  }
+}
