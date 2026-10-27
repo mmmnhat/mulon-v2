@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~00:18 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): nhận T-26 `DOING` (ƯU TIÊN 25, LUỒNG 4) theo lệnh chuyển giao của chủ dự án; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L4]
+
 Cập nhật 2026-10-28 ~00:12 bởi Muse (ký: Muse): theo lệnh chủ dự án (chat phụ ~00:11) — **chuyển T-26 + T-29 từ hàng chờ LUỒNG 1 sang LUỒNG 4** (san tải: LUỒNG 1 đang DOING T-24.6, sau đó T-24.7 cùng cụm; LUỒNG 4 trống sau T-14 DONE). Hàng chờ LUỒNG 4 mới: T-26 -> T-29. Ky: Muse
 
 Cập nhật 2026-10-28 ~00:10 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): T-28 chuyển `DONE` (version 1.7.30, 635/635 test passed, evals vàng 31/36 = 86%; chẩn đoán CI Actions kẹt do billing account GitHub; sửa chân gãy Windows bổ sung tzdata + bỏ qua check POSIX 0600 của Vault trên NTFS; sửa chân gãy macOS skip duyên dáng khi SQLite thiếu loadable extension; sửa biên múi giờ nửa đêm fixture UI T-27; hàng chờ LUỒNG 5 TRỐNG). Ky: Antigravity [L5]
@@ -245,7 +247,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
   T-30 (đã DONE) -> T-17 (nhận DOING) -> T-11 -> T-22.3 (phần còn lại: sửa IG báo gửi giả + DM Threads thật; spike code đã có ở `d9d2a853`). (Thu hồi từ LUỒNG PHỤ 1 theo lệnh chủ dự án 27/10 ~22:37.)
 - **LUỒNG 4 — Cổng model & còn lại**:
-  T-14 (đã DONE) -> T-26 -> T-29. (T-26 + T-29 nhận chuyển từ hàng chờ LUỒNG 1 theo lệnh chủ dự án 28/10 ~00:11. T-16 phần sửa + T-28 đã chuyển sang LUỒNG 5 theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên Antigravity.)
+  T-14 (đã VERIFIED) -> T-26 (nhận DOING) -> T-29. (T-26 + T-29 nhận chuyển từ hàng chờ LUỒNG 1 theo lệnh chủ dự án 28/10 ~00:11. T-16 phần sửa + T-28 đã chuyển sang LUỒNG 5 theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên Antigravity.)
 
 - **LUỒNG PHỤ 1 — Muse phụ — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37: thu hồi toàn bộ việc của các account Muse phụ, kể cả việc đang dở):** hàng chờ đã dọn sạch — T-22.3 (phần còn lại) -> LUỒNG 3, T-28 -> LUỒNG 4, T-29 -> LUỒNG 1, T-26 -> LUỒNG 1. LUỒNG PHỤ 1 không nhận việc mới, không push thêm commit nào cho dự án này.
 
@@ -1370,7 +1372,8 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Bằng chứng (battery v5, 27/10 03:12–03:17): (1) gửi tin lúc bot đang bận viết bài dài -> KHÔNG có bất kỳ phản hồi tức thì nào cho biết đã nhận/xếp hàng; phải đợi ~46s tới khi lượt trước xong mới thấy lượt của mình bắt đầu (cơ chế xếp hàng đúng — tin không mất, chạy ngay sau). (2) Lóe markdown thô trước khi định dạng kịp áp: đáp án "17 + 25" hiện dạng `**17 + 25 = 42**` chữ thô rồi mới sửa thành in đậm thật; bài quán cà phê cũng sửa 3 nhịp mới ổn định định dạng. (3) Bài dài còn sót ký tự phân cách thô dạng `---` trong thân bài (cả bài phân tích AI agent lẫn bài so sánh Muse/ChatGPT).
 - Nghiệm thu: gửi tin khi bot bận -> có xác nhận xếp hàng trong vài giây; đáp án cuối không qua trạng thái chữ markdown thô nhìn thấy được; bài dài không còn dòng `---` thô.
 
-### [T-26] Chốt bề mặt slash commands (46 lệnh thật, menu chỉ 8, không có /help) — Giao: LUỒNG 4 — `TODO` (ƯU TIÊN 25) — LUỒNG 4 (chuyển từ LUỒNG 1 theo lệnh chủ dự án 28/10 ~00:11; hàng chờ LUỒNG 4: T-26 -> T-29)
+### [T-26] Chốt bề mặt slash commands (46 lệnh thật, menu chỉ 8, không có /help) — Giao: LUỒNG 4 — `DOING` (ƯU TIÊN 25) — LUỒNG 4 (chuyển từ LUỒNG 1 theo lệnh chủ dự án 28/10 ~00:11; hàng chờ LUỒNG 4: T-26 -> T-29)
+- **Nhận việc — Antigravity [L4] (2026-10-28 ~00:18 +07):** nhận T-26 DOING theo lệnh chuyển giao của chủ dự án; bắt tay thực hiện ngay trên nền code mới nhất. Ky: Antigravity [L4]
 - **Chuyển giao 2026-10-28 ~00:12 bởi Muse (lệnh chủ dự án):** từ LUỒNG 1 sang LUỒNG 4 (san tải; LUỒNG 4 trống sau T-14 DONE). Chỉ LUỒNG 4 nhận mục này. Ky: Muse
 - **Chuyển giao 2026-10-27 ~22:27 bởi Muse (lệnh chủ dự án):** từ LUỒNG PHỤ 1 sang LUỒNG PHỤ 3; hàng chờ PHỤ 3: T-26. (T-29 KHÔNG chuyển — đã `DOING` ở LUỒNG PHỤ 1.)
 - **Chuyển giao 2026-10-27 ~21:40 bởi Muse (lệnh chủ dự án):** từ LUỒNG 4 sang LUỒNG PHỤ 1; thứ tự trong LUỒNG PHỤ 1: T-22.3 -> T-28 -> T-29 -> T-26 -> T-25; chỉ LUỒNG PHỤ 1 nhận mục này.
