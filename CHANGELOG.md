@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 1.7.23 — 2026-10-27 — Tích hợp muse2api theo Đường A, làm upstream của CLIProxyAPI (T-16, LUỒNG PHỤ 2 — ký: Phu2)
+
+- **Đường A đã chốt, không gọi thẳng muse2api (`mulon/muse2api.py`, T-16):**
+  - Module mới chỉ sinh cấu hình upstream cho CLIProxyAPI và kiểm tra tên model, không gọi HTTP, không giữ secret, không gõ chết cổng muse2api trong code MuLon.
+  - Model trong MuLon: `muse/muse-spark` (model chat duy nhất của muse2api trong đợt này; media để đợt sau). Hàm sinh cấu hình chỉ nhận tham chiếu key dạng placeholder `${...}` hoặc `vault:...`, key thật bị từ chối ngay để không lọt vào repo.
+  - Guard Đường A: proxy model của MuLon vẫn phải là 127.0.0.1:8317 local; `validate_proxy_base_url` không bị nới.
+- **Alias gateway (`mulon/gateway.py`, T-16):**
+  - Thêm `"muse-spark": "muse/muse-spark"` vào `_MODEL_ALIASES`. Người dùng gõ `muse-spark` cũng được chuẩn hóa về `muse/muse-spark` và đi qua proxy 8317 như model thường.
+- **Tài liệu và mẫu cấu hình (T-16):**
+  - `docs/muse2api-duong-a.md`: sơ đồ Đường A, cách cài đặt trên máy cài, nghiệm thu sống, degrade và giới hạn (T-14 chưa xong nên cấu hình upstream nằm ở CLIProxyAPI trên máy cài, chưa gắn vào UI quản lý gateway).
+  - `config/cliproxy-muse2api.example.yaml`: mẫu upstream cho CLIProxyAPI trên máy cài, key chỉ dạng placeholder. MuLon không đọc file này.
+- **Kiểm thử (`tests/test_v17_muse2api.py`, T-16):**
+  - 9 test mới, chạy độc lập trên VM: 9 passed (alias gateway, sinh cấu hình placeholder, từ chối host lạ/thiếu cổng/key thật, kiểm tra model trong danh sách proxy, guard proxy 8317, module không chứa địa chỉ gọi trực tiếp).
+- **Còn lại, ghi rõ không giấu (T-16):**
+  - Full suite trên cây head mới nhất CHƯA chạy được trên VM này (repo private, VM không có cây head), nên bản này push theo lệnh trực tiếp của chủ dự án để Muse chính nghiệm thu và chạy full suite; Muse chính xác nhận full suite trước khi coi là VERIFIED.
+  - Nghiệm thu sống 4 bước của T-16 (GET /v1/models qua 8317 thấy muse-spark; lượt chat thật; tắt muse2api thì degrade rõ; grep không có key thật) vẫn cần muse2api Docker + tài khoản Muse trên máy cài, chưa làm trong đợt này.
+  - Circuit breaker của gateway là chung, không theo model: nếu muse2api chết nhiều lần liên tiếp, breaker mở có thể ảnh hưởng tạm thời cả model khác trong 30s — hành vi chung sẵn có, cần test sống bước 3 xác nhận.
+
 ## 1.7.22 — 2026-10-27 — Nhãn giờ Feed trong Sắp tới suy từ cron thật, bỏ hardcode 17:00 (T-25, LUỒNG MUSE — ký: Muse)
 
 - **Một nguồn sự thật cho giờ Feed (`mulon/feed_auto.py`, T-25):**

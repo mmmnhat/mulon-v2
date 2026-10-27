@@ -136,6 +136,10 @@ class ModelGateway:
         "claude-sonnet": "claude-sonnet-4-6",
         "muse-wonder-1.0": "muse-wonder-full-1.0",
         "muse-wonder": "muse-wonder-full-1.0",
+        # T-16 Đường A: model muse-spark của muse2api qua CLIProxyAPI.
+        # MuLon gọi qua proxy 8317 với tên muse/muse-spark, không gọi
+        # thẳng muse2api; alias này chỉ chuẩn hóa tên người dùng gõ.
+        "muse-spark": "muse/muse-spark",
     }
 
     def _litellm_model(self, model: Optional[str]) -> str:

@@ -1,0 +1,16 @@
+# Ví dụ cấu hình upstream muse2api cho CLIProxyAPI (T-16, Đường A).
+# File này CHỈ là mẫu. MuLon không đọc file này.
+# CLIProxyAPI trên máy cài đọc nó. Key thật chỉ điền ở file cấu
+# hình trên máy cài (hoặc Vault), KHÔNG commit file đã điền key.
+# Cổng muse2api là cổng service trên máy cài, xem tài liệu muse2api
+# của máy đó; số cổng trong mẫu dưới là giá trị mặc định của
+# muse2api, không phải địa chỉ MuLon gọi (MuLon chỉ gọi 8317).
+openai-compatibility:
+  - name: "muse2api"
+    prefix: "muse"
+    base-url: "http://127.0.0.1:18610/v1"
+    keys:
+      - api-key: "${MUSE2API_KEY}"
+    models:
+      - name: "muse-spark"
+        alias: "muse-spark"
