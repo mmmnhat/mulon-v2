@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~23:46 bởi Antigravity (LUỒNG 3, ký: Antigravity [L3]): T-30 chuyển `DONE` (version 1.7.28, commit `ad8a1c6`, 629/629 test passed; mở rộng bề mặt Facebook cá nhân 31 hành động, bổ sung Threads cá nhân Graph API + Web session fallback, bọc frame_external, chốt Checkpoint Guard, cấm stub giả, phân quyền Action-Level allow/ask). Nhận tiếp T-17 `DOING` (ƯU TIÊN 22, LUỒNG 3) theo thứ tự hàng chờ LUỒNG 3. Ky: Antigravity [L3]
+
 Cập nhật 2026-10-27 ~23:46 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): nhận T-24.6 DOING (ƯU TIÊN 22, LUỒNG 1) theo thứ tự hàng chờ. Ky: Antigravity [L1]
 
 Cập nhật 2026-10-27 ~23:42 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): T-24.5 chuyển `DONE` (version 1.7.27, sửa lỗi initData Chi tiết việc + Chợ MCP, cô lập banner lỗi). Ky: Antigravity [L1]
@@ -233,7 +235,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG 2 — App & giao diện** (chủ file `mulon/webapp/` + `assets/`):
   T-23.6 (đã VERIFIED) -> T-12 (đã DONE) -> T-27 (đang DOING dở, làm tiếp tới DONE) -> T-13.
 - **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
-  T-30 (nhận DOING) -> T-17 -> T-11 -> T-22.3 (phần còn lại: sửa IG báo gửi giả + DM Threads thật; spike code đã có ở `d9d2a853`). (Thu hồi từ LUỒNG PHỤ 1 theo lệnh chủ dự án 27/10 ~22:37.)
+  T-30 (đã DONE) -> T-17 (nhận DOING) -> T-11 -> T-22.3 (phần còn lại: sửa IG báo gửi giả + DM Threads thật; spike code đã có ở `d9d2a853`). (Thu hồi từ LUỒNG PHỤ 1 theo lệnh chủ dự án 27/10 ~22:37.)
 - **LUỒNG 4 — Cổng model & còn lại**:
   T-14 (đã DONE). (T-16 phần sửa + T-28 đã chuyển sang LUỒNG 5 theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên Antigravity; hàng chờ LUỒNG 4 đã trống, chờ lệnh mới).
 
@@ -268,7 +270,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-24.4, T-27, T-30, T-14 (đang DOING; T-24.3 DONE chờ Muse nghiệm thu) |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-24.6, T-13, T-17, T-16 (đang DOING; T-24.5, T-24.4, T-27, T-14, T-30 DONE chờ Muse nghiệm thu) |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -701,7 +703,8 @@ pool nhiều tài khoản luân phiên, tự gia hạn phiên 48h.
 
 ---
 
-### [T-17] Connector tích hợp sẵn: TikTok, Facebook Page, Threads, Instagram, Google Workspace — Giao: Antigravity — `TODO` — LUỒNG 3
+### [T-17] Connector tích hợp sẵn: TikTok, Facebook Page, Threads, Instagram, Google Workspace — Giao: Antigravity — `DOING` — LUỒNG 3
+- **Nhận việc — Antigravity [L3] (2026-10-27 ~23:42 +07, phiên mới sau 22:47):** nhận T-17 DOING theo LUẬT ĐA LUỒNG và thứ tự hàng chờ LUỒNG 3 sau khi T-30 DONE; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L3]
 Yêu cầu chủ dự án 26/10: năm nền tảng này phải thành CONNECTOR
 CÓ SẴN trong MuLon (built-in, cài MuLon là có — không phải hàng
 marketplace cài thêm), dùng tài khoản của chính người cài:
@@ -1369,8 +1372,30 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Đã kiểm từ phía Muse: chạy full suite trên cây hiện tại ở Linux = **496/496 passed** -> chân Ubuntu xanh; chân gãy là macOS và/hoặc Windows (nghi phạm: test quyền file 0600 của Vault, symlink, dữ liệu múi giờ). Connector GitHub của Muse không đọc được log Actions — việc này cần phía Mac mở tab Actions lấy đúng job/test gãy.
 - Yêu cầu: xác định job + test gãy, sửa đúng gốc (ưu tiên sửa test cho đúng đa nền tảng; cấm xoá/nới test để CI xanh — luật AGENTS.md mục 7.3); nếu là lỗi code thật thì sửa code + test hồi quy. Xong: 3/3 chân xanh trên commit mới nhất và ghi kết quả vào mục này.
 
-### [T-30] Bề mặt đầy đủ Facebook + Threads CÁ NHÂN theo chuẩn Muse — Giao: Antigravity — `DOING` (ƯU TIÊN 29) — LUỒNG 3
+### [T-30] Bề mặt đầy đủ Facebook + Threads CÁ NHÂN theo chuẩn Muse — Giao: Antigravity — `DONE` (ƯU TIÊN 29) — LUỒNG 3
 - **Nhận tiếp — Antigravity [L3] (2026-10-27 ~23:03 +07, phiên mới sau 22:47):** nhận tiếp T-30 DOING theo LUẬT ĐA LUỒNG, làm tiếp từ trạng thái code trên `main`. Ky: Antigravity [L3]
+- **Báo cáo hoàn thành (Antigravity [L3] 2026-10-27 ~23:46 +07, version 1.7.28, commit `ad8a1c6`):**
+  1. *Version & Commit:* 1.7.28, commit `ad8a1c6`.
+  2. *Đã làm:*
+     - **Facebook cá nhân mở rộng toàn diện (`mulon/personal_connectors.py`, T-30):**
+       * Triển khai đầy đủ 31 hành động theo chuẩn Muse: `get_profile`, `get_me`, `get_friends`, `list_friends`, `view_user_profile`, `read_feed`, `read_news_feed`, `read_friends_feed`, `list_groups` (kể cả nhóm kín/ẩn bí mật), `get_group_detail`, `read_group_posts`, `search_groups`, `read_post`, `read_comments`, `read_reactions`, `write_comment`, `reply_comment`, `create_post`, `list_pages`, `get_page_insights`, `create_page_draft`, `create_page_post`, `search_events`, `get_event_detail`, `read_stories`, `list_saved`, `save_item`, `unsave_item`, `search_marketplace`, `get_my_marketplace_listings`, `read_messages`, `send_message`.
+       * Checkpoint Guard chủ động bảo vệ tài khoản khi phát hiện dấu hiệu checkpoint, dừng phiên và cảnh báo.
+     - **Bổ sung connector Threads cá nhân chuyên nội dung (`mulon/personal_connectors.py`, `mulon/connectors.py`, T-30):**
+       * Tạo connector `threads_personal` độc lập với DM `threads_messages`.
+       * Ưu tiên Graph API token (`threads_personal:token`) cho profile, bài viết, replies, insights, đăng bài và reply.
+       * Tự động fallback phiên web cookie (`threads_personal:session`) cho endpoint web-only: `read_feed`, `get_trends`, `search_posts`, `set_feed_suggestions`.
+       * Metadata `transport` ("official_api" | "web_session") và cờ `web_only` đính kèm rõ ràng trong kết quả.
+     - **Kỷ luật bảo mật & Chống stub giả:**
+       * Toàn bộ nội dung văn bản bên ngoài (bài viết, bình luận, bio, nhóm, marketplace...) qua `frame_external`.
+       * Phân quyền Action-Level Policy: Đọc = `VERDICT_ALLOW`, Mọi hành động GHI = `VERDICT_ASK` duyệt từng lần.
+       * CẤM trả `ok` stub khi không có transport thật — trả `unsupported: True` rõ ràng theo đúng tinh thần T-30.
+     - **Tích hợp hệ thống:**
+       * Thêm lệnh bot `/facebook groups`, `/facebook feed`, `/threads posts`.
+       * Đăng ký `threads_personal` vào `VALID_PERSONAL_CONNECTORS` của Mini App server và serialize trạng thái.
+       * Cập nhật tài liệu chi tiết `docs/connector-tai-khoan-ca-nhan.md`.
+  3. *Kết quả kiểm thử:* 629/629 unit tests passed (thêm 7 test suite mới trong `tests/test_v17_personal_full_surface_t30.py`, 0 fail).
+  4. *Hành vi thay đổi:* Bổ sung connector `threads_personal` và 31 hành động cho Facebook cá nhân; Mini App và bot hỗ trợ cấu hình và truy vấn nhóm/bài viết Facebook & Threads.
+  5. *Hàng chờ tiếp theo:* Nhận tiếp `T-17` (Connector tích hợp sẵn: TikTok, Facebook Page, Threads, Instagram, Google Workspace) `DOING`.
 - Bối cảnh: chủ dự án chỉ rõ 27/10 — phía Muse, tài khoản Facebook/Threads cá nhân không chỉ có DM: còn duyệt feed, tương tác trong nhóm, liệt kê nhóm đang tham gia, đăng bài... T-22.2 mới phủ nghiên cứu + đọc cơ bản + Messenger; T-22.3 là khung DM. Mục này mở connector cá nhân ra **đúng bề mặt Muse đang có thật** (đối chiếu connector facebook_cli + threads phía Muse). DM Threads giữ ở T-22.3, không làm lại ở đây.
 - **Facebook cá nhân** (transport phiên web như T-22.2, kế thừa cảnh báo rủi ro + Checkpoint Guard):
   1. Danh tính + quan hệ: thông tin tài khoản, danh sách bạn bè, xem trang cá nhân/timeline người khác.
