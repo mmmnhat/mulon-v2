@@ -53,7 +53,11 @@ logger = logging.getLogger("mulon.threads_browser_bridge")
 
 # Endpoint chính thức của nhà cung cấp — được phép để trong code
 # theo AGENTS.md mục 4 (không phải giá trị theo máy/người/phiên).
-DEFAULT_BASE_URL = "https://www.threads.net"
+DEFAULT_BASE_URL = "https://www.threads.com"
+DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+)
 
 # Fallback khi config/threads_web_selectors.json vắng/hỏng.
 # Đây là điểm khởi đầu cho spike, không phải chân lý về giao diện
@@ -206,12 +210,17 @@ class PlaywrightThreadsDriver:
                         "conversation_link_selector",
                         "a[href*=\"/messages/\"]")
                     try:
+                        await page.wait_for_selector(link_sel, timeout=min(5000, timeout_ms))
+                    except Exception:
+                        await page.wait_for_timeout(1500)
+                    try:
                         links = await page.locator(link_sel).all()
                     except Exception as exc:
                         return {"ok": False,
                                 "error": f"không đọc được hộp thư "
                                          f"Threads web: {exc}"}
                     target = None
+                    target_href = None
                     for link in links:
                         try:
                             href = await link.get_attribute("href") or ""
@@ -221,6 +230,7 @@ class PlaywrightThreadsDriver:
                         if _match_conversation(href, label, thread_id,
                                                participant):
                             target = link
+                            target_href = href
                             break
                     if target is None:
                         return {
@@ -232,8 +242,12 @@ class PlaywrightThreadsDriver:
                                 "không mở DM mới."
                             ),
                         }
-                    await target.click(timeout=timeout_ms)
-                    await page.wait_for_timeout(1000)
+                    if target_href:
+                        target_url = target_href if target_href.startswith("http") else f"{self.base_url}{target_href}"
+                        await page.goto(target_url, timeout=timeout_ms, wait_until="domcontentloaded")
+                    else:
+                        await target.click(timeout=timeout_ms, force=True)
+                    await page.wait_for_timeout(2000)
                 # 3. Soạn tin: click ô soạn rồi gõ bằng bàn phím
                 #    (ô contenteditable không dùng fill như input).
                 composer = await self._first_matching(
@@ -246,16 +260,16 @@ class PlaywrightThreadsDriver:
                                      "config/threads_web_selectors.json"}
                 await composer.click(timeout=timeout_ms)
                 await page.keyboard.type(text)
-                # 4. Bấm gửi.
+                # 4. Bấm gửi hoặc Enter.
                 send_btn = await self._first_matching(
                     page, list(self.selectors.get("send_button_selectors", [])))
-                if send_btn is None:
-                    return {"ok": False,
-                            "error": "không thấy nút gửi Threads web "
-                                     "— giao diện có thể đã đổi, cần "
-                                     "cập nhật "
-                                     "config/threads_web_selectors.json"}
-                await send_btn.click(timeout=timeout_ms)
+                if send_btn is not None:
+                    try:
+                        await send_btn.click(timeout=timeout_ms)
+                    except Exception:
+                        await page.keyboard.press("Enter")
+                else:
+                    await page.keyboard.press("Enter")
                 # 5. Xác minh: nội dung vừa gửi phải xuất hiện trong
                 #    hội thoại. Không thấy thì KHÔNG báo thành công.
                 for _ in range(10):

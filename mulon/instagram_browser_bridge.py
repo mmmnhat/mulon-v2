@@ -160,6 +160,10 @@ class PlaywrightInstagramDriver:
                         "conversation_link_selector",
                         "a[href*=\"/direct/t/\"]")
                     try:
+                        await page.wait_for_selector(link_sel, timeout=min(5000, timeout_ms))
+                    except Exception:
+                        await page.wait_for_timeout(1500)
+                    try:
                         links = await page.locator(link_sel).all()
                     except Exception as exc:
                         return {"ok": False,

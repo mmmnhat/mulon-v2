@@ -1632,6 +1632,7 @@ class InstagramMessagesConnector(Connector):
         if not has_session and self._browser_bridge is None:
             return {
                 "ok": False,
+                "unsupported": True,
                 "error": "Chưa cấu hình phiên cookie Instagram trong Kho bảo mật (Vault) hoặc chưa gắn browser bridge.",
                 "warning": WARNING_INSTAGRAM_MSG,
             }
@@ -2092,6 +2093,7 @@ class ThreadsMessagesConnector(Connector):
         if not has_session and self._browser_bridge is None:
             return {
                 "ok": False,
+                "unsupported": True,
                 "error": "Chưa cấu hình phiên cookie Threads trong Kho bảo mật (Vault) hoặc chưa gắn browser bridge.",
                 "warning": WARNING_THREADS_MSG,
             }

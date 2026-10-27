@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 1.7.41 — 2026-10-28 — Kiểm chứng Live Test DM Threads và Instagram Anti-Fake Send (T-22.3, LUỒNG 3 — ký: Antigravity [L3])
+
+- **Kiểm chứng gửi DM Threads thật qua Browser Bridge (`mulon/threads_browser_bridge.py`, T-22.3):**
+  - Chạy live test thực tế trên máy Mac với profile Chromium persistent (`~/.mulon-browser-profile`), đăng nhập thật phiên tài khoản Meta `@mmmnhat.1810`.
+  - Tối ưu bộ chuyển hướng hội thoại `PlaywrightThreadsDriver.send`: điều hướng trực tiếp bằng URL `target_href` (`/messages/t/<thread_id>/`), khắc phục triệt để hiện tượng overlay pointer-events che nút click; bổ sung fallback nhấn `Enter` trên bàn phím khi web không có nút gửi riêng.
+  - Gửi thành công 1 DM Threads thật vào hội thoại có sẵn (`1843103926844931`, `@nghialuthe`) với kết quả trả về `verified: True` sau khi xác thực nội dung tin nhắn xuất hiện trong DOM của Threads Web.
+  - Kiểm chứng chốt chặn Strict Parity Guard: người lạ hoàn toàn (`@stranger_never_met_999`) bị từ chối dứt khoát trước khi gọi bridge (`LIMITATION_THREADS_MSG`).
+- **Kiểm chứng Instagram Send & Anti-Fake Stubs (`mulon/personal_connectors.py`, `mulon/instagram_browser_bridge.py`, T-22.3):**
+  - Đồng bộ cờ `unsupported: True` trong các nhánh thiếu transport / thiếu session của `InstagramMessagesConnector` và `ThreadsMessagesConnector`.
+  - Kiểm chứng trực tiếp 4 kịch bản không có transport: `send_message`, `send_file`, `send_reaction`, và `send_message` khi đã cấu hình cookie nhưng chưa có bridge/runner. Tất cả đều trả lỗi trung thực `ok: False, unsupported: True`, tuyệt đối không báo `sent: True` hoặc `reacted: True` giả.
+  - Kiểm chứng `InstagramBrowserBridge` sẵn sàng (`availability = True`) trên Chromium profile; thử gửi vào thread lạ trả lỗi trung thực 'Không thấy hội thoại có sẵn khớp...'.
+- **Kiểm thử:**
+  - Toàn bộ test suite 700+ tests PASSED 100%.
+
 ## 1.7.40 — 2026-10-28 — Đồng bộ README + docs và nghiệm thu chéo T-25 (T-32, LUỒNG 2 — ký: Antigravity [L2])
 
 - **Đồng bộ toàn diện `README.md` (T-32):**
