@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~00:32 bởi Muse (ký: Muse): lật header T-17 `DONE` -> `VERIFIED` cho khớp với nghiệm thu autowatch đã ghi trong mục (28/10 ~00:27, head `610a187c`, test sống connectors 24/24) — lần đẩy này CHỈ sửa: dòng cập nhật này + header T-17, không động mục khác. Ky: Muse
+
 Cập nhật 2026-10-28 ~00:30 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): T-24.6 chuyển `DONE` (version 1.7.33, 653/653 test passed, evals vàng 31/36 = 86%; giải mã Vault đa định dạng ${VAULT:...}/vault:.../label và fail-fast khi thiếu bí mật; chặn lùng sục find/grep repo khi có connector hoặc Vault; chặn lặp đọc cùng URL và chặn lặp tool 3 lần trong _act_loop). Hàng chờ LUỒNG 1 nhận tiếp T-24.7 `DOING` (ƯU TIÊN 24, LUỒNG 1). Ky: Antigravity [L1]
 
 Cập nhật 2026-10-28 ~00:27 bởi Muse (autowatch): head `610a187c` — 8 commit mới sau watermark `0aacd2e` (3 code + 5 tasks-only): `3e7ebd` code T-28, `91e230` code T-13, `3f695e` code T-17; tasks-only: `51892e` chuyển T-26+T-29 L1→L4, `0e93c4` claim T-26 DOING L4, `5ed3b7` chuyển T-11 L3→L5, `cd4e2a` claim T-11 DOING L5, `610a18` mở T-31-mới giao L2. Cây local đã đồng bộ đủ file từ head (kể cả `mulon/social_connectors.py` mới + `config/mascots.json` + `mulon/webapp/index.html`); không file nhị phân nào đổi. Suite **645 passed, 0 failed** (639 + 6 test T-17); eval vàng **31/36 = 86%** qua cổng 85% (đúng 5 trượt cũ). Test sống hàm thật ngoài suite: T-13 `live_t13_brand.py` **11/11 PASS**, T-17 `live_t17_builtin.py` **24/24 PASS**. **VERIFIED T-17** (xem nghiệm thu cuối mục; gọi API thật Meta/Google/TikTok vẫn cần tài khoản + App credentials của người cài — phía Mac/chủ dự án xác nhận nốt khi tiện). **T-28 giữ `DONE`, chưa VERIFIED** (guard đa nền tảng có thật + suite xanh, nhưng tiêu chí '3/3 chân xanh' cần runner Windows/macOS và CI đang kẹt billing GitHub — việc phía chủ dự án). **T-13 giữ `DOING`, chưa VERIFIED** (code + test + test sống đều đạt, nhưng tiêu đề mục vẫn `DOING`, không có báo cáo hoàn thành — trong khi commit `91e230` ghi 'complete T-13' và hàng làn ghi 'T-13 (đã DONE)'; autowatch không tự lật trạng thái của builder, L2 xác nhận lại bằng cách lật tiêu đề + thêm báo cáo). Claim T-26 DOING (`0e93c4`) mới chỉ vào roster, tiêu đề mục vẫn `TODO` — L4 lật tiêu đề cho khớp. **CẢNH BÁO ĐÁNH SỐ:** đã có 2 mục cùng tên T-31 (cũ: che path nhúng giữa câu, đã VERIFIED; mới: đồng bộ README + docs, TODO giao L2) — cần chủ dự án/Muse (main) chốt số mới cho mục README để khỏi nhầm. Lần đẩy này của Muse CHỈ sửa dòng cập nhật này + nghiệm thu/ghi nhận của T-17/T-28/T-13/T-26, không động phần còn lại của file. Ky: Muse
@@ -743,7 +745,7 @@ pool nhiều tài khoản luân phiên, tự gia hạn phiên 48h.
 
 ---
 
-### [T-17] Connector tích hợp sẵn: TikTok, Facebook Page, Threads, Instagram, Google Workspace — Giao: Antigravity — `DONE` — LUỒNG 3
+### [T-17] Connector tích hợp sẵn: TikTok, Facebook Page, Threads, Instagram, Google Workspace — Giao: Antigravity — `VERIFIED` — LUỒNG 3
 - **Nhận việc — Antigravity [L3] (2026-10-27 ~23:42 +07, phiên mới sau 22:47):** nhận T-17 DOING theo LUẬT ĐA LUỒNG và thứ tự hàng chờ LUỒNG 3 sau khi T-30 DONE; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L3]
 - **Báo cáo hoàn thành (Antigravity [L3] 2026-10-28 ~00:10 +07, version 1.7.32):**
   1. *Version + commit:* 1.7.32 (rebase trên main mới nhất sau T-13, T-28, T-16, T-30, T-24.5).
