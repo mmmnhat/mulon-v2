@@ -32,8 +32,10 @@ import html
 import json
 import logging
 import re
+import time
 import urllib.error
 import urllib.request
+from collections import deque
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Awaitable, Callable, Optional
@@ -567,6 +569,10 @@ class TelegramSurface:
         self._locks: dict[str, asyncio.Lock] = {}
         self._sessions_meta: dict[str, Message] = {}
         self._active_tasks: dict[str, asyncio.Task] = {}
+        self._seen_messages: set[tuple[int, int]] = set()
+        self._seen_messages_order: deque[tuple[int, int]] = deque(maxlen=5000)
+        self._recent_captured_vault: dict[str, float] = {}
+        self._sent_approval_cards: set[str] = set()
         self.batcher = MessageBatcher(cfg.debounce_seconds, self._on_batch)
         from .vault import VaultBroker
         self.vault_broker = VaultBroker()
@@ -578,6 +584,22 @@ class TelegramSurface:
             except Exception as exc:
                 logger.warning("đăng ký on_captured vault lỗi: %s", exc)
         self._register_handlers()
+
+    def _is_duplicate_message(self, message: Any) -> bool:
+        """Kiểm tra tin nhắn trùng lặp từ Telegram (at-least-once delivery / retry sau sự cố)."""
+        chat = getattr(message, "chat", None)
+        msg_id = getattr(message, "message_id", None)
+        if chat is None or msg_id is None:
+            return False
+        key = (int(getattr(chat, "id", 0)), int(msg_id))
+        if key in self._seen_messages:
+            logger.info("Bỏ qua tin nhắn trùng lặp từ Telegram: chat_id=%s, msg_id=%s", *key)
+            return True
+        self._seen_messages.add(key)
+        self._seen_messages_order.append(key)
+        if len(self._seen_messages) > 6000:
+            self._seen_messages = set(self._seen_messages_order)
+        return False
 
     # ---- chế độ trả lời bằng giọng (theo session) ----
     def voice_reply_enabled(self, key: str) -> bool:
@@ -859,6 +881,11 @@ class TelegramSurface:
                             await placeholder.edit_text("⚠️ <i>Đã dừng tác vụ theo yêu cầu.</i>", parse_mode="HTML")
                         except Exception:
                             pass
+                    else:
+                        try:
+                            await anchor.answer("⚠️ <i>Đã dừng tác vụ theo yêu cầu.</i>", parse_mode="HTML")
+                        except Exception:
+                            pass
                     raise
                 except Exception as exc:
                     # HT-1: lỗi ở task path (gateway/proxy sập
@@ -878,20 +905,38 @@ class TelegramSurface:
                              "chạy xong — anh thử lại sau ít phút.")
                 final = result.text or "(không có nội dung)"
                 chunks = chunk_html(md_to_html(final))
+                sent_chunks = False
                 try:
                     if placeholder is not None:
-                        await placeholder.edit_text(chunks[0], parse_mode="HTML")
+                        try:
+                            await placeholder.edit_text(chunks[0], parse_mode="HTML")
+                        except Exception as edit_err:
+                            err_str = str(edit_err).lower()
+                            if "message is not modified" in err_str:
+                                # Placeholder đã có nội dung này (từ on_delta), không phải lỗi
+                                pass
+                            else:
+                                # Thử lại với HTML escape trên placeholder thay vì gửi tin mới
+                                escaped_first = chunk_html(html.escape(final))[0]
+                                try:
+                                    await placeholder.edit_text(escaped_first, parse_mode="HTML")
+                                except Exception as esc_err:
+                                    if "message is not modified" not in str(esc_err).lower():
+                                        raise edit_err
+                        sent_chunks = True
                         for extra in chunks[1:]:
                             await anchor.answer(extra, parse_mode="HTML")
                     else:
                         for chunk in chunks:
                             await anchor.answer(chunk, parse_mode="HTML")
-                except Exception:
-                    # HTML lỗi ở đâu đó -> gửi lại bản ESCAPE (NC-1:
-                    # không strip-tag nữa — strip ăn mất cả code
-                    # chứa <div>, "a < b" trong câu trả lời).
-                    for chunk in chunk_html(html.escape(final)):
-                        await anchor.answer(chunk, parse_mode="HTML")
+                        sent_chunks = True
+                except Exception as exc:
+                    # Chỉ gửi tin mới nếu placeholder chưa từng được sửa thành công
+                    if not sent_chunks:
+                        for chunk in chunk_html(html.escape(final)):
+                            await anchor.answer(chunk, parse_mode="HTML")
+                    else:
+                        logger.warning("Lỗi gửi chunk bổ sung sau khi placeholder đã cập nhật: %s", exc)
                 await self._maybe_send_media_outputs(anchor, final)
                 await self._maybe_send_voice(key, anchor, final)
                 if was_bootstrap_pending and self.dossier is not None:
@@ -930,6 +975,7 @@ class TelegramSurface:
             r"(?:/[a-zA-Z0-9_\-\./]+|\b(?:[a-zA-Z0-9_\-\.]+/)*[a-zA-Z0-9_\-]+\.(?:png|jpg|jpeg|webp|gif|mp4|mov|avi|webm|mkv|ogg|mp3|wav|m4a|flac|aac|pdf|docx|xlsx|csv|txt|md|json|zip|tar\.gz))\b",
             final_text, re.IGNORECASE,
         )
+        candidate_paths = list(dict.fromkeys(candidate_paths))
         sent_any = False
         max_bytes = getattr(self.cfg, "telegram_max_file_size_bytes", 52428800)
 
@@ -1296,7 +1342,8 @@ class TelegramSurface:
                                  thread_id: Optional[int],
                                  payload: dict) -> Optional[int]:
         """Gửi tin thẻ duyệt vào đúng topic đang chạy + attach
-        định tuyến vào broker để gỡ đúng thẻ khi có quyết định."""
+        định tuyến vào broker để gỡ đúng thẻ khi có quyết định.
+        Kiểm tra trạng thái đã phát (in-memory & KV sau restart) để không gửi lặp."""
         if self.bot is None or self.broker is None:
             return None
         import html as _html
@@ -1304,6 +1351,27 @@ class TelegramSurface:
         from .approvals import approval_scope
 
         approval_id = str(payload.get("approval_id") or "")
+        # Kiểm tra trạng thái đã phát thẻ duyệt (chống phát lặp)
+        if approval_id:
+            if approval_id in self._sent_approval_cards:
+                entry = self.broker._pending.get(approval_id) if self.broker else None
+                if entry and entry.get("card"):
+                    logger.info("Thẻ duyệt %s đã phát trong phiên, không gửi lại.", approval_id)
+                    return entry["card"].get("message_id")
+            if self.broker is not None:
+                entry = self.broker._pending.get(approval_id)
+                if entry and entry.get("card"):
+                    logger.info("Thẻ duyệt %s đã attach card trước đó, không gửi lại.", approval_id)
+                    return entry["card"].get("message_id")
+            if self.memory is not None:
+                try:
+                    raw_appr = await self.memory.kv_get(f"approval_card_sent:{approval_id}")
+                    if raw_appr:
+                        logger.info("Thẻ duyệt %s đã phát trước khi restart, không gửi lại.", approval_id)
+                        return json.loads(raw_appr).get("message_id")
+                except Exception:
+                    pass
+
         if payload.get("kind") == "marketplace_operation":
             return await self._send_marketplace_card(
                 chat_id, thread_id, payload, approval_id)
@@ -1359,6 +1427,16 @@ class TelegramSurface:
         self.broker.attach(approval_id, {
             "chat_id": chat_id, "message_id": msg.message_id,
             "thread_id": thread_id})
+        if approval_id:
+            self._sent_approval_cards.add(approval_id)
+            if self.memory is not None:
+                try:
+                    await self.memory.kv_set(f"approval_card_sent:{approval_id}", json.dumps({
+                        "chat_id": chat_id, "message_id": msg.message_id,
+                        "thread_id": thread_id, "created_at": time.time(),
+                    }))
+                except Exception:
+                    pass
         return msg.message_id
 
     async def send_test_approval_card(
@@ -1477,6 +1555,16 @@ class TelegramSurface:
         self.broker.attach(approval_id, {
             "chat_id": chat_id, "message_id": msg.message_id,
             "thread_id": thread_id})
+        if approval_id:
+            self._sent_approval_cards.add(approval_id)
+            if self.memory is not None:
+                try:
+                    await self.memory.kv_set(f"approval_card_sent:{approval_id}", json.dumps({
+                        "chat_id": chat_id, "message_id": msg.message_id,
+                        "thread_id": thread_id, "created_at": time.time(),
+                    }))
+                except Exception:
+                    pass
         return msg.message_id
 
     async def send_marketplace_card_to_owner(self,
@@ -1491,9 +1579,12 @@ class TelegramSurface:
         return await self.send_approval_card(owner, None, payload)
 
     async def send_vault_card_to_owner(self, info: dict) -> bool:
-        """Gửi thẻ yêu cầu bí mật vào chat/DM (1.6.0 + 1.7.3 T-10.1)."""
+        """Gửi thẻ yêu cầu bí mật vào chat/DM (1.6.0 + 1.7.3 T-10.1 + 1.7.24 T-24.4).
+        Kiểm tra trạng thái đã phát (in-memory & KV sau restart) để tránh phát 2 lần thẻ cho cùng một yêu cầu."""
         owner = int(getattr(self.cfg, "allowed_user_id", 0) or 0)
-        label = info.get("label", "")
+        label = str(info.get("label", "") or "").strip()
+        if not label:
+            return False
         target_chat = info.get("chat_id") or owner
         thread_id = info.get("thread_id")
         if label in self._pending_vault_resumes:
@@ -1503,11 +1594,61 @@ class TelegramSurface:
 
         if not target_chat or self.bot is None:
             return False
-        desc = info.get("description", "")
+
+        now = time.time()
+        desc = str(info.get("description", "") or "").strip()
+
+        # 1. Kiểm tra in-memory: Thẻ cho nhãn này đã được phát và còn đang chờ người dùng nhập
+        existing = self._pending_vault_cards.get(label)
+        if existing and existing.get("chat_id") == target_chat:
+            card_age = now - float(existing.get("created_at", 0.0))
+            if card_age < 600.0:  # Trong vòng 10 phút, không phát thêm thẻ mới
+                msg_id = existing.get("message_id")
+                # Nếu mô tả mục đích có cập nhật nhẹ, sửa thẻ cũ thay vì gửi thêm thẻ mới
+                if msg_id and desc and desc != existing.get("description"):
+                    existing["description"] = desc
+                    safe_param = info.get("startapp_param") or f"vault_{label.replace(':', '__')}"
+                    direct_url = webapp_direct_link(self.cfg, self._bot_username(), safe_param)
+                    lines = [
+                        "🔐 <b>Yêu cầu bí mật vào Kho</b>",
+                        f"Agent cần thông tin: <code>{label}</code>",
+                        f"Mục đích: {desc}",
+                        "",
+                        "Bí mật được lưu vào Kho trên máy của bạn (file JSON quyền 0600, không mã hoá at-rest), không gửi qua chat.",
+                    ]
+                    kb = None
+                    if direct_url:
+                        kb = InlineKeyboardMarkup(inline_keyboard=[[
+                            InlineKeyboardButton(text=f"Nhập {label} vào Kho", url=direct_url)
+                        ]])
+                    try:
+                        await self.bot.edit_message_text(
+                            "\n".join(lines), chat_id=target_chat, message_id=msg_id,
+                            reply_markup=kb, parse_mode="HTML"
+                        )
+                    except Exception:
+                        pass
+                logger.info("Thẻ Vault cho '%s' đã phát trước đó (age=%.1fs), giữ nguyên không phát lặp.", label, card_age)
+                return True
+
+        # 2. Kiểm tra bộ nhớ bền sau restart (trạng thái đã phát qua KV)
+        if self.memory is not None:
+            try:
+                raw_card = await self.memory.kv_get(f"vault_card_pending:{label}")
+                if raw_card:
+                    card_data = json.loads(raw_card)
+                    c_age = now - float(card_data.get("created_at", 0.0))
+                    if c_age < 600.0 and card_data.get("chat_id") == target_chat:
+                        self._pending_vault_cards[label] = card_data
+                        logger.info("Thẻ Vault cho '%s' đã phát trước khi restart (age=%.1fs), không phát lặp.", label, c_age)
+                        return True
+            except Exception as exc:
+                logger.warning("Kiểm tra KV vault_card_pending lỗi: %s", exc)
+
         safe_param = info.get("startapp_param") or f"vault_{label.replace(':', '__')}"
         direct_url = webapp_direct_link(self.cfg, self._bot_username(), safe_param)
         lines = [
-            f"🔐 <b>Yêu cầu bí mật vào Kho</b>",
+            "🔐 <b>Yêu cầu bí mật vào Kho</b>",
             f"Agent cần thông tin: <code>{label}</code>",
         ]
         if desc:
@@ -1525,12 +1666,20 @@ class TelegramSurface:
                 kwargs["message_thread_id"] = thread_id
             msg = await self.bot.send_message(
                 target_chat, "\n".join(lines), parse_mode="HTML", reply_markup=kb, **kwargs)
-            self._pending_vault_cards[label] = {
+            card_info = {
                 "chat_id": target_chat,
                 "thread_id": thread_id,
                 "message_id": getattr(msg, "message_id", None),
                 "label": label,
+                "description": desc,
+                "created_at": now,
             }
+            self._pending_vault_cards[label] = card_info
+            if self.memory is not None:
+                try:
+                    await self.memory.kv_set(f"vault_card_pending:{label}", json.dumps(card_info))
+                except Exception:
+                    pass
             return True
         except Exception as exc:
             logger.warning("Gửi thẻ Vault vào chat lỗi: %s", exc)
@@ -1540,6 +1689,25 @@ class TelegramSurface:
         """Được gọi khi bí mật được lưu vào Kho (qua Mini App hoặc form server).
         Báo lại NGAY trong chat đã gửi thẻ và tiếp tục việc đang dở (chuẩn T-10.1)."""
         import html as _html
+
+        now = time.time()
+        dedup_key = f"{label}:{ref}"
+        last_time = self._recent_captured_vault.get(dedup_key, 0.0)
+        if now - last_time < 30.0:
+            logger.info("Bỏ qua thông báo vault trùng lặp cho %s (mã %s)", label, ref)
+            return
+        self._recent_captured_vault[dedup_key] = now
+        if len(self._recent_captured_vault) > 200:
+            self._recent_captured_vault = {
+                k: v for k, v in self._recent_captured_vault.items() if now - v < 60.0
+            }
+
+        # Dọn dẹp thẻ pending trong KV store nếu có
+        if self.memory is not None:
+            try:
+                await self.memory.kv_del(f"vault_card_pending:{label}")
+            except Exception:
+                pass
 
         if hasattr(self, "vault_broker") and self.vault_broker is not None:
             self.vault_broker.resolve(label, ref)
@@ -1711,6 +1879,14 @@ class TelegramSurface:
                     logger.warning("gỡ bàn phím thẻ duyệt lỗi: %s", exc)
         payload = record.get("payload") or {}
         outcome = record.get("outcome", "")
+        approval_id = record.get("id") or str(payload.get("approval_id") or "")
+        if approval_id:
+            self._sent_approval_cards.discard(approval_id)
+            if self.memory is not None:
+                try:
+                    await self.memory.kv_del(f"approval_card_sent:{approval_id}")
+                except Exception:
+                    pass
         label = {"approved": "✅ Đã duyệt",
                  "denied": "❌ Đã chặn",
                  "expired": "⌛ Thẻ duyệt hết hạn"}.get(
@@ -3692,6 +3868,8 @@ class TelegramSurface:
         async def on_document(message: Message) -> None:
             if not self._is_allowed(message):
                 return
+            if self._is_duplicate_message(message):
+                return
             if not self._should_respond(message):
                 return
             doc = message.document
@@ -3815,6 +3993,8 @@ class TelegramSurface:
         async def on_voice(message: Message) -> None:
             if not self._is_allowed(message):
                 return
+            if self._is_duplicate_message(message):
+                return
             if not self._should_respond_voice(message):
                 return
             await self._send_typing(message)
@@ -3889,7 +4069,8 @@ class TelegramSurface:
             key = session_key_for(message)
             if self.batcher.is_busy(key):
                 running_task = self._active_tasks.get(key)
-                if running_task and not running_task.done():
+                had_running_task = bool(running_task and not running_task.done())
+                if had_running_task:
                     running_task.cancel()
                 self.batcher.drain(key)
                 try:
@@ -3898,7 +4079,10 @@ class TelegramSurface:
                     pass
                 if self.activity:
                     self.activity.stop_session_tasks(key)
-                await message.answer("Đã dừng tác vụ đang chạy theo yêu cầu.")
+                # Sửa T-24.4: Nếu có running_task, _on_batch đã bắt CancelledError và tự sửa placeholder.
+                # Chỉ gửi tin mới khi không có running_task để tránh vừa sửa tin cũ vừa gửi tin mới cùng nội dung.
+                if not had_running_task:
+                    await message.answer("Đã dừng tác vụ đang chạy theo yêu cầu.")
             else:
                 self.batcher.drain(key)
                 try:
@@ -3912,6 +4096,8 @@ class TelegramSurface:
         @dp.message(F.text)
         async def on_text(message: Message) -> None:
             if not self._is_allowed(message):
+                return
+            if self._is_duplicate_message(message):
                 return
             clean_txt = (message.text or "").strip().lower()
             if clean_txt in ("restart", "restart bot", "restart bot lại đi", "khởi động lại", "khởi động lại bot", "/restart"):
@@ -3940,7 +4126,8 @@ class TelegramSurface:
                 is_cancel, redirect = is_cancellation_intent(message.text or "")
                 if is_cancel:
                     running_task = self._active_tasks.get(key)
-                    if running_task and not running_task.done():
+                    had_running_task = bool(running_task and not running_task.done())
+                    if had_running_task:
                         running_task.cancel()
                     self.batcher.drain(key)
                     try:
@@ -3953,7 +4140,9 @@ class TelegramSurface:
                         await message.answer(f"Đã dừng việc trước, chuyển sang: {redirect}")
                         await self.batcher.add(key, redirect)
                     else:
-                        await message.answer("Đã dừng tác vụ theo yêu cầu.")
+                        # Sửa T-24.4: _on_batch đã sửa placeholder thành thông báo dừng, chỉ gửi tin mới khi không có running_task
+                        if not had_running_task:
+                            await message.answer("Đã dừng tác vụ theo yêu cầu.")
                     return
 
             text = format_reply_context(message, message.text or "")
@@ -3962,6 +4151,8 @@ class TelegramSurface:
         @dp.message(F.photo)
         async def on_photo(message: Message) -> None:
             if not self._is_allowed(message):
+                return
+            if self._is_duplicate_message(message):
                 return
             if not self._should_respond(message):
                 return
@@ -4012,6 +4203,8 @@ class TelegramSurface:
         async def on_video(message: Message) -> None:
             if not self._is_allowed(message):
                 return
+            if self._is_duplicate_message(message):
+                return
             if not self._should_respond(message):
                 return
             await self._send_typing(message)
@@ -4058,6 +4251,8 @@ class TelegramSurface:
         @dp.message(F.audio)
         async def on_audio(message: Message) -> None:
             if not self._is_allowed(message):
+                return
+            if self._is_duplicate_message(message):
                 return
             if not self._should_respond(message):
                 return

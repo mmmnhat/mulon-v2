@@ -3361,7 +3361,10 @@ class WebAppServer:
             except Exception:
                 pass
         notifier = getattr(self, "vault_notifier", None)
-        if notifier is not None:
+        # Sửa T-24.4: Nếu notifier chính là callback đã đăng ký qua on_captured trên vault_store,
+        # bỏ qua gọi thừa để không gửi 2 lần tin xác nhận vào Telegram
+        store_listeners = getattr(self.vault_store, "_capture_listeners", [])
+        if notifier is not None and notifier not in store_listeners:
             try:
                 res = notifier(label, ref)
                 if asyncio.iscoroutine(res):

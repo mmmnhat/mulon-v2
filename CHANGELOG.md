@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 1.7.24 — 2026-10-27 — Triệt tiêu nhân đôi tin nhắn, thẻ duyệt và thẻ Vault (T-24.4, LUỒNG 1 — ký: Antigravity [L1])
+
+- **Chống nhân đôi câu trả lời chat/group (`mulon/telegram_bot.py`, T-24.4):**
+  - Khắc phục lỗi câu trả lời xuất hiện 2 lần giống hệt ("một bản sửa cuối + một tin mới"): khi `placeholder.edit_text` gặp ngoại lệ Telegram `message is not modified` (do text đã được cập nhật trước đó qua streaming), hệ thống không còn nhảy vào khối fallback gửi thêm tin nhắn mới `anchor.answer`.
+  - Nếu gặp lỗi định dạng HTML, ưu tiên escape và cập nhật trực tiếp trên placeholder cũ; chỉ gửi `anchor.answer` khi placeholder chưa từng được cập nhật thành công.
+- **Duy nhất một thông báo khi huỷ tác vụ (`mulon/telegram_bot.py`, T-24.4):**
+  - Khi tác vụ đang chạy bị huỷ qua `/stop` hoặc cancellation intent, `_on_batch` sửa trực tiếp placeholder thành thông báo dừng (`⚠️ Đã dừng tác vụ theo yêu cầu.`); `cmd_cancel` và `on_text` không gửi thêm tin nhắn `message.answer` thứ hai.
+- **Chống phát lặp thẻ yêu cầu bí mật Vault (`mulon/telegram_bot.py`, T-24.4):**
+  - `send_vault_card_to_owner`: kiểm tra trạng thái thẻ đang chờ (in-memory và bền vững sau restart qua KV `vault_card_pending:<label>`). Nếu agent gọi `request_vault_secret` lần 2 cho cùng nhãn, hệ thống cập nhật nội dung thẻ cũ tại chỗ nếu mô tả thay đổi, không gửi thêm thẻ mới.
+- **Khử trùng thông báo nhận bí mật Vault (`mulon/telegram_bot.py`, `mulon/webapp_server.py`, T-24.4):**
+  - `on_vault_secret_captured`: bổ sung bộ đệm chống trùng 30s theo `(label, ref)`.
+  - `webapp_server.py`: không gọi lặp `vault_notifier` nếu notifier đã là listener đăng ký trực tiếp trên `vault_store`.
+- **Khử trùng thẻ duyệt và tin nhắn đến Telegram (`mulon/telegram_bot.py`, T-24.4):**
+  - `send_approval_card`: kiểm tra `_sent_approval_cards` và KV `approval_card_sent:<id>` để không gửi 2 lần cùng một yêu cầu duyệt.
+  - Bổ sung `_is_duplicate_message` kiểm tra bộ đệm 5.000 tin nhắn gần nhất `(chat_id, message_id)`, loại bỏ update trùng lặp khi Telegram getUpdates re-deliver.
+- **Kiểm thử (`tests/test_v17_message_deduplication.py`, T-24.4):**
+  - 6 unit test mới kiểm chứng đủ 4 ca thực tế: không nhân đôi câu trả lời, 1 thông báo dừng duy nhất, 1 tin xác nhận Vault duy nhất, thẻ Vault idempotent & phục hồi qua restart, khử trùng update đến, và thẻ duyệt không lặp.
+
 ## 1.7.23 — 2026-10-27 — Tích hợp muse2api theo Đường A, làm upstream của CLIProxyAPI (T-16, LUỒNG PHỤ 2 — ký: Phu2)
 
 - **Đường A đã chốt, không gọi thẳng muse2api (`mulon/muse2api.py`, T-16):**
