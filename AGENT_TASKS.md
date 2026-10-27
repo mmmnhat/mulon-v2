@@ -19,7 +19,7 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật 2026-10-28 ~00:18 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): nhận T-26 `DOING` (ƯU TIÊN 25, LUỒNG 4) theo lệnh chuyển giao của chủ dự án; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L4]
+Cập nhật 2026-10-28 ~00:18 bởi Muse (ký: Muse): theo lệnh chủ dự án (chat phụ ~00:17) — **chuyển T-11 từ hàng chờ LUỒNG 3 sang LUỒNG 5** (LUỒNG 5 trống sau T-16 + T-28 DONE; T-11 mảng parity hệ thống/model hợp làn LUỒNG 5. T-22.3 phần còn lại GIỮ ở LUỒNG 3 sau T-17 — cùng chủ file connector/bridge). Ky: Muse
 
 Cập nhật 2026-10-28 ~00:12 bởi Muse (ký: Muse): theo lệnh chủ dự án (chat phụ ~00:11) — **chuyển T-26 + T-29 từ hàng chờ LUỒNG 1 sang LUỒNG 4** (san tải: LUỒNG 1 đang DOING T-24.6, sau đó T-24.7 cùng cụm; LUỒNG 4 trống sau T-14 DONE). Hàng chờ LUỒNG 4 mới: T-26 -> T-29. Ky: Muse
 
@@ -245,9 +245,9 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG 2 — App & giao diện** (chủ file `mulon/webapp/` + `assets/`):
   T-23.6 (đã VERIFIED) -> T-12 (đã DONE) -> T-27 (đang DOING dở, làm tiếp tới DONE) -> T-13.
 - **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
-  T-30 (đã DONE) -> T-17 (nhận DOING) -> T-11 -> T-22.3 (phần còn lại: sửa IG báo gửi giả + DM Threads thật; spike code đã có ở `d9d2a853`). (Thu hồi từ LUỒNG PHỤ 1 theo lệnh chủ dự án 27/10 ~22:37.)
+  T-30 (đã DONE) -> T-17 (nhận DOING) -> T-22.3 (phần còn lại: sửa IG báo gửi giả + DM Threads thật; spike code đã có ở `d9d2a853`). (Thu hồi từ LUỒNG PHỤ 1 theo lệnh chủ dự án 27/10 ~22:37.)
 - **LUỒNG 4 — Cổng model & còn lại**:
-  T-14 (đã VERIFIED) -> T-26 (nhận DOING) -> T-29. (T-26 + T-29 nhận chuyển từ hàng chờ LUỒNG 1 theo lệnh chủ dự án 28/10 ~00:11. T-16 phần sửa + T-28 đã chuyển sang LUỒNG 5 theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên Antigravity.)
+  T-14 (đã DONE) -> T-26 -> T-29. (T-26 + T-29 nhận chuyển từ hàng chờ LUỒNG 1 theo lệnh chủ dự án 28/10 ~00:11. T-16 phần sửa + T-28 đã chuyển sang LUỒNG 5 theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên Antigravity.)
 
 - **LUỒNG PHỤ 1 — Muse phụ — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37: thu hồi toàn bộ việc của các account Muse phụ, kể cả việc đang dở):** hàng chờ đã dọn sạch — T-22.3 (phần còn lại) -> LUỒNG 3, T-28 -> LUỒNG 4, T-29 -> LUỒNG 1, T-26 -> LUỒNG 1. LUỒNG PHỤ 1 không nhận việc mới, không push thêm commit nào cho dự án này.
 
@@ -256,7 +256,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG PHỤ 3 — Muse phụ (ký: Nori) — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37):** T-26 thu hồi về LUỒNG 1 trước khi bắt đầu (không mất gì). LUẬT LÀM LIÊN TỤC của LUỒNG PHỤ 3 hết hiệu lực cùng lệnh dừng này. LUỒNG PHỤ 3 không nhận việc mới, không push thêm commit nào cho dự án này.
 
 - **LUỒNG 5 — Cổng model: sửa lỗi + CI** (Antigravity, phiên thứ 5 trên máy Mac, worktree riêng; lập theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên, không mở thêm):
-  T-16 (phần sửa NEEDS-FIX theo audit 22:36 — lấy từ hàng LUỒNG 4) -> T-28 (lấy log GitHub Actions trên máy Mac, chẩn đoán CI đỏ; vẫn kẹt billing GitHub).
+  T-16 (phần sửa NEEDS-FIX — đã DONE) -> T-28 (đã DONE) -> T-11 (nhận chuyển từ hàng chờ LUỒNG 3 theo lệnh chủ dự án 28/10 ~00:17).
   *Lưu ý:* phần sửa T-16 đụng `mulon/gateway.py` (vùng alias model) — LUỒNG 4 (T-14) tránh sửa vùng alias của gateway khi LUỒNG 5 đang làm T-16 và ngược lại; cả hai pull + rebase kỹ trước khi push. Ký commit `Ky: Antigravity` + nhãn `[L5]`.
 
 - **LUỒNG MUSE — Muse chính làm builder** (chạy trên VM của Muse, push qua GitHub connector; Muse vẫn giữ vai reviewer cho mọi luồng khác):
@@ -280,7 +280,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-24.6, T-13, T-17 (đang DOING; T-24.5, T-24.4, T-27, T-14, T-30, T-16, T-28 DONE; LUỒNG 4 vừa nhận T-26 -> T-29 (28/10 ~00:12); hàng LUỒNG 5 TRỐNG) |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-24.6, T-13, T-17 (đang DOING; T-24.5, T-24.4, T-27, T-14, T-30, T-16, T-28 DONE; LUỒNG 4 vừa nhận T-26 -> T-29 (28/10 ~00:12); LUỒNG 5 vừa nhận T-11 (28/10 ~00:18)) |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -497,7 +497,8 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
   5. *Kiểm chứng:* 509/509 unit tests PASS (thêm 6 test toàn diện trong `tests/test_v17_media_library_sidechat_parity.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 - **Nghiệm thu bởi Muse (autowatch 27/10 ~11:55, head `70d992d`, suite chạy lại ở head `ae9637b` vẫn xanh): VERIFIED.** Diff commit `b532c12` (10 file) đối chiếu khớp mô tả: 5 phương thức gửi aiogram + trần 50MB trong `telegram_bot.py`, handler nhận đủ 5 loại + index vào Library, cột `caption` + `fold_vi` trong `memory.py`/`library.py`, `parse_session_key`/`send_to_session` (R15), 3 tool `search_library`/`get_library_item`/`share_library_item` (share kẹp <=48h, token chỉ lưu hash). Full suite chạy lại trên cây đồng bộ từ head: **539 passed, 0 failed** ở thời điểm chốt (sau đó suite head `ae9637b` đạt 545 passed khi đủ bs4 — xem T-23.1). Eval vàng stub chạy lại: **31/36, đúng 5 case trượt cũ** (marketplace/self-read, có từ trước, không phải hồi quy của đợt này). Test sống VM (hàm thật, dữ liệu mới, script `live_verify_t105_t221_t222.py`): fold_vi + tìm kiếm có dấu/không dấu trên SQLite thật đều trúng; share 72h bị kẹp đúng 48.00h; parse_session_key tách đúng (-100555, topic 77), key lạ -> (None, None); trần mặc định đúng 52428800. Checklist: E2 (phần tìm kiếm + share <=48h) ĐẠT, E3 + R15 ĐẠT ở tầng code. **Phần chưa tự kiểm được từ VM (cần bot thật):** gửi đủ 5 loại qua Bot API thật + người dùng gửi file thật rồi tìm lại trong Library — Antigravity/chủ dự án xác nhận thêm trên bot thật khi tiện; không chặn VERIFIED vì đường code + test đơn vị + test sống VM đã khớp toàn bộ.
 
-### [T-11] Parity hệ thống: connector/MCP/quyền/model/tự sửa — Giao: Antigravity — `TODO` — LUỒNG 3
+### [T-11] Parity hệ thống: connector/MCP/quyền/model/tự sửa — Giao: Antigravity — `TODO` — LUỒNG 5 (chuyển từ LUỒNG 3 theo lệnh chủ dự án 28/10 ~00:17)
+- **Chuyển giao 2026-10-28 ~00:18 bởi Muse (lệnh chủ dự án):** từ LUỒNG 3 sang LUỒNG 5 (LUỒNG 5 trống sau T-16 + T-28 DONE). Chỉ LUỒNG 5 nhận mục này. Ky: Muse
 - Rà soát toàn bộ slash command: bỏ trùng, đặt tên nhất quán,
   mỗi lệnh có mô tả; thêm lệnh còn thiếu so với Muse.
 - Đổi model TRỰC TIẾP trong chat và trong Mini App (đã có nền
@@ -1372,8 +1373,7 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Bằng chứng (battery v5, 27/10 03:12–03:17): (1) gửi tin lúc bot đang bận viết bài dài -> KHÔNG có bất kỳ phản hồi tức thì nào cho biết đã nhận/xếp hàng; phải đợi ~46s tới khi lượt trước xong mới thấy lượt của mình bắt đầu (cơ chế xếp hàng đúng — tin không mất, chạy ngay sau). (2) Lóe markdown thô trước khi định dạng kịp áp: đáp án "17 + 25" hiện dạng `**17 + 25 = 42**` chữ thô rồi mới sửa thành in đậm thật; bài quán cà phê cũng sửa 3 nhịp mới ổn định định dạng. (3) Bài dài còn sót ký tự phân cách thô dạng `---` trong thân bài (cả bài phân tích AI agent lẫn bài so sánh Muse/ChatGPT).
 - Nghiệm thu: gửi tin khi bot bận -> có xác nhận xếp hàng trong vài giây; đáp án cuối không qua trạng thái chữ markdown thô nhìn thấy được; bài dài không còn dòng `---` thô.
 
-### [T-26] Chốt bề mặt slash commands (46 lệnh thật, menu chỉ 8, không có /help) — Giao: LUỒNG 4 — `DOING` (ƯU TIÊN 25) — LUỒNG 4 (chuyển từ LUỒNG 1 theo lệnh chủ dự án 28/10 ~00:11; hàng chờ LUỒNG 4: T-26 -> T-29)
-- **Nhận việc — Antigravity [L4] (2026-10-28 ~00:18 +07):** nhận T-26 DOING theo lệnh chuyển giao của chủ dự án; bắt tay thực hiện ngay trên nền code mới nhất. Ky: Antigravity [L4]
+### [T-26] Chốt bề mặt slash commands (46 lệnh thật, menu chỉ 8, không có /help) — Giao: LUỒNG 4 — `TODO` (ƯU TIÊN 25) — LUỒNG 4 (chuyển từ LUỒNG 1 theo lệnh chủ dự án 28/10 ~00:11; hàng chờ LUỒNG 4: T-26 -> T-29)
 - **Chuyển giao 2026-10-28 ~00:12 bởi Muse (lệnh chủ dự án):** từ LUỒNG 1 sang LUỒNG 4 (san tải; LUỒNG 4 trống sau T-14 DONE). Chỉ LUỒNG 4 nhận mục này. Ky: Muse
 - **Chuyển giao 2026-10-27 ~22:27 bởi Muse (lệnh chủ dự án):** từ LUỒNG PHỤ 1 sang LUỒNG PHỤ 3; hàng chờ PHỤ 3: T-26. (T-29 KHÔNG chuyển — đã `DOING` ở LUỒNG PHỤ 1.)
 - **Chuyển giao 2026-10-27 ~21:40 bởi Muse (lệnh chủ dự án):** từ LUỒNG 4 sang LUỒNG PHỤ 1; thứ tự trong LUỒNG PHỤ 1: T-22.3 -> T-28 -> T-29 -> T-26 -> T-25; chỉ LUỒNG PHỤ 1 nhận mục này.
