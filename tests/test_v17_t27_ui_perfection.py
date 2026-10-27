@@ -152,7 +152,7 @@ def test_playwright_t27_ui_perfection(cfg: Config):
             vstore.put("Telegram Bot Token", "tg_bot_token_777")
 
             # 2. Cài đặt Lịch trình & Lịch sử chạy (Heartbeat 8 lượt chạy để kích hoạt phân trang > 5 lượt)
-            now = datetime.now(timezone.utc)
+            now = datetime.now().astimezone()
             for i in range(8):
                 t = now - timedelta(minutes=30 * i)
                 hb_payload = {
@@ -212,7 +212,7 @@ def test_playwright_t27_ui_perfection(cfg: Config):
                         "approved": True,
                         "remember": True,
                     }),
-                    (now - timedelta(days=1, hours=3)).isoformat(),
+                    (now - timedelta(days=1)).isoformat(),
                 ),
             )
             await mem.db.execute(

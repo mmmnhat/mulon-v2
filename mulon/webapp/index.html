@@ -946,7 +946,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       </div>
     </div>
     <div class="head-meta">
-      <div class="app-name">Mulon</div>
+      <div class="app-name" id="app-brand-name">Mulon</div>
       <div class="app-status">
         <span class="dot" id="status-dot"></span>
         <span id="status-text">Đã kết nối</span>
@@ -1453,6 +1453,16 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     </div>
   </div>
   <div class="card">
+    <div class="card-title">Cá nhân hoá</div>
+    <div class="row" data-open="screen-brand">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+      <div class="r-main"><div class="r-title">Thương hiệu &amp; Mascot</div>
+        <div class="r-sub" id="brand-summary-sub">Mulon · Mulon Cổ Điển</div></div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div>
+  </div>
+  <div class="card">
     <div class="card-title">Giao diện</div>
     <div class="row static">
       <div class="r-main"><div class="r-title">Màu chủ đề</div>
@@ -1524,6 +1534,57 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <div id="cliproxy-models-content"><div class="empty-state" style="padding:16px;">Đang tải danh sách model...</div></div>
   </div>
   <div class="note">Toàn bộ lời gọi model đều đi qua cổng proxy cục bộ 127.0.0.1:8317 (Proxy-only). Nếu proxy dừng hoạt động, bot chuyển sang chế độ suy giảm (degrade) an toàn mà không bị sập.</div>
+</section>
+
+<!-- Cài đặt con: Thương hiệu & Mascot (T-13) -->
+<section id="screen-brand" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
+  <h2 class="screen-title">Thương hiệu &amp; Mascot</h2>
+
+  <!-- Card 1: Đổi tên hiển thị & Giới hạn Telegram -->
+  <div class="card" style="margin-bottom:18px;">
+    <div class="card-title">Tên hiển thị của bot</div>
+    <div style="font-size:13px; color:var(--ink2); margin-bottom:12px;">
+      Tên thân mật của bot hiển thị trên Mini App và lời thoại.
+    </div>
+    <div style="display:flex; gap:8px; margin-bottom:14px;">
+      <input type="text" id="input-bot-name" class="field-input" placeholder="Ví dụ: Mulon, Miu Con..." style="flex:1; height:42px; border-radius:10px; border:1px solid var(--line); padding:0 12px; font-size:14px; background:var(--surface);">
+      <button class="btn btn-accent" id="btn-save-bot-name" type="button" style="height:42px; padding:0 16px; font-weight:600; border-radius:10px;">Lưu tên</button>
+    </div>
+
+    <!-- Hộp ghi chú giới hạn Telegram theo đúng yêu cầu T-13 -->
+    <div class="info-callout" style="background:var(--tint-lav); border:1px solid var(--line); border-radius:12px; padding:12px 14px; font-size:12px; line-height:1.5;">
+      <div style="font-weight:600; color:var(--lav-deep); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        Lưu ý về giới hạn Telegram (BotFather)
+      </div>
+      <div style="color:var(--ink2);">
+        • <b>Tên hiển thị bot (ở trên):</b> Đổi được ngay tại đây — áp dụng tức thì trên Mini App và các phản hồi.<br>
+        • <b>Username bot Telegram (<span id="brand-tg-username">@Mulon_bot</span>):</b> Giới hạn bởi Telegram, chỉ đổi được qua @BotFather với lệnh <code>/setusername</code>.<br>
+        • <b>Tên bot trong danh bạ Telegram:</b> Đổi qua @BotFather bằng lệnh <code>/setname</code>.<br>
+        • <b>Ảnh đại diện bot trên Telegram:</b> Đổi qua @BotFather bằng lệnh <code>/setuserpic</code>.
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: Chọn Mascot trong vũ trụ Mulon -->
+  <div class="card" style="margin-bottom:18px;">
+    <div class="card-title">Linh vật đại diện (Mascot)</div>
+    <div style="font-size:13px; color:var(--ink2); margin-bottom:14px;">
+      Bộ sưu tập mascot trong vũ trụ thương hiệu Mulon. <i>Bản chính thức vẫn là Sprite v0 (21 frame) tới khi chủ dự án duyệt bộ mới.</i>
+    </div>
+    <div id="mascot-grid" style="display:flex; flex-direction:column; gap:12px;"></div>
+  </div>
+
+  <!-- Card 3: Chuẩn hoá Brand & Giọng văn -->
+  <div class="card">
+    <div class="card-title">Chuẩn hoá Brand &amp; Giọng điệu</div>
+    <div style="font-size:13px; color:var(--ink2); line-height:1.55;">
+      • <b>Màu nhận diện:</b> Tím Mulon (Tỷ lệ 60/30/10 với màu nhấn <code>#7C3AED</code>).<br>
+      • <b>Biểu trưng (Logo):</b> Mèo thông minh kết hợp tia sáng Spark tinh anh.<br>
+      • <b>Giọng văn cốt lõi:</b> Thân thiện, khimh nhường, thông minh, gãy gọn; xưng hô chuẩn mực và tôn trọng chủ nhân.
+    </div>
+  </div>
 </section>
 
 <!-- Cài đặt con: Feed chủ động (1.4) -->
@@ -2192,6 +2253,7 @@ const TAB_OF_SCREEN = {"screen-task":"viec","screen-schedule-detail":"lich","scr
   "screen-mktcat":"caidat",
   "screen-import":"caidat",
   "screen-connector-policy":"caidat",
+  "screen-brand":"caidat",
   "screen-google-config":"caidat"};
 const SCREEN_TITLES = {
   "screen-task":"Chi tiết việc","screen-schedule-detail":"Chi tiết lịch trình","screen-profile":"Hồ sơ","screen-skill":"Kỹ năng",
@@ -2205,6 +2267,7 @@ const SCREEN_TITLES = {
   "screen-mktcat":"Chợ MCP","screen-listing":"Chi tiết connector",
   "screen-install":"Cài đặt MCP","screen-import":"Nhập thủ công",
   "screen-vault":"Kho lưu trữ an toàn","screen-vault-detail":"Chi tiết bí mật",
+  "screen-brand":"Thương hiệu & Mascot",
   "screen-policy":"Quyền","screen-all-tools-policy":"Tất cả công cụ",
   "screen-connector-policy":"Chi tiết connector & Quyền"
 };
@@ -2936,6 +2999,10 @@ function flashAvatar(stateName){ spritePlay(stateName, true); }
 let lastTaskStatus = null;
 function renderStatus(){
   const st = (S && S.status) || {busy:false};
+  const brand = (S && S.brand) || {};
+  const brandName = brand.bot_name || "Mulon";
+  const nameEl = $("app-brand-name");
+  if (nameEl) nameEl.textContent = brandName;
   const pending = (S && S.approvals.pending) || [];
   const tabDot = $("tab-appr-dot");
   if (tabDot) tabDot.classList.toggle("hidden", pending.length === 0);
@@ -7107,11 +7174,140 @@ $("feed-src-add").addEventListener("click", async () => {
   } catch (e) { toast(e.message); }
 });
 
+function getMascotSvgIcon(kind, style) {
+  if (kind === "sprite_v0") {
+    return '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--lav-deep)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v1H6a2 2 0 0 0-2 2v9a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V9a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/><path d="M10 16c.8.6 1.6.8 2 .8s1.2-.2 2-.8"/></svg>';
+  }
+  if (style === "blue") {
+    return '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
+  }
+  if (style === "lavender") {
+    return '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--lav-deep)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M4.93 4.93l4.24 4.24M14.83 14.83l4.24 4.24M14.83 9.17l4.24-4.24M4.93 19.07l4.24-4.24"/></svg>';
+  }
+  if (style === "green") {
+    return '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#16A34A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>';
+  }
+  return '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="1.8"><circle cx="12" cy="12" r="8"/></svg>';
+}
+
+function renderBrand() {
+  const brand = (S && S.brand) || {};
+  const botName = brand.bot_name || "Mulon";
+  const botUsername = brand.bot_username || "Mulon_bot";
+  const mascotId = brand.mascot_id || "mulon_v0";
+  const mascots = brand.mascots || [];
+
+  // 1. Cập nhật tên trên Header & Tóm tắt ở Cài đặt
+  const brandNameEl = $("app-brand-name");
+  if (brandNameEl) brandNameEl.textContent = botName;
+
+  const activeMascot = mascots.find(m => m.id === mascotId) || {name: "Mulon Cổ Điển"};
+  const summarySub = $("brand-summary-sub");
+  if (summarySub) summarySub.textContent = esc(botName) + " · " + esc(activeMascot.name);
+
+  // 2. Cập nhật trong màn hình Thương hiệu (#screen-brand)
+  const inputName = $("input-bot-name");
+  if (inputName && document.activeElement !== inputName) {
+    inputName.value = botName;
+  }
+  const tgUserEl = $("brand-tg-username");
+  if (tgUserEl) tgUserEl.textContent = "@" + botUsername.replace(/^@/, "");
+
+  // Nút Lưu tên bot
+  const saveBtn = $("btn-save-bot-name");
+  if (saveBtn && !saveBtn._bound) {
+    saveBtn._bound = true;
+    saveBtn.addEventListener("click", async () => {
+      const val = inputName ? inputName.value.trim() : "";
+      if (!val) { toast("Vui lòng nhập tên hiển thị cho bot."); return; }
+      saveBtn.disabled = true;
+      haptic("impact");
+      try {
+        const res = await api("/api/brand", "POST", {bot_name: val});
+        if (res && res.ok) {
+          toast("Đã lưu tên bot: " + res.bot_name);
+          if (S && S.brand) S.brand.bot_name = res.bot_name;
+          renderBrand();
+        } else {
+          toast((res && res.error) || "Lỗi lưu tên bot.");
+        }
+      } catch (e) {
+        toast("Lỗi: " + e.message);
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+  }
+
+  // 3. Render danh sách Mascot
+  const grid = $("mascot-grid");
+  if (!grid) return;
+
+  if (!mascots.length) {
+    grid.innerHTML = '<div class="empty">Không có danh sách mascot.</div>';
+    return;
+  }
+
+  grid.innerHTML = mascots.map(m => {
+    const isActive = m.id === mascotId;
+    const badgeColor = m.badge_style === "blue" ? "#2563EB" : (m.badge_style === "green" ? "#16A34A" : "var(--lav-deep)");
+    const badgeBg = m.badge_style === "blue" ? "rgba(37,99,235,0.1)" : (m.badge_style === "green" ? "rgba(22,163,74,0.1)" : "var(--tint-lav)");
+    const iconSvg = getMascotSvgIcon(m.avatar_kind, m.badge_style);
+
+    return '<div class="card" style="border:' + (isActive ? '2px solid var(--accent)' : '1px solid var(--line)') + '; padding:14px 16px; margin:0; border-radius:14px; background:' + (isActive ? 'var(--tint-lav)' : 'var(--surface)') + ';">' +
+      '<div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">' +
+        '<div style="width:40px; height:40px; border-radius:10px; background:' + badgeBg + '; display:flex; align-items:center; justify-content:center; flex-shrink:0;">' +
+          iconSvg +
+        '</div>' +
+        '<div style="flex:1;">' +
+          '<div style="display:flex; align-items:center; gap:8px;">' +
+            '<span style="font-weight:600; font-size:15px; color:var(--ink);">' + esc(m.name) + '</span>' +
+            '<span style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; background:' + badgeBg + '; color:' + badgeColor + ';">' + esc(m.badge) + '</span>' +
+          '</div>' +
+          '<div style="font-size:12px; color:var(--ink2);">' + esc(m.tagline) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="font-size:13px; color:var(--ink); line-height:1.45; margin-bottom:8px;">' + esc(m.description) + '</div>' +
+      '<div style="font-size:12px; color:var(--ink2); margin-bottom:12px;"><b>Phong cách:</b> ' + esc(m.tone) + ' · <i>“' + esc(m.quote || "") + '”</i></div>' +
+      '<div style="display:flex; justify-content:flex-end;">' +
+        (isActive
+          ? '<span style="font-size:13px; font-weight:600; color:var(--lav-deep); display:flex; align-items:center; gap:4px;">' +
+            '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Đang đại diện</span>'
+          : '<button class="btn btn-soft btn-sm" data-select-mascot="' + esc(m.id) + '" style="font-weight:600; padding:6px 14px; border-radius:8px;">Chọn mascot này</button>'
+        ) +
+      '</div>' +
+    '</div>';
+  }).join("");
+
+  grid.querySelectorAll("[data-select-mascot]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const mid = btn.dataset.selectMascot;
+      btn.disabled = true;
+      haptic("select");
+      try {
+        const res = await api("/api/brand", "POST", {mascot_id: mid});
+        if (res && res.ok) {
+          flashAvatar("done");
+          toast("Đã chọn mascot đại diện mới.");
+          if (S && S.brand) S.brand.mascot_id = res.mascot_id;
+          renderBrand();
+        } else {
+          toast((res && res.error) || "Lỗi chọn mascot.");
+        }
+      } catch (e) {
+        toast("Lỗi: " + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
 /* ---------------- nạp state ---------------- */
 function renderAll(){
   renderStatus(); renderTasks(); renderApprovals(); renderSchedule();
   renderProfile(); renderConnectors(); renderVault(); renderPolicy();
-  renderSystem(); renderFeed();
+  renderSystem(); renderFeed(); renderBrand();
 }
 function refresh(){ return load(); }
 async function load(){

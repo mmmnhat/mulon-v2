@@ -1180,6 +1180,8 @@ class WebAppServer:
         app.router.add_post("/api/goals/close", self._handle_goal_close)
         app.router.add_post("/api/goals/{id}/briefing", self._handle_goal_briefing)
         app.router.add_post("/api/profile/theme", self._handle_theme)
+        app.router.add_get("/api/brand", self._handle_brand_get)
+        app.router.add_post("/api/brand", self._handle_brand_post)
         # 1.3.0 (gói vá Mini App): kỹ năng đọc được + Vault nhập
         # ngay trong app — cùng middleware auth initData.
         app.router.add_get("/api/skills", self._handle_skills)
@@ -2021,6 +2023,7 @@ class WebAppServer:
             },
             "schedule": await self._schedule_state(),
             "profile": await self._profile_state(),
+            "brand": await self._brand_state(),
             "system": await self._system_state(
                 request.get("tg_user")),
             "connectors": await self._connectors_state(),
@@ -2448,6 +2451,61 @@ class WebAppServer:
             await self.memory.log_trajectory(
                 "webapp", "theme_changed", {"theme": theme})
         return web.json_response({"ok": True, "theme": theme})
+
+    async def _brand_state(self) -> dict:
+        from .datafiles import load_json_data
+        mascots = load_json_data("mascots.json", [])
+        bot_name = getattr(self.cfg, "bot_display_name", "Mulon")
+        mascot_id = getattr(self.cfg, "bot_mascot", "mulon_v0")
+        if self.memory is not None:
+            try:
+                stored_name = await self.memory.kv_get("brand_bot_name")
+                if stored_name and isinstance(stored_name, str) and stored_name.strip():
+                    bot_name = stored_name.strip()
+                stored_mascot = await self.memory.kv_get("brand_mascot_id")
+                if stored_mascot and isinstance(stored_mascot, str):
+                    valid_ids = {m.get("id") for m in mascots if isinstance(m, dict)}
+                    if stored_mascot in valid_ids:
+                        mascot_id = stored_mascot
+            except Exception:
+                pass
+        return {
+            "bot_name": bot_name,
+            "bot_username": getattr(self.cfg, "bot_username", "Mulon_bot"),
+            "mascot_id": mascot_id,
+            "mascots": mascots,
+        }
+
+    async def _handle_brand_get(self, request):
+        brand = await self._brand_state()
+        return web.json_response({"ok": True, **brand})
+
+    async def _handle_brand_post(self, request):
+        body = await self._json_body(request)
+        from .datafiles import load_json_data
+        mascots = load_json_data("mascots.json", [])
+        valid_ids = {m.get("id") for m in mascots if isinstance(m, dict)}
+
+        if "bot_name" in body:
+            name = str(body["bot_name"] or "").strip()
+            if len(name) > 50:
+                return web.json_response({"ok": False, "error": "Tên bot không được quá 50 ký tự."}, status=400)
+            if self.memory is not None:
+                await self.memory.kv_set("brand_bot_name", name or getattr(self.cfg, "bot_display_name", "Mulon"))
+                await self.memory.log_trajectory(
+                    "webapp", "brand_name_changed", {"bot_name": name})
+
+        if "mascot_id" in body:
+            mid = str(body["mascot_id"] or "").strip()
+            if mid and mid not in valid_ids:
+                return web.json_response({"ok": False, "error": f"Mascot '{mid}' không hợp lệ."}, status=400)
+            if mid and self.memory is not None:
+                await self.memory.kv_set("brand_mascot_id", mid)
+                await self.memory.log_trajectory(
+                    "webapp", "brand_mascot_changed", {"mascot_id": mid})
+
+        brand = await self._brand_state()
+        return web.json_response({"ok": True, **brand, "message": "Đã lưu cài đặt thương hiệu & mascot."})
 
     async def _handle_schedule(self, request):
         body = await self._json_body(request)

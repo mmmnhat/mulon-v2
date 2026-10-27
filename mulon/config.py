@@ -334,6 +334,8 @@ class Config:
     google_client_id: str = ""
     google_user_email: str = ""
     bot_username: str = "Mulon_bot"
+    bot_display_name: str = "Mulon"
+    bot_mascot: str = "mulon_v0"
     # Endpoint/model sinh ảnh ngoài proxy (Agnes AI) — qua env, không
     # hardcode trong media_tools (vá audit hardcode 2026-10-26).
     image_gen_endpoint: str = "https://apihub.agnes-ai.com/v1/images/generations"
@@ -538,6 +540,8 @@ class Config:
             google_client_id=_env("GOOGLE_CLIENT_ID", ""),
             google_user_email=_env("GOOGLE_USER_EMAIL", ""),
             bot_username=_env("BOT_USERNAME", "Mulon_bot"),
+            bot_display_name=_env("BOT_DISPLAY_NAME", "Mulon"),
+            bot_mascot=_env("BOT_MASCOT", "mulon_v0"),
             image_gen_endpoint=_env(
                 "IMAGE_GEN_ENDPOINT",
                 "https://apihub.agnes-ai.com/v1/images/generations"),

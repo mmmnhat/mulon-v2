@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## 1.7.31 — 2026-10-28 — Brand, mascot và đổi tên hiển thị bot (T-13, LUỒNG 2 — ký: Antigravity [L2])
+
+- **Bộ sưu tập Mascot vũ trụ Mulon (`config/mascots.json`, T-13):**
+  - Khai báo catalog 4 mascot chính thức cùng vũ trụ Mulon:
+    - `mulon_v0`: "Mulon Cổ Điển" (Sprite v0 chính thức - Mèo tím hiếu kỳ, mặc định ban đầu).
+    - `mulon_spark`: "Mulon Spark" (Tia chớp năng động - Tinh anh, lanh lợi, sắc sảo).
+    - `mulon_cosmo`: "Mulon Cosmo" (Nhà thám hiểm vũ trụ - Tri thức sâu, bao quát không gian).
+    - `mulon_zen`: "Mulon Zen" (Thiền định tĩnh tại - Thư thái, thận trọng, kiên định).
+  - Không hardcode danh sách mascot trong code; nạp qua `load_json_data("mascots.json")`.
+- **Cấu hình & lưu trữ bền vững KV (`mulon/config.py`, `.env.example`, `mulon/webapp_server.py`, `mulon/telegram_bot.py`, T-13):**
+  - Khai báo trường cấu hình mặc định `bot_display_name: str = "Mulon"` (env `BOT_DISPLAY_NAME`) và `bot_mascot: str = "mulon_v0"` (env `BOT_MASCOT`).
+  - Đăng ký endpoint `GET /api/brand` và `POST /api/brand` trên `WebAppServer`, nhúng trạng thái `brand` vào `GET /api/state`. Cho phép đổi tên bot hiển thị và chọn mascot trực tiếp từ Mini App.
+  - Tên bot và mascot đã chọn được lưu bền vững vào `Memory` KV store (`brand_bot_name`, `brand_mascot_id`) và ghi log trajectory hành động.
+  - Helper `get_bot_display_name(memory, cfg)` ưu tiên đọc từ KV -> config -> fallback "Mulon" để đồng bộ tên bot trong bot chat Telegram.
+- **Giao diện Mini App chuyên nghiệp & Chuẩn hoá thương hiệu (`mulon/webapp/index.html`, T-13):**
+  - Bổ sung card "Cá nhân hoá" với hàng điều hướng "Thương hiệu & Mascot" trong Tab Cài đặt (`#tab-caidat`), giữ nguyên chuẩn 5 hàng điều hướng kỹ thuật trong card đầu tiên.
+  - Màn hình con `#screen-brand` chuyên nghiệp:
+    - **Đổi tên bot hiển thị:** Ô nhập tên bot và nút "Lưu tên", kèm hộp lưu ý giải thích rõ giới hạn kỹ thuật Telegram (username `@Mulon_bot`, tên bot danh bạ và avatar trên Telegram chỉ đổi được qua `@BotFather` bằng `/setusername`, `/setname`, `/setuserpic`, trong khi tên hiển thị trong app/chat đổi ngay lập tức).
+    - **Bộ sưu tập mascot đại diện:** Danh sách mascot trực quan dạng lưới, hiển thị biểu tượng SVG đặc trưng, huy hiệu đại diện ("✓ Đang đại diện"), tính cách và nút bấm chọn mascot.
+    - **Chuẩn hoá thương hiệu Mulon:** Card hướng dẫn định vị thương hiệu với màu nhấn Tím Mulon (`#7C3AED`) theo tỉ lệ 60/30/10, logo Spark và giọng văn cốt lõi (thân thiện, khiêm nhường, thông minh).
+    - Tự động đồng bộ tên bot đã đổi lên tiêu đề App Header (`#app-brand-name`).
+- **Kiểm thử hồi quy & Render thật Chromium 390×844 (`tests/test_v17_t13_brand_mascot.py`, T-13):**
+  - Kiểm thử tĩnh cấu trúc HTML, thông báo cảnh báo BotFather.
+  - Kiểm thử API `/api/brand`, xác thực độ dài tên <= 50 ký tự, chặn mascot không hợp lệ, kiểm tra lưu trữ KV và helper Telegram.
+  - Kiểm thử render tương tác thật với Playwright Chromium viewport iPhone 390×844, chụp và lưu ảnh artifact kiểm chứng tại `data/artifacts/t13_screen_brand.png` và `data/artifacts/t13_brand_updated.png`.
+  - 100% test suite xanh (639 passed).
+
+
 ## 1.7.30 — 2026-10-28 — Sửa lỗi CI đa nền tảng Windows & macOS và chẩn đoán hạ tầng Actions (T-28, LUỒNG 5 — ký: Antigravity [L5])
 
 - **Chẩn đoán hạ tầng GitHub Actions (`.github/workflows/ci.yml`, T-28):**

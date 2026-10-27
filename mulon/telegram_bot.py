@@ -108,6 +108,19 @@ def webapp_direct_link(cfg, bot_username: Optional[str],
 FlushFn = Callable[[str, str, list[str]], Awaitable[None]]
 
 
+async def get_bot_display_name(memory, cfg) -> str:
+    """Lấy tên hiển thị của bot: ưu tiên KV 'brand_bot_name' đã đổi qua Mini App,
+    tiếp theo là cfg.bot_display_name, fallback 'Mulon'."""
+    if memory is not None:
+        try:
+            val = await memory.kv_get("brand_bot_name")
+            if val and isinstance(val, str) and val.strip():
+                return val.strip()
+        except Exception:
+            pass
+    return getattr(cfg, "bot_display_name", "Mulon") or "Mulon"
+
+
 OPENERS = {
     "ê", "ê nè", "ê ní", "alo", "alo nè", "ơi", "ní ơi", "ad ơi", "bot ơi",
     "nè", "này", "chờ xíu", "từ từ", "đợi", "đợi xíu", "đợi tí", "hé lo",
