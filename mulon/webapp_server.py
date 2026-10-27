@@ -904,6 +904,20 @@ class ActivityTracker:
                 return True
         return False
 
+    def stop_session_tasks(self, session_key: str) -> int:
+        """Huỷ và gỡ bỏ toàn bộ task đang chạy thuộc session_key."""
+        count = 0
+        for tid, meta in list(self._task_meta.items()):
+            if meta.get("session_key") == session_key:
+                t = self._running_tasks.get(tid)
+                if t is not None and not t.done():
+                    t.cancel()
+                self.unregister_task(tid)
+                count += 1
+        if self.current and self.current.get("session_key") == session_key:
+            self.current = None
+        return count
+
     def get_running_task_info(self, task_id: str) -> Optional[dict]:
         return self._task_meta.get(task_id)
 
@@ -2071,13 +2085,18 @@ class WebAppServer:
         if self.activity is not None:
             stopped_live = self.activity.stop_task(task_id)
 
-        # 2. Cập nhật DB
+        # 2. Cập nhật DB và huỷ dứt điểm ngữ cảnh làm việc của session
         db_updated = False
         if self.memory is not None:
             try:
                 task_row = await self.memory.get_task(task_id)
                 if task_row:
                     await self.memory.cancel_task(task_id, error="Đã dừng theo yêu cầu người dùng qua Mini App")
+                    s_key = task_row.get("session_key")
+                    if s_key:
+                        await self.memory.cancel_turn(s_key, reason="miniapp_stop")
+                        if self.activity is not None:
+                            self.activity.stop_session_tasks(s_key)
                     db_updated = True
             except Exception as exc:
                 logger.warning("Cập nhật huỷ task %s trong DB lỗi: %s", task_id, exc)

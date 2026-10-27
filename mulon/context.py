@@ -253,7 +253,9 @@ class ContextEngine:
             return 0
         cur = await self.memory.db.execute(
             "SELECT id, role, content FROM messages WHERE session_key=?"
-            " AND id>? AND id<=? ORDER BY id",
+            " AND id>? AND id<=? AND role IN ('user','assistant')"
+            " AND (meta IS NULL OR json_extract(meta, '$.cancelled') IS NULL OR json_extract(meta, '$.cancelled') != 1)"
+            " ORDER BY id",
             (session_key, int(session.get("flush_upto_id") or 0), upto_id),
         )
         rows = [dict(r) for r in await cur.fetchall()]

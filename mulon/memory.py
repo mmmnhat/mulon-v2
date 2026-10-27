@@ -861,12 +861,20 @@ class Memory:
         return msg_id
 
     async def recent_messages(
-        self, session_key: str, limit: int = 60, after_id: int = 0
+        self, session_key: str, limit: int = 60, after_id: int = 0,
+        include_cancelled: bool = False,
     ) -> list[dict]:
+        if include_cancelled:
+            cond = "role IN ('user','assistant','cancelled_user','cancelled_assistant')"
+        else:
+            cond = (
+                "role IN ('user','assistant')"
+                " AND (meta IS NULL OR json_extract(meta, '$.cancelled') IS NULL OR json_extract(meta, '$.cancelled') != 1)"
+            )
         cur = await self.db.execute(
-            "SELECT id, role, content, created_at FROM messages"
-            " WHERE session_key=? AND id>? AND role IN ('user','assistant')"
-            " ORDER BY id DESC LIMIT ?",
+            f"SELECT id, role, content, created_at FROM messages"
+            f" WHERE session_key=? AND id>? AND {cond}"
+            f" ORDER BY id DESC LIMIT ?",
             (session_key, after_id, limit),
         )
         rows = [dict(r) for r in await cur.fetchall()]
@@ -1005,6 +1013,8 @@ class Memory:
             " m.created_at, bm25(messages_fts) AS rank"
             " FROM messages_fts JOIN messages m ON m.id = messages_fts.rowid"
             " WHERE messages_fts MATCH ?"
+            " AND m.role IN ('user', 'assistant')"
+            " AND (m.meta IS NULL OR json_extract(m.meta, '$.cancelled') IS NULL OR json_extract(m.meta, '$.cancelled') != 1)"
         )
         params: list[Any] = [fts]
         if exclude_session:
@@ -1052,6 +1062,14 @@ class Memory:
                                                 pool * 2):
                     msg = await self.get_message(rid)
                     if msg is None:
+                        continue
+                    if msg.get("role") not in ("user", "assistant"):
+                        continue
+                    try:
+                        m_meta = json.loads(msg.get("meta") or "{}")
+                    except Exception:
+                        m_meta = {}
+                    if m_meta.get("cancelled") == 1:
                         continue
                     if exclude_session and \
                             msg["session_key"] == exclude_session:
@@ -1105,6 +1123,8 @@ class Memory:
             " m.created_at, bm25(messages_fts) AS rank"
             " FROM messages_fts JOIN messages m ON m.id = messages_fts.rowid"
             " WHERE messages_fts MATCH ?"
+            " AND m.role IN ('user', 'assistant')"
+            " AND (m.meta IS NULL OR json_extract(m.meta, '$.cancelled') IS NULL OR json_extract(m.meta, '$.cancelled') != 1)"
         )
         params: list[Any] = [fts]
         if exclude_session:
@@ -1189,7 +1209,7 @@ class Memory:
             step_st = "cancelled" if status == "cancelled" else "failed"
             await self.db.execute(
                 "UPDATE task_steps SET status=?, updated_at=?"
-                " WHERE task_id=? AND status='doing'",
+                " WHERE task_id=? AND status IN ('doing', 'pending')",
                 (step_st, ts, task_id),
             )
         await self.db.execute(
@@ -1203,6 +1223,83 @@ class Memory:
     ) -> None:
         """Hủy tác vụ và cập nhật trạng thái sang cancelled."""
         await self.finish_task(task_id, "cancelled", error=error)
+
+    async def cancel_running_tasks_for_session(
+        self, session_key: str, error: str = "Tác vụ đã bị người dùng dừng."
+    ) -> int:
+        """Huỷ toàn bộ các tác vụ đang chạy ('running') thuộc một session_key."""
+        cur = await self.db.execute(
+            "SELECT id FROM tasks WHERE session_key=? AND status='running'",
+            (session_key,),
+        )
+        rows = await cur.fetchall()
+        task_ids = [r["id"] for r in rows]
+        for tid in task_ids:
+            await self.finish_task(tid, "cancelled", error=error)
+        return len(task_ids)
+
+    async def cancel_turn(
+        self,
+        session_key: str,
+        user_msg_id: Optional[int] = None,
+        reason: str = "user_cancelled",
+    ) -> dict:
+        """Huỷ dứt điểm lượt xử lý: đánh dấu thông điệp người dùng là đã huỷ,
+        huỷ mọi task đang chạy trong session, và ngắt mục tiêu khỏi ngữ cảnh."""
+        ts = now_iso()
+        target_msg_id = user_msg_id
+        if target_msg_id is None:
+            # Tìm thông điệp user gần nhất trong session
+            cur = await self.db.execute(
+                "SELECT id, role, meta FROM messages WHERE session_key=?"
+                " ORDER BY id DESC LIMIT 5",
+                (session_key,),
+            )
+            rows = [dict(r) for r in await cur.fetchall()]
+            for r in rows:
+                if r["role"] in ("user", "cancelled_user"):
+                    target_msg_id = r["id"]
+                    break
+
+        if target_msg_id is not None:
+            row = await self.get_message(target_msg_id)
+            if row:
+                try:
+                    meta = json.loads(row.get("meta") or "{}")
+                except Exception:
+                    meta = {}
+                meta["cancelled"] = 1
+                meta["cancelled_reason"] = reason
+                meta["cancelled_at"] = ts
+                await self.db.execute(
+                    "UPDATE messages SET role='cancelled_user', meta=? WHERE id=?",
+                    (json.dumps(meta, ensure_ascii=False), target_msg_id),
+                )
+                await self.db.commit()
+
+        # Thêm bản ghi thông báo đã huỷ rõ ràng để đóng phiên
+        cancelled_notice = "⚠️ Tác vụ đã bị người dùng dừng theo yêu cầu (/cancel)."
+        await self.append_message(
+            session_key,
+            "cancelled_assistant",
+            cancelled_notice,
+            meta={"cancelled": 1, "turn_cancelled": True, "cancelled_user_msg_id": target_msg_id},
+        )
+
+        cancelled_tasks = await self.cancel_running_tasks_for_session(
+            session_key, error="Tác vụ đã bị người dùng dừng."
+        )
+
+        await self.log_trajectory(
+            session_key,
+            "turn_cancelled",
+            {"reason": reason, "user_msg_id": target_msg_id, "cancelled_tasks": cancelled_tasks},
+        )
+        return {
+            "ok": True,
+            "user_msg_id": target_msg_id,
+            "cancelled_tasks": cancelled_tasks,
+        }
 
     async def reconcile_orphan_tasks(self) -> int:
         """Thu dọn các task bị kẹt 'running' từ phiên trước (do bot crash/restart)."""

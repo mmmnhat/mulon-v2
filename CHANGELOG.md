@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 1.7.21 — 2026-10-27 — Huỷ việc dứt điểm, ngắt sạch mục tiêu cũ khỏi ngữ cảnh làm việc (T-24.2, Luồng 1)
+
+- **Cơ chế huỷ dứt điểm lượt xử lý (`mulon/memory.py: cancel_turn`, `cancel_running_tasks_for_session`, T-24.2):**
+  - Khắc phục triệt để lỗi khi người dùng ra lệnh `/cancel` hoặc gửi cancellation intent: trước đây bot chỉ dừng hiển thị mà để lại thông điệp yêu cầu của người dùng trong bảng `messages` ở trạng thái mồ côi (chưa có câu trả lời), khiến các lượt chat tiếp theo bị LLM gom lại thực thi tiếp việc cũ đã huỷ.
+  - Hàm `cancel_turn` tự động chuyển `role` của thông điệp bị huỷ thành `'cancelled_user'`, cập nhật `meta.cancelled = 1`, `meta.cancelled_reason = 'user_cancelled'`, đồng thời lưu bản ghi phản hồi `'cancelled_assistant'` đóng phiên rõ ràng.
+  - Tự động chuyển toàn bộ các tác vụ đang chạy (`status = 'running'`) và các bước còn dở (`status IN ('doing', 'pending')`) của `session_key` trong bảng `tasks` sang `'cancelled'`.
+- **Lọc sạch thông điệp đã huỷ khỏi cửa sổ ngữ cảnh LLM (`mulon/memory.py: recent_messages`, `mulon/context.py: memory_flush`, `mulon/memory.py: recall`, T-24.2):**
+  - `recent_messages`: mặc định (`include_cancelled=False`) lọc sạch hoàn toàn mọi thông điệp có `meta.cancelled = 1` hoặc `role IN ('cancelled_user', 'cancelled_assistant')`, đảm bảo prompt ngữ cảnh hội thoại gửi tới model chỉ chứa các thông điệp sạch, loại bỏ hoàn toàn nguy cơ mục tiêu cũ sống lại ở các lượt sau.
+  - `ContextEngine.compact` và `ContextEngine.memory_flush` cũng tự động loại trừ các thông điệp bị huỷ, ngăn chặn việc nén các mục tiêu đã huỷ vào bản tóm tắt hoặc trích xuất thành fact vĩnh viễn.
+  - `MemoryStore.recall` và `session_search`: bổ sung bộ lọc loại trừ các thông điệp bị huỷ để tránh tìm kiếm ngữ nghĩa hay hybrid recall gợi lại việc cũ.
+- **Bắt và dọn dẹp huỷ tác vụ toàn diện (`mulon/agent.py: handle`, `mulon/telegram_bot.py: _run_task`, `cmd_cancel`, `on_text`, `mulon/webapp_server.py: ActivityTracker.stop_session_tasks`, T-24.2):**
+  - Trong `Agent.handle`: bọc khối thực thi trong `try ... except asyncio.CancelledError`, tự động kích hoạt `cancel_turn` ngay khi task bị huỷ.
+  - Trong `TelegramSurface`: cả 3 bề mặt huỷ (`_run_task`, lệnh `/cancel` / `/stop`, và cơ chế bắt ý định đổi ý `is_cancellation_intent` khi bot đang bận) đều gọi `cancel_turn` và `activity.stop_session_tasks(key)`, dọn dẹp buffer `batcher.drain(key)` và ngắt dứt điểm tiến trình.
+  - Trong `ActivityTracker`: bổ sung `stop_session_tasks(session_key)` huỷ và gỡ bỏ toàn bộ `asyncio.Task` đang chạy thuộc session tương ứng.
+- **Kiểm thử hồi quy (`tests/test_v17_cancellation_durable.py`, T-24.2):**
+  - Viết mới `tests/test_v17_cancellation_durable.py` gồm 4 test toàn diện kiểm chứng: (1) `cancel_turn` làm sạch `messages` và `tasks`, (2) `ContextEngine` và `recall` không còn dấu vết mục tiêu cũ, (3) quy trình huỷ và tiếp nhận lượt mới độc lập trên `TelegramSurface`, (4) `ActivityTracker.stop_session_tasks`.
+  - Toàn bộ suite đạt 577/577 tests PASS (100%), evals vàng stub đạt 31/36 (86%, qua cổng 85%).
+
 ## 1.7.20 — 2026-10-27 — Chạy song song sub-agent cho việc nhiều phần độc lập chuẩn Muse (T-24.1, Luồng 1)
 
 - **Tự động nhận diện việc nhiều phần độc lập (`mulon/agent.py: should_plan_multi_task`, `config/intent_hints.json`, T-24.1):**

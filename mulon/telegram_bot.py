@@ -849,10 +849,11 @@ class TelegramSurface:
                 except asyncio.CancelledError:
                     logger.info("Lượt xử lý %s đã bị hủy theo yêu cầu user", key)
                     try:
-                        await self.memory.log_trajectory(
-                            key, "turn_cancelled", {"reason": "user_cancelled"})
+                        await self.memory.cancel_turn(key, reason="user_cancelled")
                     except Exception:
                         pass
+                    if self.activity:
+                        self.activity.stop_session_tasks(key)
                     if placeholder is not None:
                         try:
                             await placeholder.edit_text("⚠️ <i>Đã dừng tác vụ theo yêu cầu.</i>", parse_mode="HTML")
@@ -3891,10 +3892,22 @@ class TelegramSurface:
                 if running_task and not running_task.done():
                     running_task.cancel()
                 self.batcher.drain(key)
+                try:
+                    await self.memory.cancel_turn(key, reason="user_cancelled")
+                except Exception:
+                    pass
+                if self.activity:
+                    self.activity.stop_session_tasks(key)
                 await message.answer("Đã dừng tác vụ đang chạy theo yêu cầu.")
             else:
                 self.batcher.drain(key)
-                await message.answer("Hiện không có tác vụ nào đang chạy.")
+                try:
+                    await self.memory.cancel_turn(key, reason="user_cancelled")
+                except Exception:
+                    pass
+                if self.activity:
+                    self.activity.stop_session_tasks(key)
+                await message.answer("Đã dừng tác vụ theo yêu cầu.")
 
         @dp.message(F.text)
         async def on_text(message: Message) -> None:
@@ -3930,11 +3943,17 @@ class TelegramSurface:
                     if running_task and not running_task.done():
                         running_task.cancel()
                     self.batcher.drain(key)
+                    try:
+                        await self.memory.cancel_turn(key, reason="user_cancelled")
+                    except Exception:
+                        pass
+                    if self.activity:
+                        self.activity.stop_session_tasks(key)
                     if redirect:
                         await message.answer(f"Đã dừng việc trước, chuyển sang: {redirect}")
                         await self.batcher.add(key, redirect)
                     else:
-                        await message.answer("Đã dừng tác vụ đang chạy theo yêu cầu.")
+                        await message.answer("Đã dừng tác vụ theo yêu cầu.")
                     return
 
             text = format_reply_context(message, message.text or "")

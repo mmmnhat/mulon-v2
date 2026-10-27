@@ -392,65 +392,73 @@ class Agent:
         user_msg_id = await self.memory.append_message(
             session_key, "user", user_text
         )
-        # Học từ sửa sai (mục 4.4 tầng 2): nếu tin này là user đang sửa
-        # câu trả lời trước, ghi sự kiện correction NGAY trong lượt.
-        # Lỗi ở bước này không bao giờ được làm hỏng lượt chính.
-        correction_id: Optional[int] = None
         try:
-            correction_id = await detect_and_record(
-                self.memory, self.gateway, self.cfg, session_key,
-                user_msg_id, user_text,
-            )
-        except Exception as exc:
-            logger.warning("phát hiện correction lỗi (bỏ qua): %s", exc)
-        built = await self.ctx.build(session_key, user_text)
-        # Tự nhận thức (1.3.0): chèn ngay sau khối dossier để cả
-        # fast path lẫn task path đều thấy sự thật về chính agent
-        # (tool thật, bề mặt thật, quy tắc không bịa khả năng).
-        built.messages.insert(
-            1, {"role": "system", "content": self.self_knowledge()})
-        intent = classify_intent(user_text, built.messages)
+            # Học từ sửa sai (mục 4.4 tầng 2): nếu tin này là user đang sửa
+            # câu trả lời trước, ghi sự kiện correction NGAY trong lượt.
+            # Lỗi ở bước này không bao giờ được làm hỏng lượt chính.
+            correction_id: Optional[int] = None
+            try:
+                correction_id = await detect_and_record(
+                    self.memory, self.gateway, self.cfg, session_key,
+                    user_msg_id, user_text,
+                )
+            except Exception as exc:
+                logger.warning("phát hiện correction lỗi (bỏ qua): %s", exc)
+            built = await self.ctx.build(session_key, user_text)
+            # Tự nhận thức (1.3.0): chèn ngay sau khối dossier để cả
+            # fast path lẫn task path đều thấy sự thật về chính agent
+            # (tool thật, bề mặt thật, quy tắc không bịa khả năng).
+            built.messages.insert(
+                1, {"role": "system", "content": self.self_knowledge()})
+            intent = classify_intent(user_text, built.messages)
 
-        if intent is Intent.CHAT:
-            result = await self._fast_path(session_key, built.messages, on_delta)
-            # Lưới an toàn chống nói suông (Hallucination escape hatch):
-            # Nếu fast path lỡ rơi vào câu trả lời hứa hẹn hành động mà không gọi tool thật,
-            # tự động nâng cấp lượt này lên task path để tool thật sự được chạy.
-            # _ACTION_PROMISES: hằng module (config/intent_hints.json)
-            low_res = (result.text or "").lower()
-            if any(p in low_res for p in _ACTION_PROMISES):
-                logger.info("Phát hiện fast_path trả lời hứa hẹn hành động, tự động nâng cấp sang task_path")
-                intent = Intent.TOOL
+            if intent is Intent.CHAT:
+                result = await self._fast_path(session_key, built.messages, on_delta)
+                # Lưới an toàn chống nói suông (Hallucination escape hatch):
+                # Nếu fast path lỡ rơi vào câu trả lời hứa hẹn hành động mà không gọi tool thật,
+                # tự động nâng cấp lượt này lên task path để tool thật sự được chạy.
+                # _ACTION_PROMISES: hằng module (config/intent_hints.json)
+                low_res = (result.text or "").lower()
+                if any(p in low_res for p in _ACTION_PROMISES):
+                    logger.info("Phát hiện fast_path trả lời hứa hẹn hành động, tự động nâng cấp sang task_path")
+                    intent = Intent.TOOL
+                    result = await self._task_path(
+                        session_key, user_text, built.messages, intent, on_event
+                    )
+            else:
                 result = await self._task_path(
                     session_key, user_text, built.messages, intent, on_event
                 )
-        else:
-            result = await self._task_path(
-                session_key, user_text, built.messages, intent, on_event
-            )
 
-        # History chỉ lưu câu trả lời SẠCH cho user (mục 3.2).
-        assistant_msg_id = await self.memory.append_message(
-            session_key, "assistant", result.text, meta={"intent": intent.value}
-        )
-        await self.memory.log_trajectory(
-            session_key, "turn_done",
-            {"intent": intent.value, "verified": result.verified,
-             "llm_calls": self._llm_calls, "user_msg_id": user_msg_id},
-        )
-        # Gom nén nền nếu history đã dài — không chặn lượt trả lời.
-        asyncio.create_task(self._maybe_compact(session_key))
-        # Review fork nền (mục 4.3, pattern Hermes): rà soát lượt vừa
-        # rồi, ghi digest + fact. Chạy sau khi đã trả lời, lỗi của fork
-        # không ảnh hưởng lượt chính.
-        if getattr(self.cfg, "review_fork_enabled", True):
-            asyncio.create_task(
-                self._review_fork(
-                    session_key, user_msg_id, assistant_msg_id,
-                    user_text, result.text, correction_id,
-                )
+            # History chỉ lưu câu trả lời SẠCH cho user (mục 3.2).
+            assistant_msg_id = await self.memory.append_message(
+                session_key, "assistant", result.text, meta={"intent": intent.value}
             )
-        return result
+            await self.memory.log_trajectory(
+                session_key, "turn_done",
+                {"intent": intent.value, "verified": result.verified,
+                 "llm_calls": self._llm_calls, "user_msg_id": user_msg_id},
+            )
+            # Gom nén nền nếu history đã dài — không chặn lượt trả lời.
+            asyncio.create_task(self._maybe_compact(session_key))
+            # Review fork nền (mục 4.3, pattern Hermes): rà soát lượt vừa
+            # rồi, ghi digest + fact. Chạy sau khi đã trả lời, lỗi của fork
+            # không ảnh hưởng lượt chính.
+            if getattr(self.cfg, "review_fork_enabled", True):
+                asyncio.create_task(
+                    self._review_fork(
+                        session_key, user_msg_id, assistant_msg_id,
+                        user_text, result.text, correction_id,
+                    )
+                )
+            return result
+        except asyncio.CancelledError:
+            logger.info("Lượt xử lý %s (msg #%s) đã bị hủy theo yêu cầu", session_key, user_msg_id)
+            try:
+                await self.memory.cancel_turn(session_key, user_msg_id=user_msg_id, reason="user_cancelled")
+            except Exception as exc:
+                logger.warning("cancel_turn trong handle lỗi (bỏ qua): %s", exc)
+            raise
 
     async def _review_fork(self, session_key: str, user_msg_id: int,
                            assistant_msg_id: int, user_text: str,
