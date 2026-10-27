@@ -19,6 +19,7 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~18:52 bởi Antigravity (LÀN 1): T-12 đã `DONE` (version 1.7.19, commit `e78c8bd`: hoàn thiện báo cáo nghiên cứu docs/nghien-cuu-telegram-mini-app-capabilities.md; hệ thống design tokens 60/30/10 tím Mulon, <=4 cỡ chữ, 2 weights, lưới 8pt, thư viện component chuẩn; tái cấu trúc Tab Việc với thanh tổng quan số liệu, ô tìm kiếm, chip lọc trạng thái, bộ 4 trạng thái chuẩn, phân trang và cụm nút thử lại việc lỗi; Bottom Sheet Chi tiết bước L3; tích hợp Native Telegram WebApp SDK BackButton, HapticFeedback, requestFullscreen, disableVerticalSwipes, addToHomeScreen; kiểm chứng render thật Chromium 390×844), 568/568 unit tests PASS, eval vàng 31/36 (86%), nhận tiếp T-27 `DOING` (ƯU TIÊN 26, LÀN 1) theo LUẬT 2 LÀN.
 Cập nhật 2026-10-27 ~18:03 bởi Muse (autowatch): head `8b088b1` — 2 commit mới từ sau watermark `9fb0b9d`, cả 2 đều phía Mac (author `mmmnhat@Mac-mini-cua-mmmnhat.local`): `316b4b7` code T-23.6 (v1.7.18) và `8b088b1` chỉ đổi `AGENT_TASKS.md` (ghi T-23.6 DONE, nhận T-12 DOING). **VERIFIED T-23.6**: xem nghiệm thu cuối mục. Claim T-12 `DOING` (LÀN 1) HỢP LỆ theo LUẬT 2 LÀN (T-23.6 đã VERIFIED, đúng thứ tự làn). Cây local đã đồng bộ đủ 8 file từ head (AGENT_TASKS + code/test của `316b4b7`); không file nhị phân nào đổi trong đợt này. Suite: **564 passed, 0 failed** (560 cũ + 4 test T-23.6, gồm test Playwright Chromium thật); test sống hàm thật `live_t236.py` **ALL PASS**. Lưu ý: báo cáo DONE ghi 565/565 nhưng VM chỉ collect được 564 test — chênh 1, không phải thiếu test (xem nghiệm thu T-23.6). Lần đẩy này của Muse CHỈ sửa trạng thái + nghiệm thu của T-23.6 và dòng cập nhật này, không động vào phần còn lại của file.
 Cập nhật 2026-10-27 ~17:51 bởi Antigravity (LÀN 1): T-23.6 đã `DONE` (version 1.7.18, commit `316b4b7`: khôi phục nguồn sự thật config/policy.json tuân thủ nghiêm ngặt chuẩn F4, gỡ bỏ hoàn toàn default allow phẳng; siết mặc định ask cho toàn bộ các tool nguy hiểm run_command, restart_bot, write_file, edit_file, vault_put, delete_vault_secret, share_library_item, delete_library_item, schedule_delete, goal_delete; tái cấu trúc màn Quyền có khối tổng quan và màn con Tất cả công cụ tìm kiếm & lọc nhóm; gom toàn bộ quyền từng hành động vào màn chi tiết connector; màn Chi tiết bí mật Vault `#screen-vault-detail` có nút Xoá trong Vùng nguy hiểm bắt buộc xác nhận qua confirmDialog; xác nhận trước khi cài connector có quyền file và khi ngắt kết nối; kiểm chứng render thật Chromium 390×844), 565/565 unit tests PASS, eval vàng 31/36 (86%), nhận tiếp T-12 `DOING` (LÀN 1) theo LUẬT 2 LÀN.
 Cập nhật 2026-10-27 ~17:16 bởi Muse (autowatch): head `a23e04e` — 2 commit mới từ sau watermark `4a553a0`, cả 2 đều phía Mac (author `mmmnhat@Mac-mini-cua-mmmnhat.local`): `e08ba59` code T-23.5 + T-31 (v1.7.17) và `a23e04e` chỉ đổi `AGENT_TASKS.md` (ghi T-23.5 & T-31 DONE, khôi phục T-23.4 DONE, nhận T-23.6 DOING). **VERIFIED T-23.4, T-23.5, T-31**: xem nghiệm thu cuối mỗi mục. **Đính chính công khai:** lượt autowatch trước (push `4a553a0`) đã ghi đè mất báo cáo T-23.4 `DONE` (`13ffaef`) của Làn 1 — vì lượt đó đẩy từ snapshot 16:05, ra đời TRƯỚC commit code `13ffaef` (16:09) và commit ghi DONE `47c274f` (16:10), nên watermark nhảy qua 2 commit này mà chưa nghiệm thu T-23.4; Làn 1 đã khôi phục đúng trong `a23e04e`, lượt này nghiệm thu bù T-23.4 từ cây đã đồng bộ đủ code `13ffaef` + `e08ba59` rồi mới kết luận (không còn nợ nghiệm thu nào trong cửa sổ này). Lần đẩy này của Muse CHỈ sửa tiêu đề trạng thái + nghiệm thu của T-23.4/T-23.5/T-31 và dòng cập nhật này, không động vào phần còn lại của file, để không lặp lại lỗi ghi đè. Claim T-23.6 `DOING` (LÀN 1, ƯU TIÊN 16) HỢP LỆ theo LUẬT 2 LÀN (T-23.5 đã VERIFIED, đúng thứ tự làn). Cây local đã đồng bộ đủ 11 file từ head (AGENT_TASKS + code/test của `13ffaef` và `e08ba59`); không file nhị phân nào đổi trong đợt này. Suite: **560 passed, 0 failed** (553 cũ + 4 test T-23.4 + 3 test T-23.5, không test nào skip); test sống hàm thật `live_t234_t235_t31.py` **0 fail**.
@@ -403,7 +404,7 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
   nền): sửa xong phải chạy test + tự restart an toàn qua
   auto_watch, lỗi thì rollback.
 
-### [T-12] Làm lại toàn bộ Mini App theo design system — Giao: Antigravity — `DOING` — LÀN 1
+### [T-12] Làm lại toàn bộ Mini App theo design system — Giao: Antigravity — `DONE` (commit `e78c8bd`) — LÀN 1
 - Xây design system trước: design tokens (màu 60/30/10 tím
   Mulon, typography tối đa 4 cỡ/2 weight, lưới 8pt), thư viện
   component + block dùng chung, bộ state chuẩn (loading, empty,
@@ -418,6 +419,29 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
   và nói rõ giới hạn.
 
 - **Bản đồ đích cho đợt này (Muse tester, 27/10/2026):** hiện trạng đo thật ở `docs/sitemap-miniapp-2026-10-27.md` (5 tab, 10 màn con, 127 hàng chết, 0 nút quay lại); cây IA mới + luật điều hướng ở `docs/miniapp-ia-redesign-2026-10-27.md` — làm theo cây đó, đối chiếu T-23.1/T-23.3/T-23.5/T-23.6, không tự chế cấu trúc khác.
+- **Kết quả (Antigravity — LÀN 1 — 2026-10-27, version `1.7.19`, commit `e78c8bd`):**
+  1. *Báo cáo nghiên cứu khả năng 'app' của Telegram Mini App (`docs/nghien-cuu-telegram-mini-app-capabilities.md`):*
+     - Khảo sát toàn diện Bot API 7.0 - 8.0, Telegram WebApp JavaScript SDK trên iOS/Android/Desktop: 4 điểm vào (Menu Button, Direct Link, Inline Keyboard, Attachment Menu), điều khiển khung nhìn (`expand()`, `requestFullscreen()`, `disableVerticalSwipes()`), Homescreen Shortcut (`addToHomeScreen()`), native controls (`BackButton`, `MainButton`, `HapticFeedback`).
+     - Xác định rõ các giới hạn bất biến: không chạy nền độc lập (background daemon phải chạy ở backend Python `mulon.main`), không truy cập low-level FS ngoài file picker, phụ thuộc phiên `initData` HMAC (24h).
+  2. *Hệ thống thiết kế chuẩn mực & Design Tokens (`mulon/webapp/index.html`):*
+     - Khởi tạo bộ Design Tokens: màu 60/30/10 với tím Mulon (`--ds-primary: #7C3AED`, `--ds-destructive: #DC2626`, `--ds-primary-tint: #F3EEFF`), typography tối đa 4 cỡ chữ (18px, 15px, 13px, 11px), 2 weights (400, 600), lưới 8pt (padding 16px, gap 8/16/24), bo góc thống nhất (12 card / 8 nút / chip 999 / sheet 16).
+     - Thư viện component chuẩn: `.ds-card`, `.ds-row`, `.ds-btn` (primary, secondary, danger), `.ds-chip`, `.ds-search-bar`, `.ds-skeleton`, `.ds-empty-state`, `.ds-error-state`, `.ds-sheet-overlay`, `.ds-sheet-panel`.
+  3. *Tái cấu trúc Tab Việc theo cây IA mới (`mulon/webapp/index.html`):*
+     - Thanh tổng quan số liệu (`#tasks-overview-bar`): Đang chạy / Đã xong / Đã lỗi / Tổng.
+     - Ô tìm kiếm việc (`#tasks-search-input`) kèm nút xoá tìm kiếm nhanh (`#tasks-search-clear`).
+     - Dải chip lọc trạng thái (`#tasks-filter-chips`: Tất cả, Đang chạy, Đã xong, Đã lỗi).
+     - Bộ 4 trạng thái chuẩn: Đang tải (skeleton), Rỗng (empty state chuẩn kèm hướng dẫn), Lỗi tại chỗ (`#tasks-error-state` có nút Thử lại không dính tab khác), Sẵn sàng.
+     - Phân trang chuẩn với nút Xem thêm (`#tasks-load-more`).
+     - Cụm nút thử lại cho việc lỗi (`#task-retry-actions`: Thử lại việc `#btn-retry-task` / Thử lại từ bước lỗi `#btn-retry-step`).
+  4. *Màn Chi tiết bước L3 dạng Bottom Sheet (`mulon/webapp/index.html`):*
+     - Chạm vào từng bước trên timeline mở Bottom Sheet `#sheet-step-detail` hiển thị đầy đủ công cụ (`#step-sheet-tool`), mô tả đầu vào (đã che bí mật, `#step-sheet-input`), kết quả (`#step-sheet-output`), thời lượng (`#step-sheet-time`), và trạng thái bằng chữ (`#step-sheet-status`).
+  5. *Tích hợp Native Telegram WebApp SDK (`mulon/webapp/index.html`):*
+     - Tự động gọi `Telegram.WebApp.ready()`, `expand()`, `disableVerticalSwipes()`, `requestFullscreen()` (khi hỗ trợ).
+     - Đồng bộ `BackButton` native với nút quay lại HTML qua `handleNativeBack()`.
+     - Haptic feedback cho mọi thao tác chuyển tab, nhấn nút, lọc.
+     - Bổ sung nút tiện ích "Thêm ra màn hình chính" (`addToHomeScreen()`) trong Cài đặt > Thiết bị & Hệ thống (`#card-homescreen-shortcut`, `#row-add-homescreen`).
+  6. *Kiểm thử hồi quy & Render thật Chromium (`tests/test_v17_design_system_and_native.py`):*
+     - Viết mới `tests/test_v17_design_system_and_native.py` (3/3 test PASS, toàn bộ suite 568/568 test PASS 100%, evals vàng 31/36 = 86%). Render thật Chromium 390×844 chụp 3 ảnh: `t12_tab_viec_ds.png`, `t12_task_detail_with_sheet.png`, `t12_screen_system_homescreen.png`. Chờ Muse nghiệm thu.
 
 ### [T-13] Brand + mascot + đổi tên — Giao: Antigravity — `TODO` — LÀN 1
 - Thiết kế thêm vài mascot mới (cùng vũ trụ brand Mulon) để
@@ -1133,7 +1157,7 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Nguồn: audit chi tiết `docs/ui-professional-audit-2026-10-27.md` mục 1 (Muse rà code + probe sống 19 lệnh trên bot thật 27/10). Bệnh: 3 tầng lệch nhau (menu 8 / BOT_COMMANDS +14 / handler ngầm +24); /lich + /saptol + /upcoming ba lệnh một việc (probe: bảng giống hệt); /help KHÔNG có handler (agent tự chế đáp án chậm); lệnh bịa /xyz123khongco bị coi là việc chat chạy một lượt model vô nghĩa; /memory dump nguyên văn dossier; the_duyet (lệnh test) sống trong bản thật để lại dữ liệu thử.
 - Yêu cầu tóm tắt (chi tiết + nghiệm thu ở tài liệu audit mục 1.4): một danh sách lệnh khai duy nhất sinh ra menu + /help + tài liệu, có test tĩnh quét handler đối chiếu; thêm /help theo nhóm; gộp alias ẩn (saptol/lich -> upcoming, stop -> cancel, dongchat -> chatphu_dong); lệnh lạ trả lời ngay không vào vòng agent; lệnh-theo-id rút khỏi bề mặt công bố (giữ làm đường nội bộ cho nút bấm); lệnh nâng cao/phá huỷ (restart, forget, export_memory, google_auth, claim, setup) gom nhóm Nâng cao trong /help kèm cảnh báo; the_duyet chỉ bật khi có cờ dev, mặc định tắt; /memory trả tóm tắt có cấu trúc thay vì dump thô.
 
-### [T-27] Giao diện Mini App đạt chuẩn chuyên nghiệp 100% — Giao: Antigravity — `TODO` (ƯU TIÊN 26) — LÀN 1
+### [T-27] Giao diện Mini App đạt chuẩn chuyên nghiệp 100% — Giao: Antigravity — `DOING` (ƯU TIÊN 26) — LÀN 1
 - Nguồn: `docs/ui-professional-audit-2026-10-27.md` mục 2 (đối chiếu sitemap đo thật + cây IA `docs/miniapp-ia-redesign-2026-10-27.md`; liên quan T-12, T-23.1..T-23.6, T-24.5, T-25 — đợt này là lớp HOÀN THIỆN CHUYÊN NGHIỆP trên cấu trúc IA đó, không thay thế chúng).
 - Chuẩn xuyên suốt phải đạt (chi tiết mục 2.1): native Telegram (BackButton mọi màn con, MainButton cho hành động chính, haptic, themeParams + một màu nhấn); design system đo được (lưới 8pt, padding 16, hàng ≥56/vùng chạm ≥44, tối đa 4 cỡ chữ/2 weight, bo góc thống nhất); mọi màn đủ 4 trạng thái (skeleton/rỗng/lỗi-tại-chỗ/có dữ liệu) và mở màn con < 1s cảm nhận; nhãn = đích đến; xác nhận cho thao tác phá huỷ.
 - Thiếu/thừa từng màn: liệt kê đầy đủ ở mục 2.2 (Việc, Phê duyệt — xoá dữ liệu thử + thêm timestamp lịch sử, Lịch, Hồ sơ — bỏ ~400 nút lộ thiên + hết trùng bộ nhớ, Cài đặt — bỏ danh sách tool phẳng + chi tiết connector, Kho, Chợ — tìm kiếm/danh mục/phân trang, Feed — hết hardcode nhãn giờ).
