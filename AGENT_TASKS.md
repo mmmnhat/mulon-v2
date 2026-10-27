@@ -1008,6 +1008,18 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Đã kiểm từ phía Muse: chạy full suite trên cây hiện tại ở Linux = **496/496 passed** -> chân Ubuntu xanh; chân gãy là macOS và/hoặc Windows (nghi phạm: test quyền file 0600 của Vault, symlink, dữ liệu múi giờ). Connector GitHub của Muse không đọc được log Actions — việc này cần phía Mac mở tab Actions lấy đúng job/test gãy.
 - Yêu cầu: xác định job + test gãy, sửa đúng gốc (ưu tiên sửa test cho đúng đa nền tảng; cấm xoá/nới test để CI xanh — luật AGENTS.md mục 7.3); nếu là lỗi code thật thì sửa code + test hồi quy. Xong: 3/3 chân xanh trên commit mới nhất và ghi kết quả vào mục này.
 
+### [T-30] Bề mặt đầy đủ Facebook + Threads CÁ NHÂN theo chuẩn Muse — Giao: Antigravity — `TODO` (ƯU TIÊN 29)
+- Bối cảnh: chủ dự án chỉ rõ 27/10 — phía Muse, tài khoản Facebook/Threads cá nhân không chỉ có DM: còn duyệt feed, tương tác trong nhóm, liệt kê nhóm đang tham gia, đăng bài... T-22.2 mới phủ nghiên cứu + đọc cơ bản + Messenger; T-22.3 là khung DM. Mục này mở connector cá nhân ra **đúng bề mặt Muse đang có thật** (đối chiếu connector facebook_cli + threads phía Muse). DM Threads giữ ở T-22.3, không làm lại ở đây.
+- **Facebook cá nhân** (transport phiên web như T-22.2, kế thừa cảnh báo rủi ro + Checkpoint Guard):
+  1. Danh tính + quan hệ: thông tin tài khoản, danh sách bạn bè, xem trang cá nhân/timeline người khác.
+  2. Feed: đọc news feed + feed bạn bè.
+  3. **Nhóm: liệt kê TOÀN BỘ nhóm tài khoản đang tham gia (kể cả kín/ẩn)**, chi tiết nhóm (luật, số thành viên, mức riêng tư), đọc bài trong nhóm, tìm nhóm.
+  4. Bài viết + tương tác: đọc bài, đọc comment, đọc reaction; **viết comment + trả lời comment (ghi — duyệt từng lần)**; **đăng bài lên trang cá nhân (ghi — duyệt từng lần)**.
+  5. Page đang quản lý: danh sách, insights, nháp, đăng bài. Sự kiện: tìm + chi tiết. Story: đọc. Đã lưu: liệt kê/thêm/bỏ. Marketplace: tìm kiếm + tin đăng của mình.
+- **Threads cá nhân** (phần nội dung): profile, bài đăng, reply, feed, hoạt động, insights, xu hướng, tìm kiếm, **đăng bài + reply (ghi — duyệt từng lần)**, chỉnh gợi ý feed. **Ưu tiên API Threads chính thức** cho mọi phần API có hỗ trợ (đăng/đọc); chỉ phần API không có mới xét đường phiên web và phải ghi rõ.
+- Luật chung (không nới): đọc = allow, **mọi hành động ghi = hỏi/duyệt từng lần** (đúng chuẩn Muse + luật của chủ dự án cho FB/Threads); nội dung bên ngoài qua `frame_external`; không lưu hồ sơ người lạ ngoài phiên; tốc độ như người dùng thật (nền tảng siết rate limit — lên kế hoạch dữ liệu trước khi gọi, cấm gọi lặp mò); **cấm trả `ok` stub cho thao tác chưa có transport thật** (bài học T-22.3) — chức năng nào chưa chạy thật được thì docs + UI ghi rõ "chưa hỗ trợ", không giả vờ.
+- Nghiệm thu (test sống trên tài khoản thật của chủ dự án, hành động ghi đều có duyệt): list nhóm đã tham gia khớp thực tế; đọc feed; đọc bài + comment trong 1 nhóm; đăng 1 comment thử (duyệt) và đọc lại thấy đúng; đăng 1 bài Threads qua API chính thức; ngắt kết nối sạch. Mỗi nhóm chức năng báo riêng đạt/chưa đạt kèm bằng chứng.
+
 ## Đã đóng (VERIFIED)
 
 - Đợt vá hardcode 1.6.4 (gateway containment, denylist file tool,
