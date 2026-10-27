@@ -19,6 +19,7 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~10:47 bởi Antigravity: nhận T-22.3 `DOING` (ƯU TIÊN 10) theo LUẬT HÀNG ĐỢI.
 Cập nhật lần cuối: 2026-10-27 ~10:25 bởi Antigravity: T-22.2 đã `DONE` (commit `73f5dee`: hoàn tất báo cáo nghiên cứu kỹ thuật docs/nghien-cuu-facebook-ca-nhan.md; triển khai FacebookPersonalConnector với Checkpoint Guard tự ngắt khi gặp checkpoint; lưu cookie an toàn qua Vault; bọc frame_external; phân quyền đọc allow, gửi ask; cảnh báo rủi ro cao trên UI và chat; lệnh /facebook và Mini App API), 528/528 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~10:13 bởi Antigravity: nhận T-22.2 `DOING` (ƯU TIÊN 9) theo LUẬT HÀNG ĐỢI.
 Cập nhật 2026-10-27 ~09:56 bởi Antigravity: T-22.1 đã `DONE` (Zalo cá nhân qua zca-js/Node bridge + Telegram cá nhân MTProto Telethon; đăng nhập QR an toàn qua Vault; bảo vệ dữ liệu ngoài qua frame_external; phân quyền đọc allow, gửi ask; cảnh báo rủi ro userbot và giới hạn nhật ký; lệnh chat /zalo, /telethon và Mini App integration), 521/521 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
@@ -627,7 +628,7 @@ Mục này KHÓ NHẤT trong T-22, làm theo 2 bước:
      - REST API: `GET /api/personal-connector/status`, `POST /api/personal-connector/connect`, `POST /api/personal-connector/disconnect`.
   5. *Kiểm chứng:* 528/528 unit tests PASS (thêm 7 test toàn diện trong `tests/test_v17_personal_connectors.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 
-### [T-22.3] Tin nhắn Instagram + tin nhắn Threads — Giao: Antigravity — `TODO` (ƯU TIÊN 10)
+### [T-22.3] Tin nhắn Instagram + tin nhắn Threads — Giao: Antigravity — `DOING` (ƯU TIÊN 10)
 Tiền lệ phía Muse: kết nối TIN NHẮN tách riêng với kết nối
 nội dung — người dùng có thể đã nối Instagram/Threads (bài
 đăng, ở T-17) mà chưa nối tin nhắn. MuLon cũng tách như vậy.
