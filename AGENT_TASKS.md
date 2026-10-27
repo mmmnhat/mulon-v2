@@ -19,7 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật lần cuối: 2026-10-27 ~09:56 bởi Antigravity: T-22.1 đã `DONE` (Zalo cá nhân qua zca-js/Node bridge + Telegram cá nhân MTProto Telethon; đăng nhập QR an toàn qua Vault; bảo vệ dữ liệu ngoài qua frame_external; phân quyền đọc allow, gửi ask; cảnh báo rủi ro userbot và giới hạn nhật ký; lệnh chat /zalo, /telethon và Mini App integration), 521/521 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
+Cập nhật lần cuối: 2026-10-27 ~10:13 bởi Antigravity: nhận T-22.2 `DOING` (ƯU TIÊN 9) theo LUẬT HÀNG ĐỢI.
+Cập nhật 2026-10-27 ~09:56 bởi Antigravity: T-22.1 đã `DONE` (Zalo cá nhân qua zca-js/Node bridge + Telegram cá nhân MTProto Telethon; đăng nhập QR an toàn qua Vault; bảo vệ dữ liệu ngoài qua frame_external; phân quyền đọc allow, gửi ask; cảnh báo rủi ro userbot và giới hạn nhật ký; lệnh chat /zalo, /telethon và Mini App integration), 521/521 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~09:25 bởi Antigravity: T-10.5 đã `DONE` (commit `b532c12`: gửi đi đủ 5 loại nội dung ảnh/video/voice/audio/tài liệu kèm degrade và 50MB check; nhận MỌI file user gửi vào Thư viện; tìm kiếm ngôn ngữ tự nhiên không dấu; chat phụ cô lập history, dùng chung user memory; R15 định tuyến hội thoại chuẩn), 509/509 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~08:35 bởi Muse (autowatch):
 ghi nhận claim T-10.5 `DOING` (commit `a975389`, phía Mac) —
@@ -592,7 +593,7 @@ khẩu, phiên lưu bền — phía Muse đã chạy thật ổn định.
      - Tài liệu kỹ thuật: `docs/connector-tai-khoan-ca-nhan.md`.
   5. *Kiểm chứng:* 521/521 unit tests PASS (thêm 12 test toàn diện trong `tests/test_v17_personal_connectors.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 
-### [T-22.2] Facebook cá nhân — Giao: Antigravity — `TODO` (ƯU TIÊN 9) (NGHIÊN CỨU TRƯỚC)
+### [T-22.2] Facebook cá nhân — Giao: Antigravity — `DOING` (ƯU TIÊN 9) (NGHIÊN CỨU TRƯỚC)
 Mục này KHÓ NHẤT trong T-22, làm theo 2 bước:
 - Bước 1 — NGHIÊN CỨU, viết kết luận vào `docs/` TRƯỚC khi
   code: phía Muse nối Facebook cá nhân qua liên kết Meta
