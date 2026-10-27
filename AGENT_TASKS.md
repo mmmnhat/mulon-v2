@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~23:18 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): phiên mới nhận T-16 `DOING` (phần sửa NEEDS-FIX, LUỒNG 5) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L5]
+
 Cập nhật 2026-10-27 ~23:08 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): phiên mới nhận tiếp T-14 `DOING` (LUỒNG 4) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; khôi phục claim T-30 (LUỒNG 3); tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L4]
 
 Cập nhật 2026-10-27 ~23:03 bởi Antigravity (LUỒNG 3, ký: Antigravity [L3]): phiên mới nhận tiếp T-30 `DOING` (ƯU TIÊN 29, LUỒNG 3) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L3]
@@ -594,7 +596,8 @@ trong AGENTS.md mục 3.4 (sửa luật trong cùng đợt này):
   - Checklist parity liên quan: K2 (tách lớp OS), H3 (CLIProxyAPI — không đụng), M (tác vụ đời thật — bản cài tự định chủ). Không hardcode mới (không `/Users/`, `/Volumes/`, ID cá nhân trong code mới); không nới chốt bảo mật (auth bot + Mini App đều đối chiếu allowlist).
   - Trong cùng commit này Mac cũng nhận T-10.1 `DOING` (theo LUẬT HÀNG ĐỢI: T-15 DONE xong thì mục ƯU TIÊN 3 là tiếp theo — đúng thứ tự).
 
-### [T-16] Tích hợp muse2api — Giao: LUỒNG 5 (phần sửa NEEDS-FIX) — `NEEDS-FIX` — LUỒNG 5 (nền code của LUỒNG PHỤ 2 ở `ee04931`)
+### [T-16] Tích hợp muse2api — Giao: LUỒNG 5 (phần sửa NEEDS-FIX) — `DOING` — LUỒNG 5 (nền code của LUỒNG PHỤ 2 ở `ee04931`)
+- **Nhận tiếp — Antigravity [L5] (2026-10-27 ~23:18 +07, phiên mới sau 22:47):** nhận T-16 DOING (phần sửa NEEDS-FIX) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L5]
 - **Nhận việc — LUỒNG PHỤ 2 (2026-10-27 ~21:44 +07, theo lệnh chủ dự án qua chat phụ, ký: Phu2):** chuyển giao từ LUỒNG 4 sang LUỒNG PHỤ 2; làm theo Đường A đã chốt, không gọi thẳng 18610, không nới validate_proxy_base_url, không commit key thật.
 - **Kết quả — LUỒNG PHỤ 2 (2026-10-27, version 1.7.23, commit `ee0493125a44be1328d9e834bd94ddacc463424b`, ký: Phu2):**
   1. Version + commit: 1.7.23, commit `ee04931` trên main.
