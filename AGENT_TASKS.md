@@ -19,7 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật 2026-10-27 ~14:23 bởi Antigravity (LÀN 1): T-23.2 đã `DONE` (version 1.7.14: render rich markdown toàn diện mọi nơi có markdown, strip comment HTML; sửa dính chữ nguồn tóm tắt; ẩn đường dẫn tuyệt đối máy chạy qua sanitize_path_display/maskPaths; tối ưu dossier 1 request < 50ms kèm skeleton; xóa stale heading ở openTask; triệt tiêu hoàn toàn rò rỉ DOM của toast; kiểm chứng render thật Chromium 390x844), 550/550 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
+Cập nhật 2026-10-27 ~14:35 bởi Antigravity (LÀN 1): nhận T-23.3 `DOING` (ƯU TIÊN 13, LÀN 1) theo LUẬT 2 LÀN; bổ sung mã commit `98925b7` vào kết quả T-23.2 `DONE`.
+Cập nhật 2026-10-27 ~14:23 bởi Antigravity (LÀN 1): T-23.2 đã `DONE` (version 1.7.14, commit `98925b7`: render rich markdown toàn diện mọi nơi có markdown, strip comment HTML; sửa dính chữ nguồn tóm tắt; ẩn đường dẫn tuyệt đối máy chạy qua sanitize_path_display/maskPaths; tối ưu dossier 1 request < 50ms kèm skeleton; xóa stale heading ở openTask; triệt tiêu hoàn toàn rò rỉ DOM của toast; kiểm chứng render thật Chromium 390x844), 550/550 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~14:08 bởi Muse (autowatch): head `1ae004e` — 2 commit mới từ sau watermark `d0b253e`, cả 2 đều phía Mac (author `mmmnhat@Mac-mini-cua-mmmnhat.local`): `8f26d7e` fix T-23.1 (v1.7.13) + `1ae004e` chỉ đổi `AGENT_TASKS.md` (ghi T-23.1 DONE, nhận T-23.2 DOING). **VERIFIED T-23.1**: NEEDS-FIX cũ đã sửa đủ — test điều hướng không còn import `bs4` (chỉ `re`/`pathlib`/`pytest`, grep toàn `tests/` + `mulon/` không còn chuỗi `bs4`/`BeautifulSoup` nào) VÀ `requirements-dev.txt` đã khai báo `beautifulsoup4>=4.12`; suite chạy lại trên cây đồng bộ từ head: **545 passed, 0 failed** (11 warning aiosqlite cũ); file điều hướng **6/6 PASSED**, trong đó test Playwright Chromium CHẠY THẬT không skip (viewport 390×844, click hàng Cài đặt → mở đúng màn con → back → `#conn-add-manual` → `screen-import` → back); eval **31/36 = 86%** qua cổng 85%, đúng 5 case trượt cũ. Claim T-23.2 `DOING` (LÀN 1, ƯU TIÊN 12) HỢP LỆ theo LUẬT 2 LÀN (T-23.1 đã VERIFIED, đúng thứ tự làn). T-22.3 vẫn `DOING` LÀN 2, 2 commit này không đụng tới — giữ nguyên.
 Cập nhật 2026-10-27 ~13:42 bởi Antigravity (LÀN 1): T-23.1 đã `DONE` (version 1.7.13, commit `8f26d7e`: hợp nhất uỷ quyền click toàn thân hàng trên `document`, gỡ listener trùng lặp, đồng bộ tiêu đề màn con, bỏ hoàn toàn import `bs4` trong `tests/test_v17_miniapp_navigation.py` + khai báo đầy đủ `beautifulsoup4>=4.12` trong `requirements-dev.txt`, đính chính SHA gốc `ae9637b`, kiểm chứng render thật bằng Chromium 6/6 Playwright tests PASS), nhận tiếp T-23.2 `DOING` (ƯU TIÊN 12, LÀN 1) theo LUẬT 2 LÀN.
 Cập nhật 2026-10-27 ~13:20 bởi Muse (autowatch): head `bee751b` — 5 commit mới từ sau watermark `692b50e`, TẤT CẢ chỉ đổi `AGENT_TASKS.md`, không có code mới nên không có gì để VERIFIED/NEEDS-FIX thêm. T-30 (ƯU TIÊN 29) + T-29 khôi phục (ƯU TIÊN 28) + LUẬT 2 LÀN đều do chính Muse ghi (author `n2jxprod@gmail.com`, chủ dự án duyệt) — không phải việc builder chờ nghiệm thu. Claim T-23.1 `DOING` của Antigravity LÀN 1 (commit `9137f06`, phía Mac) HỢP LỆ theo LUẬT 2 LÀN: Làn 1 sửa T-23.1 (đang NEEDS-FIX) trước rồi mới tới T-23.2; commit `bee751b` chỉ chuẩn hoá line ending LF. NEEDS-FIX T-23.1 (thiếu khai báo `beautifulsoup4` — vẫn vắng trong mọi `requirements*.txt` ở cây này) và NEEDS-FIX T-22.3 (guard Threads bypass ở nhánh session runner + câu chữ Vault) vẫn MỞ; T-22.3 vẫn `DOING` LÀN 2. Suite tại head này: **545 passed, 0 failed** (12 warning cũ về event loop aiosqlite, không phải fail; venv local đã có `beautifulsoup4` cài tay — kết quả này KHÔNG chứng minh lỗi dependency đã sửa, vì venv kiểm chứng không phải môi trường sạch).
@@ -769,7 +770,7 @@ rỉ cuối gần như mọi màn.
 - Nghiệm thu: Muse mở lại các màn trên đối chiếu Q-02/
   Q-04; render thật đính kèm báo cáo DONE.
 
-- **Kết quả thực hiện (Antigravity LÀN 1, 27/10/2026, version 1.7.14):**
+- **Kết quả thực hiện (Antigravity LÀN 1, 27/10/2026, version 1.7.14, commit `98925b7`):**
   1. *Render Rich Markdown toàn diện & triệt tiêu lộ HTML comments / đường dẫn máy (QA Q-02):*
      - Nâng cấp toàn diện hàm `renderMd` trong `mulon/webapp/index.html`: tự động strip toàn bộ HTML comments (`<!-- ... -->`), sửa dính chữ do thiếu khoảng trắng (`fixGluedWords`), và ẩn toàn bộ đường dẫn máy tuyệt đối (`maskPaths`).
      - Hỗ trợ đầy đủ các phần tử markdown chuyên nghiệp: Headings (`#`, `##`, `###`, `####`), đường kẻ ngang (`---`, `***`), trích dẫn (`>`), danh sách không thứ tự (`- `, `* `), danh sách có thứ tự (`1. `), bảng (`| ... |`), fenced code blocks (` ``` `), inline code, bold, italic, links và image preview.
@@ -790,7 +791,7 @@ rỉ cuối gần như mọi màn.
      - Viết mới 4 test trong `tests/test_v17_miniapp_markdown_perf.py` kiểm chứng sanitization đường dẫn, fix glued words, batch API dossier, kiểm tra tĩnh HTML và render thật qua Playwright Chromium (390×844) PASS 100%.
      - Toàn bộ suite đạt 550/550 passed 100%, evals vàng đạt 31/36 (86%). Chờ Muse nghiệm thu.
 
-### [T-23.3] Tách tab Hồ sơ thành 4 màn con — Giao: Antigravity — `TODO` (ƯU TIÊN 13) — LÀN 1
+### [T-23.3] Tách tab Hồ sơ thành 4 màn con — Giao: Antigravity — `DOING` (ƯU TIÊN 13) — LÀN 1
 QA Q-05 (màn quá tải nhất app): 2 thẻ lớn + 91 kỹ năng +
 100 tài liệu + ~400 nút lộ thiên trong 1 trang cuộn;
 nhấn tên tài liệu không mở xem trước; Bộ nhớ "810 fact"
