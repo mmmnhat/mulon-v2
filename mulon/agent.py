@@ -418,6 +418,18 @@ class Agent:
                 self.cfg, self.registry)
         return self._self_knowledge_cache
 
+    async def _resolve_brain_model(self, session_key: str) -> str:
+        """Lấy model brain cho phiên (T-11): ưu tiên model override theo phiên (nếu có),
+        fallback cấu hình self.cfg.model_brain."""
+        if self.memory is not None and session_key:
+            try:
+                override = await self.memory.kv_get(f"session_model:{session_key}")
+                if override and isinstance(override, str) and override.strip():
+                    return override.strip()
+            except Exception:
+                pass
+        return self.cfg.model_brain
+
     # ---------- tiện ích ----------
     async def _emit(self, on_event: Optional[EventFn], kind: str, **payload):
         if on_event is None:
@@ -466,8 +478,10 @@ class Agent:
                 1, {"role": "system", "content": self.self_knowledge()})
             intent = classify_intent(user_text, built.messages)
 
+            effective_brain = await self._resolve_brain_model(session_key)
+
             if intent is Intent.CHAT:
-                result = await self._fast_path(session_key, built.messages, on_delta)
+                result = await self._fast_path(session_key, built.messages, on_delta, brain_model=effective_brain)
                 # Lưới an toàn chống nói suông (Hallucination escape hatch):
                 # Nếu fast path lỡ rơi vào câu trả lời hứa hẹn hành động mà không gọi tool thật,
                 # tự động nâng cấp lượt này lên task path để tool thật sự được chạy.
@@ -477,11 +491,11 @@ class Agent:
                     logger.info("Phát hiện fast_path trả lời hứa hẹn hành động, tự động nâng cấp sang task_path")
                     intent = Intent.TOOL
                     result = await self._task_path(
-                        session_key, user_text, built.messages, intent, on_event
+                        session_key, user_text, built.messages, intent, on_event, brain_model=effective_brain
                     )
             else:
                 result = await self._task_path(
-                    session_key, user_text, built.messages, intent, on_event
+                    session_key, user_text, built.messages, intent, on_event, brain_model=effective_brain
                 )
 
             # History chỉ lưu câu trả lời SẠCH cho user (mục 3.2).
@@ -592,10 +606,11 @@ class Agent:
 
     # ---------- fast path: chat thường ----------
     async def _fast_path(self, session_key: str, messages: list[dict],
-                         on_delta: Optional[DeltaFn]) -> TurnResult:
+                         on_delta: Optional[DeltaFn], brain_model: str = "") -> TurnResult:
+        model_to_use = brain_model or self.cfg.model_brain
         try:
             comp = await self.gateway.stream(
-                messages, model=self.cfg.model_brain, purpose="chat",
+                messages, model=model_to_use, purpose="chat",
                 on_delta=on_delta,
             )
             text = (comp.text or "").strip()
@@ -630,7 +645,7 @@ class Agent:
         return TurnResult(text=text, intent=Intent.CHAT, verified=None)
 
     # ---------- task path: plan-act-verify ----------
-    async def _plan(self, user_text: str, intent: Intent) -> dict:
+    async def _plan(self, user_text: str, intent: Intent, brain_model: str = "") -> dict:
         prompt = [
             {
                 "role": "system",
@@ -638,8 +653,9 @@ class Agent:
             },
             {"role": "user", "content": user_text},
         ]
+        model_to_use = brain_model or self.cfg.model_brain
         try:
-            comp = await self._call(prompt, model=self.cfg.model_brain,
+            comp = await self._call(prompt, model=model_to_use,
                                     purpose="plan", temperature=0.2)
             match = re.search(r"\{.*\}", comp.text or "", flags=re.DOTALL)
             if match:
@@ -667,11 +683,11 @@ class Agent:
 
     async def _task_path(
         self, session_key: str, user_text: str, messages: list[dict],
-        intent: Intent, on_event: Optional[EventFn],
+        intent: Intent, on_event: Optional[EventFn], brain_model: str = "",
     ) -> TurnResult:
         task_id = uuid.uuid4().hex[:12]
         if intent is Intent.LONG or should_plan_multi_task(user_text):
-            plan_data = await self._plan(user_text, intent)
+            plan_data = await self._plan(user_text, intent, brain_model=brain_model)
         else:
             plan_data = {"steps": ["Hoàn thành yêu cầu của user"], "parallel": False, "subtasks": []}
 
@@ -774,7 +790,7 @@ class Agent:
                 for step_idx in range(len(steps)):
                     await self.memory.update_step(task_id, step_idx, "doing")
                 final_text = await self._act_loop(
-                    session_key, task_id, convo, schemas, evidence, on_event
+                    session_key, task_id, convo, schemas, evidence, on_event, brain_model=brain_model
                 )
                 for step_idx in range(len(steps)):
                     await self.memory.update_step(task_id, step_idx, "done")
@@ -786,7 +802,7 @@ class Agent:
 
                 # ----- VERIFY -----
                 await self._emit(on_event, "verify", task_id=task_id)
-                verdict = await self._verify(user_text, final_text, evidence, convo=convo)
+                verdict = await self._verify(user_text, final_text, evidence, convo=convo, brain_model=brain_model)
                 if verdict is None:
                     # Không gọi được verifier: không khẳng định đã kiểm chứng.
                     verified = None
@@ -869,7 +885,7 @@ class Agent:
     async def _act_loop(
         self, session_key: str, task_id: str, convo: list[dict],
         schemas: list[dict], evidence: list[str],
-        on_event: Optional[EventFn],
+        on_event: Optional[EventFn], brain_model: str = "",
     ) -> str:
         """Chạy tool cho tới khi model dừng gọi tool hoặc chạm trần."""
         final_text = ""
@@ -877,9 +893,10 @@ class Agent:
         url_fetch_counts: dict[str, int] = {}
         tool_call_counts: dict[str, int] = {}
 
+        model_to_use = brain_model or self.cfg.model_brain
         while self.cfg.max_llm_calls_per_task <= 0 or self._llm_calls < self.cfg.max_llm_calls_per_task:
             comp = await self._call(
-                convo, model=self.cfg.model_brain, tools=schemas,
+                convo, model=model_to_use, tools=schemas,
                 purpose="act",
             )
             if comp.text:
@@ -1045,7 +1062,7 @@ class Agent:
                     "content": "Hãy tổng hợp ngắn gọn, rõ ràng các việc đã thực hiện và kết quả cụ thể tới giờ để báo cáo cho người dùng."
                 })
                 comp_synth = await self._call(
-                    synth_prompt, model=self.cfg.model_brain,
+                    synth_prompt, model=model_to_use,
                     purpose="synthesize",
                 )
                 if comp_synth.text:
@@ -1119,7 +1136,7 @@ class Agent:
 
     async def _verify(
         self, user_text: str, final_text: str, evidence: list[str],
-        convo: Optional[list[dict]] = None,
+        convo: Optional[list[dict]] = None, brain_model: str = "",
     ) -> Optional[tuple[bool, str]]:
         """Một lượt kiểm chứng độc lập. None = không gọi được verifier."""
         recent_context_lines: list[str] = []
@@ -1151,8 +1168,9 @@ class Agent:
             {"role": "system", "content": VERIFY_SYSTEM},
             {"role": "user", "content": "\n\n".join(content_parts)},
         ]
+        model_to_use = brain_model or self.cfg.model_brain
         try:
-            comp = await self._call(prompt, model=self.cfg.model_brain,
+            comp = await self._call(prompt, model=model_to_use,
                                     purpose="verify", temperature=0.2)
         except GatewayError:
             return None

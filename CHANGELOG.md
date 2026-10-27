@@ -1,6 +1,29 @@
 # CHANGELOG
 
-## 1.7.37 — 2026-10-28 — Telegram Business Chatbot: bot rep thay nick cá nhân của chủ (T-29, LUỒNG 4 — ký: Antigravity [L4])
+## 1.7.38 — 2026-10-28 — Parity hệ thống: connector/MCP/quyền/model/tự sửa (T-11, LUỒNG 5 — ký: Antigravity [L5])
+
+- **Đổi model TRỰC TIẾP trong chat và Mini App (`mulon/telegram_bot.py`, `mulon/agent.py`, `mulon/webapp_server.py`, `mulon/webapp/index.html`, T-11):**
+  - Hỗ trợ đầy đủ 3 tiers model hệ thống (Brain, Cheap, Escalated) với phân tầng rõ ràng, không trùng lặp.
+  - Ghi đè model theo phiên (`/model session <tên_model>`): lưu bền vững trong SQLite KV (`session_model:<session_key>`). `Agent.handle` tự động phân giải `_resolve_brain_model` và ưu tiên model override cho phiên đó mà không ảnh hưởng các luồng trò chuyện khác.
+  - Cấu hình từng tầng (`/model tier <brain|cheap|escalated> <tên_model>`) và xóa ghi đè (`/model reset`).
+  - Mini App REST API: `GET /api/model` (lấy danh sách tiers, model phiên và danh mục gợi ý phổ biến) và `POST /api/model` (cập nhật tier hoặc model theo phiên).
+  - Giao diện Mini App: bổ sung màn hình `#screen-models` độc lập, liên kết từ thẻ "Mô hình AI" trong tab Cài đặt (`#tab-caidat`), cho phép chọn nhanh các model phổ biến hoặc nhập tên model tùy chỉnh.
+- **Rà soát & chốt bề mặt Slash Commands (`mulon/telegram_bot.py`, `mulon/commands.py`, T-11):**
+  - Chuẩn hóa lệnh `/help`: hỗ trợ xem tổng quan phân nhóm hoặc xem chi tiết từng lệnh cụ thể (`/help <lệnh>`).
+  - Chặn đứng các slash command lạ ngay tại cửa ngõ `on_text`, phản hồi ngay hướng dẫn gõ `/help` mà không tốn lượt xử lý của Agent LLM.
+  - Tái cấu trúc lệnh `/memory`: hiển thị tóm tắt có cấu trúc (tổng số facts đang lưu, phân bố chủ đề chính, các dữ kiện gần nhất, trích đoạn `USER.md`), tuyệt đối không dump nội dung thô `MEMORY.md`.
+  - Khóa chặt lệnh `/the_duyet` thử nghiệm: chỉ cho phép chạy khi cờ phát triển được bật tường minh (`dev_mode=True`, `ENABLE_DEV_COMMANDS=1`, hoặc `MULON_DEV_MODE=1`).
+- **Thiết lập API từ đầu với kiểm tra kết nối sống (`mulon/telegram_bot.py`, `mulon/webapp_server.py`, T-11):**
+  - Hỗ trợ lệnh `/setup api <endpoint> <key>` cho Owner: kiểm tra kết nối sống (`httpx.get` tới `/models`) trước khi lưu cấu hình proxy và cất khóa bảo mật vào Vault an toàn. Từ chối lưu và cảnh báo ngay nếu endpoint chết hoặc khóa không hợp lệ.
+  - Endpoint Mini App `POST /api/vault/verify-and-capture`: kiểm tra bảo mật SSRF/loopback và kết nối trước khi ghi nhận khóa API proxy.
+- **Tự sửa & vòng đời an toàn (Self-evolution, `mulon/evolution.py`, T-11):**
+  - Đăng ký công cụ `self_verify_and_restart` trong `ToolRegistry` qua `register_evolution_tools`: khi agent tự sửa mã nguồn theo yêu cầu của chủ dự án, công cụ tự động chạy kiểm thử toàn bộ test suite (`pytest tests/ -q`) và kiểm tra cổng eval vàng nếu cần.
+  - Cơ chế tự vệ (Fail-safe): nếu test fail hoặc timeout, tự động thực thi `git checkout -- mulon/` để rollback sạch sẽ các thay đổi, bảo vệ bot không bao giờ bị rơi vào trạng thái lỗi hay sập tiến trình. Nếu test pass 100%, ghi nhận lý do và kích hoạt restart tiến trình sạch sẽ.
+- **Bảo toàn quyền connector theo từng hành động (Action-Level Policy, T-11):**
+  - Giữ vững chuẩn bảo mật 1.6: hành động đọc (`read`) được cho phép tự động; hành động ghi/xóa (`write`, `delete`) hoặc nhạy cảm bắt buộc phải qua thẻ phê duyệt (`ApprovalBroker`) gửi về DM của chủ nhân.
+- **Kiểm thử toàn diện (`tests/test_v17_t11_parity.py`, T-11):**
+  - 10 unit tests mới bao phủ 100% các tiêu chí của T-11: tính toàn vẹn lệnh, /help phân nhóm, /the_duyet dev guard, /memory tóm tắt cấu trúc, /model 3 tiers & session override, tích hợp Agent session override, Mini App model API, /setup api kiểm tra kết nối sống, và tool self_verify_and_restart.
+
 
 - **Triển khai toàn diện Telegram Business Service (`mulon/business.py`, T-29):**
   - Quản lý vòng đời kết nối Bot API Telegram Business: nhận và lưu trữ trạng thái `business_connection`, tự động ngắt rep khi bị ngắt kết nối trong Telegram Settings và cảnh báo về DM chủ.

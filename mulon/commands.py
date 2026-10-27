@@ -351,9 +351,11 @@ MENU_COMMANDS: list[tuple[str, str]] = [
 # Danh sách đầy đủ cho tương thích ngược với các test hiện có
 BOT_COMMANDS: list[tuple[str, str]] = [
     ("start", "Bắt đầu / Chào Mulon"),
+    ("help", "Xem hướng dẫn và danh sách lệnh"),
     ("menu", "Mở bảng điều khiển (Mini App)"),
     ("restart", "Khởi động lại bot tiến trình"),
     ("model", "Xem hoặc đổi model AI đang chạy (/model <tên>)"),
+    ("upcoming", "Sắp tới (tác vụ & lịch trình)"),
     ("status", "Trạng thái hệ thống"),
     ("vault", "Nhập API Key & Khóa bảo mật"),
     ("new", "Chốt phiên, bắt đầu ngữ cảnh mới"),

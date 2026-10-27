@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~01:10 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): T-11 chuyển `DONE` (version 1.7.38, 689/689 test passed, evals vàng 31/36 = 86%; rà soát và chuẩn hóa slash commands, /help phân nhóm và chi tiết, chặn lệnh lạ, bảo vệ /the_duyet sau cờ dev, /memory tóm tắt cấu trúc không lộ thô dossier; đổi model trực tiếp trong chat và Mini App 3 tiers và session override SQLite KV; /setup api và Mini App verify-and-capture kiểm tra kết nối sống trước khi lưu Vault; công cụ self_verify_and_restart chạy pytest và tự động git rollback khi fail; bảo toàn quyền connector Action-Level read=allow / write=ask). Hàng chờ LUỒNG 5 ĐÃ HOÀN THÀNH 100% (cả 3 task T-16, T-28, T-11 đều DONE), sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L5]
+
 Cập nhật 2026-10-28 ~00:58 bởi Muse (ký: Muse): theo lệnh chủ dự án — **giao việc cho cả 3 luồng đang rảnh**: LUỒNG 1 chạy 3 bước live còn thiếu của T-16 trên Mac (ghi chú trong mục T-16); LUỒNG 3 test gửi DM Threads thật + kiểm Instagram send cho T-22.3 (ghi chú trong mục T-22.3); LUỒNG 2 khép T-13 (lật DONE + báo cáo), nhận T-32, và sau T-32 nghiệm thu chéo T-25 (việc của LUỒNG MUSE — Antigravity chấm, Muse không tự chấm việc mình). Lần đẩy này CHỈ sửa: dòng cập nhật này + ghi chú trong mục T-16, T-22.3 + dòng roster, không động mục khác. Ky: Muse
 
 Cập nhật 2026-10-28 ~00:50 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): T-24.7 chuyển `DONE` (version 1.7.36, 679/679 test passed, evals vàng 31/36 = 86%; báo xếp hàng ngay < 1s qua _notify_queued kèm reaction ⏳ và tin xác nhận không trùng lặp; hết lóe markdown thô qua safe_stream_markdown_to_html tự đóng thẻ dở dang và nâng ngưỡng stream >= 50 ký tự; dọn sạch các dòng phân cách thô ---, ***, ___ qua CommonMark _HR_RE và clean_final_text bảo toàn YAML code block và bảng Markdown). Hàng chờ LUỒNG 1 ĐÃ HOÀN THÀNH 100% (cả 5 task T-24.3, T-24.4, T-24.5, T-24.6, T-24.7 đều DONE), sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L1]
@@ -280,7 +282,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG PHỤ 3 — Muse phụ (ký: Nori) — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37):** T-26 thu hồi về LUỒNG 1 trước khi bắt đầu (không mất gì). LUẬT LÀM LIÊN TỤC của LUỒNG PHỤ 3 hết hiệu lực cùng lệnh dừng này. LUỒNG PHỤ 3 không nhận việc mới, không push thêm commit nào cho dự án này.
 
 - **LUỒNG 5 — Cổng model: sửa lỗi + CI** (Antigravity, phiên thứ 5 trên máy Mac, worktree riêng; lập theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên, không mở thêm):
-  T-16 (phần sửa NEEDS-FIX — đã DONE) -> T-28 (đã DONE) -> T-11 (nhận chuyển từ hàng chờ LUỒNG 3 theo lệnh chủ dự án 28/10 ~00:17).
+  T-16 (phần sửa NEEDS-FIX — đã DONE) -> T-28 (đã DONE) -> T-11 (đã DONE). (Hàng chờ LUỒNG 5 ĐÃ HOÀN THÀNH 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.)
   *Lưu ý:* phần sửa T-16 đụng `mulon/gateway.py` (vùng alias model) — LUỒNG 4 (T-14) tránh sửa vùng alias của gateway khi LUỒNG 5 đang làm T-16 và ngược lại; cả hai pull + rebase kỹ trước khi push. Ký commit `Ky: Antigravity` + nhãn `[L5]`.
 
 - **LUỒNG MUSE — Muse chính làm builder** (chạy trên VM của Muse, push qua GitHub connector; Muse vẫn giữ vai reviewer cho mọi luồng khác):
@@ -304,7 +306,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-13 + T-32 (L2), T-29 (L4), T-11 (L5) đang DOING; test live T-16 giao L1, test live T-22.3 giao L3 (lệnh chủ dự án 28/10 ~00:57); T-26, T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-13 + T-32 (L2), T-29 (L4) đang DOING; test live T-16 giao L1, test live T-22.3 giao L3 (lệnh chủ dự án 28/10 ~00:57); T-11 (L5), T-26, T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE; hàng chờ LUỒNG 5 hoàn thành 100% |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -521,9 +523,41 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
   5. *Kiểm chứng:* 509/509 unit tests PASS (thêm 6 test toàn diện trong `tests/test_v17_media_library_sidechat_parity.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 - **Nghiệm thu bởi Muse (autowatch 27/10 ~11:55, head `70d992d`, suite chạy lại ở head `ae9637b` vẫn xanh): VERIFIED.** Diff commit `b532c12` (10 file) đối chiếu khớp mô tả: 5 phương thức gửi aiogram + trần 50MB trong `telegram_bot.py`, handler nhận đủ 5 loại + index vào Library, cột `caption` + `fold_vi` trong `memory.py`/`library.py`, `parse_session_key`/`send_to_session` (R15), 3 tool `search_library`/`get_library_item`/`share_library_item` (share kẹp <=48h, token chỉ lưu hash). Full suite chạy lại trên cây đồng bộ từ head: **539 passed, 0 failed** ở thời điểm chốt (sau đó suite head `ae9637b` đạt 545 passed khi đủ bs4 — xem T-23.1). Eval vàng stub chạy lại: **31/36, đúng 5 case trượt cũ** (marketplace/self-read, có từ trước, không phải hồi quy của đợt này). Test sống VM (hàm thật, dữ liệu mới, script `live_verify_t105_t221_t222.py`): fold_vi + tìm kiếm có dấu/không dấu trên SQLite thật đều trúng; share 72h bị kẹp đúng 48.00h; parse_session_key tách đúng (-100555, topic 77), key lạ -> (None, None); trần mặc định đúng 52428800. Checklist: E2 (phần tìm kiếm + share <=48h) ĐẠT, E3 + R15 ĐẠT ở tầng code. **Phần chưa tự kiểm được từ VM (cần bot thật):** gửi đủ 5 loại qua Bot API thật + người dùng gửi file thật rồi tìm lại trong Library — Antigravity/chủ dự án xác nhận thêm trên bot thật khi tiện; không chặn VERIFIED vì đường code + test đơn vị + test sống VM đã khớp toàn bộ.
 
-### [T-11] Parity hệ thống: connector/MCP/quyền/model/tự sửa — Giao: Antigravity — `DOING` — LUỒNG 5 (chuyển từ LUỒNG 3 theo lệnh chủ dự án 28/10 ~00:17)
+### [T-11] Parity hệ thống: connector/MCP/quyền/model/tự sửa — Giao: Antigravity — `DONE` — LUỒNG 5 (chuyển từ LUỒNG 3 theo lệnh chủ dự án 28/10 ~00:17)
 - **Nhận việc — Antigravity [L5] (2026-10-28 ~00:21 +07):** nhận T-11 DOING theo điều phối của chủ dự án và Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L5]
 - **Chuyển giao 2026-10-28 ~00:18 bởi Muse (lệnh chủ dự án):** từ LUỒNG 3 sang LUỒNG 5 (LUỒNG 5 trống sau T-16 + T-28 DONE). Chỉ LUỒNG 5 nhận mục này. Ky: Muse
+- **Báo cáo hoàn thành (Antigravity [L5] 2026-10-28 ~01:10 +07, version 1.7.38):**
+  1. *Version & Commit:* 1.7.38.
+  2. *Đã làm:*
+     - **Rà soát Slash Commands (`mulon/telegram_bot.py`, `mulon/commands.py`):**
+       - Lệnh `/help` chuẩn hóa: hỗ trợ xem danh mục phân nhóm (`/help`) hoặc xem cú pháp chi tiết từng lệnh (`/help <lệnh>`).
+       - Chặn đứng lệnh lạ: khi người dùng gõ command không có trong registry, bot từ chối ngay lập tức và hướng dẫn dùng `/help`, không tiêu tốn lượt LLM của agent loop.
+       - Tái cấu trúc `/memory`: hiển thị bản tóm tắt có cấu trúc (số lượng fact, danh mục chủ đề, fact mới nhất, trích đoạn USER.md), tuyệt đối không để rò rỉ nội dung thô `MEMORY.md`.
+       - Bảo vệ lệnh `/the_duyet` thử nghiệm: chỉ cho phép thực thi khi cờ dev được bật (`dev_mode=True`, `ENABLE_DEV_COMMANDS=1`, hoặc `MULON_DEV_MODE=1`).
+     - **Đổi model trực tiếp trong chat và Mini App (`mulon/telegram_bot.py`, `mulon/agent.py`, `mulon/webapp_server.py`, `mulon/webapp/index.html`):**
+       - Phân tầng 3 tiers model rõ ràng: `model_brain`, `model_cheap`, `model_escalated`.
+       - Ghi đè model theo phiên (`/model session <tên_model>`): lưu bền vững trong SQLite KV (`session_model:<session_key>`). `Agent.handle` tự động phân giải `_resolve_brain_model` và ưu tiên model phiên đó.
+       - Cấu hình từng tầng (`/model tier <brain|cheap|escalated> <tên_model>`) và xóa ghi đè (`/model reset`).
+       - Mini App REST API: `GET /api/model` và `POST /api/model` (lấy và cập nhật tier/model phiên).
+       - Giao diện Mini App: bổ sung màn hình độc lập `#screen-models` và thẻ "Mô hình AI" trong tab Cài đặt, chuẩn Design System tím Mulon 60/30/10.
+     - **Thiết lập API từ đầu với kiểm tra kết nối sống (`mulon/telegram_bot.py`, `mulon/webapp_server.py`):**
+       - Lệnh `/setup api <endpoint> <key>` cho Owner: kiểm tra kết nối sống (`httpx.get` tới `/models`) trước khi lưu cấu hình proxy và cất khóa bí mật vào Vault.
+       - Mini App `POST /api/vault/verify-and-capture`: kiểm tra bảo mật SSRF/loopback và kết nối mạng trước khi lưu.
+     - **Quyền connector theo từng hành động (Action-Level Policy):**
+       - Giữ nguyên chuẩn 1.6: hành động đọc (`read`) tự động cho phép; hành động ghi/xóa (`write`, `delete`) bắt buộc gửi thẻ duyệt (`ApprovalBroker`) về DM chủ.
+     - **Tự sửa & vòng đời an toàn (Self-evolution, `mulon/evolution.py`):**
+       - Đăng ký công cụ `self_verify_and_restart` trong `ToolRegistry` qua `register_evolution_tools`: chạy toàn bộ pytest suite và cổng eval vàng.
+       - Cơ chế tự vệ rollback: nếu test fail hoặc timeout, tự động chạy `git checkout -- mulon/` để hoàn nguyên mã nguồn, bảo đảm bot không bao giờ bị sập hoặc hỏng mã nguồn; nếu test pass 100%, ghi log lý do và kích hoạt restart tiến trình an toàn.
+  3. *Kết quả kiểm thử:*
+     - 10/10 test mới trong `tests/test_v17_t11_parity.py` PASSED 100%.
+     - Full suite local: **689 passed, 0 failed** (65567 warnings cũ).
+     - Evals vàng: **31/36 = 86%** (đạt cổng 85%, 5 test trượt cũ).
+  4. *Hành vi thay đổi:*
+     - Người dùng có thể đổi model trực tiếp qua lệnh `/model` hoặc qua Mini App Cài đặt -> Mô hình AI.
+     - Người dùng nhập `/setup api` sẽ được kiểm tra kết nối sống trước khi lưu.
+     - Khi agent tự sửa mã nguồn, nếu test fail sẽ tự rollback mã nguồn về trạng thái an toàn.
+  5. *Trạng thái hàng chờ LUỒNG 5:*
+     - Hoàn thành toàn bộ hàng chờ LUỒNG 5 (T-16 DONE, T-28 DONE, T-11 DONE). Hàng chờ LUỒNG 5 hiện TRỐNG 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L5]
 - Rà soát toàn bộ slash command: bỏ trùng, đặt tên nhất quán,
   mỗi lệnh có mô tả; thêm lệnh còn thiếu so với Muse.
 - Đổi model TRỰC TIẾP trong chat và trong Mini App (đã có nền

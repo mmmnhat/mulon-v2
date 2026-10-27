@@ -1453,6 +1453,16 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     </div>
   </div>
   <div class="card">
+    <div class="card-title">Mô hình AI</div>
+    <div class="row" data-open="screen-models">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5V11h3a3 3 0 0 1 3 3v1h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1v1a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-1H3a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h1v-1a3 3 0 0 1 3-3h3V9.5A4 4 0 0 1 12 2z"/></svg></div>
+      <div class="r-main"><div class="r-title">Cấu hình Model AI</div>
+        <div class="r-sub" id="model-summary-sub">Đang tải...</div></div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div>
+  </div>
+  <div class="card">
     <div class="card-title">Cá nhân hoá</div>
     <div class="row" data-open="screen-brand">
       <div class="glyph">
@@ -1534,6 +1544,38 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <div id="cliproxy-models-content"><div class="empty-state" style="padding:16px;">Đang tải danh sách model...</div></div>
   </div>
   <div class="note">Toàn bộ lời gọi model đều đi qua cổng proxy cục bộ 127.0.0.1:8317 (Proxy-only). Nếu proxy dừng hoạt động, bot chuyển sang chế độ suy giảm (degrade) an toàn mà không bị sập.</div>
+</section>
+
+<!-- Cài đặt con: Cấu hình Model AI (T-11) -->
+<section id="screen-models" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
+  <h2 class="screen-title">Cấu hình Model AI</h2>
+  <div class="note">Cấu hình phân tầng 3 tiers theo chuẩn Muse và chuyển đổi model trực tiếp.</div>
+  <div class="card">
+    <div class="card-title">Phân tầng Model (3 Tiers)</div>
+    <div style="padding:0 var(--s4) var(--s4);">
+      <div style="margin-bottom:12px;">
+        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">🧠 Model Brain (Suy luận &amp; chat chính):</label>
+        <input type="text" id="model-input-brain" class="field-input" style="width:100%; margin:0;" placeholder="gemini-3.8-flash">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">⚡ Model Cheap (Tác vụ nhẹ &amp; tóm tắt):</label>
+        <input type="text" id="model-input-cheap" class="field-input" style="width:100%; margin:0;" placeholder="gemini-3.5-flash-lite">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">🚀 Model Escalated (Phức tạp &amp; bế tắc):</label>
+        <input type="text" id="model-input-escalated" class="field-input" style="width:100%; margin:0;" placeholder="grok-4.20-0309-reasoning">
+      </div>
+      <div class="btn-row" style="padding:0;">
+        <button class="btn btn-accent" id="btn-save-models" style="width:100%;">Lưu cấu hình Model</button>
+      </div>
+      <div id="model-save-status" class="note" style="margin-top:8px; text-align:center;"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Model phổ biến (chạm để chọn cho Brain)</div>
+    <div id="popular-models-list" style="padding:0 var(--s4) var(--s4);"></div>
+  </div>
 </section>
 
 <!-- Cài đặt con: Thương hiệu & Mascot (T-13) -->
@@ -2254,6 +2296,7 @@ const TAB_OF_SCREEN = {"screen-task":"viec","screen-schedule-detail":"lich","scr
   "screen-import":"caidat",
   "screen-connector-policy":"caidat",
   "screen-brand":"caidat",
+  "screen-models":"caidat",
   "screen-google-config":"caidat"};
 const SCREEN_TITLES = {
   "screen-task":"Chi tiết việc","screen-schedule-detail":"Chi tiết lịch trình","screen-profile":"Hồ sơ","screen-skill":"Kỹ năng",
@@ -2263,6 +2306,7 @@ const SCREEN_TITLES = {
   "screen-library-trash":"Thùng rác tài liệu",
   "screen-system":"Thiết bị & hệ thống","screen-feed":"Feed chủ động",
   "screen-cliproxy":"Cổng model (CLIProxyAPI)",
+  "screen-models":"Cấu hình Model AI",
   "screen-connectors":"Công cụ kết nối","screen-google-config":"Cấu hình Google",
   "screen-mktcat":"Chợ MCP","screen-listing":"Chi tiết connector",
   "screen-install":"Cài đặt MCP","screen-import":"Nhập thủ công",
@@ -2338,6 +2382,8 @@ function showSub(id){
     renderAllToolsPolicy();
   } else if (id === "screen-cliproxy") {
     renderCLIProxy();
+  } else if (id === "screen-models") {
+    loadModelsConfig();
   }
 }
 function handleNativeBack(){
@@ -5968,6 +6014,62 @@ async function renderCLIProxy(){
   }
 }
 
+/* ---------------- Quản lý Model AI (T-11) ---------------- */
+async function loadModelsConfig(){
+  try {
+    const res = await api("/api/model");
+    if (!res || !res.ok) return;
+    const tiers = res.tiers || {};
+    if ($("model-input-brain")) $("model-input-brain").value = tiers.brain || "";
+    if ($("model-input-cheap")) $("model-input-cheap").value = tiers.cheap || "";
+    if ($("model-input-escalated")) $("model-input-escalated").value = tiers.escalated || "";
+    if ($("model-summary-sub")) $("model-summary-sub").textContent = tiers.brain || "Chưa cấu hình";
+
+    const popList = $("popular-models-list");
+    if (popList && Array.isArray(res.popular_models)){
+      popList.innerHTML = res.popular_models.map(m => `
+        <div class="row" style="cursor:pointer; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.06);" onclick="selectModelPreset('${esc(m)}')">
+          <div class="r-main"><div class="r-title" style="font-size:13px; font-family:monospace;">${esc(m)}</div></div>
+          <span style="font-size:12px; opacity:0.6;">Chọn</span>
+        </div>
+      `).join("");
+    }
+  } catch(e) {
+    console.error("loadModelsConfig error", e);
+  }
+}
+window.selectModelPreset = function(m){
+  if ($("model-input-brain")){
+    $("model-input-brain").value = m;
+    haptic("selection");
+    toast("Đã chọn: " + m);
+  }
+};
+document.addEventListener("DOMContentLoaded", () => {
+  const btnSave = $("btn-save-models");
+  if (btnSave){
+    btnSave.addEventListener("click", async () => {
+      const brain = $("model-input-brain") ? $("model-input-brain").value.trim() : "";
+      const cheap = $("model-input-cheap") ? $("model-input-cheap").value.trim() : "";
+      const escalated = $("model-input-escalated") ? $("model-input-escalated").value.trim() : "";
+      const status = $("model-save-status");
+      if (status) status.textContent = "Đang lưu cấu hình...";
+      try {
+        if (brain) await api("/api/model", "POST", {tier: "brain", model: brain});
+        if (cheap) await api("/api/model", "POST", {tier: "cheap", model: cheap});
+        if (escalated) await api("/api/model", "POST", {tier: "escalated", model: escalated});
+        if (status) status.textContent = "✅ Đã lưu cấu hình model thành công!";
+        toast("Đã cập nhật cấu hình model!");
+        haptic("impact");
+        loadModelsConfig();
+      } catch(e){
+        if (status) status.textContent = "❌ Lỗi: " + e.message;
+        toast("Lỗi lưu model: " + e.message);
+      }
+    });
+  }
+});
+
 /* ---------------- Chợ MCP (1.3) ---------------- */
 /* Mọi dữ kiện listing/operation là dữ kiện NGOÀI — luôn qua
    esc() khi vào HTML. Không ô nhập giá trị bí mật ở bất kỳ
@@ -7307,7 +7409,7 @@ function renderBrand() {
 function renderAll(){
   renderStatus(); renderTasks(); renderApprovals(); renderSchedule();
   renderProfile(); renderConnectors(); renderVault(); renderPolicy();
-  renderSystem(); renderFeed(); renderBrand();
+  renderSystem(); renderFeed(); renderBrand(); loadModelsConfig();
 }
 function refresh(){ return load(); }
 async function load(){

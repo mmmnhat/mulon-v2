@@ -1295,6 +1295,11 @@ class WebAppServer:
         app.router.add_get("/api/cliproxy/accounts", self._handle_cliproxy_accounts)
         app.router.add_post("/api/cliproxy/start", self._handle_cliproxy_start)
         app.router.add_post("/api/cliproxy/stop", self._handle_cliproxy_stop)
+        # T-11: Cấu hình Model AI (3 tiers & session override)
+        app.router.add_get("/api/model", self._handle_model_get)
+        app.router.add_post("/api/model", self._handle_model_post)
+        # T-11: Thiết lập API & Vault kiểm tra kết nối sống
+        app.router.add_post("/api/vault/verify-and-capture", self._handle_vault_verify_and_capture)
         return app
 
     async def start(self) -> bool:
@@ -3541,6 +3546,132 @@ class WebAppServer:
             except Exception:
                 pass
         return web.json_response({"ok": True, "ref": ref})
+
+    async def _handle_model_get(self, request):
+        """Lấy cấu hình 3 tầng model AI và model đang dùng (T-11)."""
+        brain = getattr(self.cfg, "model_brain", "gemini-3.8-flash")
+        cheap = getattr(self.cfg, "model_cheap", "gemini-3.5-flash-lite")
+        escalated = getattr(self.cfg, "model_escalated", "grok-4.20-0309-reasoning")
+        popular = [
+            "gemini-3.8-flash",
+            "gemini-3.5-flash-lite",
+            "claude-3-7-sonnet-20250219",
+            "claude-3-5-haiku-20241022",
+            "grok-4.20-0309-reasoning",
+            "openai/muse/muse-spark",
+        ]
+        return web.json_response({
+            "ok": True,
+            "current": brain,
+            "tiers": {
+                "brain": brain,
+                "cheap": cheap,
+                "escalated": escalated,
+            },
+            "popular_models": popular,
+            "proxy_base_url": getattr(self.cfg, "proxy_base_url", ""),
+        })
+
+    async def _handle_model_post(self, request):
+        """Cập nhật tầng model AI hoặc ghi đè model theo phiên (T-11)."""
+        body = await self._json_body(request)
+        tier = str(body.get("tier") or "brain").strip().lower()
+        model = str(body.get("model") or "").strip()
+        session_key = str(body.get("session_key") or "").strip()
+        if not model:
+            return web.json_response({"ok": False, "error": "Thiếu tên model"}, status=400)
+
+        if session_key:
+            if self.memory is not None:
+                await self.memory.kv_set(f"session_model:{session_key}", model)
+            return web.json_response({
+                "ok": True,
+                "scope": "session",
+                "session_key": session_key,
+                "model": model,
+            })
+
+        if tier not in ("brain", "cheap", "escalated"):
+            return web.json_response({"ok": False, "error": "Tier không hợp lệ (brain, cheap, escalated)"}, status=400)
+
+        attr_name = f"model_{tier}"
+        old_val = getattr(self.cfg, attr_name, "")
+        object.__setattr__(self.cfg, attr_name, model)
+        if self.memory is not None:
+            try:
+                await self.memory.kv_set(f"config:{attr_name}", model)
+            except Exception:
+                pass
+        try:
+            from dotenv import set_key
+            from .config import PROJECT_ROOT
+            env_path = Path(getattr(self.cfg, "project_root", None) or PROJECT_ROOT) / ".env"
+            if env_path.is_file():
+                set_key(str(env_path), attr_name.upper(), model)
+        except Exception:
+            pass
+
+        return web.json_response({
+            "ok": True,
+            "scope": "global",
+            "tier": tier,
+            "model": model,
+            "previous": old_val,
+        })
+
+    async def _handle_vault_verify_and_capture(self, request):
+        """Kiểm tra kết nối sống trước khi lưu vào Vault (T-11)."""
+        body = await self._json_body(request)
+        label = str(body.get("label") or "").strip()
+        value = str(body.get("value") or "").strip()
+        endpoint = str(body.get("endpoint") or "").strip()
+        test_connection = bool(body.get("test_connection", True))
+
+        if not label or not value:
+            return web.json_response({"ok": False, "error": "Thiếu nhãn hoặc giá trị bí mật"}, status=400)
+
+        if test_connection and endpoint:
+            from .tools import assert_url_public
+            from .config import is_loopback_host
+            import httpx
+
+            parsed = urllib.parse.urlparse(endpoint)
+            host = parsed.hostname or ""
+            allow_remote = os.environ.get("MULON_ALLOW_REMOTE_PROXY", "0") == "1"
+            if not is_loopback_host(host) and not allow_remote:
+                err = await assert_url_public(endpoint)
+                if err:
+                    return web.json_response({
+                        "ok": False,
+                        "error": f"Endpoint không hợp lệ hoặc bị chặn bảo mật: {err}"
+                    }, status=400)
+
+            try:
+                headers = {"Authorization": f"Bearer {value}"}
+                test_url = endpoint.rstrip("/") + "/models" if not endpoint.endswith("/models") else endpoint
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    resp = await client.get(test_url, headers=headers)
+                    if resp.status_code not in (200, 201, 404):
+                        return web.json_response({
+                            "ok": False,
+                            "error": f"Endpoint từ chối xác thực (HTTP {resp.status_code})"
+                        }, status=400)
+            except Exception as exc:
+                return web.json_response({
+                    "ok": False,
+                    "error": f"Không thể kết nối tới endpoint ({exc})"
+                }, status=400)
+
+        if self.vault_store is None:
+            return web.json_response({"ok": False, "error": "Vault chưa khởi tạo"}, status=503)
+
+        ref = self.vault_store.put(label, value)
+        if endpoint and ("proxy" in label.lower() or "base_url" in label.lower()):
+            object.__setattr__(self.cfg, "proxy_base_url", endpoint)
+            if self.memory is not None:
+                await self.memory.kv_set("config:proxy_base_url", endpoint)
+
+        return web.json_response({"ok": True, "ref": ref, "label": label, "verified": test_connection})
 
     # ---------- 1.5.0: Google OAuth ----------
 

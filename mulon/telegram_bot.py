@@ -31,9 +31,11 @@ import asyncio
 import html
 import json
 import logging
+import os
 import re
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections import deque
 from pathlib import Path
@@ -2326,6 +2328,76 @@ class TelegramSurface:
                 await message.answer(f"❌ Không thể xóa: {msg}")
             return
 
+        if subcmd.lower() in ("api", "endpoint"):
+            if not is_owner:
+                await message.answer("⛔ Chỉ chủ sở hữu (Owner) mới có quyền cấu hình API.")
+                return
+            if len(parts) < 4:
+                await message.answer(
+                    "Cú pháp: <code>/setup api &lt;endpoint_url&gt; &lt;api_key&gt;</code>\n"
+                    "Ví dụ: <code>/setup api http://127.0.0.1:8317/v1 my-secret-key</code>",
+                    parse_mode="HTML"
+                )
+                return
+            endpoint = parts[2].strip()
+            key_val = parts[3].strip()
+
+            from .tools import assert_url_public
+            from .config import is_loopback_host
+            import httpx
+
+            parsed = urllib.parse.urlparse(endpoint)
+            host = parsed.hostname or ""
+            allow_remote = os.environ.get("MULON_ALLOW_REMOTE_PROXY", "0") == "1"
+            if not is_loopback_host(host) and not allow_remote:
+                err = await assert_url_public(endpoint)
+                if err:
+                    await message.answer(f"❌ Endpoint không an toàn: {err}")
+                    return
+
+            # Kiểm tra kết nối sống
+            await message.answer("⏳ Đang kiểm tra kết nối tới API endpoint...")
+            try:
+                headers = {"Authorization": f"Bearer {key_val}"}
+                test_url = endpoint.rstrip("/") + "/models" if not endpoint.endswith("/models") else endpoint
+                async with httpx.AsyncClient(timeout=6.0) as client:
+                    resp = await client.get(test_url, headers=headers)
+                    if resp.status_code not in (200, 201, 404):
+                        await message.answer(
+                            f"❌ Endpoint từ chối xác thực (HTTP {resp.status_code}). Không lưu cấu hình để tránh bot bị lỗi.",
+                            parse_mode="HTML"
+                        )
+                        return
+            except Exception as exc:
+                await message.answer(
+                    f"❌ Không thể kết nối tới endpoint ({exc}). Không lưu cấu hình.",
+                    parse_mode="HTML"
+                )
+                return
+
+            vstore = self._svc("vault_store")
+            if vstore is not None:
+                vstore.put("proxy:api_key", key_val)
+            object.__setattr__(self.cfg, "proxy_base_url", endpoint)
+            object.__setattr__(self.cfg, "proxy_api_key", key_val)
+            if self.memory is not None:
+                try:
+                    await self.memory.kv_set("config:proxy_base_url", endpoint)
+                except Exception:
+                    pass
+            try:
+                from dotenv import set_key
+                env_path = Path(getattr(self.cfg, "project_root", None) or PROJECT_ROOT) / ".env"
+                if env_path.is_file():
+                    set_key(str(env_path), "PROXY_BASE_URL", endpoint)
+            except Exception:
+                pass
+            await message.answer(
+                f"✅ <b>Kết nối API sống!</b> Đã lưu cấu hình proxy <code>{endpoint}</code> và cất khóa vào Vault an toàn.",
+                parse_mode="HTML"
+            )
+            return
+
         # Xem trạng thái cấu hình
         import platform
         owner_id, users = load_allowlist(allow_file)
@@ -2342,9 +2414,10 @@ class TelegramSurface:
             f"• <b>Proxy:</b> <code>{self.cfg.proxy_base_url}</code>",
             f"• <b>Thư mục dữ liệu:</b> <code>{self.cfg.db_path.parent}</code>",
             "",
-            "<b>Lệnh quản lý allowlist (dành cho Chủ sở hữu):</b>",
+            "<b>Lệnh quản lý cấu hình & API:</b>",
             "• <code>/setup add &lt;user_id&gt;</code>: Thêm người dùng",
             "• <code>/setup remove &lt;user_id&gt;</code>: Xóa người dùng",
+            "• <code>/setup api &lt;url&gt; &lt;key&gt;</code>: Kiểm tra sống & lưu API proxy",
         ]
         await message.answer("\n".join(info_lines), parse_mode="HTML")
 
@@ -2376,7 +2449,36 @@ class TelegramSurface:
         async def cmd_help(message: Message) -> None:
             if not self._is_allowed(message):
                 return
-            is_dev = getattr(self.cfg, "enable_dev_commands", False) or getattr(self.cfg, "debug", False)
+            parts = (message.text or "").strip().split(maxsplit=1)
+            if len(parts) > 1:
+                topic = parts[1].strip().lstrip("/").lower()
+                help_dict = {
+                    "start": "<b>/start</b>: Khởi động bot và hiển thị lời chào kèm các phím tắt chính.",
+                    "help": "<b>/help [lệnh]</b>: Xem danh sách lệnh đầy đủ hoặc cách dùng một lệnh cụ thể.",
+                    "menu": "<b>/menu</b>: Mở bảng điều khiển Mini App tiện lợi trên Telegram.",
+                    "status": "<b>/status</b>: Xem trạng thái các dịch vụ, tiến trình, model và bộ nhớ.",
+                    "model": "<b>/model [tên_model]</b>: Xem hoặc đổi model AI.\n• <code>/model session &lt;tên&gt;</code>: Đổi model riêng cho phiên này\n• <code>/model tier &lt;brain|cheap|escalated&gt; &lt;tên&gt;</code>: Cấu hình từng tầng model\n• <code>/model reset</code>: Xóa ghi đè phiên",
+                    "upcoming": "<b>/upcoming</b> (alias: <code>/lich</code>, <code>/saptol</code>): Xem lịch hẹn, nhắc nhở và bài feed chủ động sắp tới.",
+                    "cancel": "<b>/cancel</b> (alias: <code>/stop</code>): Dừng ngay tác vụ agent hoặc lượt xử lý đang chạy.",
+                    "new": "<b>/new</b>: Chốt phiên hiện tại, xóa bộ nhớ đệm và bắt đầu ngữ cảnh hội thoại mới.",
+                    "goals": "<b>/goals</b>: Xem danh sách các mục tiêu dài hạn (Goals) đang theo dõi.",
+                    "vault": "<b>/vault [nhãn]</b>: Nhập API key hoặc mật khẩu bảo mật vào kho lưu trữ an toàn.",
+                    "setup": "<b>/setup</b>: Xem và quản lý cấu hình bản cài đặt, allowlist người dùng, hoặc thiết lập API kết nối sống (<code>/setup api &lt;url&gt; &lt;key&gt;</code>).",
+                    "restart": "<b>/restart</b>: Khởi động lại tiến trình bot an toàn.",
+                    "memory": "<b>/memory</b>: Xem tóm tắt có cấu trúc về các sự kiện và ký ức dài hạn của người dùng.",
+                    "quyen": "<b>/quyen</b>: Xem chi tiết các chính sách phân quyền thực thi của agent.",
+                    "library": "<b>/library [từ_khóa]</b>: Tìm kiếm và xem tài liệu, hình ảnh, media trong Thư viện.",
+                    "ideas": "<b>/ideas</b>: Xem và kích hoạt các thẻ ý tưởng chủ động do bot đề xuất.",
+                }
+                if topic in help_dict:
+                    await message.answer(help_dict[topic], parse_mode="HTML")
+                    return
+                await message.answer(
+                    f"ℹ️ Không có hướng dẫn chi tiết cho lệnh <code>/{topic}</code>. Gõ <code>/help</code> để xem danh sách lệnh chung.",
+                    parse_mode="HTML"
+                )
+                return
+            is_dev = getattr(self.cfg, "dev_mode", False) or getattr(self.cfg, "enable_dev_commands", False) or getattr(self.cfg, "debug", False)
             await message.answer(format_help_text(is_dev=is_dev), parse_mode="HTML")
 
         @dp.callback_query(F.data.startswith("appr:"))
@@ -2595,8 +2697,16 @@ class TelegramSurface:
         async def cmd_memory(message: Message) -> None:
             if not self._is_allowed(message):
                 return
-            facts = await self.memory.active_facts(limit=100)
-            total_facts = len(facts)
+            facts = await self.memory.active_facts(limit=50)
+            total_active = len(facts)
+            try:
+                cur = await self.memory.db.execute("SELECT COUNT(*) AS n FROM facts WHERE valid_to IS NULL")
+                row = await cur.fetchone()
+                if row:
+                    total_active = row["n"]
+            except Exception:
+                pass
+
             subjects: dict[str, int] = {}
             for f in facts:
                 subj = (f.get("subject") or "Chung").strip()
@@ -2604,28 +2714,33 @@ class TelegramSurface:
 
             lines = [
                 "🧠 <b>TỔNG QUAN BỘ NHỚ & TRI THỨC</b>",
-                f"• Tổng số dữ kiện ghi nhớ (facts): <b>{total_facts}</b>",
+                f"• Tổng số dữ kiện ghi nhớ (facts): <b>{total_active}</b>",
             ]
             if subjects:
                 top_subjs = sorted(subjects.items(), key=lambda x: x[1], reverse=True)[:6]
                 subj_str = ", ".join(f"{s} ({c})" for s, c in top_subjs)
                 lines.append(f"• Chủ đề chính: {subj_str}")
 
-            lines.append("\n📌 <b>Các dữ kiện gần nhất:</b>")
+            lines.append("\n<b>Ghi nhớ gần đây:</b>")
             if not facts:
-                lines.append("<i>(Chưa có dữ kiện nào được ghi nhớ)</i>")
+                lines.append("<i>(Chưa có sự kiện nào được ghi nhớ)</i>")
             else:
-                for f in facts[:5]:
-                    prefix = f"[{html.escape(f['subject'])}] " if f.get("subject") else ""
+                for f in facts[:8]:
+                    prefix = f"<b>[{f['subject']}]</b> " if f.get("subject") else ""
                     lines.append(f"• #{f['id']} {prefix}{html.escape(f['fact'])}")
 
-            if total_facts > 5:
-                lines.append(f"\n<i>... và còn {total_facts - 5} dữ kiện khác.</i>")
+            if total_active > 8:
+                lines.append(f"\n<i>... và còn {total_active - 8} dữ kiện khác.</i>")
 
-            lines.append(
-                "\n💡 <i>Xem và quản lý toàn bộ bộ nhớ tại Mini App (tab Hồ sơ → Bộ nhớ dài hạn), "
-                "hoặc gõ /export_memory để tải bản sao lưu đầy đủ.</i>"
-            )
+            user_md = self.dossier.files.get("USER.md", "").strip() if getattr(self, "dossier", None) and hasattr(self.dossier, "files") else ""
+            if user_md:
+                u_lines = [l.strip() for l in user_md.splitlines() if l.strip() and not l.strip().startswith("#")][:3]
+                if u_lines:
+                    lines.append("\n<b>Hồ sơ cá nhân (USER.md):</b>")
+                    for ul in u_lines:
+                        lines.append(f"• {html.escape(ul)}")
+
+            lines.append("\n💡 <i>Mở Mini App (Hồ sơ → Ký ức) để tìm kiếm hoặc dùng /export_memory để xuất toàn bộ tệp.</i>")
             text = "\n".join(lines)
             for chunk in chunk_html(text):
                 await message.answer(chunk, parse_mode="HTML")
@@ -3382,45 +3497,131 @@ class TelegramSurface:
         async def cmd_model(message: Message) -> None:
             if not self._is_allowed(message):
                 return
-            parts = (message.text or "").strip().split(maxsplit=1)
-            if len(parts) == 1:
-                cur_model = getattr(self.agent.cfg, "model_brain", self.cfg.model_brain) if hasattr(self, "agent") and hasattr(self.agent, "cfg") else self.cfg.model_brain
+            key = session_key_for(message)
+            session_model = None
+            if self.memory is not None:
+                try:
+                    session_model = await self.memory.kv_get(f"session_model:{key}")
+                except Exception:
+                    pass
+
+            text_raw = (message.text or "").strip()
+            args = text_raw.split()[1:] if len(text_raw.split()) > 1 else []
+
+            brain = getattr(self.cfg, "model_brain", "gemini-3.8-flash")
+            cheap = getattr(self.cfg, "model_cheap", "gemini-3.5-flash-lite")
+            escalated = getattr(self.cfg, "model_escalated", "grok-4.20-0309-reasoning")
+
+            if not args:
+                session_line = f"• <b>Phiên này:</b> <code>{session_model}</code> (ghi đè riêng)\n" if session_model else f"• <b>Phiên này:</b> Dùng theo hệ thống (<code>{brain}</code>)\n"
                 await message.answer(
-                    f"🤖 <b>Model đang dùng:</b> <code>{cur_model}</code>\n\n"
-                    "👉 <b>Đổi model:</b> <code>/model &lt;tên_model&gt;</code>\n"
-                    "<b>Gợi ý các model phổ biến:</b>\n"
-                    "• <code>/model claude-3-7-sonnet-20250219</code>\n"
-                    "• <code>/model claude-3-5-haiku-20241022</code>\n"
-                    "• <code>/model gemini-3.8-flash</code>\n"
-                    "• <code>/model gemini-3.5-flash-lite</code>\n"
-                    "• <code>/model grok-4.20-0309-reasoning</code>\n"
-                    "• <code>/model muse-spark-1.3</code>\n"
-                    "• <code>/model muse-wonder-1.0</code>",
+                    "🤖 <b>CẤU HÌNH MODEL AI</b>\n\n"
+                    "<b>Các tầng model hệ thống (3 tiers):</b>\n"
+                    f"• 🧠 <b>Brain (chính):</b> <code>{brain}</code>\n"
+                    f"• ⚡ <b>Cheap (nhẹ/tóm tắt):</b> <code>{cheap}</code>\n"
+                    f"• 🚀 <b>Escalated (phức tạp/bế tắc):</b> <code>{escalated}</code>\n\n"
+                    "<b>Model hiệu lực:</b>\n"
+                    f"{session_line}\n"
+                    "👉 <b>Cú pháp đổi model:</b>\n"
+                    "• <code>/model &lt;tên_model&gt;</code>: Đổi model Brain toàn cục\n"
+                    "• <code>/model session &lt;tên_model&gt;</code>: Đổi model chỉ cho riêng phiên/topic này\n"
+                    "• <code>/model tier &lt;brain|cheap|escalated&gt; &lt;tên_model&gt;</code>: Đổi tầng model cụ thể\n"
+                    "• <code>/model reset</code>: Xóa ghi đè phiên, về mặc định\n\n"
+                    "<b>Gợi ý model phổ biến:</b>\n"
+                    "• <code>claude-3-7-sonnet-20250219</code>\n"
+                    "• <code>claude-3-5-haiku-20241022</code>\n"
+                    "• <code>gemini-3.8-flash</code>\n"
+                    "• <code>gemini-3.5-flash-lite</code>\n"
+                    "• <code>grok-4.20-0309-reasoning</code>\n"
+                    "• <code>openai/muse/muse-spark</code>",
                     parse_mode="HTML"
                 )
                 return
 
-            new_model = parts[1].strip()
-            old_model = getattr(self.cfg, "model_brain", "gemini-3.8-flash")
-            object.__setattr__(self.cfg, "model_brain", new_model)
-            if hasattr(self, "agent") and hasattr(self.agent, "cfg"):
-                object.__setattr__(self.agent.cfg, "model_brain", new_model)
-            if self.memory is not None:
+            subcmd = args[0].lower()
+            if subcmd == "reset":
+                if self.memory is not None:
+                    try:
+                        await self.memory.kv_del(f"session_model:{key}")
+                    except Exception:
+                        pass
+                await message.answer(
+                    f"🔄 <b>Đã xóa ghi đè model phiên này.</b>\nPhiên quay về dùng model mặc định: <code>{brain}</code>",
+                    parse_mode="HTML"
+                )
+                return
+
+            if subcmd == "session":
+                if len(args) < 2:
+                    await message.answer("Cú pháp: <code>/model session &lt;tên_model&gt;</code>", parse_mode="HTML")
+                    return
+                target_model = args[1].strip()
+                if self.memory is not None:
+                    try:
+                        await self.memory.kv_set(f"session_model:{key}", target_model)
+                    except Exception as exc:
+                        logger.warning("Lưu session model lỗi: %s", exc)
+                await message.answer(
+                    f"✅ <b>Đã đổi model cho riêng phiên này:</b> <code>{target_model}</code>\n"
+                    f"(Các phiên khác vẫn dùng cấu hình mặc định. Dùng <code>/model reset</code> để hủy)",
+                    parse_mode="HTML"
+                )
+                return
+
+            if subcmd == "tier":
+                if len(args) < 3:
+                    await message.answer(
+                        "Cú pháp: <code>/model tier &lt;brain|cheap|escalated&gt; &lt;tên_model&gt;</code>",
+                        parse_mode="HTML"
+                    )
+                    return
+                tier_name = args[1].lower().strip()
+                target_model = args[2].strip()
+                if tier_name not in ("brain", "cheap", "escalated"):
+                    await message.answer("Tầng model chỉ được chọn: <code>brain</code>, <code>cheap</code>, hoặc <code>escalated</code>.", parse_mode="HTML")
+                    return
+                attr_name = f"model_{tier_name}"
+                old_val = getattr(self.cfg, attr_name, "")
+                object.__setattr__(self.cfg, attr_name, target_model)
+                if hasattr(self, "agent") and hasattr(self.agent, "cfg"):
+                    object.__setattr__(self.agent.cfg, attr_name, target_model)
+                if self.memory is not None:
+                    try:
+                        await self.memory.kv_set(f"config:{attr_name}", target_model)
+                    except Exception:
+                        pass
                 try:
-                    await self.memory.kv_set("config:model_brain", new_model)
+                    from dotenv import set_key
+                    env_path = Path(getattr(self.cfg, "project_root", None) or PROJECT_ROOT) / ".env"
+                    if env_path.is_file():
+                        set_key(str(env_path), attr_name.upper(), target_model)
                 except Exception:
                     pass
-            # Cập nhật file .env nếu có để lưu cấu hình qua các lần restart
+                await message.answer(
+                    f"✅ Đã cập nhật tầng <b>{tier_name.capitalize()}</b>: <code>{target_model}</code> (trước đó: <code>{old_val}</code>)",
+                    parse_mode="HTML"
+                )
+                return
+
+            target_model = args[0].strip()
+            old_model = getattr(self.cfg, "model_brain", "gemini-3.8-flash")
+            object.__setattr__(self.cfg, "model_brain", target_model)
+            if hasattr(self, "agent") and hasattr(self.agent, "cfg"):
+                object.__setattr__(self.agent.cfg, "model_brain", target_model)
+            if self.memory is not None:
+                try:
+                    await self.memory.kv_set("config:model_brain", target_model)
+                except Exception:
+                    pass
             try:
                 from dotenv import set_key
-                from .config import PROJECT_ROOT
                 env_path = Path(getattr(self.cfg, "project_root", None) or PROJECT_ROOT) / ".env"
                 if env_path.is_file():
-                    set_key(str(env_path), "MODEL_BRAIN", new_model)
+                    set_key(str(env_path), "MODEL_BRAIN", target_model)
             except Exception:
                 pass
             await message.answer(
-                f"✅ Đã chuyển model sang: <code>{new_model}</code> (trước đó: <code>{old_model}</code>)",
+                f"✅ Đã chuyển model Brain sang: <code>{target_model}</code> (trước đó: <code>{old_model}</code>)",
                 parse_mode="HTML"
             )
 
@@ -3428,11 +3629,17 @@ class TelegramSurface:
         async def cmd_the_duyet(message: Message) -> None:
             if not self._is_allowed(message):
                 return
-            is_dev = getattr(self.cfg, "enable_dev_commands", False) or getattr(self.cfg, "debug", False)
+            is_dev = (
+                getattr(self.cfg, "dev_mode", False)
+                or getattr(self.cfg, "enable_dev_commands", False)
+                or getattr(self.cfg, "debug", False)
+                or os.environ.get("MULON_DEV_MODE", "0") == "1"
+            )
             if not is_dev:
                 await message.answer(
-                    "⚠️ Lệnh dev thử nghiệm (/the_duyet) đang tắt ở bản chạy thật. "
-                    "Bật ENABLE_DEV_COMMANDS=1 nếu muốn thử."
+                    "⚠️ Lệnh dev thử nghiệm (<code>/the_duyet</code>) đang tắt ở bản chạy thật. "
+                    "Bật ENABLE_DEV_COMMANDS=1 hoặc MULON_DEV_MODE=1 nếu muốn thử.",
+                    parse_mode="HTML"
                 )
                 return
             thread_id = None
@@ -4648,6 +4855,13 @@ class TelegramSurface:
                 "🛡️ <i>Nguyên tắc an toàn: STK ngân hàng & giảm giá luôn soạn nháp chờ chủ duyệt, tuyệt đối không tự gửi.</i>",
             ]
             await message.answer("\n".join(lines), parse_mode="HTML")
+
+        # Gắn tham chiếu các lệnh cốt lõi cho test & tái sử dụng
+        self._handle_help_command = cmd_help
+        self._handle_model_command = cmd_model
+        self._handle_the_duyet_command = cmd_the_duyet
+        self._handle_memory_command = cmd_memory
+        self._handle_text_message = on_text
 
     async def _consolidate_closed(self, key: str) -> None:
         try:

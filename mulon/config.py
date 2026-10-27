@@ -76,6 +76,11 @@ def _env_float(name: str, default: float) -> float:
 _LOCAL_PROXY_HOSTS = {"127.0.0.1", "localhost", "::1"}
 _LOCAL_PROXY_PORT = 8317
 
+
+def is_loopback_host(host: str) -> bool:
+    """Kiểm tra hostname có thuộc danh sách loopback/localhost hay không."""
+    return host in _LOCAL_PROXY_HOSTS
+
 # Múi giờ mặc định DUY NHẤT của hệ thống (vá audit hardcode
 # 2026-10-26: trước đây chuỗi này rải 6+ chỗ). Module khác cần
 # thì import hằng này, không gõ lại chuỗi.
@@ -126,6 +131,7 @@ class Config:
     proxy_base_url: str = "http://127.0.0.1:8317/v1"
     proxy_api_key: str = "local-proxy"
     model_brain: str = "gemini-3.8-flash"
+    dev_mode: bool = False
     # Vá audit hardcode 2026-10-26: trước đây cả 3 tier cùng một
     # model — phân tầng vô nghĩa. Cheap = bản lite, escalated = bản
     # high của cùng họ (tên khớp bản đồ alias ở gateway.py).
@@ -439,6 +445,7 @@ class Config:
             allowed_list.insert(0, final_owner_id)
 
         cfg = cls(
+            dev_mode=_env_bool("MULON_DEV_MODE", False),
             use_platformdirs=use_platformdirs,
             proxy_base_url=_env("PROXY_BASE_URL", "http://127.0.0.1:8317/v1"),
             proxy_api_key=_env("PROXY_API_KEY", "local-proxy"),
