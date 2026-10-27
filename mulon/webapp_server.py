@@ -35,7 +35,9 @@ from . import __version__ as MULON_VERSION
 from .approvals import GROUP_SCOPE_LABELS
 from .memory import redact_trajectory_payload
 from .cron import next_run_iso, parse_cron
-from .feed_auto import SCHEDULE_ID as FEED_SCHEDULE_ID, valid_quiet_hours
+from .feed_auto import (DEFAULT_CRON as FEED_DEFAULT_CRON,
+                        SCHEDULE_ID as FEED_SCHEDULE_ID,
+                        valid_quiet_hours)
 from .planning import internal_kind
 from .paths import sanitize_path_display, fix_glued_words
 from .proactivity import PROACTIVITY_KV_KEY, effective_enabled
@@ -1774,7 +1776,7 @@ class WebAppServer:
             except Exception:
                 feed_st = {}
             if feed_st and feed_st.get("enabled", True):
-                f_cron = str(feed_st.get("cron") or "0 8,17 * * *")
+                f_cron = str(feed_st.get("cron") or FEED_DEFAULT_CRON)
                 f_human, f_disp = _format_cron_display(f_cron)
                 upcoming.append({
                     "id": "feed_auto",

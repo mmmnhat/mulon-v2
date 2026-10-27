@@ -1,21 +1,14 @@
 # CHANGELOG
 
-## 1.7.22 — 2026-10-27 — Spike browser bridge gửi DM Threads thật (T-22.3, LUỒNG PHỤ 1, chưa VERIFIED)
+## 1.7.22 — 2026-10-27 — Nhãn giờ Feed trong Sắp tới suy từ cron thật, bỏ hardcode 17:00 (T-25, LUỒNG MUSE — ký: Muse)
 
-- **Bridge gửi DM Threads qua web (`mulon/threads_browser_bridge.py`, `config/threads_web_selectors.json`):**
-  - Đường gửi thật thay cho nhánh stub cũ: 1 phiên Playwright duy nhất với profile Chromium bền (`BROWSER_PROFILE_DIR`) đã đăng nhập Threads web của người cài — mở hộp thư thật, vào hội thoại có sẵn, soạn, gửi, rồi xác minh nội dung vừa gửi xuất hiện trong hội thoại mới báo `sent: True`.
-  - Không tự đăng nhập, không lưu password, không đọc cookie Vault để đăng nhập web; chưa có profile hoặc chưa cài Playwright thì báo `ok: False` rõ ràng, không báo thành công giả.
-  - Selector giao diện web nằm ở `config/threads_web_selectors.json` (nạp qua `load_json_data`), để lần chạy thật đầu tiên chỉnh selector mà không sửa code; gốc web đổi được qua env `THREADS_WEB_BASE_URL` (mặc định `https://www.threads.net`, thêm field `Config.threads_web_base_url`).
-- **Gỡ stub gửi giả (`mulon/personal_connectors.py: ThreadsMessagesConnector`):**
-  - Guard giới hạn cứng vẫn chạy TRƯỚC bridge (chỉ hội thoại có sẵn, không mở DM mới tới người lạ qua @handle; người lạ bị chặn trước khi bridge được gọi).
-  - Không có session runner lẫn bridge thì `send_message` trả `ok: False, unsupported: True` kèm hướng cấu hình, thay cho `sent: True` giả trước đây. Test cũ trong `tests/test_v17_personal_connectors.py` được cập nhật theo đúng hướng siết này (không nới test: từ khẳng định thành công giả sang khẳng định lỗi trung thực).
-  - `build_default_connectors` (`mulon/connectors.py`) dựng bridge mặc định; dựng lỗi thì degrade về None, bot không sập.
-- **Kiểm thử (`tests/test_threads_browser_bridge.py`, 9 test mới):**
-  - Khớp hội thoại theo thread_id/participant (chuẩn hoá tên hiển thị), bridge chưa cấu hình, driver ok nhưng không xác minh thì không tính là gửi, lỗi driver đi qua nguyên vẹn, connector không transport không còn báo sent giả, guard chạy trước bridge.
-  - Kiểm chứng cô lập trên máy này: 9/9 test mới + 5 test Threads cũ qua. 2 test webapp/telegram_surface trong cùng file chưa chạy được ở đây do bộ test cô lập thiếu module ngoài phạm vi (`mulon.approvals`, `mulon.telegram_bot`, `mulon.webapp_server`) — cần chạy lại full suite trên máy Mac / phía reviewer trước khi VERIFIED.
-- **Chưa xong / cần phía chủ dự án + Mac (ghi rõ, không giấu):**
-  - Chưa gửi được 1 DM Threads thật nào: cần profile Chromium đã đăng nhập Threads web trên máy Mac + 1 lần duyệt gửi thật, rồi đối chiếu tin xuất hiện trong hộp thư thật. Selector/inbox_path trong config là điểm khởi đầu cho spike, lần chạy thật đầu tiên sẽ xác nhận/chỉnh lại.
-  - Chưa đụng agent loop/router/prompt nên chưa chạy eval vàng; full suite (577 test trên main) chưa chạy được từ máy này do không có checkout đầy đủ — không tự ghi VERIFIED, chờ Muse chính nghiệm thu.
+- **Một nguồn sự thật cho giờ Feed (`mulon/feed_auto.py`, T-25):**
+  - Thêm `cron_times_label(cron_expr)`: suy nhãn các giờ chạy cố định trong ngày từ biểu thức cron 5 trường (vd `0 8,20 * * *` -> `08:00 & 20:00`); mẫu không phải giờ cố định hằng ngày (mỗi giờ, `*/n`, khoảng giờ, theo thứ) trả `""` để nơi hiển thị dùng diễn giải cron đầy đủ thay vì nhãn giờ có thể sai. Đây là helper suy nhãn giờ dùng chung — không nơi nào được ghi cứng giờ Feed nữa.
+- **Bỏ fallback cron ghi cứng sai (`mulon/webapp_server.py`, T-25):**
+  - Mục Feed chủ động trong `_upcoming_state` trước đây fallback về `"0 8,17 * * *"` khi `get_state()` thiếu cron — lệch 3 tiếng so với cron mặc định thật `0 8,20 * * *` và là nguồn sự thật thứ hai dễ trôi tiếp. Nay fallback là `DEFAULT_CRON` import từ `mulon.feed_auto`; nhãn `time_label` vẫn suy từ cron hiệu lực thật qua `_format_cron_display` như đường chính đã làm.
+- **Kiểm thử (`tests/test_v17_feed_time_label.py`, T-25):**
+  - 4 test mới: nhãn giờ cho các mẫu cron cố định + mẫu không cố định trả rỗng; mục feed_auto trong `_upcoming_state` dùng đúng cron hiệu lực từ `get_state()` (06:30 & 21:30, không dính 17:00); fallback khi thiếu cron cho ra đúng `DEFAULT_CRON` (08:00 & 20:00).
+- **Còn lại (ghi rõ, không giấu):** dòng hiển thị Feed trong handler `/upcoming` của `mulon/telegram_bot.py` vẫn ghi cứng `08:00 & 17:00 (2 bài/ngày)` — file này đang thuộc LUỒNG 1 sửa dở cho T-24.3 nên LUỒNG MUSE không đụng theo lưu ý an toàn của LUẬT ĐA LUỒNG; khi T-24.3 lên main, dòng đó được thay bằng nhãn suy từ `cron_times_label(settings cron)` trong một commit nối tiếp của T-25.
 
 ## 1.7.21 — 2026-10-27 — Huỷ việc dứt điểm, ngắt sạch mục tiêu cũ khỏi ngữ cảnh làm việc (T-24.2, Luồng 1)
 

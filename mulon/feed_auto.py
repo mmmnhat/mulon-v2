@@ -58,6 +58,35 @@ def valid_quiet_hours(spec: object) -> bool:
     return bool(_QUIET_RE.match(str(spec or "").strip()))
 
 
+def cron_times_label(cron_expr: object) -> str:
+    """Nhãn các giờ chạy cố định trong ngày, suy từ biểu thức cron
+    5 trường — vd "0 8,20 * * *" -> "08:00 & 20:00" (T-25).
+
+    Chỉ suy được khi phút là MỘT giá trị cố định, giờ là danh sách
+    giờ cố định, và ngày/tháng/thứ đều là "*". Mọi mẫu khác (mỗi
+    giờ, */n, khoảng giờ, theo thứ...) trả "" để nơi hiển thị dùng
+    diễn giải cron đầy đủ thay vì một nhãn giờ có thể sai. Hàm này
+    là nguồn suy nhãn giờ dùng chung — không nơi nào được ghi cứng
+    giờ Feed nữa."""
+    fields = str(cron_expr or "").split()
+    if len(fields) != 5:
+        return ""
+    minute, hour, dom, month, dow = fields
+    if dom != "*" or month != "*" or dow != "*":
+        return ""
+    if not minute.isdigit() or int(minute) > 59:
+        return ""
+    m = int(minute)
+    hours: list[int] = []
+    for part in hour.split(","):
+        if not part.isdigit() or int(part) > 23:
+            return ""
+        hours.append(int(part))
+    if not hours:
+        return ""
+    return " & ".join(f"{h:02d}:{m:02d}" for h in sorted(set(hours)))
+
+
 class _BotShim:
     """Đưa sender (chat_id, text, thread_id, ...) -> message_id vào
     đúng duck-type send_message mà FeedEngine.publish_composed
