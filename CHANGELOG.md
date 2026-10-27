@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 1.7.13 — 2026-10-27 — Hợp nhất uỷ quyền click toàn thân hàng & chốt NEEDS-FIX điều hướng Mini App (T-23.1, Làn 1)
+
+- **Uỷ quyền điều hướng tập trung toàn thân hàng (`mulon/webapp/index.html`):**
+  - Hợp nhất toàn bộ sự kiện nhấn hàng (`[data-open]`, `#card-heartbeat-item`, `[data-task]`, `[data-skill]`, `[data-open-conn-pol]`, `[data-open-gconfig]`, `[data-cat]`, `[data-pid]`, `[data-hist]`) vào bộ lắng nghe uỷ quyền duy nhất trên `document`, đảm bảo nhấn bất kỳ vị trí nào trên thân hàng cũng mở đúng màn con ngay lần đầu mà không bị rơi click khi DOM re-render định kỳ.
+  - Gỡ bỏ các listener cục bộ trùng lặp trên `#conn-add-manual` và `[data-open="screen-connectors"]` tránh gọi `showSub` / nạp API hai lần.
+  - Đồng bộ tiêu đề màn con `#profile-title` khớp nhãn thẻ chạm (`"Hồ sơ của agent"`, `"Bộ nhớ dài hạn"`).
+- **Kiểm thử điều hướng & khai báo dependency (`tests/test_v17_miniapp_navigation.py`, `requirements-dev.txt`):**
+  - Đảm bảo `tests/test_v17_miniapp_navigation.py` chỉ dùng thư viện chuẩn `re`, dùng `Path.as_uri()` tương thích đa nền tảng cho Playwright Chromium, và mở rộng kiểm thử click thân hàng trên Cài đặt, Lịch (Heartbeat), Hồ sơ và điều hướng đa cấp.
+  - Khai báo đầy đủ `beautifulsoup4>=4.12` trong `requirements-dev.txt` và đồng bộ diff lên `main`.
+
 ## 1.7.12 — 2026-10-27 — Khắc phục Threads Checkpoint & Parity Guard khi có Session Runner (T-22.3)
 
 - **Khắc phục triệt để lỗ hổng bypass Giới hạn cứng của Threads:**

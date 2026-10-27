@@ -1,4 +1,5 @@
 pytest>=9.0
 pytest-asyncio>=1.4
+# Tuỳ chọn kiểm thử HTML DOM (T-23.1 dùng stdlib re/html.parser nhưng vẫn khai báo đầy đủ):
 beautifulsoup4>=4.12
 

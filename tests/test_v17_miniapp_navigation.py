@@ -116,7 +116,7 @@ def test_browser_navigation_flow_with_playwright():
         };
         """
         page.add_init_script(init_script)
-        page.goto(f"file://{INDEX_HTML_PATH.resolve()}")
+        page.goto(INDEX_HTML_PATH.resolve().as_uri())
         page.wait_for_timeout(200)
         
         # Màn đầu là Việc
@@ -183,5 +183,28 @@ def test_browser_navigation_flow_with_playwright():
         page.wait_for_timeout(100)
         assert page.evaluate("subScreen") is None
         assert page.locator("#tab-caidat").is_visible()
+
+        # Kiểm tra tab Lịch -> nhấn thân hàng Heartbeat mở modal ngay cả trước khi API trả về
+        page.locator("#segbar button[data-tab='lich']").click()
+        page.wait_for_timeout(100)
+        assert page.evaluate("mainTab") == "lich"
+        page.locator("#card-heartbeat-item").click()
+        page.wait_for_timeout(100)
+        assert not page.locator("#modal-heartbeat").evaluate("el => el.classList.contains('hidden')")
+        page.locator("#btn-close-heartbeat").click()
+        page.wait_for_timeout(100)
+        assert page.locator("#modal-heartbeat").evaluate("el => el.classList.contains('hidden')")
+
+        # Kiểm tra tab Hồ sơ -> nhấn thẻ Hồ sơ của agent và Bộ nhớ dài hạn + nút Quay lại
+        page.locator("#segbar button[data-tab='hoso']").click()
+        page.wait_for_timeout(100)
+        page.locator("#card-dossier").click()
+        page.wait_for_timeout(100)
+        assert page.evaluate("subScreen") == "screen-profile"
+        assert page.locator("#profile-title").inner_text() == "Hồ sơ của agent"
+        page.locator("#screen-profile .backrow").click()
+        page.wait_for_timeout(100)
+        assert page.evaluate("subScreen") is None
+        assert page.locator("#tab-hoso").is_visible()
         
         browser.close()

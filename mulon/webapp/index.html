@@ -1425,6 +1425,7 @@ function showSub(id){
 
   // Kích hoạt render dữ liệu màn con tương ứng để luôn mới
   if (id === "screen-connectors") {
+    renderConnectors();
     loadMktSummary();
     loadMktInstalled();
   } else if (id === "screen-vault") {
@@ -1475,9 +1476,74 @@ document.addEventListener("click", (e) => {
   }
   const openEl = e.target.closest("[data-open]");
   if (openEl && openEl.dataset.open) {
+    if (e.target.closest("button, label, input, select")) return;
     e.preventDefault();
     haptic("select");
     showSub(openEl.dataset.open);
+    return;
+  }
+  const hbEl = e.target.closest("#card-heartbeat-item");
+  if (hbEl) {
+    e.preventDefault();
+    haptic("select");
+    openHeartbeatModal();
+    return;
+  }
+  const taskEl = e.target.closest("[data-task]");
+  if (taskEl && taskEl.dataset.task) {
+    if (e.target.closest("button")) return;
+    e.preventDefault();
+    haptic("select");
+    openTask(taskEl.dataset.task);
+    return;
+  }
+  const skillEl = e.target.closest("[data-skill]");
+  if (skillEl && skillEl.dataset.skill) {
+    e.preventDefault();
+    haptic("select");
+    openSkill(skillEl.dataset.skill);
+    return;
+  }
+  const connPolEl = e.target.closest("[data-open-conn-pol]");
+  if (connPolEl && connPolEl.dataset.openConnPol) {
+    e.preventDefault();
+    haptic("select");
+    openConnectorPolicy(connPolEl.dataset.openConnPol);
+    return;
+  }
+  const gconfigEl = e.target.closest("[data-open-gconfig]");
+  if (gconfigEl) {
+    if (e.target.closest("button, label, input")) return;
+    e.preventDefault();
+    haptic("select");
+    openGoogleConfig();
+    return;
+  }
+  const catEl = e.target.closest("[data-cat]");
+  if (catEl && catEl.dataset.cat !== undefined) {
+    e.preventDefault();
+    haptic("select");
+    const catTitleEl = catEl.querySelector(".r-title");
+    const catTitle = catEl.dataset.cat ? (catTitleEl ? catTitleEl.textContent : "Danh mục") : "Tất cả";
+    MKT.cat = catEl.dataset.cat;
+    MKT.page = 1;
+    renderMktCats();
+    $("mktcat-title").textContent = catTitle;
+    showSub("screen-mktcat");
+    loadMktCatalog(1);
+    return;
+  }
+  const pidEl = e.target.closest("[data-pid]");
+  if (pidEl && pidEl.dataset.pid) {
+    e.preventDefault();
+    haptic("select");
+    openListing(pidEl.dataset.pid, pidEl.dataset.slug, true);
+    return;
+  }
+  const histEl = e.target.closest("[data-hist]");
+  if (histEl) {
+    const histWrap = histEl.closest(".hist");
+    if (histWrap) histWrap.classList.toggle("open");
     return;
   }
 });
@@ -1934,8 +2000,6 @@ function renderTasks(){
       '<div class="r-time">' + esc(todayLabel(t.created_at)) +
       '</div></div>';
   }).join("");
-  box.querySelectorAll("[data-task]").forEach(el =>
-    el.addEventListener("click", () => openTask(el.dataset.task)));
   box.querySelectorAll("[data-stop-id]").forEach(btn => {
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
@@ -2347,9 +2411,6 @@ function renderApprovals(){
     '<tr><td class="k">Kết quả</td><td>' + outcomeLabel(h) +
       (h.remember ? " (đã nhớ cho phiên)" : "") + '</td></tr>' +
     '</table></div></div>').join("");
-  box.querySelectorAll("[data-hist]").forEach(el =>
-    el.addEventListener("click", () =>
-      el.closest(".hist").classList.toggle("open")));
 }
 
 /* ---------------- Lịch ---------------- */
@@ -2407,13 +2468,6 @@ function renderSchedule(){
           '><span class="tr"></span></label>'
         : '<span class="r-state">' + (it.enabled ? "Đang bật" : "Đang tắt") + '</span>') +
       '</div>').join("");
-  }
-
-  // Khối Hàng ngày -> Heartbeat (Ảnh 3 chuẩn Muse)
-  const hbCard = $("card-heartbeat-item");
-  if (hbCard && !hbCard._bound) {
-    hbCard._bound = true;
-    hbCard.addEventListener("click", () => openHeartbeatModal());
   }
 
   // Gắn event listener cho toggle lịch cá nhân
@@ -2832,8 +2886,6 @@ function renderSkills(){
       esc(s.description) + '</div>' : "") + '</div>' +
     '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
     '</div>').join("");
-  box.querySelectorAll("[data-skill]").forEach(el =>
-    el.addEventListener("click", () => openSkill(el.dataset.skill)));
 }
 async function loadSkills(){
   try {
@@ -2860,11 +2912,11 @@ async function openSkill(name){
 }
 $("card-dossier").addEventListener("click", async () => {
   showSub("screen-profile");
-  $("profile-title").textContent = "Hồ sơ";
+  $("profile-title").textContent = "Hồ sơ của agent";
   $("profile-content").textContent = "Đang tải…";
   try {
     const parts = [];
-    for (const f of (S.profile.dossier_files || [])) {
+    for (const f of ((S && S.profile && S.profile.dossier_files) || [])) {
       if (f.name === "BOOTSTRAP.md") continue;
       const d = await api("/api/profile/content?kind=dossier&name=" +
         encodeURIComponent(f.name));
@@ -2876,7 +2928,7 @@ $("card-dossier").addEventListener("click", async () => {
 });
 $("card-memory").addEventListener("click", async () => {
   showSub("screen-profile");
-  $("profile-title").textContent = "Bộ nhớ";
+  $("profile-title").textContent = "Bộ nhớ dài hạn";
   $("profile-content").textContent = "Đang tải…";
   try {
     const d = await api("/api/profile/content?kind=memory");
@@ -2942,11 +2994,6 @@ function renderConnectors(){
               (c.enabled ? "Đang bật" : "Đã tắt") + '</span>') +
       '</div>';
   }).join("");
-  box.querySelectorAll("[data-open-gconfig]").forEach(row =>
-    row.addEventListener("click", e => {
-      if (e.target.closest("button") || e.target.closest("label")) return;
-      openGoogleConfig();
-    }));
   box.querySelectorAll("[data-gconfig]").forEach(btn =>
     btn.addEventListener("click", e => {
       e.stopPropagation();
@@ -3473,8 +3520,6 @@ function renderPolicy(){
   }).join("");
   $("policy-connectors").innerHTML = connRows ||
     '<div class="empty">Chưa có connector nào.</div>';
-  $("policy-connectors").querySelectorAll("[data-open-conn-pol]").forEach(el =>
-    el.addEventListener("click", () => openConnectorPolicy(el.dataset.openConnPol)));
 
   $("policy-tools").innerHTML = grow(pol.tools, "tool") ||
     '<div class="empty">Chưa có tool nào.</div>';
@@ -3653,8 +3698,6 @@ document.querySelectorAll("#conn-seg button").forEach(b =>
     }
     if (connTab === "installed") loadMktInstalled();
   }));
-$("conn-add-manual").addEventListener("click",
-  () => showSub("screen-import"));
 $("mkt-prev").addEventListener("click", () => {
   if ((MKT.page || 1) > 1){
     loadMktCatalog((MKT.page || 1) - 1);
@@ -3669,10 +3712,6 @@ $("mkt-next").addEventListener("click", () => {
     if (scr) scr.scrollIntoView({behavior: "smooth", block: "start"});
   }
 });
-document.querySelector('[data-open="screen-connectors"]')
-  .addEventListener("click", () => {
-    loadMktSummary(); loadMktInstalled();
-  });
 
 function freshnessText(cat){
   if (!cat) return "";
@@ -3732,19 +3771,6 @@ function renderMktCats(){
     '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span></div>';
   box.innerHTML = row("", "Tất cả", total, "Toàn bộ danh mục server MCP") +
     MKT.cats.map(c => row(c.id, c.label, c.count, c.description)).join("");
-  box.querySelectorAll("[data-cat]").forEach(el =>
-    el.addEventListener("click", () => {
-      MKT.cat = el.dataset.cat;
-      MKT.page = 1;
-      renderMktCats();
-      /* Mở màn con riêng cho danh mục (vá sau 1.4) — danh
-         sách server không còn chồng dưới danh mục nữa. */
-      $("mktcat-title").textContent =
-        MKT.cat ? el.querySelector(".r-title").textContent
-                : "Tất cả";
-      showSub("screen-mktcat");
-      loadMktCatalog(1);
-    }));
 }
 async function loadMktCatalog(page){
   if (page != null) MKT.page = page;
@@ -3834,9 +3860,6 @@ function renderMktList(){
       (state ? '<span class="r-state">' + esc(state) + '</span>' : "") +
       '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span></div>';
   }).join("");
-  box.querySelectorAll("[data-pid]").forEach(el =>
-    el.addEventListener("click", () =>
-      openListing(el.dataset.pid, el.dataset.slug, true)));
 }
 $("mkt-refresh").addEventListener("click", async () => {
   try {
