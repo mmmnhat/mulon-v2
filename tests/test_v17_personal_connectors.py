@@ -31,13 +31,19 @@ from unittest.mock import AsyncMock, MagicMock
 
 from mulon.connectors import build_default_connectors
 from mulon.personal_connectors import (
+    FacebookPersonalConnector,
     TelegramPersonalConnector,
     ZaloPersonalConnector,
+    LBL_FB_CHECKPOINT,
+    LBL_FB_SESSION,
+    LBL_FB_USER,
     LBL_TG_SESSION,
     LBL_TG_USER,
     LBL_ZALO_SESSION,
     LBL_ZALO_USER,
+    LIMITATION_FACEBOOK,
     LIMITATION_ZALO,
+    WARNING_FACEBOOK,
     WARNING_TELEGRAM,
     _vault_get,
     _vault_put,
@@ -378,6 +384,14 @@ def test_personal_connectors_policy_rules(tmp_path):
     assert policy.decide("connector_call", "connector:telegram_personal:send_message").verdict == VERDICT_ASK
     assert policy.decide("connector_call", "connector:telegram_personal:send_file").verdict == VERDICT_ASK
 
+    # Facebook cá nhân: đọc = allow, gửi = ask
+    assert policy.decide("connector_call", "connector:facebook_personal:get_profile").verdict == VERDICT_ALLOW
+    assert policy.decide("connector_call", "connector:facebook_personal:get_friends").verdict == VERDICT_ALLOW
+    assert policy.decide("connector_call", "connector:facebook_personal:read_feed").verdict == VERDICT_ALLOW
+    assert policy.decide("connector_call", "connector:facebook_personal:read_messages").verdict == VERDICT_ALLOW
+    assert policy.decide("connector_call", "connector:facebook_personal:send_message").verdict == VERDICT_ASK
+    assert policy.decide("connector_call", "connector:facebook_personal:send_post").verdict == VERDICT_ASK
+
 
 # ---------------------------------------------------------------------------
 # Tests: build_default_connectors & Mini App State
@@ -489,4 +503,302 @@ async def test_webapp_personal_connectors_api_endpoints(cfg, tmp_path):
     finally:
         await server.stop()
         await memory.close()
+
+
+# ---------------------------------------------------------------------------
+# 3. Tests cho Facebook cá nhân (T-22.2)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_facebook_personal_unconfigured(tmp_path):
+    """Kiểm tra Facebook cá nhân khi chưa cấu hình cookie."""
+    vault = VaultStore(tmp_path / "vault.json")
+    fb = FacebookPersonalConnector(vault_store=vault)
+
+    # 1. Health check khi chưa cấu hình
+    h = await fb.health_check()
+    assert h["ok"] is False
+    assert h["configured"] is False
+    assert h["connected"] is False
+    assert h["checkpoint_detected"] is False
+    assert "c_user" in h["detail"]
+    assert WARNING_FACEBOOK in h["warning"]
+    assert LIMITATION_FACEBOOK in h["limitations"]
+
+    # 2. Thao tác khi chưa có cookie -> báo lỗi rõ ràng và kèm cảnh báo rủi ro
+    res = await fb.call("get_profile", {})
+    assert res["ok"] is False
+    assert "Chưa cấu hình" in res["error"]
+    assert WARNING_FACEBOOK in res["warning"]
+
+
+@pytest.mark.asyncio
+async def test_facebook_personal_configure_and_health(tmp_path):
+    """Kiểm tra lưu cookie an toàn qua Vault, chuẩn hoá định dạng và health check."""
+    vault = VaultStore(tmp_path / "vault.json")
+    fb = FacebookPersonalConnector(vault_store=vault)
+
+    # 1. Cấu hình thiếu c_user hoặc xs -> bị từ chối
+    bad_res = await fb.call("configure", {"cookies": "c_user=100012345"})
+    assert bad_res["ok"] is False
+    assert "xs" in bad_res["error"]
+
+    # 2. Cấu hình chuỗi cookie hợp lệ dạng header
+    valid_cookies = "c_user=1000888999; xs=sec_token_xyz; fr=encrypted_fr; datr=device_token;"
+    res = await fb.call("configure", {"cookies": valid_cookies, "name": "Nguyễn Văn Test"})
+    assert res["ok"] is True
+    assert res["configured"] is True
+    assert res["user"]["id"] == "1000888999"
+
+    # Kiểm tra cookie không lọt ra ngoài, chỉ lưu trong Vault
+    stored = json.loads(_vault_get(vault, LBL_FB_SESSION))
+    assert stored["c_user"] == "1000888999"
+    assert stored["xs"] == "sec_token_xyz"
+
+    # 3. Health check sau khi đã cấu hình thành công
+    h = await fb.health_check()
+    assert h["ok"] is True
+    assert h["configured"] is True
+    assert h["connected"] is True
+    assert h["checkpoint_detected"] is False
+    assert "1000888999" in h["detail"]
+    assert h["user"]["name"] == "Nguyễn Văn Test"
+
+    # 4. Kiểm tra check_session
+    chk = await fb.call("check_session", {})
+    assert chk["ok"] is True
+    assert chk["connected"] is True
+    assert chk["user_id"] == "1000888999"
+
+
+@pytest.mark.asyncio
+async def test_facebook_personal_profile_friends_and_feed(tmp_path):
+    """Kiểm tra đọc profile, bạn bè và bảng tin có bọc frame_external."""
+    vault = VaultStore(tmp_path / "vault.json")
+    fb = FacebookPersonalConnector(vault_store=vault)
+
+    # Cấu hình dữ liệu giả lập đã cache
+    user_payload = {
+        "id": "1000555666",
+        "name": "Lê Văn Hùng",
+        "bio": "AI Developer & Engineer",
+        "cached_friends": [
+            {"id": "20001", "name": "Bạn Thân A"},
+            {"id": "20002", "name": "Bạn Thân B"},
+        ],
+        "cached_posts": [
+            {"post_id": "p1", "author": "Bạn A", "content": "Hôm nay trời đẹp quá, đi uống cafe không?"},
+            {"post_id": "p2", "author": "Tech News", "content": "Meta vừa công bố mô hình Llama mới!"},
+        ],
+    }
+    await fb.call("configure", {"cookies": "c_user=1000555666; xs=tok123;", "user": user_payload})
+
+    # 1. Đọc trang cá nhân (get_profile)
+    prof = await fb.call("get_profile", {})
+    assert prof["ok"] is True
+    assert prof["profile"]["id"] == "1000555666"
+    assert prof["profile"]["bio"] == "AI Developer & Engineer"
+
+    # 2. Đọc danh sách bạn bè (get_friends)
+    frs = await fb.call("get_friends", {})
+    assert frs["ok"] is True
+    assert frs["count"] == 2
+    assert frs["friends"][0]["name"] == "Bạn Thân A"
+
+    # 3. Đọc bài viết trên Bảng tin (read_feed) -> Toàn bộ bài viết bọc frame_external
+    feed = await fb.call("read_feed", {})
+    assert feed["ok"] is True
+    assert feed["count"] == 2
+    for p in feed["posts"]:
+        assert "<external_data" in p["content"]
+        assert "DỮ LIỆU NGOÀI" in p["content"]
+        assert len(p["raw_text"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_facebook_personal_messages_and_policy(tmp_path):
+    """Kiểm tra đọc tin nhắn (bọc frame_external), gửi tin nhắn và phân quyền Policy."""
+    vault = VaultStore(tmp_path / "vault.json")
+    fb = FacebookPersonalConnector(vault_store=vault)
+
+    user_payload = {
+        "id": "1000777",
+        "name": "Trần Thị Lan",
+        "cached_messages": {
+            "thread_123": [
+                {"id": "m1", "sender_id": "friend_99", "text": "Alo bạn ơi, có rảnh không?"},
+                {"id": "m2", "sender_id": "1000777", "text": "Mình đây, có việc gì thế?"},
+            ]
+        }
+    }
+    await fb.call("configure", {"cookies": "c_user=1000777; xs=tok777;", "user": user_payload})
+
+    # 1. Đọc tin nhắn Messenger (read_messages) -> frame_external bảo vệ LLM
+    msgs = await fb.call("read_messages", {"thread_id": "thread_123"})
+    assert msgs["ok"] is True
+    assert msgs["count"] == 2
+    assert "<external_data" in msgs["messages"][0]["text"]
+    assert "DỮ LIỆU NGOÀI" in msgs["messages"][0]["text"]
+    assert msgs["messages"][0]["raw_text"] == "Alo bạn ơi, có rảnh không?"
+
+    # 2. Gửi tin nhắn Messenger (send_message)
+    send_res = await fb.call("send_message", {"thread_id": "thread_123", "text": "Tối nay gặp nhé!"})
+    assert send_res["ok"] is True
+    assert send_res["sent"] is True
+    assert send_res["thread_id"] == "thread_123"
+
+    # 3. Kiểm tra Policy Engine: đọc = allow, gửi = ask
+    policy = PolicyEngine(tmp_path / "policy.json")
+    assert policy.decide("connector_call", "connector:facebook_personal:get_profile").verdict == VERDICT_ALLOW
+    assert policy.decide("connector_call", "connector:facebook_personal:get_friends").verdict == VERDICT_ALLOW
+    assert policy.decide("connector_call", "connector:facebook_personal:read_feed").verdict == VERDICT_ALLOW
+    assert policy.decide("connector_call", "connector:facebook_personal:read_messages").verdict == VERDICT_ALLOW
+    assert policy.decide("connector_call", "connector:facebook_personal:send_message").verdict == VERDICT_ASK
+    assert policy.decide("connector_call", "connector:facebook_personal:send_post").verdict == VERDICT_ASK
+
+
+@pytest.mark.asyncio
+async def test_facebook_personal_checkpoint_guard(tmp_path):
+    """Kiểm tra cơ chế Checkpoint Guard tự ngắt request và cảnh báo người dùng."""
+    vault = VaultStore(tmp_path / "vault.json")
+
+    # Giả lập session runner gặp checkpoint từ Facebook
+    async def mock_runner(action, args, cookies):
+        if action == "read_feed":
+            return {
+                "ok": False,
+                "checkpoint": True,
+                "error": "HTTP 302 Redirect to /checkpoint/?next=...",
+            }
+        return {"ok": True}
+
+    fb = FacebookPersonalConnector(vault_store=vault, session_runner=mock_runner)
+    await fb.call("configure", {"cookies": "c_user=1000999; xs=secret999;"})
+
+    # Lần 1: Gọi read_feed gặp checkpoint
+    res = await fb.call("read_feed", {})
+    assert res["ok"] is False
+    assert res.get("checkpoint") is True
+    assert "Checkpoint Guard" in res["error"]
+
+    # Health check chuyển ngay sang trạng thái cảnh báo Checkpoint
+    h = await fb.health_check()
+    assert h["ok"] is False
+    assert h["connected"] is False
+    assert h["checkpoint_detected"] is True
+    assert "Phát hiện Checkpoint" in h["detail"]
+
+    # Các lần gọi sau bị chặn ngay tại lớp guard để bảo vệ tài khoản khỏi bị spam
+    subsequent = await fb.call("get_profile", {})
+    assert subsequent["ok"] is False
+    assert subsequent.get("checkpoint") is True
+    assert "Đã ngắt kết nối để bảo vệ tài khoản" in subsequent["error"]
+
+    # Xoá checkpoint khi người dùng đăng nhập lại hoặc disconnect
+    await fb.call("disconnect", {})
+    h_after = await fb.health_check()
+    assert h_after["checkpoint_detected"] is False
+
+
+@pytest.mark.asyncio
+async def test_facebook_personal_disconnect_cleanup(tmp_path):
+    """Kiểm tra disconnect dọn dẹp sạch sẽ Vault."""
+    vault = VaultStore(tmp_path / "vault.json")
+    fb = FacebookPersonalConnector(vault_store=vault)
+
+    await fb.call("configure", {"cookies": "c_user=10001; xs=secret1;"})
+    assert _vault_get(vault, LBL_FB_SESSION) is not None
+
+    disc = await fb.call("disconnect", {})
+    assert disc["ok"] is True
+    assert disc["disconnected"] is True
+
+    # Vault phải sạch sẽ
+    assert _vault_get(vault, LBL_FB_SESSION) is None
+    assert _vault_get(vault, LBL_FB_USER) is None
+    assert _vault_get(vault, LBL_FB_CHECKPOINT) is None
+
+
+@pytest.mark.asyncio
+async def test_facebook_personal_webapp_api(cfg, tmp_path):
+    """Kiểm tra tích hợp WebApp REST API cho Facebook cá nhân."""
+    from dataclasses import replace
+    from aiohttp import ClientSession
+    from mulon.approvals import ApprovalBroker
+    from mulon.context import Dossier
+    from mulon.tools import build_default_registry
+    from mulon.memory import Memory
+    from mulon.webapp_server import WebAppServer
+    from tests.test_v12_webapp_auth import TOKEN, OWNER, make_init_data
+
+    cfg2 = replace(
+        cfg,
+        telegram_bot_token=TOKEN,
+        allowed_user_id=OWNER,
+        allowed_user_ids=[OWNER],
+        webapp_port=0,
+    )
+    memory = await Memory.open(tmp_path / "mem.db")
+    vault = VaultStore(tmp_path / "vault.json")
+    policy = PolicyEngine(tmp_path / "policy.json", memory=memory)
+
+    registry = build_default_connectors(cfg2, vault_store=vault)
+
+    server = WebAppServer(
+        cfg2,
+        memory=memory,
+        policy=policy,
+        broker=ApprovalBroker(policy=policy, timeout_s=30),
+        connectors=registry,
+        mcp_manager=None,
+        vault_store=vault,
+        registry=build_default_registry(cfg2, memory),
+        dossier=Dossier.load(cfg2.dossier_dir),
+    )
+    assert await server.start()
+
+    url_base = f"http://127.0.0.1:{server.port}"
+    headers = {"X-Telegram-Init-Data": make_init_data()}
+
+    try:
+        async with ClientSession() as s:
+            # 1. GET /api/personal-connector/status
+            async with s.get(f"{url_base}/api/personal-connector/status?name=facebook_personal", headers=headers) as r:
+                assert r.status == 200
+                data = await r.json()
+                assert data["ok"] is True
+                assert data["health"]["name"] == "facebook_personal"
+                assert data["health"]["connected"] is False
+
+            # 2. POST /api/personal-connector/connect
+            async with s.post(f"{url_base}/api/personal-connector/connect", json={
+                "name": "facebook_personal",
+                "cookies": "c_user=1000999888; xs=secure_token_facebook;",
+            }, headers=headers) as r:
+                assert r.status == 200
+                data = await r.json()
+                assert data["ok"] is True
+                assert data["configured"] is True
+
+            # 3. GET /api/state: chứa thông tin facebook_personal
+            async with s.get(f"{url_base}/api/state", headers=headers) as r:
+                assert r.status == 200
+                state = await r.json()
+                conns = state.get("connectors", [])
+                fb_entry = next((c for c in conns if c["id"] == "facebook_personal"), None)
+                assert fb_entry is not None
+                assert "facebook_personal" in fb_entry
+                assert fb_entry["facebook_personal"]["connected"] is True
+                assert WARNING_FACEBOOK in fb_entry["facebook_personal"]["warning"]
+
+            # 4. POST /api/personal-connector/disconnect
+            async with s.post(f"{url_base}/api/personal-connector/disconnect", json={"name": "facebook_personal"}, headers=headers) as r:
+                assert r.status == 200
+                data = await r.json()
+                assert data["ok"] is True
+                assert data["disconnected"] is True
+    finally:
+        await server.stop()
+        await memory.close()
+
 

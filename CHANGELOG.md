@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## 1.7.9 — 2026-10-27 — Nghiên cứu và Triển khai Connector Facebook cá nhân (T-22.2)
+
+- **Hoàn tất Nghiên cứu Kỹ thuật Chuyên sâu (Bước 1):**
+  - Khảo sát toàn diện cơ chế Meta Accounts Center của Muse thật vs MuLon: làm rõ lý do MuLon không thể dùng lại đường liên kết nội bộ của Meta (đặc quyền first-party của Muse).
+  - Khảo sát hiện trạng Graph API v21.0: Meta đã khóa hoàn toàn User News Feed, Friend list (chỉ trả bạn cùng dùng app), và User-to-User Messenger cá nhân.
+  - Phân tích rủi ro kỹ thuật của giải pháp Unofficial (Web Session Cookies `c_user`, `xs`): phân tích nguy cơ Checkpoint 2FA, Checkpoint 282 (180 ngày), và rủi ro vi phạm ToS Meta Điều 3.2.3.
+  - Báo cáo chi tiết: `docs/nghien-cuu-facebook-ca-nhan.md` và `docs/connector-tai-khoan-ca-nhan.md`.
+- **Connector Facebook cá nhân (`facebook_personal`) bảo vệ nhiều lớp (Bước 2):**
+  - **Cơ chế Checkpoint Guard**: tự động phát hiện chuyển hướng Checkpoint (HTTP 302 tới `/checkpoint/`, `checkpoint_required`), lập tức ngắt phiên, bật cờ `checkpoint_detected` trong Vault để dừng gửi request, bảo vệ tài khoản khỏi nguy cơ bị khóa vĩnh viễn do spam request lặp lại.
+  - **Bảo mật phiên qua Vault**: Cookies (`c_user`, `xs`, `fr`, `datr`) được mã hóa và lưu trữ an toàn trong Vault (`facebook_personal:session`), không bao giờ lọt vào log, trajectory, commit hay chat.
+  - **Phạm vi hành động**:
+    - `get_profile`: xem trang cá nhân (id, tên, bio, URL).
+    - `get_friends`: xem danh sách bạn bè gần đây.
+    - `read_feed`: đọc bài viết trên Bảng tin (bảo vệ toàn diện bằng `frame_external`).
+    - `read_messages` / `get_messages`: đọc tin nhắn Messenger (bảo vệ toàn diện bằng `frame_external`).
+    - `send_message`: gửi tin nhắn Messenger (phân quyền `ask` qua thẻ phê duyệt).
+    - `check_session`: kiểm tra tính hợp lệ của phiên.
+    - `disconnect`: dọn dẹp sạch sẽ session, user cache và checkpoint trong Vault.
+  - **Phân quyền hành động (Policy Engine)**: thao tác đọc (`get_profile`, `get_friends`, `read_feed`, `read_messages`) mặc định Cho phép (`allow`); thao tác gửi (`send_message`, `send_post`) mặc định Hỏi trước (`ask`).
+  - **Degrade sạch sẽ**: khi chưa có cookie hoặc lỗi kết nối, hệ thống báo lỗi rõ ràng, bot không sập.
+- **Bề mặt Giao diện & Lệnh chat:**
+  - Lệnh chat Telegram: `/facebook status`, `/facebook connect <cookies>`, `/facebook disconnect`.
+  - Màn Kết nối Mini App: tích hợp thẻ Facebook cá nhân, hiển thị huy hiệu Cảnh báo Rủi ro cao, nút Nhập Cookie (hộp thoại cảnh báo trước khi dán cookie) và nút Ngắt.
+  - REST API: `GET /api/personal-connector/status`, `POST /api/personal-connector/connect`, `POST /api/personal-connector/disconnect`.
+- **Kiểm chứng:** 528/528 unit tests PASS (thêm 7 test toàn diện trong `tests/test_v17_personal_connectors.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
+
+
 ## 1.7.8 — 2026-10-27 — Connector tài khoản cá nhân: Zalo cá nhân + Telegram cá nhân (T-22.1)
 
 - **Zalo cá nhân (zca-js qua Node bridge):**

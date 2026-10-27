@@ -592,11 +592,13 @@ class WebAppServer:
                            self._handle_google_callback)
         app.router.add_get("/oauth2callback",
                            self._handle_mcp_oauth2callback)
-        # 1.7.8 (T-22.1): Personal Connectors (Zalo cá nhân + Telegram cá nhân)
+        # 1.7.8 (T-22.1 / T-22.2): Personal Connectors (Zalo, Telegram cá nhân, Facebook cá nhân)
         app.router.add_get("/api/personal-connector/status",
                            self._handle_personal_connector_status)
         app.router.add_post("/api/personal-connector/qr",
                             self._handle_personal_connector_qr)
+        app.router.add_post("/api/personal-connector/connect",
+                            self._handle_personal_connector_connect)
         app.router.add_post("/api/personal-connector/disconnect",
                             self._handle_personal_connector_disconnect)
         # 1.3.0: Chợ MCP — mọi route qua cùng middleware auth
@@ -816,6 +818,16 @@ class WebAppServer:
                     "connected": bool(h.get("connected")),
                     "user": h.get("user"),
                     "warning": h.get("warning", ""),
+                }
+            elif name == "facebook_personal":
+                # 1.7.9 (T-22.2): Facebook cá nhân
+                item["facebook_personal"] = {
+                    "configured": bool(h.get("configured")),
+                    "connected": bool(h.get("connected")),
+                    "checkpoint_detected": bool(h.get("checkpoint_detected")),
+                    "user": h.get("user"),
+                    "warning": h.get("warning", ""),
+                    "limitations": h.get("limitations", ""),
                 }
             out.append(item)
         # MCP servers: trạng thái nối từ manager + enabled từ file
@@ -2139,12 +2151,12 @@ class WebAppServer:
             "webapp", "google_disconnected", {"revoked": revoked})
         return web.json_response({"ok": True})
 
-    # ---------- Personal Connectors (T-22.1) ----------
+    # ---------- Personal Connectors (T-22.1 / T-22.2) ----------
     async def _handle_personal_connector_status(self, request):
         name = request.query.get("name") or ""
-        if name not in ("zalo_personal", "telegram_personal"):
+        if name not in ("zalo_personal", "telegram_personal", "facebook_personal"):
             return web.json_response(
-                {"ok": False, "error": "Tên connector không hợp lệ (phải là zalo_personal hoặc telegram_personal)"},
+                {"ok": False, "error": "Tên connector không hợp lệ (phải là zalo_personal, telegram_personal hoặc facebook_personal)"},
                 status=400,
             )
         conn = await self.connectors.get(name)
@@ -2159,9 +2171,9 @@ class WebAppServer:
     async def _handle_personal_connector_qr(self, request):
         body = await self._json_body(request)
         name = str(body.get("name") or request.query.get("name") or "")
-        if name not in ("zalo_personal", "telegram_personal"):
+        if name not in ("zalo_personal", "telegram_personal", "facebook_personal"):
             return web.json_response(
-                {"ok": False, "error": "Tên connector không hợp lệ (phải là zalo_personal hoặc telegram_personal)"},
+                {"ok": False, "error": "Tên connector không hợp lệ (phải là zalo_personal, telegram_personal hoặc facebook_personal)"},
                 status=400,
             )
         conn = await self.connectors.get(name)
@@ -2174,12 +2186,29 @@ class WebAppServer:
         result = await conn.call("qr_login", {"step": step})
         return web.json_response(result)
 
+    async def _handle_personal_connector_connect(self, request):
+        body = await self._json_body(request)
+        name = str(body.get("name") or request.query.get("name") or "")
+        if name not in ("zalo_personal", "telegram_personal", "facebook_personal"):
+            return web.json_response(
+                {"ok": False, "error": "Tên connector không hợp lệ (phải là zalo_personal, telegram_personal hoặc facebook_personal)"},
+                status=400,
+            )
+        conn = await self.connectors.get(name)
+        if conn is None:
+            return web.json_response(
+                {"ok": False, "error": f"Connector {name} không khả dụng."},
+                status=503,
+            )
+        result = await conn.call("configure", body)
+        return web.json_response(result)
+
     async def _handle_personal_connector_disconnect(self, request):
         body = await self._json_body(request)
         name = str(body.get("name") or request.query.get("name") or "")
-        if name not in ("zalo_personal", "telegram_personal"):
+        if name not in ("zalo_personal", "telegram_personal", "facebook_personal"):
             return web.json_response(
-                {"ok": False, "error": "Tên connector không hợp lệ (phải là zalo_personal hoặc telegram_personal)"},
+                {"ok": False, "error": "Tên connector không hợp lệ (phải là zalo_personal, telegram_personal hoặc facebook_personal)"},
                 status=400,
             )
         conn = await self.connectors.get(name)

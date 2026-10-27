@@ -72,6 +72,16 @@ CONNECTOR_ACTION_DEFAULTS = {
     "connector:telegram_personal:listen": VERDICT_ALLOW,
     "connector:telegram_personal:send_message": VERDICT_ASK,
     "connector:telegram_personal:send_file": VERDICT_ASK,
+    # 1.7.9 (T-22.2): Facebook cá nhân
+    "connector:facebook_personal:get_profile": VERDICT_ALLOW,
+    "connector:facebook_personal:get_friends": VERDICT_ALLOW,
+    "connector:facebook_personal:read_feed": VERDICT_ALLOW,
+    "connector:facebook_personal:read_messages": VERDICT_ALLOW,
+    "connector:facebook_personal:get_messages": VERDICT_ALLOW,
+    "connector:facebook_personal:check_session": VERDICT_ALLOW,
+    "connector:facebook_personal:send_message": VERDICT_ASK,
+    "connector:facebook_personal:send_post": VERDICT_ASK,
+    "connector:facebook_personal:delete_post": VERDICT_ASK,
 }
 
 # Mặc định theo tên tool (sửa 1.6.2): tool tương tác web LUÔN ở
@@ -168,6 +178,22 @@ CONNECTOR_SPECS = {
              "label": "Gửi tin nhắn Telegram cá nhân", "kind": "write", "default": VERDICT_ASK},
             {"id": "send_file", "name": "connector:telegram_personal:send_file",
              "label": "Gửi tệp Telegram cá nhân", "kind": "write", "default": VERDICT_ASK},
+        ],
+    },
+    "facebook_personal": {
+        "title": "Facebook cá nhân (Rủi ro cao)",
+        "description": "Kết nối tài khoản Facebook cá nhân qua phiên web cookies (c_user, xs). Đọc trang cá nhân, bạn bè, bảng tin, đọc/gửi Messenger. Lưu ý: Tiềm ẩn nguy cơ checkpoint/khóa tài khoản nếu lạm dụng.",
+        "actions": [
+            {"id": "get_profile", "name": "connector:facebook_personal:get_profile",
+             "label": "Xem trang cá nhân Facebook", "kind": "read", "default": VERDICT_ALLOW},
+            {"id": "get_friends", "name": "connector:facebook_personal:get_friends",
+             "label": "Xem danh sách bạn bè", "kind": "read", "default": VERDICT_ALLOW},
+            {"id": "read_feed", "name": "connector:facebook_personal:read_feed",
+             "label": "Đọc Bảng tin Facebook", "kind": "read", "default": VERDICT_ALLOW},
+            {"id": "read_messages", "name": "connector:facebook_personal:read_messages",
+             "label": "Đọc tin nhắn Messenger", "kind": "read", "default": VERDICT_ALLOW},
+            {"id": "send_message", "name": "connector:facebook_personal:send_message",
+             "label": "Gửi tin nhắn Messenger", "kind": "write", "default": VERDICT_ASK},
         ],
     },
 }

@@ -87,6 +87,7 @@ BOT_COMMANDS: list[tuple[str, str]] = MENU_COMMANDS + [
     ("rename_item", "Đổi tên item Library theo id"),
     ("zalo", "Zalo cá nhân (/zalo status, qr, disconnect)"),
     ("telethon", "Telegram cá nhân userbot (/telethon status, qr, disconnect)"),
+    ("facebook", "Facebook cá nhân (/facebook status, connect, disconnect)"),
 ]
 
 
@@ -3374,6 +3375,86 @@ class TelegramSurface:
                     f"• Chi tiết: {health.get('detail', 'Chưa đăng nhập')}\n"
                     f"⚠️ <i>{health.get('warning', '')}</i>\n\n"
                     "👉 Gõ <code>/telethon qr</code> để lấy link/mã QR kết nối.",
+                    parse_mode="HTML"
+                )
+
+        @dp.message(F.text.startswith("/facebook"))
+        async def cmd_facebook(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            full_arg = _arg_text(message).strip()
+            parts = full_arg.split(maxsplit=1)
+            subcmd = parts[0].lower() if parts else "status"
+            subarg = parts[1].strip() if len(parts) > 1 else ""
+
+            connectors = self.surfaces.get("connectors") if self.surfaces else None
+            conn = await connectors.get("facebook_personal") if connectors else None
+            if not conn:
+                await message.answer("⚠️ Connector Facebook cá nhân chưa sẵn sàng hoặc chưa nạp.")
+                return
+
+            if subcmd == "disconnect":
+                await conn.call("disconnect", {})
+                await message.answer("✅ Đã ngắt kết nối và xoá phiên cookie Facebook cá nhân khỏi Kho an toàn.")
+                return
+
+            if subcmd == "connect":
+                if not subarg:
+                    await message.answer(
+                        "ℹ️ <b>HƯỚNG DẪN KẾT NỐI FACEBOOK CÁ NHÂN</b>\n\n"
+                        "Cú pháp: <code>/facebook connect c_user=...; xs=...;</code>\n\n"
+                        "⚠️ <b>LƯU Ý BẢO MẬT & RỦI RO CAO:</b>\n"
+                        "• Meta không hỗ trợ API chính thức cho tài khoản cá nhân.\n"
+                        "• Phiên web cookies chỉ nên trích xuất từ chính trình duyệt đang dùng trên máy này (cùng IP mạng).\n"
+                        "• Khuyến nghị chỉ dùng tài khoản thử nghiệm / phụ.\n"
+                        "• Nếu Facebook yêu cầu xác minh danh tính, hệ thống Checkpoint Guard sẽ tự ngắt để bảo vệ tài khoản.",
+                        parse_mode="HTML"
+                    )
+                    return
+                res = await conn.call("configure", {"cookies": subarg})
+                if not res.get("ok"):
+                    await message.answer(f"⚠️ Kết nối Facebook thất bại: {res.get('error')}")
+                    return
+                uid = res.get("user", {}).get("id") or "Đã ghi nhận"
+                await message.answer(
+                    f"✅ <b>ĐÃ CẤU HÌNH PHIÊN FACEBOOK CÁ NHÂN</b>\n"
+                    f"• UID: <code>{uid}</code>\n"
+                    f"• Session cookies đã lưu an toàn trong Kho bảo mật (Vault).\n\n"
+                    f"⚠️ <i>{res.get('warning', '')}</i>\n"
+                    f"👉 Để kiểm tra: <code>/facebook status</code>\n"
+                    f"👉 Để ngắt kết nối: <code>/facebook disconnect</code>",
+                    parse_mode="HTML"
+                )
+                return
+
+            # Mặc định: status
+            health = await conn.health_check()
+            warning_txt = health.get("warning", "")
+            if health.get("checkpoint_detected"):
+                await message.answer(
+                    "🚨 <b>PHÁT HIỆN CHECKPOINT FACEBOOK</b>\n\n"
+                    f"• Chi tiết: {health.get('detail')}\n"
+                    "• Checkpoint Guard đã tự động ngắt kết nối để bảo vệ tài khoản khỏi bị spam request.\n"
+                    "👉 Hãy mở trình duyệt và đăng nhập Facebook để hoàn tất xác minh nếu cần, sau đó cập nhật lại cookie hoặc gõ <code>/facebook disconnect</code>.",
+                    parse_mode="HTML"
+                )
+            elif health.get("connected"):
+                user = health.get("user") or {}
+                uname = user.get("name") or str(user.get("id", ""))
+                await message.answer(
+                    f"✅ <b>FACEBOOK CÁ NHÂN ĐÃ KẾT NỐI</b>\n"
+                    f"• Tài khoản: <b>{uname}</b>\n"
+                    f"• Trạng thái: Sẵn sàng đọc trang cá nhân, bảng tin, bạn bè và Messenger.\n\n"
+                    f"⚠️ <i>{warning_txt}</i>\n\n"
+                    f"👉 Để ngắt kết nối: <code>/facebook disconnect</code>",
+                    parse_mode="HTML"
+                )
+            else:
+                await message.answer(
+                    "⚠️ <b>FACEBOOK CÁ NHÂN CHƯA KẾT NỐI</b>\n\n"
+                    f"• Chi tiết: {health.get('detail', 'Chưa có cookie')}\n\n"
+                    f"⚠️ <b>CẢNH BÁO:</b> <i>{warning_txt}</i>\n\n"
+                    "👉 Gõ <code>/facebook connect &lt;cookies&gt;</code> để kết nối.",
                     parse_mode="HTML"
                 )
 

@@ -70,7 +70,35 @@ MuLon bổ sung hai connector tích hợp sẵn (built-in) dành cho tài khoả
 
 ---
 
-## 4. Bề mặt Sử dụng
+## 4. Chi tiết Connector Facebook cá nhân (`facebook_personal`)
+
+> Chi tiết báo cáo khảo sát kỹ thuật độc lập xem tại `docs/nghien-cuu-facebook-ca-nhan.md`.
+
+### Cơ chế & Đăng nhập
+- Sử dụng phiên Web Cookies (`c_user`, `xs`, `fr`, `datr`).
+- Người dùng trích xuất chuỗi cookies từ trình duyệt thực tế đang chạy trên cùng máy cài bot (chia sẻ cùng IP/ASN mạng gia đình).
+- Phiên cookie được lưu trữ mã hóa tuyệt đối trong Vault (`facebook_personal:session`).
+
+### Các hành động hỗ trợ
+- `configure` / `connect`: Nhập và kiểm tra chuỗi cookie phiên.
+- `check_session`: Kiểm tra tính hợp lệ của cookie.
+- `get_profile`: Đọc thông tin trang cá nhân (`id`, `name`, `profile_url`, `bio`).
+- `get_friends`: Đọc danh sách bạn bè gần đây.
+- `read_feed`: Đọc các bài viết gần nhất trên Bảng tin (bọc bảo vệ bằng `frame_external`).
+- `read_messages` / `get_messages`: Đọc tin nhắn Messenger (bọc bảo vệ bằng `frame_external`).
+- `send_message`: Gửi tin nhắn Messenger (bắt buộc phân quyền `ask` qua thẻ phê duyệt).
+- `disconnect`: Xoá sạch session cookies, thông tin cache và cờ checkpoint khỏi Vault.
+
+### Cơ chế Checkpoint Guard (Tự ngắt bảo vệ)
+- Meta không hỗ trợ API chính thức cho tài khoản cá nhân và có hệ thống quét bot tự động.
+- Để bảo vệ tài khoản người dùng tối đa, connector tích hợp **Checkpoint Guard**:
+  - Khi phát hiện mã phản hồi 302 chuyển hướng tới `/checkpoint/` hoặc chuỗi nhận diện khóa tài khoản, connector **lập tức ngắt kết nối**, bật cờ `checkpoint_detected` trong Vault (`facebook_personal:checkpoint`).
+  - Dừng toàn bộ các request tiếp theo để ngăn chặn nguy cơ bị khóa tài khoản vĩnh viễn do spam request lặp lại.
+  - Cảnh báo người dùng qua Telegram bot và Mini App để người dùng mở trình duyệt xử lý thủ công.
+
+---
+
+## 5. Bề mặt Sử dụng
 
 ### 1. Telegram Chat Bot
 - `/zalo status`: Kiểm tra trạng thái kết nối Zalo.
@@ -79,15 +107,18 @@ MuLon bổ sung hai connector tích hợp sẵn (built-in) dành cho tài khoả
 - `/telethon status` (hoặc `/telegram_user status`): Kiểm tra trạng thái Telegram cá nhân.
 - `/telethon qr`: Nhận link/mã QR đăng nhập MTProto cá nhân.
 - `/telethon disconnect`: Ngắt kết nối Telegram cá nhân.
+- `/facebook status`: Kiểm tra trạng thái kết nối Facebook, phát hiện checkpoint và xem cảnh báo rủi ro.
+- `/facebook connect <cookies>`: Kết nối Facebook cá nhân bằng chuỗi cookie web.
+- `/facebook disconnect`: Đăng xuất và ngắt kết nối Facebook cá nhân.
 
 ### 2. Telegram Mini App
 - Truy cập tab **Cài đặt** -> **Công cụ kết nối**.
-- Các thẻ `zalo_personal` và `telegram_personal` hiển thị trạng thái kết nối trực quan.
-- Nút **Quét QR** để kết nối và nút **Ngắt** để xoá phiên.
+- Các thẻ `zalo_personal`, `telegram_personal`, và `facebook_personal` hiển thị trạng thái kết nối trực quan.
+- Thẻ `facebook_personal` có cảnh báo rủi ro cao nổi bật, nút **Nhập Cookie** và nút **Ngắt**.
 
 ---
 
-## 5. Hướng dẫn cài đặt bổ sung cho máy chủ
+## 6. Hướng dẫn cài đặt bổ sung cho máy chủ
 
 Nếu máy chủ cài đặt MuLon muốn kích hoạt đầy đủ 100% cả 2 connector:
 1. **Telegram cá nhân**:

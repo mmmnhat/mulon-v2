@@ -2861,10 +2861,13 @@ function googleAction(g){
     '<button class="btn btn-soft btn-sm" data-gdisconnect="1">Ngắt</button></div>';
 }
 function personalConnectorAction(c){
-  const p = c.zalo || c.telegram_personal;
+  const p = c.zalo || c.telegram_personal || c.facebook_personal;
   if (!p) return '';
   if (p.connected) {
     return '<button class="btn btn-soft btn-sm" data-pdisconnect="' + esc(c.id) + '">Ngắt</button>';
+  }
+  if (c.id === "facebook_personal") {
+    return '<button class="btn btn-accent btn-sm" data-pfbconnect="' + esc(c.id) + '">Nhập Cookie</button>';
   }
   return '<button class="btn btn-accent btn-sm" data-pqr="' + esc(c.id) + '">Quét QR</button>';
 }
@@ -2877,7 +2880,7 @@ function renderConnectors(){
   }
   box.innerHTML = list.map(c => {
     const isGoogle = !!c.google;
-    const isPersonal = !!(c.zalo || c.telegram_personal);
+    const isPersonal = !!(c.zalo || c.telegram_personal || c.facebook_personal);
     return '<div class="row ' + (isGoogle ? 'clickable' : 'static') + '"' +
       (isGoogle ? ' data-open-gconfig="1"' : '') + '>' +
       '<div class="mono">' + (c.kind === "mcp" ? "M" : "S") + '</div>' +
@@ -2944,6 +2947,19 @@ function renderConnectors(){
         } else {
           toast(r.instructions || "Đã tạo phiên QR — kiểm tra trong chat bot!");
         }
+      } catch (err) { toast(err.message); }
+    }));
+  box.querySelectorAll("[data-pfbconnect]").forEach(btn =>
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const name = btn.dataset.pfbconnect;
+      const cookies = window.prompt("⚠️ CẢNH BÁO RỦI RO CAO: Meta không có API chính thức. Việc dùng cookie có nguy cơ checkpoint/khóa tài khoản tạm thời.\n\nNhập chuỗi cookie Facebook (c_user=...; xs=...;):");
+      if (!cookies) return;
+      try {
+        const r = await api("/api/personal-connector/connect", "POST", { name, cookies });
+        if (!r.ok) throw new Error(r.error || "Không thể lưu cookie");
+        toast("Đã lưu cookie Facebook vào Kho an toàn (Vault).");
+        await load();
       } catch (err) { toast(err.message); }
     }));
   box.querySelectorAll("[data-pdisconnect]").forEach(btn =>

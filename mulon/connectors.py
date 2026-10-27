@@ -197,13 +197,15 @@ def build_default_connectors(cfg, google_auth=None, vault_store=None) -> Connect
             google_auth,
             default_tz=getattr(cfg, "default_timezone", "UTC")))
 
-    # 1.7.8 (T-22.1): Connector tài khoản cá nhân (Zalo cá nhân + Telegram cá nhân)
+    # 1.7.8 (T-22.1 / T-22.2): Connector tài khoản cá nhân (Zalo, Telegram MTProto, Facebook cá nhân)
     from .personal_connectors import (
+        FacebookPersonalConnector,
         TelegramPersonalConnector,
         ZaloPersonalConnector,
     )
     registry.register(ZaloPersonalConnector(cfg=cfg, vault_store=vault_store))
     registry.register(TelegramPersonalConnector(cfg=cfg, vault_store=vault_store))
+    registry.register(FacebookPersonalConnector(cfg=cfg, vault_store=vault_store))
     return registry
 
 

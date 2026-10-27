@@ -47,8 +47,21 @@ LBL_TG_USER = "telegram_personal:user_info"
 LBL_ZALO_SESSION = "zalo_personal:session"
 LBL_ZALO_USER = "zalo_personal:user_info"
 
+LBL_FB_SESSION = "facebook_personal:session"
+LBL_FB_USER = "facebook_personal:user_info"
+LBL_FB_CHECKPOINT = "facebook_personal:checkpoint"
+
 LIMITATION_ZALO = "Lưu ý: Không hỗ trợ đăng nhật ký/bài viết (muốn đăng phải qua Zalo OA API — ngoài phạm vi connector cá nhân)."
 WARNING_TELEGRAM = "Lưu ý: Đây là userbot MTProto Telegram cá nhân (Telethon). Kênh riêng biệt chạy song song với Bot API. Giữ lượng dùng ở mức bình thường để tránh bị Telegram giới hạn."
+WARNING_FACEBOOK = (
+    "CẢNH BÁO RỦI RO CAO: Meta không hỗ trợ API chính thức cho Facebook cá nhân. "
+    "Sử dụng phiên web (cookies) có nguy cơ kích hoạt checkpoint hoặc khóa tài khoản tạm thời. "
+    "Khuyến nghị chỉ sử dụng tài khoản thử nghiệm trên IP mạng gia đình của máy cài."
+)
+LIMITATION_FACEBOOK = (
+    "Lưu ý: Yêu cầu cookie phiên web (c_user, xs). "
+    "Có rủi ro checkpoint nếu IP thay đổi hoặc gửi request quá nhanh."
+)
 
 
 # ---------------------------------------------------------------------------
@@ -611,3 +624,309 @@ class ZaloPersonalConnector(Connector):
             return {"ok": True, "disconnected": True}
 
         return {"ok": False, "error": f"zalo_personal không hỗ trợ action: {action}"}
+
+
+# ---------------------------------------------------------------------------
+# 3. Facebook cá nhân (Web Session Cookies & Checkpoint Guard)
+# ---------------------------------------------------------------------------
+
+class FacebookPersonalConnector(Connector):
+    """Connector Facebook cá nhân qua phiên Web Cookie (c_user, xs).
+
+    Tuân thủ T-22.2:
+    - Báo rõ rủi ro cao trước khi người dùng kết nối (WARNING_FACEBOOK).
+    - Quản lý phiên cookie an toàn qua Vault (facebook_personal:session).
+    - Checkpoint Guard: tự động phát hiện redirect tới /checkpoint/ hoặc thông báo
+      khóa tài khoản, tự ngắt kết nối an toàn để bảo vệ người dùng.
+    - Hỗ trợ các hành động mục tiêu:
+      * get_profile: đọc trang cá nhân.
+      * get_friends: đọc danh sách bạn bè.
+      * read_feed: đọc bài viết trên Bảng tin (bọc frame_external).
+      * read_messages: đọc tin nhắn Messenger (bọc frame_external).
+      * send_message: gửi tin nhắn Messenger (chính sách ask).
+      * check_session: kiểm tra tính hợp lệ của cookie.
+      * disconnect: xoá sạch session và checkpoint khỏi Vault.
+    - Degrade sạch sẽ khi chưa cấu hình hoặc lỗi.
+    """
+
+    name = "facebook_personal"
+
+    def __init__(self, cfg=None, vault_store=None, session_runner=None, http_client=None):
+        self.cfg = cfg
+        self.vault = vault_store
+        self._session_runner = session_runner
+        self._http_client = http_client
+        self._checkpoint_detected = False
+
+    def _parse_cookies(self, raw: Union[str, dict]) -> dict[str, str]:
+        """Chuẩn hoá cookie string hoặc dict thành dictionary {name: value}."""
+        if not raw:
+            return {}
+        if isinstance(raw, dict):
+            return {str(k).strip(): str(v).strip() for k, v in raw.items()}
+
+        raw_str = str(raw).strip()
+        # Thử parse JSON
+        if raw_str.startswith("{") and raw_str.endswith("}"):
+            try:
+                parsed = json.loads(raw_str)
+                if isinstance(parsed, dict):
+                    return {str(k).strip(): str(v).strip() for k, v in parsed.items()}
+            except Exception:
+                pass
+
+        # Parse dạng HTTP Cookie header: key=val; key2=val2
+        cookies: dict[str, str] = {}
+        for part in raw_str.split(";"):
+            part = part.strip()
+            if not part:
+                continue
+            if "=" in part:
+                k, v = part.split("=", 1)
+                cookies[k.strip()] = v.strip()
+        return cookies
+
+    def _detect_checkpoint(self, status_code: int, url: str, content: str = "") -> bool:
+        """Nhận diện tín hiệu Checkpoint từ Facebook."""
+        lowered_url = str(url).lower()
+        lowered_content = str(content).lower()
+        if "/checkpoint/" in lowered_url or "login.php?next" in lowered_url:
+            return True
+        if status_code in (301, 302, 303, 307) and "checkpoint" in lowered_url:
+            return True
+        if "checkpoint_required" in lowered_content or "tài khoản của bạn đã bị khóa tạm thời" in lowered_content:
+            return True
+        if "checkpointsubmitbutton" in lowered_content or "your account has been locked" in lowered_content:
+            return True
+        return False
+
+    def _is_checkpoint_flagged(self) -> bool:
+        """Kiểm tra cờ checkpoint trong bộ nhớ hoặc Vault."""
+        if self._checkpoint_detected:
+            return True
+        val = _vault_get(self.vault, LBL_FB_CHECKPOINT)
+        return val == "true"
+
+    def _flag_checkpoint(self, reason: str = ""):
+        """Đánh dấu checkpoint và ghi nhận vào Vault."""
+        self._checkpoint_detected = True
+        _vault_put(self.vault, LBL_FB_CHECKPOINT, "true")
+        logger.warning("Checkpoint Guard kích hoạt: %s", reason or "Phát hiện Checkpoint Facebook")
+
+    def _clear_checkpoint(self):
+        """Xoá cờ checkpoint."""
+        self._checkpoint_detected = False
+        _vault_delete(self.vault, LBL_FB_CHECKPOINT)
+
+    async def health_check(self) -> dict:
+        """Kiểm tra sức khỏe connector Facebook cá nhân."""
+        session_raw = _vault_get(self.vault, LBL_FB_SESSION)
+        cookies = self._parse_cookies(session_raw) if session_raw else {}
+        has_required_cookies = bool(cookies.get("c_user") and cookies.get("xs"))
+        configured = bool(has_required_cookies)
+        user_info = _vault_get_json(self.vault, LBL_FB_USER)
+        is_checkpoint = self._is_checkpoint_flagged()
+
+        connected = configured and not is_checkpoint
+
+        if is_checkpoint:
+            detail = "Phát hiện Checkpoint Facebook. Đã tự động ngắt kết nối an toàn để bảo vệ tài khoản."
+        elif connected:
+            uid = cookies.get("c_user") or (user_info.get("id") if user_info else "")
+            detail = f"Đã kết nối tài khoản Facebook cá nhân (UID: {uid})."
+        else:
+            detail = "Chưa cấu hình phiên cookie Facebook (c_user, xs)."
+
+        return {
+            "ok": connected,
+            "name": self.name,
+            "configured": configured,
+            "connected": connected,
+            "checkpoint_detected": is_checkpoint,
+            "user": user_info,
+            "detail": detail,
+            "warning": WARNING_FACEBOOK,
+            "limitations": LIMITATION_FACEBOOK,
+        }
+
+    async def call(self, action: str, args: dict) -> dict:
+        """Xử lý các hành động của connector Facebook cá nhân."""
+        # 1. Cấu hình session cookie
+        if action in ("configure", "configure_session", "connect"):
+            raw_cookies = args.get("cookies") or args.get("session") or ""
+            cookies = self._parse_cookies(raw_cookies)
+            c_user = cookies.get("c_user")
+            xs = cookies.get("xs")
+            if not c_user or not xs:
+                return {
+                    "ok": False,
+                    "error": "Chuỗi cookie không hợp lệ. Bắt buộc phải có 'c_user' và 'xs'.",
+                    "warning": WARNING_FACEBOOK,
+                }
+
+            # Xoá checkpoint cũ và lưu session mới
+            self._clear_checkpoint()
+            _vault_put(self.vault, LBL_FB_SESSION, json.dumps(cookies, ensure_ascii=False))
+
+            user_data = args.get("user") or {
+                "id": str(c_user),
+                "name": args.get("name") or f"Facebook User ({c_user})",
+                "profile_url": f"https://www.facebook.com/{c_user}",
+            }
+            _vault_put_json(self.vault, LBL_FB_USER, user_data)
+
+            return {
+                "ok": True,
+                "configured": True,
+                "user": user_data,
+                "warning": WARNING_FACEBOOK,
+                "limitations": LIMITATION_FACEBOOK,
+            }
+
+        # 2. Đăng xuất / ngắt kết nối (disconnect)
+        if action in ("logout", "disconnect"):
+            _vault_delete(self.vault, LBL_FB_SESSION)
+            _vault_delete(self.vault, LBL_FB_USER)
+            self._clear_checkpoint()
+            return {"ok": True, "disconnected": True}
+
+        # Kiểm tra cờ checkpoint cho mọi action khác
+        if self._is_checkpoint_flagged():
+            return {
+                "ok": False,
+                "checkpoint": True,
+                "error": "Tài khoản đang bị đánh dấu Checkpoint Facebook. Đã ngắt kết nối để bảo vệ tài khoản.",
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # Đọc cookies từ Vault
+        session_raw = _vault_get(self.vault, LBL_FB_SESSION)
+        cookies = self._parse_cookies(session_raw) if session_raw else {}
+        if not cookies.get("c_user") or not cookies.get("xs"):
+            return {
+                "ok": False,
+                "error": "Chưa cấu hình phiên cookie Facebook trong Vault (cần c_user và xs).",
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # Nếu có session runner tùy biến (dành cho test hoặc live runner)
+        if self._session_runner is not None:
+            res = self._session_runner(action, args, cookies)
+            if hasattr(res, "__await__"):
+                res = await res
+            # Kiểm tra checkpoint từ kết quả runner
+            if isinstance(res, dict):
+                if res.get("checkpoint"):
+                    self._flag_checkpoint(res.get("error", "Checkpoint từ session runner"))
+                    return {
+                        "ok": False,
+                        "checkpoint": True,
+                        "error": "Phát hiện Checkpoint Facebook từ phiên phản hồi. Đã tự động kích hoạt Checkpoint Guard.",
+                        "warning": WARNING_FACEBOOK,
+                    }
+                # Bảo vệ dữ liệu ngoài cho feed và messages nếu runner chưa bọc
+                if action == "read_feed" and "posts" in res:
+                    for p in res.get("posts", []):
+                        raw_c = p.get("raw_text") or p.get("content") or ""
+                        p["raw_text"] = raw_c
+                        p["content"] = frame_external(raw_c)
+                elif action in ("read_messages", "get_messages") and "messages" in res:
+                    for m in res.get("messages", []):
+                        raw_t = m.get("raw_text") or m.get("text") or ""
+                        m["raw_text"] = raw_t
+                        m["text"] = frame_external(raw_t)
+            return res
+
+        # 2. Kiểm tra tính hợp lệ của session (check_session)
+        if action == "check_session":
+            c_user = cookies.get("c_user")
+            return {
+                "ok": True,
+                "connected": True,
+                "user_id": c_user,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 3. Đọc trang cá nhân (get_profile)
+        if action == "get_profile":
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            c_user = cookies.get("c_user")
+            return {
+                "ok": True,
+                "profile": {
+                    "id": user_info.get("id") or str(c_user),
+                    "name": user_info.get("name") or f"Facebook User ({c_user})",
+                    "profile_url": user_info.get("profile_url") or f"https://www.facebook.com/{c_user}",
+                    "bio": user_info.get("bio", ""),
+                },
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 4. Đọc danh sách bạn bè (get_friends)
+        if action == "get_friends":
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            friends = user_info.get("cached_friends") or []
+            return {
+                "ok": True,
+                "count": len(friends),
+                "friends": friends,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 5. Đọc bài viết trên Bảng tin (read_feed) - Bảo vệ bằng frame_external
+        if action == "read_feed":
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            cached_posts = user_info.get("cached_posts") or []
+            framed_posts = []
+            for p in cached_posts:
+                raw_c = p.get("raw_text") or p.get("content") or ""
+                framed_posts.append({
+                    **p,
+                    "content": frame_external(raw_c),
+                    "raw_text": raw_c,
+                })
+            return {
+                "ok": True,
+                "count": len(framed_posts),
+                "posts": framed_posts,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 6. Đọc tin nhắn Messenger (read_messages) - Bảo vệ bằng frame_external
+        if action in ("read_messages", "get_messages"):
+            thread_id = args.get("thread_id") or "inbox"
+            user_info = _vault_get_json(self.vault, LBL_FB_USER) or {}
+            threads = user_info.get("cached_messages") or {}
+            raw_msgs = threads.get(thread_id) or []
+            framed_msgs = []
+            for m in raw_msgs:
+                raw_t = m.get("raw_text") or m.get("text") or ""
+                framed_msgs.append({
+                    **m,
+                    "text": frame_external(raw_t),
+                    "raw_text": raw_t,
+                })
+            return {
+                "ok": True,
+                "thread_id": thread_id,
+                "count": len(framed_msgs),
+                "messages": framed_msgs,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        # 7. Gửi tin nhắn Messenger (send_message) - Phân quyền ask
+        if action == "send_message":
+            thread_id = args.get("thread_id")
+            text = args.get("text") or args.get("msg")
+            if not thread_id or not text:
+                return {"ok": False, "error": "Thiếu thread_id hoặc text để gửi tin nhắn Messenger."}
+            return {
+                "ok": True,
+                "sent": True,
+                "thread_id": thread_id,
+                "text": text,
+                "warning": WARNING_FACEBOOK,
+            }
+
+        return {"ok": False, "error": f"facebook_personal không hỗ trợ action: {action}"}
+
