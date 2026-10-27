@@ -240,6 +240,9 @@ class Config:
     # None (mặc định) = profile tạm như cũ. BROWSER_PROFILE_DIR rỗng
     # cũng hiểu là None.
     browser_profile_dir: Path | None = None
+    # Spike T-22.3: gốc web Threads cho browser bridge (endpoint
+    # chính thức, đổi được qua env khi Meta đổi domain).
+    threads_web_base_url: str = "https://www.threads.net"
 
     # --- Phase 4: chủ động + tiếng nói + media (mục 7, 8) ---
     # Proactivity: MẶC ĐỊNH TẮT — chỉ chạy khi PROACTIVITY_ENABLED=1
@@ -488,6 +491,8 @@ class Config:
                 _resolve(_env("BROWSER_PROFILE_DIR", ""))
                 if _env("BROWSER_PROFILE_DIR", "") else None
             ),
+            threads_web_base_url=_env(
+                "THREADS_WEB_BASE_URL", "https://www.threads.net"),
             proactivity_enabled=_env_bool("PROACTIVITY_ENABLED", False),
             proactivity_interval_s=_env_int("PROACTIVITY_INTERVAL_S", 1800),
             proactivity_active_hours=_env(
@@ -597,6 +602,7 @@ class Config:
                 str(self.browser_profile_dir)
                 if self.browser_profile_dir else None
             ),
+            "threads_web_base_url": self.threads_web_base_url,
             "proactivity_enabled": self.proactivity_enabled,
             "proactivity_active_hours": self.proactivity_active_hours,
             "voice_tts_model": self.voice_tts_model,

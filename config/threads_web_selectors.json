@@ -1,0 +1,1 @@
+{"composer_selectors":["div[contenteditable=\"true\"]","textarea","[role=\"textbox\"]"],"conversation_link_selector":"a[href*=\"/messages/\"]","inbox_path":"/messages","send_button_selectors":["button[aria-label*=\"Send\"]","button[aria-label*=\"Gửi\"]","button[type=\"submit\"]"]}

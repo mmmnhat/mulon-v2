@@ -209,7 +209,20 @@ def build_default_connectors(cfg, google_auth=None, vault_store=None) -> Connect
     registry.register(TelegramPersonalConnector(cfg=cfg, vault_store=vault_store))
     registry.register(FacebookPersonalConnector(cfg=cfg, vault_store=vault_store))
     registry.register(InstagramMessagesConnector(cfg=cfg, vault_store=vault_store))
-    registry.register(ThreadsMessagesConnector(cfg=cfg, vault_store=vault_store))
+    # Spike T-22.3: bridge gửi DM Threads thật qua web. Dựng lỗi
+    # thì degrade về None (connector sẽ báo chưa có đường gửi thật
+    # thay vì sập hệ thống) — Playwright/profile chỉ kiểm tra lúc
+    # gửi, không kiểm tra lúc đăng ký.
+    threads_bridge = None
+    try:
+        from .threads_browser_bridge import ThreadsBrowserBridge
+
+        threads_bridge = ThreadsBrowserBridge(cfg=cfg)
+    except Exception as exc:
+        logger.warning("dựng Threads browser bridge lỗi (%s) — "
+                       "threads_messages chạy không bridge", exc)
+    registry.register(ThreadsMessagesConnector(
+        cfg=cfg, vault_store=vault_store, browser_bridge=threads_bridge))
     return registry
 
 

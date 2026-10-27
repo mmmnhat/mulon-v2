@@ -1135,22 +1135,27 @@ async def test_threads_messages_strict_limitation_and_send(tmp_path):
     assert unknown_res["ok"] is False
     assert "không tồn tại từ trước" in unknown_res["error"]
 
-    # 3. GỬI VÀO HỘI THOẠI ĐÃ TỒN TẠI TỪ TRƯỚC -> THÀNH CÔNG
+    # 3-4. Spike T-22.3: nhánh stub cũ trả sent: True khi không có
+    # transport đã bị GỠ theo yêu cầu NEEDS-FIX (không báo thành
+    # công giả). Không có runner lẫn bridge, gửi vào hội thoại hợp
+    # lệ cũng phải trả lỗi unsupported rõ ràng. Đường gửi thật qua
+    # bridge được kiểm riêng ở tests/test_threads_browser_bridge.py.
     valid_res = await conn.call("send_message", {
         "thread_id": "th_valid_1",
         "text": "Chào bạn, cập nhật mới đây nhé!",
     })
-    assert valid_res["ok"] is True
-    assert valid_res["sent"] is True
-    assert valid_res["thread_id"] == "th_valid_1"
+    assert valid_res["ok"] is False
+    assert valid_res.get("unsupported") is True
+    assert valid_res.get("sent") is not True
+    assert "chưa có đường gửi thật" in valid_res["error"]
 
-    # 4. GỬI CHO PARTICIPANT ĐÃ CÓ TRONG HỘI THOẠI CŨ -> THÀNH CÔNG
     valid_p_res = await conn.call("send_message", {
         "username": "@known_friend",
         "text": "Hôm nay thế nào?",
     })
-    assert valid_p_res["ok"] is True
-    assert valid_p_res["sent"] is True
+    assert valid_p_res["ok"] is False
+    assert valid_p_res.get("unsupported") is True
+    assert valid_p_res.get("sent") is not True
 
     # 5. THẢ REACTION
     react_res = await conn.call("send_reaction", {

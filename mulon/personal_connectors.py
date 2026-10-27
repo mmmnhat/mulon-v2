@@ -1274,10 +1274,14 @@ class ThreadsMessagesConnector(Connector):
 
     name = "threads_messages"
 
-    def __init__(self, cfg=None, vault_store=None, session_runner=None):
+    def __init__(self, cfg=None, vault_store=None, session_runner=None,
+                 browser_bridge=None):
         self.cfg = cfg
         self.vault = vault_store
         self._session_runner = session_runner
+        # Spike T-22.3: bridge gửi DM thật qua web. Tiêm được cho
+        # test (fake bridge); production dựng ở connectors.py.
+        self._browser_bridge = browser_bridge
         self._checkpoint_detected = False
 
     def _parse_cookies(self, raw: Union[str, dict]) -> dict[str, str]:
@@ -1610,17 +1614,41 @@ class ThreadsMessagesConnector(Connector):
                 "limitations": LIMITATION_THREADS_MSG,
             }
 
-        # 6. Gửi tin nhắn (send_message) stub khi không có session_runner
+        # 6. Gửi tin nhắn (send_message) — spike T-22.3: đường thật
+        # duy nhất còn lại là browser bridge. Nhánh stub cũ trả
+        # sent: True khi không có transport đã bị gỡ theo yêu cầu
+        # NEEDS-FIX (không báo thành công giả): không có runner và
+        # không có bridge thì trả lỗi rõ ràng, kèm hướng cấu hình.
         if action == "send_message":
-            thread_id = args.get("thread_id")
-            recipient = (args.get("username") or args.get("handle") or args.get("recipient") or "").strip()
-            text = args.get("text") or args.get("msg")
-            str_tid = str(thread_id or recipient)
+            if self._browser_bridge is not None:
+                participant = (args.get("username") or args.get("handle")
+                               or args.get("recipient") or "").strip() or None
+                res = self._browser_bridge.send_message(
+                    str(args.get("thread_id") or ""),
+                    args.get("text") or args.get("msg") or "",
+                    participant)
+                if hasattr(res, "__await__"):
+                    res = await res
+                if isinstance(res, dict):
+                    out = dict(res)
+                    out.setdefault("warning", WARNING_THREADS_MSG)
+                    out.setdefault("limitations", LIMITATION_THREADS_MSG)
+                    return out
+                return {"ok": False,
+                        "error": "browser bridge trả kết quả không "
+                                 "hợp lệ — không báo thành công giả",
+                        "warning": WARNING_THREADS_MSG,
+                        "limitations": LIMITATION_THREADS_MSG}
             return {
-                "ok": True,
-                "sent": True,
-                "thread_id": str_tid,
-                "text": text,
+                "ok": False,
+                "unsupported": True,
+                "error": (
+                    "Threads DM chưa có đường gửi thật trên bản cài "
+                    "này: chưa gắn browser bridge (cần "
+                    "BROWSER_PROFILE_DIR đã đăng nhập Threads web + "
+                    "Playwright). Tin chưa được gửi — không báo "
+                    "thành công giả."
+                ),
                 "warning": WARNING_THREADS_MSG,
                 "limitations": LIMITATION_THREADS_MSG,
             }

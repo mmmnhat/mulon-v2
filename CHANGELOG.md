@@ -1,22 +1,21 @@
 # CHANGELOG
 
-## 1.7.22 — 2026-10-27 — Không để lộ chữ nội bộ (kiểm chứng/chẩn đoán) vào câu trả lời, ưu tiên ngữ cảnh hội thoại thật (T-24.3, Luồng 1)
+## 1.7.22 — 2026-10-27 — Spike browser bridge gửi DM Threads thật (T-22.3, LUỒNG PHỤ 1, chưa VERIFIED)
 
-- **Triệt tiêu hoàn toàn rò rỉ thông báo kiểm chứng/chẩn đoán nội bộ vào chat (`mulon/agent.py: _task_path`, `sanitize_chat_reply`, T-24.3):**
-  - Khắc phục triệt để lỗi kết quả chat bị mở đầu bằng nguyên văn cảnh báo nội bộ: `⚠️ Chưa kiểm chứng được là đã xong đúng yêu cầu. Chẩn đoán: ... Phần làm được tới giờ:`.
-  - Quy định rõ ràng phân tách 2 lớp: lớp tự kiểm (verifier / reflexion) vẫn lưu bền vào cơ sở dữ liệu (`tasks`, `task_steps`, `error=diagnosis`) phục vụ theo dõi chi tiết trên Mini App (tab Việc) và tiến trình quản trị; nhưng ở mặt hội thoại chat (`TurnResult.text`), tuyệt đối KHÔNG in các thông báo hay chẩn đoán kỹ thuật nội bộ vào câu trả lời gửi cho người dùng.
-  - Bổ sung hàm `sanitize_chat_reply`: tự động quét và bóc tách sạch sẽ các tiền tố cảnh báo kiểm chứng hoặc câu chữ chẩn đoán nội bộ nếu mô hình lỡ sao chép từ vòng lặp Reflexion.
-- **Ưu tiên ngữ cảnh hội thoại thực tế trước chẩn đoán của verifier (`mulon/agent.py: _verify`, `_task_path`, `config/intent_hints.json`, T-24.3):**
-  - Khắc phục lỗi verifier bị "mù ngữ cảnh" dẫn đến chẩn đoán sai thực tế (ví dụ: người dùng vừa cung cấp mã bí mật ở tin nhắn trước, sau đó hỏi lại thì verifier không thấy tool evidence nên đánh trượt và chẩn đoán nhầm "Không có bằng chứng hoặc ngữ cảnh hội thoại...").
-  - Mở rộng hàm `_verify`: trích xuất và cung cấp `NGỮ CẢNH HỘI THOẠI TRƯỚC ĐÓ` từ `convo` vào prompt kiểm chứng, giúp mô hình kiểm chứng độc lập thấy được toàn bộ lịch sử trao đổi thật giữa người dùng và trợ lý.
-  - Bổ sung `_CONTEXT_QUERY_HINTS` nạp từ `config/intent_hints.json` (Rule 0, không hardcode): tự động nhận diện các câu hỏi truy vấn lại thông tin hội thoại ("lúc nãy", "vừa nãy", "mã bí mật", "đã nói", "nhớ không", "vừa gửi"...).
-  - Khi câu hỏi truy vấn thông tin hội thoại hoặc verifier chẩn đoán thiếu bằng chứng ngoài trong khi ngữ cảnh hội thoại đã có thật, hệ thống tự động ưu tiên ngữ cảnh hội thoại thực tế (`verified = True`, `status = 'done'`), ghi nhận chẩn đoán xác nhận ngữ cảnh và tránh kích hoạt vòng lặp thử lại vô ích.
-- **Chuẩn hoá phong cách Muse & System prompt kiểm chứng (`mulon/prompts/verify_system.txt`, `mulon/prompts/muse_reply_style.txt`, T-24.3):**
-  - Cập nhật `mulon/prompts/verify_system.txt`: quy định rõ thông tin đã có trong ngữ cảnh hội thoại trước đó được coi là bằng chứng hợp lệ và có độ ưu tiên cao nhất, không bắt buộc phải gọi tool ngoài; khi kiểm chứng mâu thuẫn với ngữ cảnh thực tế đã diễn ra, luôn ưu tiên ngữ cảnh.
-  - Cập nhật `mulon/prompts/muse_reply_style.txt`: bổ sung điều 10 cấm để lộ các từ ngữ, thông báo kiểm chứng hoặc chẩn đoán nội bộ vào câu trả lời.
-- **Kiểm thử hồi quy (`tests/test_v17_verification_privacy.py`, T-24.3):**
-  - Viết mới `tests/test_v17_verification_privacy.py` gồm 4 test toàn diện kiểm chứng: (1) kiểm chứng thất bại không làm rò rỉ chẩn đoán vào chat trong khi DB vẫn lưu đúng, (2) truy vấn dựa trên ngữ cảnh hội thoại tự động ưu tiên ngữ cảnh thật và pass task, (3) prompt gửi tới verifier chứa đầy đủ ngữ cảnh hội thoại trước đó, (4) hàm tiện ích `sanitize_chat_reply`.
-  - Toàn bộ suite đạt 581/581 tests PASS (100%), evals vàng stub đạt 31/36 (86%, vượt ngưỡng 85%).
+- **Bridge gửi DM Threads qua web (`mulon/threads_browser_bridge.py`, `config/threads_web_selectors.json`):**
+  - Đường gửi thật thay cho nhánh stub cũ: 1 phiên Playwright duy nhất với profile Chromium bền (`BROWSER_PROFILE_DIR`) đã đăng nhập Threads web của người cài — mở hộp thư thật, vào hội thoại có sẵn, soạn, gửi, rồi xác minh nội dung vừa gửi xuất hiện trong hội thoại mới báo `sent: True`.
+  - Không tự đăng nhập, không lưu password, không đọc cookie Vault để đăng nhập web; chưa có profile hoặc chưa cài Playwright thì báo `ok: False` rõ ràng, không báo thành công giả.
+  - Selector giao diện web nằm ở `config/threads_web_selectors.json` (nạp qua `load_json_data`), để lần chạy thật đầu tiên chỉnh selector mà không sửa code; gốc web đổi được qua env `THREADS_WEB_BASE_URL` (mặc định `https://www.threads.net`, thêm field `Config.threads_web_base_url`).
+- **Gỡ stub gửi giả (`mulon/personal_connectors.py: ThreadsMessagesConnector`):**
+  - Guard giới hạn cứng vẫn chạy TRƯỚC bridge (chỉ hội thoại có sẵn, không mở DM mới tới người lạ qua @handle; người lạ bị chặn trước khi bridge được gọi).
+  - Không có session runner lẫn bridge thì `send_message` trả `ok: False, unsupported: True` kèm hướng cấu hình, thay cho `sent: True` giả trước đây. Test cũ trong `tests/test_v17_personal_connectors.py` được cập nhật theo đúng hướng siết này (không nới test: từ khẳng định thành công giả sang khẳng định lỗi trung thực).
+  - `build_default_connectors` (`mulon/connectors.py`) dựng bridge mặc định; dựng lỗi thì degrade về None, bot không sập.
+- **Kiểm thử (`tests/test_threads_browser_bridge.py`, 9 test mới):**
+  - Khớp hội thoại theo thread_id/participant (chuẩn hoá tên hiển thị), bridge chưa cấu hình, driver ok nhưng không xác minh thì không tính là gửi, lỗi driver đi qua nguyên vẹn, connector không transport không còn báo sent giả, guard chạy trước bridge.
+  - Kiểm chứng cô lập trên máy này: 9/9 test mới + 5 test Threads cũ qua. 2 test webapp/telegram_surface trong cùng file chưa chạy được ở đây do bộ test cô lập thiếu module ngoài phạm vi (`mulon.approvals`, `mulon.telegram_bot`, `mulon.webapp_server`) — cần chạy lại full suite trên máy Mac / phía reviewer trước khi VERIFIED.
+- **Chưa xong / cần phía chủ dự án + Mac (ghi rõ, không giấu):**
+  - Chưa gửi được 1 DM Threads thật nào: cần profile Chromium đã đăng nhập Threads web trên máy Mac + 1 lần duyệt gửi thật, rồi đối chiếu tin xuất hiện trong hộp thư thật. Selector/inbox_path trong config là điểm khởi đầu cho spike, lần chạy thật đầu tiên sẽ xác nhận/chỉnh lại.
+  - Chưa đụng agent loop/router/prompt nên chưa chạy eval vàng; full suite (577 test trên main) chưa chạy được từ máy này do không có checkout đầy đủ — không tự ghi VERIFIED, chờ Muse chính nghiệm thu.
 
 ## 1.7.21 — 2026-10-27 — Huỷ việc dứt điểm, ngắt sạch mục tiêu cũ khỏi ngữ cảnh làm việc (T-24.2, Luồng 1)
 
