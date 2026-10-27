@@ -37,9 +37,11 @@ from .memory import redact_trajectory_payload
 from .cron import parse_cron
 from .feed_auto import SCHEDULE_ID as FEED_SCHEDULE_ID, valid_quiet_hours
 from .planning import internal_kind
-from .paths import sanitize_path_display
+from .paths import sanitize_path_display, fix_glued_words
 from .proactivity import PROACTIVITY_KV_KEY, effective_enabled
 from .ideas import IDEAS_AUTO_KV_KEY, effective_auto_enabled
+from .library import _denied_reason
+from .memory import fold_vi, now_iso
 
 logger = logging.getLogger("mulon.webapp")
 
@@ -246,6 +248,265 @@ def policy_group_label(group: str) -> str:
     if not raw:
         return ""
     return raw[:1].upper() + raw[1:]
+
+
+# ---------------------------------------------------------------------------
+# Chuẩn hoá tiêu đề lịch, phân loại Hồ sơ / Bộ nhớ / Kỹ năng / Thư viện (T-23.2, T-23.3)
+# ---------------------------------------------------------------------------
+
+def _truncate_words(text: str, max_len: int = 80) -> str:
+    """Cắt chuỗi theo ranh giới từ (không cắt đứt giữa từ, QA Q-07)."""
+    s = re.sub(r"\s+", " ", (text or "").strip())
+    if len(s) <= max_len:
+        return s
+    cut = s[:max_len]
+    last_space = cut.rfind(" ")
+    if last_space >= max_len // 2:
+        cut = cut[:last_space]
+    return cut.rstrip(" ,;:-") + "…"
+
+
+def _disambiguate_schedule_items(raw_items: list[dict], title_key: str = "name",
+                                 full_key: str = "prompt", max_len: int = 80) -> None:
+    """Nếu nhiều mục lịch có cùng phần đầu sau khi cắt (vd 3 lịch 'Quét TẤT CẢ…'),
+    tự động nối thêm phần phân biệt ở phía sau để người dùng phân biệt được (Q-07)."""
+    counts: dict[str, list[dict]] = {}
+    for it in raw_items:
+        t = str(it.get(title_key) or "")
+        counts.setdefault(t, []).append(it)
+    for t, group in counts.items():
+        if len(group) <= 1:
+            continue
+        full_texts = [re.sub(r"\s+", " ", str(g.get(full_key) or g.get(title_key) or "").strip()) for g in group]
+        prefix_len = 0
+        if full_texts and all(full_texts):
+            min_l = min(len(x) for x in full_texts)
+            while prefix_len < min_l and len({x[prefix_len] for x in full_texts}) == 1:
+                prefix_len += 1
+        for idx, g in enumerate(group):
+            full = full_texts[idx]
+            diff_part = full[prefix_len:].strip(" ,;:-")
+            if diff_part:
+                head = _truncate_words(full[:prefix_len].strip(), 34)
+                tail = _truncate_words(diff_part, 42)
+                g[title_key] = f"{head} ({tail})" if head else tail
+            else:
+                cron_str = str(g.get("cron") or g.get("time_label") or f"#{idx + 1}")
+                g[title_key] = f"{t} ({cron_str})"
+
+
+DOSSIER_FILE_DESCRIPTIONS: dict[str, str] = {
+    "AGENTS.md": "Quy tắc & chuẩn mực vận hành cốt lõi",
+    "SOUL.md": "Tính cách, linh hồn & giá trị của Mulon",
+    "USER.md": "Hồ sơ & ngữ cảnh về chủ nhân",
+    "IDENTITY.md": "Danh tính & thông tin nhận diện",
+    "TOOLS.md": "Hướng dẫn sử dụng công cụ & môi trường",
+    "HEARTBEAT.md": "Checklist tự kiểm định kỳ (Heartbeat)",
+    "PROACTIVE_PREFERENCES.md": "Sở thích & giới hạn nhắc việc chủ động",
+    "STYLE.md": "Giọng văn & định dạng phản hồi",
+    "MEMORY.md": "Ghi chép ký ức tổng hợp dài hạn",
+}
+
+LIBRARY_KIND_LABELS: dict[str, str] = {
+    "document": "Tài liệu văn bản",
+    "image": "Hình ảnh",
+    "media": "Âm thanh & Video",
+    "code": "Mã nguồn & Dữ liệu",
+    "archive": "Tệp nén",
+    "other": "Tệp khác",
+}
+
+
+def _classify_fact_topic(subject: str, fact: str) -> str:
+    """Phân loại fact vào chủ đề tiếng Việt rõ ràng để gom nhóm (T-23.3)."""
+    s_low = fold_vi(f"{subject or ''} {fact or ''}")
+    subj_low = fold_vi(subject or "").strip()
+    if subj_low in ("user", "owner", "chu nhan", "ca nhan", "preference", "preferences", "so thich"):
+        return "Chủ nhân & Sở thích"
+    if subj_low in ("social", "threads", "facebook", "zalo", "instagram", "telegram"):
+        return "Mạng xã hội & Kết nối"
+    if subj_low in ("work", "task", "schedule", "goal", "cong viec", "lich trinh", "muc tieu"):
+        return "Công việc & Lịch trình"
+    if subj_low in ("project", "mulon", "system", "code", "bot", "he thong", "du an"):
+        return "Dự án & Hệ thống"
+
+    if any(k in s_low for k in ("threads", "facebook", "zalo", "instagram", "bai dang", "comment", "group", "kenh", "post", "tiktok", "youtube")):
+        return "Mạng xã hội & Kết nối"
+    if any(k in s_low for k in ("lich", "nhac", "hen", "muc tieu", "goal", "deadline", "bao cao", "hang ngay", "cron", "heartbeat")):
+        return "Công việc & Lịch trình"
+    if any(k in s_low for k in ("mulon", "repo", "git", "commit", "test", "pytest", "python", "server", "api", "model", "proxy", "connector", "mcp", "vault", "sqlite")):
+        return "Dự án & Hệ thống"
+    if any(k in s_low for k in ("thich", "muon", "uu tien", "ten", "goi", "chu du an", "chu nhan", "ghet", "thoi quen", "phong cach", "xung ho")):
+        return "Chủ nhân & Sở thích"
+    return "Ghi nhớ chung"
+
+
+def _classify_skill_group(name: str, desc: str = "", source: str = "") -> str:
+    """Gom nhóm kỹ năng theo chủ đề tiếng Việt rõ ràng (T-23.3)."""
+    n_low = (name or "").lower()
+    d_low = (desc or "").lower()
+    if n_low.startswith("elevenlabs") or any(k in n_low for k in ("audio", "voice", "loudness", "sfx", "speech", "say")):
+        return "Âm thanh & Giọng nói"
+    if any(k in n_low for k in ("premiere", "video", "cut", "clip", "pacing", "lut", "color", "sync", "synchronize", "pauses", "comedy", "visual-editing", "content-shield", "asset-indexer", "source-understanding")):
+        return "Video & Dựng phim"
+    if n_low.startswith(("writing-", "to-")) or any(k in n_low for k in ("gsheets", "sheet", "doc", "prd", "issues", "beats", "fragments", "shape")):
+        return "Viết lách & Tài liệu"
+    if n_low.startswith(("ponytail", "grill")) or any(k in n_low for k in ("tdd", "diagnose", "review", "qa", "triage", "refactor", "architecture", "brainstorming", "handoff")):
+        return "Kỹ thuật & Kiểm thử"
+    if any(k in d_low for k in ("video", "premiere", "clip", "timeline", "footage")):
+        return "Video & Dựng phim"
+    if any(k in d_low for k in ("audio", "voice", "speech", "sound", "elevenlabs")):
+        return "Âm thanh & Giọng nói"
+    return "Tự động hoá & Hệ thống"
+
+
+_VI_DIACRITIC_RE = re.compile(
+    r"[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]",
+    re.IGNORECASE,
+)
+
+SKILL_VI_DESC_MAP: dict[str, str] = {
+    "adaptive-pacing": "Thiết kế nhịp độ dựng video giữ chân người xem theo cấu trúc 4-5 nhịp.",
+    "agy-customizations": "Hướng dẫn cấu hình và tuỳ biến hệ thống Antigravity (skills, rules, plugins, MCP).",
+    "antigravity-guide": "Tài liệu tham khảo nhanh và sơ đồ tính năng cho Antigravity IDE & CLI.",
+    "asset-indexer": "Đánh chỉ mục và tìm kiếm kho hiệu ứng âm thanh (SFX), meme, nhạc nền và overlay.",
+    "auto-match-loudness": "Tự động cân bằng âm lượng (Auto-Match Loudness) cho clip thoại trong Premiere Pro.",
+    "automation": "Thiết kế và tạo tác vụ tự động chạy định kỳ theo lịch trình.",
+    "brainstorming": "Phân tích ý tưởng, làm rõ yêu cầu và thiết kế giải pháp trước khi bắt tay vào làm.",
+    "calibrate-lut": "Tạo và hiệu chuẩn bảng màu LUT từ ảnh chụp bảng chuẩn màu ColorChecker.",
+    "check-sequence-sync": "Kiểm tra và rà soát độ lệch đồng bộ âm thanh/hình ảnh trên timeline Premiere Pro.",
+    "clean-cut": "Tách cảnh video thông minh bằng AI Vision, lọc đoạn thừa và cắt viền mờ.",
+    "clip-inspector": "Thẩm định thư mục video, tạo dải ảnh xem trước (filmstrip) và chuẩn hoá dữ liệu cảnh.",
+    "comedy-timing": "Điều chỉnh nhịp dựng hài hước theo cấu trúc 4 nhịp (Mở đầu - Cao trào - Điểm nổ - Dư âm).",
+    "content-shield": "Tự động phát hiện, theo dõi và làm mờ watermark, logo hoặc vùng nội dung nhạy cảm.",
+    "context-aware-sfx": "Thiết kế âm thanh thông minh, chèn tiếng động và hiệu ứng chuyển cảnh khớp ngữ cảnh.",
+    "correct-color": "Chỉnh màu tự động cho clip Premiere Pro dựa trên bảng màu chuẩn trong timeline.",
+    "create-empty-premiere-project": "Khởi tạo dự án Premiere Pro mới, sạch sẽ từ dòng lệnh.",
+    "delegate-task": "Uỷ thác tác vụ phức tạp cho tiến trình tự hành OpenSpace xử lý.",
+    "diagnose": "Quy trình chẩn đoán lỗi sâu: tái hiện, cô lập, đặt giả thuyết, sửa lỗi và viết test hồi quy.",
+    "elevenlabs-agents": "Xây dựng, cấu hình và quản lý các hội thoại viên AI trên nền tảng ElevenLabs.",
+    "elevenlabs-assets": "Quản lý các tệp phương tiện và tài nguyên đã tải lên ElevenLabs.",
+    "elevenlabs-audio-effects": "Danh sách hiệu ứng lọc âm, vang âm (reverb) và âm nền cho giọng đọc.",
+    "elevenlabs-audio-isolation": "Tách giọng nói trong trẻo và lọc bỏ tạp âm nền khỏi tệp âm thanh.",
+    "elevenlabs-audio-native": "Nhúng trình phát âm thanh đọc bài tự động bằng AI vào trang web.",
+    "elevenlabs-dubbing": "Lồng tiếng đa ngôn ngữ cho video và âm thanh, giữ nguyên giọng người nói gốc.",
+    "elevenlabs-environment-variables": "Quản lý biến môi trường không gian làm việc cho agent và công cụ ElevenLabs.",
+    "elevenlabs-flows": "Chạy quy trình sinh nội dung đa bước kết hợp giọng nói, hình ảnh và video.",
+    "elevenlabs-forced-alignment": "Căn chỉnh văn bản khớp chính xác từng từ và ký tự với tệp âm thanh.",
+    "elevenlabs-history": "Tra cứu và tải lại lịch sử các bản thu giọng nói đã tạo.",
+    "elevenlabs-models": "Tra cứu danh sách các mô hình giọng nói AI trên ElevenLabs.",
+    "elevenlabs-music": "Sáng tác và tạo nhạc nền tự động từ mô tả văn bản.",
+    "elevenlabs-productions": "Quản lý các đơn hàng sản xuất âm thanh chuyên nghiệp ElevenProductions.",
+    "elevenlabs-pronunciation-dictionaries": "Quản lý từ điển phát âm tuỳ chỉnh cho các từ chuyên ngành hoặc tên riêng.",
+    "elevenlabs-samples": "Quản lý các mẫu giọng nói (voice samples) trong tài khoản.",
+    "elevenlabs-say": "Đọc to văn bản trực tiếp từ dòng lệnh hoặc xuất nhanh tệp MP3 lồng tiếng.",
+    "elevenlabs-service-accounts": "Quản lý khoá API (API keys) cho không gian làm việc ElevenLabs.",
+    "elevenlabs-shared": "Chuẩn xác thực, cờ dòng lệnh dùng chung và định dạng đầu ra cho ElevenLabs CLI.",
+    "elevenlabs-speech-engine": "Giao diện tạo giọng nói thời gian thực với độ trễ cực thấp.",
+    "elevenlabs-speech-to-speech": "Chuyển đổi giọng nói từ tệp thu âm sẵn sang một giọng nhân vật khác.",
+    "elevenlabs-speech-to-text": "Chuyển giọng nói thành văn bản kèm phân biệt người nói và mốc thời gian chi tiết.",
+    "elevenlabs-studio": "Tạo và quản lý các dự án thu âm dài tập trong ElevenLabs Studio.",
+    "elevenlabs-text-to-dialogue": "Tạo đoạn hội thoại nhiều nhân vật từ kịch bản văn bản với các giọng khác nhau.",
+    "elevenlabs-text-to-sound-effects": "Tạo hiệu ứng tiếng động (SFX) và âm thanh môi trường từ mô tả chữ.",
+    "elevenlabs-text-to-speech": "Chuyển đổi văn bản thành giọng đọc tự nhiên với giọng nhân vật tuỳ chọn.",
+    "elevenlabs-text-to-voice": "Thiết kế và tạo giọng nhân vật mới hoàn toàn từ mô tả văn bản.",
+    "elevenlabs-tokens": "Cấp mã token ngắn hạn dùng một lần cho ứng dụng hội thoại AI phía client.",
+    "elevenlabs-usage": "Thống kê mức sử dụng ký tự và tín dụng (credits) của tài khoản.",
+    "elevenlabs-user": "Xem thông tin tài khoản và gói thuê bao ElevenLabs hiện tại.",
+    "elevenlabs-voices": "Tra cứu và quản lý danh sách giọng đọc có sẵn hoặc tự tạo.",
+    "elevenlabs-webhooks": "Cấu hình webhook nhận sự kiện và kiểm tra lịch sử gửi từ ElevenLabs.",
+    "elevenlabs-workspace": "Truy cập và quản lý thông tin không gian làm việc chung.",
+    "elevenlabs-workspaces": "Vô hiệu hoá hoặc thu hồi khoá API của không gian làm việc.",
+    "generative_ui": "Dựng giao diện tương tác trực quan, biểu đồ và sơ đồ minh hoạ ngay trong khung chat.",
+    "grill-me": "Đặt câu hỏi phản biện sâu để kiểm tra kế hoạch và chốt mọi nhánh quyết định thiết kế.",
+    "grill-with-docs": "Phản biện kế hoạch đối chiếu với tài liệu kiến trúc và mô hình nghiệp vụ sẵn có.",
+    "gsheets": "Đọc, ghi, định dạng bảng tính, tạo biểu đồ và quản lý Google Sheets.",
+    "handoff": "Đóng gói ngữ cảnh công việc hiện tại thành tài liệu bàn giao gọn gàng cho phiên sau.",
+    "improve-codebase-architecture": "Khảo sát mã nguồn, tìm điểm nghẽn kiến trúc và đề xuất gom mô-đun dễ kiểm thử.",
+    "migrate-workflows": "Chuyển đổi các quy trình (workflows) cũ sang chuẩn kỹ năng SKILL.md mới.",
+    "pacing-editor": "Dựng timeline Premiere Pro tự động, làm mượt tốc độ (Optical Flow) và khớp nhạc/SFX.",
+    "plugin": "Quản lý, cài đặt, bật/tắt và đóng gói các bộ tiện ích mở rộng (plugins).",
+    "ponytail": "Ưu tiên giải pháp tối giản, gọn nhẹ nhất và dùng thư viện chuẩn thay vì làm phức tạp.",
+    "ponytail-audit": "Rà soát toàn bộ kho mã nguồn để tìm phần thừa, phức tạp hoá và có thể rút gọn.",
+    "ponytail-debt": "Tổng hợp danh sách các ghi chú nợ kỹ thuật (ponytail) trong mã nguồn.",
+    "ponytail-gain": "Hiển thị bảng thống kê mức tiết kiệm mã nguồn, chi phí và tốc độ.",
+    "ponytail-help": "Bảng tra cứu nhanh các chế độ và câu lệnh rút gọn mã nguồn.",
+    "ponytail-review": "Đánh giá thay đổi mã nguồn tập trung vào việc loại bỏ sự phức tạp không cần thiết.",
+    "premiere-cli": "Điều khiển và truy vấn Adobe Premiere Pro trực tiếp qua bảng kết nối Premiere Bridge.",
+    "premiere-execution": "Thực thi kế hoạch dựng phim thành thao tác cắt ghép trên timeline Premiere Pro.",
+    "premiere-log": "Ghi nhật ký tiến trình tự động hoá trực tiếp lên bảng điều khiển trong Premiere Pro.",
+    "qa": "Phiên kiểm thử chất lượng tương tác: ghi nhận lỗi từ người dùng và tạo phiếu báo lỗi chuẩn.",
+    "remove-pauses-from-track": "Tự động cắt bỏ khoảng lặng, đoạn ngập ngừng trên rãnh âm thanh và giữ đồng bộ hình.",
+    "request-refactor-plan": "Lập kế hoạch tái cấu trúc mã nguồn theo từng bước nhỏ an toàn.",
+    "review": "Kiểm tra mã nguồn song song theo hai tiêu chí: chuẩn mực kỹ thuật và đúng đặc tả yêu cầu.",
+    "skill-discovery": "Tìm kiếm và tái sử dụng kỹ năng có sẵn trong thư viện cục bộ hoặc đám mây.",
+    "source-understanding": "Phân tích video gốc đa phương thức: tách cảnh, tìm điểm nhấn chuyển động và âm thanh.",
+    "synchronize-clips": "Đồng bộ hoá âm thanh từ micro rời khớp chính xác với video quay từ máy ảnh.",
+    "tdd": "Phát triển phần mềm theo hướng kiểm thử trước (Viết test đỏ -> Viết code xanh -> Tối ưu).",
+    "to-issues": "Chia nhỏ bản kế hoạch hoặc PRD thành các nhiệm vụ độc lập dễ triển khai.",
+    "to-prd": "Tổng hợp nội dung thảo luận thành tài liệu đặc tả sản phẩm (PRD) hoàn chỉnh.",
+    "triage": "Phân loại, xác định mức ưu tiên và chuẩn bị quy trình xử lý cho lỗi hoặc yêu cầu mới.",
+    "ui-plugin-navigation": "Mở nhanh các bảng điều khiển tiện ích giao diện ngay trong thanh bên.",
+    "video-quality-control": "Kiểm tra chất lượng timeline tự động theo 5 tiêu chuẩn và sinh bản vá lỗi.",
+    "video-transform": "Biến đổi hình học video (phóng to, xoay nhẹ, lật gương) và chỉnh tốc độ giữ nguyên tông giọng.",
+    "visioncut": "Trợ lý dựng phim AI tự hành: đọc storyboard 12 khung hình, cắt cảnh và lên timeline 5 rãnh.",
+    "visual-editing": "Hiệu ứng hình ảnh, phóng cận cảnh nhấn mạnh (punch-in zoom) và lớp phủ che nội dung.",
+    "writing-beats": "Biên tập bài viết theo từng nhịp câu chuyện tương tác từng bước với người đọc.",
+    "writing-fragments": "Thu thập và ghi chép các mảnh ý tưởng, câu chữ sắc sảo làm nguyên liệu viết bài.",
+    "writing-shape": "Nhào nặn bản nháp thô hoặc ghi chú rời rạc thành bài viết hoàn chỉnh từng đoạn.",
+}
+
+
+def _localize_skill_description(name: str, desc: str, body: str = "") -> str:
+    """Chuẩn hoá và dịch mô tả kỹ năng sang tiếng Việt 1 dòng gọn gàng (T-23.3)."""
+    clean = (desc or "").strip()
+    if clean in ("", ">", ">-", "|", "|-"):
+        for line in (body or "").splitlines():
+            s = line.strip()
+            if s and not s.startswith(("#", "---", "```", "<!--")):
+                clean = s
+                break
+        else:
+            clean = ""
+    clean = sanitize_path_display(clean)
+    clean = fix_glued_words(clean)
+    clean = re.sub(r"\s+", " ", clean).strip()
+
+    key = (name or "").strip().lower()
+    if key in SKILL_VI_DESC_MAP:
+        # Nếu mô tả gốc là tiếng Anh hoặc bị rỗng/vỡ thì ưu tiên bản dịch chuẩn tiếng Việt
+        if not clean or not _VI_DIACRITIC_RE.search(clean):
+            return SKILL_VI_DESC_MAP[key]
+
+    if clean and _VI_DIACRITIC_RE.search(clean):
+        return _truncate_words(clean, 140)
+
+    if not clean:
+        return f"Kỹ năng chuyên biệt hỗ trợ tác vụ {name}."
+
+    # Dịch nhanh các mẫu câu tiếng Anh phổ biến trong SKILL.md
+    en_vi_replacements = [
+        (r"^Use when asked to\s+", "Sử dụng khi cần "),
+        (r"^Use when the user wants to\s+", "Sử dụng khi người dùng muốn "),
+        (r"^Use when the user asks to\s+", "Sử dụng khi người dùng yêu cầu "),
+        (r"^Use this skill when\s+", "Sử dụng kỹ năng này khi "),
+        (r"^Use when\s+", "Sử dụng khi "),
+        (r"^Build, configure and manage\s+", "Xây dựng, cấu hình và quản lý "),
+        (r"^Access and manage\s+", "Truy cập và quản lý "),
+        (r"^Manage\s+", "Quản lý "),
+        (r"^Generate\s+", "Tạo tự động "),
+        (r"^Convert\s+", "Chuyển đổi "),
+        (r"^Read, write, format, and manage\s+", "Đọc, ghi, định dạng và quản lý "),
+        (r"^Search\s+", "Tìm kiếm "),
+        (r"^Inspect\s+", "Kiểm tra và phân tích "),
+    ]
+    translated = clean
+    for pat, rep in en_vi_replacements:
+        if re.search(pat, translated, flags=re.IGNORECASE):
+            translated = re.sub(pat, rep, translated, count=1, flags=re.IGNORECASE)
+            break
+    first_sentence = re.split(r"(?<=[.!?])\s+", translated)[0]
+    return _truncate_words(first_sentence, 140)
 
 
 # ---------------------------------------------------------------------------
@@ -547,6 +808,14 @@ class WebAppServer:
         app.router.add_get("/api/upcoming", self._handle_upcoming)
         app.router.add_get("/api/profile/content",
                            self._handle_profile_content)
+        app.router.add_get("/api/profile/facts",
+                           self._handle_profile_facts)
+        app.router.add_get("/api/profile/facts/{id}",
+                           self._handle_profile_fact_detail)
+        app.router.add_post("/api/profile/facts/delete",
+                            self._handle_profile_fact_delete)
+        app.router.add_post("/api/profile/facts/{id}/delete",
+                            self._handle_profile_fact_delete)
         app.router.add_post("/api/policy", self._handle_policy)
         app.router.add_post("/api/connector", self._handle_connector)
         app.router.add_post("/api/approve", self._handle_approve)
@@ -657,10 +926,12 @@ class WebAppServer:
         app.router.add_get("/share/{token}", self._handle_public_share)
         # 1.6.0: Library management API cho Mini App
         app.router.add_get("/api/library/items", self._handle_library_items)
+        app.router.add_get("/api/library/items/{id}", self._handle_library_item_detail)
         app.router.add_get("/api/library/search", self._handle_library_search)
         app.router.add_post("/api/library/items/{id}/pin", self._handle_library_pin)
         app.router.add_post("/api/library/items/{id}/trash", self._handle_library_trash)
         app.router.add_post("/api/library/items/{id}/restore", self._handle_library_restore)
+        app.router.add_post("/api/library/items/{id}/delete", self._handle_library_delete)
         app.router.add_post("/api/library/items/{id}/rename", self._handle_library_rename)
         app.router.add_post("/api/library/items/{id}/share", self._handle_library_share)
         app.router.add_post("/api/library/items/{id}/unshare", self._handle_library_unshare)
@@ -948,10 +1219,15 @@ class WebAppServer:
             return []
         out = []
         for it in items:
+            k = it.get("kind") or "other"
             out.append({
                 "id": it.get("id"),
                 "title": it.get("name") or "",
                 "name": it.get("name") or "",
+                "kind": k,
+                "kind_label": LIBRARY_KIND_LABELS.get(k, "Tệp khác"),
+                "caption": it.get("caption") or "",
+                "source": it.get("source") or "",
                 "status": it.get("status") or "active",
                 "share_status": it.get("share_status") or "",
                 "pinned": bool(it.get("pinned")),
@@ -990,14 +1266,18 @@ class WebAppServer:
                 continue
             items.append({
                 "id": str(r.get("id")),
-                "name": payload[:60] or str(r.get("id")),
+                "name": _truncate_words(payload, 80) or str(r.get("id")),
                 "cron": r.get("cron", ""),
-                "prompt": payload[:120],
+                "prompt": payload[:240],
                 "enabled": bool(r.get("enabled")),
                 "next_run_at": r.get("next_run_at") or "",
                 "last_run_at": r.get("last_run_at") or "",
                 "toggleable": True, "kind": "schedule",
             })
+        _disambiguate_schedule_items(
+            [it for it in items if it.get("kind") == "schedule"],
+            title_key="name", full_key="prompt", max_len=80,
+        )
         # Sửa UI: công tắc Ideas tự sinh phải có mặt trong danh sách
         # thì frontend mới vẽ được nút gạt; trước đây backend chỉ
         # nhận id "ideas_auto" ở _handle_schedule nhưng _schedule_state
@@ -1058,13 +1338,18 @@ class WebAppServer:
                     "raw_id": str(r.get("id")),
                     "kind": "schedule",
                     "kind_label": "Lịch hẹn cá nhân",
-                    "title": payload[:80] or f"Lịch #{r.get('id')}",
+                    "title": _truncate_words(payload, 80) or f"Lịch #{r.get('id')}",
+                    "full_title": payload[:240],
                     "time_label": r.get("cron") or "",
                     "next_run_at": r.get("next_run_at") or "",
                     "can_modify_via_chat": True,
                     "chat_instruction": f"Huỷ bằng chat: 'huỷ lịch {r.get('id')}' hoặc bảo bot huỷ lịch",
                     "read_only": False,
                 })
+        _disambiguate_schedule_items(
+            [it for it in upcoming if it.get("kind") == "schedule"],
+            title_key="title", full_key="full_title", max_len=80,
+        )
 
         # 2. Heartbeat định kỳ
         try:
@@ -1136,6 +1421,8 @@ class WebAppServer:
         if self.dossier is not None:
             base = Path(self.cfg.dossier_dir)
             for name in sorted(self.dossier.files):
+                if name == "BOOTSTRAP.md":
+                    continue
                 updated = ""
                 fpath = base / name
                 if fpath.exists():
@@ -1144,8 +1431,12 @@ class WebAppServer:
                     updated = datetime.datetime.fromtimestamp(
                         os.path.getmtime(fpath)).isoformat(
                         timespec="seconds")
-                files.append({"name": name, "updated_at": updated,
-                              "chars": len(self.dossier.files[name])})
+                files.append({
+                    "name": name,
+                    "description": DOSSIER_FILE_DESCRIPTIONS.get(name, "Tài liệu hồ sơ agent"),
+                    "updated_at": updated,
+                    "chars": len(self.dossier.files[name]),
+                })
         facts = 0
         try:
             facts = len(await self.memory.active_facts(limit=10000))
@@ -1434,19 +1725,23 @@ class WebAppServer:
             if name and name != "all":
                 if name in self.dossier.files:
                     return web.json_response({
-                        "ok": True, "title": name,
-                        "content": self.dossier.files[name][:6000]})
+                        "ok": True,
+                        "title": name,
+                        "description": DOSSIER_FILE_DESCRIPTIONS.get(name, "Tài liệu hồ sơ agent"),
+                        "content": self.dossier.files[name][:8000]})
                 return web.json_response(
                     {"ok": False, "error": "không có file này"}, status=404)
-            # Trả về toàn bộ file dossier trong 1 request duy nhất (tối ưu tải < 3s, T-23.2)
+            # Trả về toàn bộ file dossier trong 1 request duy nhất (tối ưu tải < 3s, T-23.2 / T-23.3)
             files = []
-            for fname, fcontent in self.dossier.files.items():
+            for fname, fcontent in sorted(self.dossier.files.items()):
                 if fname == "BOOTSTRAP.md":
                     continue
                 files.append({
                     "name": fname,
                     "title": fname,
-                    "content": fcontent[:6000],
+                    "description": DOSSIER_FILE_DESCRIPTIONS.get(fname, "Tài liệu hồ sơ agent"),
+                    "chars": len(fcontent),
+                    "content": fcontent[:8000],
                 })
             return web.json_response({"ok": True, "files": files})
         if kind == "memory":
@@ -1461,6 +1756,145 @@ class WebAppServer:
                 "content": content})
         return web.json_response(
             {"ok": False, "error": "không có nội dung này"}, status=404)
+
+    async def _handle_profile_facts(self, request):
+        """Danh sách FACT thật đang hiệu lực trong Bộ nhớ dài hạn (T-23.3).
+        Hỗ trợ tìm kiếm (q), lọc chủ đề (topic) và lọc thời gian (days).
+        Số đếm total_active khớp 100% với facts_active ngoài tab Hồ sơ."""
+        if self.memory is None:
+            return web.json_response({
+                "ok": True, "total_active": 0, "count": 0,
+                "topics": [], "facts": []
+            })
+        q_raw = str(request.query.get("q") or request.query.get("query") or "").strip()
+        topic_filter = str(request.query.get("topic") or "").strip()
+        days_filter = str(request.query.get("days") or "").strip()
+
+        raw_facts = await self.memory.active_facts(limit=10000)
+        total_active = len(raw_facts)
+
+        cutoff_iso = ""
+        if days_filter:
+            from datetime import datetime, timedelta, timezone
+            now_dt = datetime.now(timezone.utc)
+            if days_filter == "today":
+                cutoff_iso = now_dt.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+            elif days_filter in ("7", "7d"):
+                cutoff_iso = (now_dt - timedelta(days=7)).isoformat()
+            elif days_filter in ("30", "30d"):
+                cutoff_iso = (now_dt - timedelta(days=30)).isoformat()
+
+        q_fold = fold_vi(q_raw) if q_raw else ""
+        topic_counts: dict[str, int] = {}
+        out_facts: list[dict] = []
+
+        for r in raw_facts:
+            subj = str(r.get("subject") or "")
+            fact_txt = str(r.get("fact") or "")
+            topic = _classify_fact_topic(subj, fact_txt)
+            topic_counts[topic] = topic_counts.get(topic, 0) + 1
+
+            created = str(r.get("created_at") or r.get("valid_from") or "")
+            if cutoff_iso and created and created < cutoff_iso:
+                continue
+            if topic_filter and topic_filter != "all" and topic != topic_filter:
+                continue
+            if q_fold:
+                haystack = fold_vi(f"{subj} {topic} {fact_txt} {r.get('source') or ''}")
+                if q_fold not in haystack:
+                    continue
+
+            out_facts.append({
+                "id": r.get("id"),
+                "subject": subj,
+                "topic": topic,
+                "topic_label": topic,
+                "fact": fact_txt,
+                "text": fact_txt,
+                "salience": float(r.get("salience") or 0.5),
+                "confidence": float(r.get("salience") or 0.5),
+                "source": str(r.get("source") or "Ghi nhớ từ hội thoại"),
+                "source_msg_id": r.get("source_msg_id"),
+                "valid_from": str(r.get("valid_from") or created),
+                "created_at": created,
+            })
+
+        topics_list = [
+            {"id": k, "name": k, "label": k, "count": v}
+            for k, v in sorted(topic_counts.items(), key=lambda x: (-x[1], x[0]))
+        ]
+        return web.json_response({
+            "ok": True,
+            "total_active": total_active,
+            "count": len(out_facts),
+            "filtered_count": len(out_facts),
+            "topics": topics_list,
+            "facts": out_facts,
+        })
+
+    async def _handle_profile_fact_detail(self, request):
+        """Chi tiết 1 fact trong Bộ nhớ dài hạn (T-23.3)."""
+        if self.memory is None:
+            return web.json_response({"ok": False, "error": "Chưa có bộ nhớ"}, status=503)
+        fid_str = request.match_info.get("id", "")
+        try:
+            fid = int(fid_str)
+        except ValueError:
+            return web.json_response({"ok": False, "error": "ID fact không hợp lệ"}, status=400)
+        row = await self.memory.get_fact(fid)
+        if not row or row.get("valid_to") is not None:
+            return web.json_response({"ok": False, "error": "Không tìm thấy fact này"}, status=404)
+        subj = str(row.get("subject") or "")
+        fact_txt = str(row.get("fact") or "")
+        topic = _classify_fact_topic(subj, fact_txt)
+        created = str(row.get("created_at") or row.get("valid_from") or "")
+        return web.json_response({
+            "ok": True,
+            "fact": {
+                "id": row.get("id"),
+                "subject": subj,
+                "topic": topic,
+                "topic_label": topic,
+                "fact": fact_txt,
+                "text": fact_txt,
+                "salience": float(row.get("salience") or 0.5),
+                "confidence": float(row.get("salience") or 0.5),
+                "source": str(row.get("source") or "Ghi nhớ từ hội thoại"),
+                "source_msg_id": row.get("source_msg_id"),
+                "valid_from": str(row.get("valid_from") or created),
+                "created_at": created,
+            },
+        })
+
+    async def _handle_profile_fact_delete(self, request):
+        """Xoá (đóng vòng đời valid_to) một fact khỏi Bộ nhớ dài hạn (T-23.3)."""
+        if self.memory is None:
+            return web.json_response({"ok": False, "error": "Chưa có bộ nhớ"}, status=503)
+        body = await self._json_body(request)
+        fid_raw = request.match_info.get("id") or body.get("id") or request.query.get("id")
+        try:
+            fid = int(fid_raw)
+        except (TypeError, ValueError):
+            return web.json_response({"ok": False, "error": "Thiếu hoặc sai mã fact (id)"}, status=400)
+        row = await self.memory.get_fact(fid)
+        if not row or row.get("valid_to") is not None:
+            return web.json_response({"ok": False, "error": "Fact không tồn tại hoặc đã bị xoá"}, status=404)
+        ts = now_iso()
+        await self.memory.db.execute(
+            "UPDATE memory_facts SET valid_to=? WHERE id=? AND valid_to IS NULL",
+            (ts, fid),
+        )
+        await self.memory.db.commit()
+        try:
+            await self.memory.log_trajectory("webapp", "fact_deleted", {"fact_id": fid})
+        except Exception:
+            pass
+        remaining = len(await self.memory.active_facts(limit=10000))
+        return web.json_response({
+            "ok": True,
+            "id": fid,
+            "facts_active": remaining,
+        })
 
     # ---------- actions ----------
     async def _json_body(self, request) -> dict:
@@ -1902,25 +2336,41 @@ class WebAppServer:
 
     # ---------- 1.3.0 (gói vá Mini App): kỹ năng + Vault ----------
     async def _handle_skills(self, request):
-        """Danh sách kỹ năng owner ĐỌC được: tên + mô tả + nguồn
+        """Danh sách kỹ năng owner ĐỌC được: tên + mô tả + nhóm + nguồn
         (đường file SKILL.md) — từ đúng catalog agent đang nạp
-        (đã qua vet + đủ điều kiện), không danh sách bịa."""
+        (đã qua vet + đủ điều kiện), không danh sách bịa.
+        Sửa T-23.3: chuẩn hoá mô tả vỡ ('>', '>-'), dịch mô tả sang
+        tiếng Việt ở tầng hiển thị và phân nhóm theo chủ đề."""
         if self.skills is None:
             return web.json_response(
                 {"ok": True, "available": False, "skills": []})
         paths = {}
+        bodies = {}
         try:
-            paths = {e["name"]: e.get("path", "")
-                     for e in self.skills.entries}
+            for e in self.skills.entries:
+                paths[e["name"]] = e.get("path", "")
+                bodies[e["name"]] = e.get("body", "")
         except Exception:
             pass
-        items = [{
-            "name": e["name"],
-            "description": e.get("description", ""),
-            "source": sanitize_path_display(paths.get(e["name"], "")),
-        } for e in self.skills.catalog()]
+        items = []
+        for e in self.skills.catalog():
+            sname = e["name"]
+            raw_desc = str(e.get("description") or "")
+            sbody = bodies.get(sname, "")
+            vi_desc = _localize_skill_description(sname, raw_desc, sbody)
+            clean_src = sanitize_path_display(paths.get(sname, ""))
+            group = _classify_skill_group(sname, raw_desc, clean_src)
+            items.append({
+                "name": sname,
+                "description": vi_desc,
+                "display_description": vi_desc,
+                "raw_description": raw_desc if raw_desc not in (">", ">-", "|", "|-") else "",
+                "group": group,
+                "group_label": group,
+                "source": clean_src,
+            })
         return web.json_response(
-            {"ok": True, "available": True, "skills": items})
+            {"ok": True, "available": True, "count": len(items), "skills": items})
 
     async def _handle_skill_detail(self, request):
         """Nội dung đầy đủ của 1 SKILL.md để owner mở đọc ngay
@@ -2850,7 +3300,97 @@ function copyContent() {{
             items = await self.library.search(query, kind=kind or None, status=status, limit=100)
         else:
             items = await self.library.list_items(status=status, limit=100)
+            if kind and kind != "all":
+                items = [it for it in items if (it.get("kind") or "other") == kind]
+        for it in items:
+            k = it.get("kind") or "other"
+            it["kind_label"] = LIBRARY_KIND_LABELS.get(k, "Tệp khác")
+            it["title"] = it.get("name") or it.get("title") or ""
         return web.json_response({"ok": True, "items": items})
+
+    async def _handle_library_item_detail(self, request):
+        """Chi tiết + Xem trước tài liệu trong Thư viện (T-23.3)."""
+        if self.library is None:
+            return web.json_response(
+                {"ok": False, "error": "Library chưa được kết nối"}, status=503)
+        try:
+            item_id = int(request.match_info["id"])
+        except (KeyError, ValueError):
+            return web.json_response(
+                {"ok": False, "error": "ID tài liệu không hợp lệ"}, status=400)
+        item = await self.library.get_item(item_id)
+        if item is None:
+            return web.json_response(
+                {"ok": False, "error": f"Không tìm thấy tài liệu #{item_id}"}, status=404)
+
+        item_dict = dict(item)
+        item_dict.pop("share_token", None)
+        k = item_dict.get("kind") or "other"
+        item_dict["kind_label"] = LIBRARY_KIND_LABELS.get(k, "Tệp khác")
+        item_dict["title"] = item_dict.get("name") or ""
+
+        raw_path = item_dict.get("trash_path") if item_dict.get("status") == "trashed" and item_dict.get("trash_path") else item_dict.get("path")
+        p = Path(raw_path) if raw_path else None
+        size_bytes = 0
+        preview_text = ""
+        media_url = ""
+
+        if p is not None and p.is_file() and not _denied_reason(p):
+            try:
+                size_bytes = p.stat().st_size
+            except Exception:
+                size_bytes = 0
+
+            ws = Path(self.cfg.workspace_dir).resolve()
+            try:
+                rel = p.resolve().relative_to(ws)
+                media_url = "/media/" + rel.as_posix()
+            except Exception:
+                media_url = ""
+
+            ext = p.suffix.lower()
+            if k in ("document", "code") or ext in (".md", ".txt", ".csv", ".py", ".json", ".html", ".css", ".js", ".yaml", ".yml", ".log"):
+                try:
+                    preview_text = p.read_text(encoding="utf-8", errors="replace")[:12000]
+                except Exception:
+                    preview_text = ""
+
+        item_dict["path"] = sanitize_path_display(str(item_dict.get("path") or ""))
+        item_dict["size_bytes"] = size_bytes
+        item_dict["preview_text"] = preview_text
+        item_dict["media_url"] = media_url
+        return web.json_response({"ok": True, "item": item_dict, **item_dict})
+
+    async def _handle_library_delete(self, request):
+        """Xoá hẳn tài liệu khỏi Thùng rác (T-23.3)."""
+        if self.library is None:
+            return web.json_response(
+                {"ok": False, "error": "Library chưa được kết nối"}, status=503)
+        try:
+            item_id = int(request.match_info["id"])
+        except (KeyError, ValueError):
+            return web.json_response(
+                {"ok": False, "error": "ID tài liệu không hợp lệ"}, status=400)
+        item = await self.library.get_item(item_id)
+        if item is None:
+            return web.json_response(
+                {"ok": False, "error": f"Không tìm thấy tài liệu #{item_id}"}, status=404)
+        trash_p = item.get("trash_path") or ""
+        if trash_p:
+            tp = Path(trash_p)
+            try:
+                if tp.is_file() and tp.resolve().is_relative_to(self.library.trash_dir.resolve()):
+                    tp.unlink()
+            except Exception:
+                pass
+        if self.memory is not None:
+            await self.memory.db.execute("DELETE FROM library_items WHERE id=?", (item_id,))
+            await self.memory.db.commit()
+            try:
+                await self.memory.log_trajectory("webapp", "library_deleted_permanently", {"item_id": item_id})
+            except Exception:
+                pass
+        return web.json_response({"ok": True, "item_id": item_id})
 
     async def _handle_library_search(self, request):
         if self.library is None:

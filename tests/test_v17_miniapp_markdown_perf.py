@@ -149,7 +149,19 @@ async def test_playwright_render_markdown_and_insets_real():
         pytest.skip("Playwright không có sẵn trong môi trường này")
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = None
+        last_err = None
+        for channel in (None, "msedge", "chrome"):
+            try:
+                kwargs = {"headless": True}
+                if channel:
+                    kwargs["channel"] = channel
+                browser = await p.chromium.launch(**kwargs)
+                break
+            except Exception as e:
+                last_err = e
+        if browser is None:
+            pytest.skip(f"Chromium/Edge không có sẵn trong môi trường này: {last_err}")
         context = await browser.new_context(viewport={"width": 390, "height": 844})
         page = await context.new_page()
 

@@ -706,6 +706,58 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 .img-preview-wrap{margin:var(--s2) 0; border-radius:8px; overflow:hidden; background:var(--surface2); max-width:100%; box-shadow:0 2px 8px rgba(0,0,0,0.12); border:1px solid rgba(255,255,255,0.08); box-sizing:border-box}
 .img-preview{display:block; width:100%; max-width:100%; height:auto; cursor:pointer; object-fit:contain}
 .img-sublink{display:block; font-size:11px; color:var(--ink3); word-break:break-all; margin-top:2px}
+/* ---------- T-23.3: Màn con Hồ sơ, Accordion nhóm & Xem trước tài liệu ---------- */
+.acc-group{border-bottom:1px solid var(--line)}
+.acc-group:last-child{border-bottom:0}
+.acc-head{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:var(--s2); min-height:48px; padding:var(--s2) var(--s4);
+  cursor:pointer; user-select:none; background:var(--surface);
+}
+.acc-head:active{background:var(--surface2)}
+.acc-title{font-size:var(--fs-body); font-weight:var(--fw-s); color:var(--ink); flex:1; min-width:0}
+.acc-count{font-size:var(--fs-cap); color:var(--ink2); flex-shrink:0}
+.acc-chev{color:var(--ink3); width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; transition:transform 180ms ease}
+.acc-group.open .acc-chev{transform:rotate(90deg)}
+.acc-body{display:none; background:var(--surface); border-top:1px solid var(--line)}
+.acc-group.open .acc-body{display:block}
+.acc-more{
+  display:block; width:100%; padding:10px var(--s4);
+  text-align:center; font-size:var(--fs-cap); font-weight:var(--fw-m);
+  color:var(--lav-deep); background:var(--surface2); border:0;
+  border-top:1px solid var(--line); cursor:pointer; font-family:inherit;
+}
+.acc-more:active{opacity:0.8}
+.filter-chips{
+  display:flex; gap:6px; overflow-x:auto; padding:2px 0 8px;
+  scrollbar-width:none; -webkit-overflow-scrolling:touch;
+}
+.filter-chips::-webkit-scrollbar{display:none}
+.filter-chip{
+  flex:0 0 auto; height:32px; padding:0 12px; border-radius:999px;
+  border:1px solid var(--line); background:var(--surface);
+  color:var(--ink2); font-size:var(--fs-cap); font-weight:var(--fw-m);
+  font-family:inherit; cursor:pointer; white-space:nowrap;
+}
+.filter-chip.active{
+  background:var(--tint-lav); color:var(--lav-deep);
+  border-color:transparent; font-weight:var(--fw-s);
+}
+.lib-more-btn{
+  width:36px; height:36px; border-radius:8px; border:0;
+  background:transparent; color:var(--ink2); font-size:18px;
+  display:inline-flex; align-items:center; justify-content:center;
+  cursor:pointer; flex-shrink:0;
+}
+.lib-more-btn:active{background:var(--surface2)}
+.preview-box{
+  padding:var(--s4); font-size:var(--fs-body); line-height:var(--lh-body);
+  color:var(--ink); overflow-x:auto; max-width:100%;
+}
+.meta-table{width:100%; border-collapse:collapse; font-size:var(--fs-cap)}
+.meta-table td{padding:8px var(--s4); border-bottom:1px solid var(--line); vertical-align:top}
+.meta-table tr:last-child td{border-bottom:0}
+.meta-table td.k{color:var(--ink2); width:38%; font-weight:var(--fw-m)}
 
 @media (prefers-reduced-motion: reduce){
   *, *:after{animation:none !important; transition:none !important}
@@ -901,32 +953,159 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   </div>
 </div>
 
-<!-- ================= TAB: HỒ SƠ ================= -->
+<!-- ================= TAB: HỒ SƠ (T-23.3: 4 hàng điều hướng mở 4 màn con) ================= -->
+<!-- HỒ SƠ · BỘ NHỚ -->
 <section id="tab-hoso" class="hidden">
-  <div class="bigcard bc-dossier" id="card-dossier">
-    <div class="bc-top">HỒ SƠ</div>
-    <div class="bc-name">Hồ sơ của agent</div>
-    <div class="bc-date" id="dossier-date">—</div>
-  </div>
-  <div class="bigcard bc-memory" id="card-memory">
-    <div class="bc-top">BỘ NHỚ</div>
-    <div class="bc-name">Bộ nhớ dài hạn</div>
-    <div class="bc-date" id="memory-date">—</div>
+  <div class="card">
+    <div class="row" id="card-dossier" data-open="screen-sub-dossier">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+      </div>
+      <div class="r-main">
+        <div class="r-title">Hồ sơ của agent</div>
+        <div class="r-sub" id="dossier-date">—</div>
+      </div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div>
+    <div class="row" id="card-memory" data-open="screen-sub-memory">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a7 7 0 0 0-7 7c0 2.5 1.3 4.7 3.2 6l.8 4h6l.8-4A7 7 0 0 0 19 10a7 7 0 0 0-7-7z"/><path d="M9 21h6"/></svg>
+      </div>
+      <div class="r-main">
+        <div class="r-title">Bộ nhớ dài hạn</div>
+        <div class="r-sub" id="memory-date">—</div>
+      </div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div>
+    <div class="row" id="card-skills" data-open="screen-sub-skills">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.5l1.9 5.6 5.6 1.9-5.6 1.9L12 18.5l-1.9-5.6L4.5 11l5.6-1.9z"/></svg>
+      </div>
+      <div class="r-main">
+        <div class="r-title">Kỹ năng</div>
+        <div class="r-sub" id="skills-count-sub">—</div>
+      </div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div>
+    <div class="row" id="card-library" data-open="screen-sub-library">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      </div>
+      <div class="r-main">
+        <div class="r-title">Thư viện tài liệu</div>
+        <div class="r-sub" id="library-count-sub">—</div>
+      </div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div>
   </div>
   <div class="bc-note">CẨN TRỌNG KHI TRUY CẬP — đây là dữ liệu
     riêng của agent, chỉ chủ nhân mới nên mở.</div>
+</section>
+
+<!-- Màn con 1: Hồ sơ của agent (danh sách file dossier) -->
+<section id="screen-sub-dossier" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
+  <h2 class="screen-title">Hồ sơ của agent</h2>
   <div class="card">
-    <div class="card-title" id="skills-card-title">Kỹ năng</div>
-    <div style="margin-bottom:8px">
-      <input id="skills-search" class="field-input" type="text" placeholder="Tìm kiếm kỹ năng..." style="margin:0">
-    </div>
-    <div id="skills-box"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">Thư viện tài liệu (Artifacts)</div>
-    <div id="library-box"></div>
+    <div class="card-title" id="dossier-files-title">Tệp hồ sơ</div>
+    <div id="dossier-files-list"></div>
   </div>
 </section>
+
+<!-- Màn con 2: Bộ nhớ dài hạn (tìm kiếm + lọc thời gian + nhóm chủ đề gập/mở) -->
+<section id="screen-sub-memory" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
+  <h2 class="screen-title" id="memory-screen-title">Bộ nhớ dài hạn</h2>
+  <div style="margin-bottom:8px">
+    <input id="memory-search" class="field-input" type="text" placeholder="Tìm ký ức theo từ khoá (hỗ trợ không dấu)..." style="margin:0">
+  </div>
+  <div class="filter-chips" id="memory-time-chips">
+    <button type="button" class="filter-chip active" data-mem-days="">Tất cả</button>
+    <button type="button" class="filter-chip" data-mem-days="today">Hôm nay</button>
+    <button type="button" class="filter-chip" data-mem-days="7d">7 ngày</button>
+    <button type="button" class="filter-chip" data-mem-days="30d">30 ngày</button>
+  </div>
+  <div class="card" id="memory-groups-box"></div>
+</section>
+
+<!-- Màn chi tiết 1 fact trong Bộ nhớ dài hạn -->
+<section id="screen-fact-detail" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
+  <h2 class="screen-title" id="fact-detail-title">Chi tiết ký ức</h2>
+  <div class="card">
+    <div class="preview-box" id="fact-detail-text"></div>
+    <table class="meta-table" id="fact-detail-meta"></table>
+  </div>
+  <div class="btn-row" style="margin-top:var(--s3)">
+    <button class="btn btn-danger" id="btn-fact-delete">Xoá ký ức này</button>
+  </div>
+</section>
+
+<!-- Màn con 3: Kỹ năng (tìm kiếm + nhóm danh mục gập/mở) -->
+<section id="screen-sub-skills" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
+  <h2 class="screen-title" id="skills-card-title">Kỹ năng</h2>
+  <div style="margin-bottom:10px">
+    <input id="skills-search" class="field-input" type="text" placeholder="Tìm kiếm kỹ năng theo tên hoặc mô tả..." style="margin:0">
+  </div>
+  <div class="card" id="skills-box"></div>
+</section>
+
+<!-- Màn con 4: Thư viện tài liệu (tìm kiếm + lọc loại + danh sách hàng chuẩn + menu ⋯) -->
+<section id="screen-sub-library" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+    <h2 class="screen-title" id="library-screen-title" style="margin-bottom:0;">Thư viện tài liệu</h2>
+    <button class="btn btn-ghost btn-sm" id="lib-trash-view" style="min-height:32px; padding:0 10px; font-size:12px;">Thùng rác</button>
+  </div>
+  <div style="margin-bottom:8px">
+    <input id="library-search" class="field-input" type="text" placeholder="Tìm tài liệu theo tên..." style="margin:0">
+  </div>
+  <div class="filter-chips" id="library-kind-chips">
+    <button type="button" class="filter-chip active" data-lib-kind="">Tất cả</button>
+    <button type="button" class="filter-chip" data-lib-kind="document">Văn bản</button>
+    <button type="button" class="filter-chip" data-lib-kind="image">Hình ảnh</button>
+    <button type="button" class="filter-chip" data-lib-kind="code">Mã nguồn</button>
+    <button type="button" class="filter-chip" data-lib-kind="spreadsheet">Bảng biểu</button>
+    <button type="button" class="filter-chip" data-lib-kind="archive">Tệp nén</button>
+  </div>
+  <div class="card" id="library-box"></div>
+</section>
+
+<!-- Màn con cấp 3: Xem trước / Chi tiết tài liệu Thư viện -->
+<section id="screen-library-preview" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
+  <h2 class="screen-title" id="lib-preview-title">Tài liệu</h2>
+  <div class="card" style="margin-bottom:var(--s3)">
+    <div class="card-title">Xem trước nội dung</div>
+    <div id="lib-preview-body" class="preview-box"></div>
+  </div>
+  <div class="card" style="margin-bottom:var(--s3)">
+    <div class="card-title">Thông tin tệp</div>
+    <table class="meta-table" id="lib-preview-meta"></table>
+  </div>
+  <div class="btn-row" id="lib-preview-actions" style="gap:8px; flex-wrap:wrap;"></div>
+</section>
+
+<!-- Màn con cấp 3: Thùng rác Thư viện tài liệu -->
+<section id="screen-library-trash" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
+  <h2 class="screen-title">Thùng rác tài liệu</h2>
+  <div class="card" id="lib-trash-box"></div>
+</section>
+
+<!-- Bottom Sheet menu tác vụ của 1 tài liệu (khi bấm ⋯) -->
+<div id="modal-lib-menu" class="modal-overlay hidden" style="z-index:120;">
+  <div class="modal-card">
+    <div class="sheet-handle-bar"></div>
+    <div class="modal-top-row">
+      <span class="badge-scheduled" id="lib-menu-kind">Tài liệu</span>
+      <button class="modal-close-btn" id="btn-close-lib-menu">✕</button>
+    </div>
+    <div class="modal-title" id="lib-menu-title" style="font-size:17px; margin-bottom:12px;">Tùy chọn tài liệu</div>
+    <div style="display:flex; flex-direction:column; gap:8px;" id="lib-menu-buttons"></div>
+  </div>
+</div>
 
 <!-- xem nội dung hồ sơ/bộ nhớ -->
 <section id="screen-profile" class="hidden">
@@ -1435,6 +1614,10 @@ const MAIN_TABS = ["viec","pheduyet","lich","hoso","caidat"];
 const TAB_TITLES = {"viec":"Việc","pheduyet":"Phê duyệt","lich":"Lịch","hoso":"Hồ sơ","caidat":"Cài đặt"};
 const TAB_OF_SCREEN = {"screen-task":"viec","screen-profile":"hoso",
   "screen-skill":"hoso",
+  "screen-sub-dossier":"hoso","screen-sub-memory":"hoso",
+  "screen-fact-detail":"hoso","screen-sub-skills":"hoso",
+  "screen-sub-library":"hoso","screen-library-preview":"hoso",
+  "screen-library-trash":"hoso",
   "screen-connectors":"caidat","screen-vault":"caidat",
   "screen-policy":"caidat","screen-system":"caidat",
   "screen-feed":"caidat",
@@ -1445,6 +1628,10 @@ const TAB_OF_SCREEN = {"screen-task":"viec","screen-profile":"hoso",
   "screen-google-config":"caidat"};
 const SCREEN_TITLES = {
   "screen-task":"Chi tiết việc","screen-profile":"Hồ sơ","screen-skill":"Kỹ năng",
+  "screen-sub-dossier":"Hồ sơ của agent","screen-sub-memory":"Bộ nhớ dài hạn",
+  "screen-fact-detail":"Chi tiết ký ức","screen-sub-skills":"Kỹ năng",
+  "screen-sub-library":"Thư viện tài liệu","screen-library-preview":"Xem trước tài liệu",
+  "screen-library-trash":"Thùng rác tài liệu",
   "screen-system":"Thiết bị & hệ thống","screen-feed":"Feed chủ động",
   "screen-connectors":"Công cụ kết nối","screen-google-config":"Cấu hình Google",
   "screen-mktcat":"Chợ MCP","screen-listing":"Chi tiết connector",
@@ -1452,6 +1639,7 @@ const SCREEN_TITLES = {
   "screen-vault":"Kho lưu trữ an toàn","screen-policy":"Quyền",
   "screen-connector-policy":"Quyền connector"
 };
+let profileReturnScreen = "screen-sub-dossier";
 function showMain(tab){
   stopOpPoll();
   mainTab = tab; subScreen = null;
@@ -1498,6 +1686,17 @@ function showSub(id){
     renderSystem();
   } else if (id === "screen-feed") {
     renderFeed();
+  } else if (id === "screen-sub-dossier") {
+    renderDossierList();
+  } else if (id === "screen-sub-memory") {
+    loadMemoryFacts();
+  } else if (id === "screen-sub-skills") {
+    if (SKILLS) renderSkills();
+    else loadSkills();
+  } else if (id === "screen-sub-library") {
+    renderLibrary();
+  } else if (id === "screen-library-trash") {
+    loadLibraryTrash();
   }
 }
 function handleNativeBack(){
@@ -1511,6 +1710,14 @@ function handleNativeBack(){
     showSub("screen-policy");
   } else if (subScreen === "screen-google-config") {
     showSub("screen-connectors");
+  } else if (subScreen === "screen-profile") {
+    showSub(profileReturnScreen || "screen-sub-dossier");
+  } else if (subScreen === "screen-fact-detail") {
+    showSub("screen-sub-memory");
+  } else if (subScreen === "screen-skill") {
+    showSub("screen-sub-skills");
+  } else if (subScreen === "screen-library-preview" || subScreen === "screen-library-trash") {
+    showSub("screen-sub-library");
   } else {
     showMain(TAB_OF_SCREEN[subScreen] || "viec");
   }
@@ -1559,11 +1766,69 @@ document.addEventListener("click", (e) => {
     openTask(taskEl.dataset.task);
     return;
   }
+  const dossFileEl = e.target.closest("[data-dossier-file]");
+  if (dossFileEl && dossFileEl.dataset.dossierFile) {
+    e.preventDefault();
+    haptic("select");
+    openDossierFile(dossFileEl.dataset.dossierFile, dossFileEl.dataset.dossierLabel);
+    return;
+  }
+  const memGroupEl = e.target.closest("[data-mem-group]");
+  if (memGroupEl && memGroupEl.dataset.memGroup) {
+    e.preventDefault();
+    haptic("select");
+    toggleMemoryGroup(memGroupEl.dataset.memGroup);
+    return;
+  }
+  const memMoreEl = e.target.closest("[data-mem-more]");
+  if (memMoreEl && memMoreEl.dataset.memMore) {
+    e.preventDefault();
+    haptic("select");
+    expandMemoryGroupLimit(memMoreEl.dataset.memMore);
+    return;
+  }
+  const factEl = e.target.closest("[data-fact-id]");
+  if (factEl && factEl.dataset.factId) {
+    e.preventDefault();
+    haptic("select");
+    openFactDetail(factEl.dataset.factId);
+    return;
+  }
+  const skillGroupEl = e.target.closest("[data-skill-group]");
+  if (skillGroupEl && skillGroupEl.dataset.skillGroup) {
+    e.preventDefault();
+    haptic("select");
+    toggleSkillGroup(skillGroupEl.dataset.skillGroup);
+    return;
+  }
+  const skillMoreEl = e.target.closest("[data-skill-more]");
+  if (skillMoreEl && skillMoreEl.dataset.skillMore) {
+    e.preventDefault();
+    haptic("select");
+    expandSkillGroupLimit(skillMoreEl.dataset.skillMore);
+    return;
+  }
   const skillEl = e.target.closest("[data-skill]");
   if (skillEl && skillEl.dataset.skill) {
     e.preventDefault();
     haptic("select");
     openSkill(skillEl.dataset.skill);
+    return;
+  }
+  const libMenuBtn = e.target.closest("[data-lib-menu]");
+  if (libMenuBtn && libMenuBtn.dataset.libMenu) {
+    e.preventDefault();
+    e.stopPropagation();
+    haptic("select");
+    openLibMenu(libMenuBtn.dataset.libMenu);
+    return;
+  }
+  const libItemEl = e.target.closest("[data-lib-item]");
+  if (libItemEl && libItemEl.dataset.libItem) {
+    if (e.target.closest("button")) return;
+    e.preventDefault();
+    haptic("select");
+    openLibraryPreview(libItemEl.dataset.libItem);
     return;
   }
   const connPolEl = e.target.closest("[data-open-conn-pol]");
@@ -2195,8 +2460,10 @@ function resolveMediaUrl(p){
 
 function renderMd(text){
   if (!text) return "";
+  // 0. Strip YAML frontmatter ở đầu tài liệu (ví dụ SKILL.md)
+  let raw = String(text).replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "");
   // 1. Strip HTML comments (Q-02)
-  let raw = String(text).replace(/<!--[\s\S]*?-->/g, "");
+  raw = raw.replace(/<!--[\s\S]*?-->/g, "");
   // 2. Sửa dính chữ do thiếu khoảng trắng (Q-02)
   raw = fixGluedWords(raw);
   // 3. Ẩn đường dẫn tuyệt đối của máy chạy (Q-02 / T-23.2)
@@ -2894,193 +3161,395 @@ async function openHeartbeatModal(){
   modal.classList.remove("hidden");
 }
 
-/* ---------------- Hồ sơ ---------------- */
+/* ---------------- Hồ sơ & 4 màn con (T-23.3) ---------------- */
+function stripAccents(str){
+  if (!str) return "";
+  return String(str)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+}
+function fmtBytes(n){
+  const b = Number(n) || 0;
+  if (b <= 0) return "";
+  if (b < 1024) return b + " B";
+  if (b < 1048576) return (b / 1024).toFixed(1).replace(/\.0$/, "") + " KB";
+  return (b / 1048576).toFixed(1).replace(/\.0$/, "") + " MB";
+}
+function confirmDialog(msg, onYes){
+  if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showConfirm){
+    window.Telegram.WebApp.showConfirm(msg, ok => { if (ok) onYes(); });
+  } else {
+    if (confirm(msg)) onYes();
+  }
+}
+
 function renderProfile(){
   const p = (S && S.profile) || {dossier_files:[], facts_active:0,
     skills:{available:false, count:0, names:[]}};
-  const latest = p.dossier_files.reduce((a, f) =>
+  const dFiles = (p.dossier_files || []).filter(f => f.name !== "BOOTSTRAP.md");
+  const latest = dFiles.reduce((a, f) =>
     (f.updated_at > a ? f.updated_at : a), "");
-  $("dossier-date").textContent = latest
-    ? "Cập nhật " + todayLabel(latest) + " · " +
-      p.dossier_files.length + " file" : "Chưa có dữ liệu";
-  $("memory-date").textContent = p.facts_active +
-    " fact đang hiệu lực";
+  $("dossier-date").textContent = dFiles.length
+    ? (latest ? "Cập nhật " + todayLabel(latest) + " · " : "") +
+      dFiles.length + " tệp hồ sơ"
+    : "Chưa có dữ liệu";
+  const factsCount = (MEM_FACTS && typeof MEM_FACTS.total_active === "number")
+    ? MEM_FACTS.total_active
+    : (p.facts_active || 0);
+  $("memory-date").textContent = factsCount + " fact đang hiệu lực";
   const sk = p.skills || {};
+  const skCount = (SKILLS && Array.isArray(SKILLS.skills))
+    ? SKILLS.skills.length
+    : (sk.count || 0);
+  const skSub = $("skills-count-sub");
+  if (skSub) {
+    skSub.textContent = skCount ? (skCount + " kỹ năng đã nạp") : "Chưa nạp kỹ năng nào";
+  }
+  const libList = (S && S.library) || [];
+  const libSub = $("library-count-sub");
+  if (libSub) {
+    libSub.textContent = libList.length
+      ? (libList.length + " tài liệu đã lưu")
+      : "Chưa có tài liệu nào";
+  }
+  if (subScreen === "screen-sub-dossier") renderDossierList();
   if (SKILLS) renderSkills();
-  else $("skills-box").innerHTML = sk.available
-    ? '<div class="row static"><div class="glyph">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.5l1.9 5.6 5.6 1.9-5.6 1.9L12 18.5l-1.9-5.6L4.5 11l5.6-1.9z"/></svg></div>' +
-      '<div class="r-main"><div class="r-title">' + sk.count +
-      ' kỹ năng đã nạp</div></div></div>'
-    : '<div class="empty">Chưa nạp kỹ năng nào.</div>';
   renderLibrary();
 }
-/* Thư viện tài liệu (Artifacts 1.6.0) */
-function renderLibrary(){
-  const box = $("library-box");
+
+/* --- Màn con 1: Hồ sơ của agent (danh sách file dossier) --- */
+const DOSSIER_DESC_FALLBACK = {
+  "IDENTITY.md": "Danh tính, vai trò và cách xưng hô của agent",
+  "SOUL.md": "Tính cách, giọng điệu và nguyên tắc ứng xử cốt lõi",
+  "USER.md": "Thông tin và thói quen làm việc của chủ nhân",
+  "MEMORY.md": "Tóm tắt ký ức nền tảng dài hạn",
+  "HEARTBEAT.md": "Danh sách việc kiểm tra định kỳ mỗi nhịp",
+  "PROACTIVE_PREFERENCES.md": "Sở thích và quy tắc chủ động nhắc việc",
+  "STYLE_MEMORY.md": "Phong cách diễn đạt đã học từ chủ nhân",
+  "TOOLS.md": "Ghi chú cách sử dụng công cụ và môi trường"
+};
+function renderDossierList(){
+  const box = $("dossier-files-list");
   if (!box) return;
-  const list = (S && S.library) || [];
-  if (!list.length){
-    box.innerHTML = '<div class="empty">Chưa có tài liệu nào trong thư viện. ' +
-      'Khi Mulon tạo artifact hoặc tài liệu, kết quả sẽ lưu ở đây.</div>';
+  const p = (S && S.profile) || {dossier_files:[]};
+  const files = (p.dossier_files || []).filter(f => f.name !== "BOOTSTRAP.md");
+  const titleEl = $("dossier-files-title");
+  if (titleEl) titleEl.textContent = "Tệp hồ sơ (" + files.length + ")";
+  if (!files.length){
+    box.innerHTML = '<div class="empty">Chưa có tệp hồ sơ nào.</div>';
     return;
   }
-  box.innerHTML = '<div class="btn-row" style="padding:0 0 8px"><button class="btn btn-ghost btn-sm" id="lib-trash-view">Xem thùng rác</button></div>' + list.map(it => {
-    // sửa 1.6.2: bỏ pill tím "Đã ghim" — trạng thái chỉ còn chữ + chấm nhỏ
-    // trung tính (var(--ink2)/var(--ink3) đã có trong token), không đổi layout.
-    const pinBadge = it.pinned
-      ? '<span style="color:var(--ink2);font-size:11px;margin-right:6px"><span style="color:var(--ink3)">●</span> Đã ghim</span>'
-      : '';
-    const pinLabel = it.pinned ? "Bỏ ghim" : "Ghim";
-    const wc = it.word_count ? (it.word_count + " từ · ") : "";
-    const shared = it.share_status === "active" || it.share_status === "pending_host";
-    return '<div class="card" style="padding:var(--s3) var(--s4); margin-bottom:var(--s2); border:1px solid var(--line);">' +
-      '<div style="min-width:0;">' +
-      '<div class="r-title" style="white-space:normal; word-break:break-word; line-height:1.35; margin-bottom:4px;">' + pinBadge + esc(it.title) + '</div>' +
-      '<div class="r-sub" style="font-size:var(--fs-micro); color:var(--ink3);">' + esc(wc + todayLabel(it.created_at)) + (shared ? " · Đang chia sẻ" : "") + '</div>' +
+  box.innerHTML = files.map(f => {
+    const desc = f.description || DOSSIER_DESC_FALLBACK[f.name] || "Tệp cấu hình hồ sơ của agent";
+    const meta = [];
+    if (desc) meta.push(desc);
+    if (f.updated_at) meta.push("Cập nhật " + todayLabel(f.updated_at));
+    return '<div class="row" data-dossier-file="' + esc(f.name) + '" data-dossier-label="' + esc(f.label || f.name) + '">' +
+      '<div class="r-main">' +
+        '<div class="r-title">' + esc(f.name) + '</div>' +
+        '<div class="r-sub">' + esc(meta.join(" · ")) + '</div>' +
       '</div>' +
-      '<div class="btn-row" style="padding:0; margin-top:8px; gap:6px; flex-wrap:wrap;">' +
-      '<button class="btn btn-soft btn-sm" style="min-height:34px; padding:0 12px; font-size:12px; flex:unset; min-width:unset;" data-lib-share="' + esc(it.id) + '">Chia sẻ</button>' +
-      (shared ? '<button class="btn btn-ghost btn-sm" style="min-height:34px; padding:0 12px; font-size:12px; flex:unset; min-width:unset;" data-lib-unshare="' + esc(it.id) + '">Hủy chia sẻ</button>' : '') +
-      '<button class="btn btn-ghost btn-sm" style="min-height:34px; padding:0 12px; font-size:12px; flex:unset; min-width:unset;" data-lib-pin="' + esc(it.id) + '" data-pinned="' + (it.pinned ? 1 : 0) + '">' + esc(pinLabel) + '</button>' +
-      '<button class="btn btn-ghost btn-sm" style="min-height:34px; padding:0 12px; font-size:12px; flex:unset; min-width:unset;" data-lib-rename="' + esc(it.id) + '" data-title="' + esc(it.title) + '">Sửa tên</button>' +
-      '<button class="btn btn-danger-text btn-sm" style="min-height:34px; padding:0 12px; font-size:12px; flex:unset; min-width:unset;" data-lib-trash="' + esc(it.id) + '">Xóa</button>' +
-      '</div></div>';
+      '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
+    '</div>';
   }).join("");
-  const trashBtn = $("lib-trash-view");
-  if (trashBtn) trashBtn.addEventListener("click", async () => {
-    try {
-      const d = await api("/api/library/items?status=trashed");
-      const items = (d && d.items) || [];
-      box.innerHTML = '<div class="btn-row" style="padding:0 0 8px"><button class="btn btn-ghost btn-sm" id="lib-back">Quay lại tài liệu</button></div>' +
-        (items.length ? items.map(it => '<div class="row static"><div class="r-main"><div class="r-title">' + esc(it.name || it.title) + '</div></div>' +
-          '<div class="btn-row" style="padding:0;gap:4px"><button class="btn btn-soft btn-sm" data-lib-restore="' + esc(it.id) + '">Khôi phục</button></div></div>').join("")
-        : '<div class="empty">Thùng rác trống.</div>');
-      const back = $("lib-back");
-      if (back) back.addEventListener("click", async () => { await load(); });
-      box.querySelectorAll("[data-lib-restore]").forEach(btn => btn.addEventListener("click", async () => {
-        try {
-          const r = await api("/api/library/items/" + encodeURIComponent(btn.dataset.libRestore) + "/restore", "POST", {});
-          if (r && r.ok === false) throw new Error(r.error || "không khôi phục được");
-          toast("Đã khôi phục tài liệu."); await load();
-        } catch (e) { toast(e.message); }
-      }));
-    } catch (e) { toast(e.message); }
-  });
-
-  box.querySelectorAll("[data-lib-share]").forEach(btn =>
-    btn.addEventListener("click", async () => {
-      const id = btn.dataset.libShare;
-      try {
-        const r = await api("/api/library/items/" + encodeURIComponent(id) + "/share", "POST", {});
-        if (r.url) {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(r.url);
-            toast("Đã sao chép link chia sẻ!");
-          } else {
-            promptModal("Link chia sẻ (sao chép bên dưới):", r.url, null, true);
-          }
-        } else {
-          toast("Không tạo được link chia sẻ.");
-        }
-      } catch (e) { toast(e.message); }
-    }));
-
-  box.querySelectorAll("[data-lib-unshare]").forEach(btn =>
-    btn.addEventListener("click", async () => {
-      try {
-        const r = await api("/api/library/items/" + encodeURIComponent(btn.dataset.libUnshare) + "/unshare", "POST", {});
-        if (r && r.ok === false) throw new Error(r.error || "không hủy chia sẻ được");
-        toast("Đã hủy link chia sẻ."); await load();
-      } catch (e) { toast(e.message); }
-    }));
-  box.querySelectorAll("[data-lib-trash]").forEach(btn =>
-    btn.addEventListener("click", async () => {
-      try {
-        const r = await api("/api/library/items/" + encodeURIComponent(btn.dataset.libTrash) + "/trash", "POST", {});
-        if (r && r.ok === false) throw new Error(r.error || "không xóa được");
-        toast("Đã cho tài liệu vào thùng rác."); await load();
-      } catch (e) { toast(e.message); }
-    }));
-  box.querySelectorAll("[data-lib-pin]").forEach(btn =>
-    btn.addEventListener("click", async () => {
-      const id = btn.dataset.libPin;
-      const curPinned = btn.dataset.pinned === "1";
-      try {
-        const r = await api("/api/library/items/" + encodeURIComponent(id) + "/pin", "POST", {pinned: !curPinned});
-        if (r && r.ok === false) throw new Error(r.error || "không ghim được");
-        toast(!curPinned ? "Đã ghim tài liệu lên đầu." : "Đã bỏ ghim tài liệu.");
-        await load();
-      } catch (e) { toast(e.message); }
-    }));
-
-  box.querySelectorAll("[data-lib-rename]").forEach(btn =>
-    btn.addEventListener("click", () => {
-      const id = btn.dataset.libRename;
-      const oldTitle = btn.dataset.title;
-      promptModal("Nhập tên mới cho tài liệu:", oldTitle, async (newTitle) => {
-        if (newTitle && newTitle.trim() && newTitle.trim() !== oldTitle) {
-          try {
-            // Sửa UI: backend đọc {name}, frontend cũ gửi {title}
-            // nên đổi tên luôn fail mà vẫn toast thành công. Gửi
-            // đúng {name} và kiểm tra ok trong body (HTTP vẫn 200
-            // khi backend trả ok:false nên api() không tự throw).
-            const r = await api("/api/library/items/" + encodeURIComponent(id) + "/rename", "POST", {name: newTitle.trim()});
-            if (r && r.ok === false) throw new Error(r.error || "không đổi tên được");
-            toast("Đã đổi tên tài liệu.");
-            await load();
-          } catch (e) { toast(e.message); }
-        }
-      });
-    }));
 }
-/* Kỹ năng ĐỌC ĐƯỢC (1.3.0): danh sách từ /api/skills (tên +
-   mô tả + nguồn), bấm 1 kỹ năng mở màn chi tiết đọc toàn văn
-   SKILL.md — thay cảnh cũ chỉ thấy tên + số lượng. */
+async function openDossierFile(name, label){
+  profileReturnScreen = "screen-sub-dossier";
+  showSub("screen-profile");
+  $("profile-title").textContent = label || name || "Hồ sơ của agent";
+  $("profile-content").innerHTML = '<div class="skel"><div class="bar w80"></div><div class="bar w60"></div><div class="bar w90"></div></div>';
+  try {
+    const d = await api("/api/profile/content?kind=dossier&name=" + encodeURIComponent(name));
+    $("profile-content").innerHTML = renderMd((d && d.content) || "(tệp trống)");
+  } catch (e) {
+    $("profile-content").innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+  }
+}
+
+/* --- Màn con 2: Bộ nhớ dài hạn (tìm kiếm + lọc thời gian + nhóm chủ đề gập/mở) --- */
+let MEM_FACTS = null;
+let MEM_QUERY = "";
+let MEM_DAYS = "";
+const MEM_OPEN_GROUPS = new Set();
+const MEM_GROUP_LIMITS = {};
+let CUR_FACT = null;
+
+async function loadMemoryFacts(){
+  const box = $("memory-groups-box");
+  if (box && !MEM_FACTS) {
+    box.innerHTML = '<div class="skel"><div class="bar w70"></div><div class="bar w50"></div><div class="bar w80"></div></div>';
+  }
+  bindMemoryControls();
+  try {
+    MEM_FACTS = await api("/api/profile/facts");
+    if (S && S.profile && typeof MEM_FACTS.total_active === "number") {
+      S.profile.facts_active = MEM_FACTS.total_active;
+      $("memory-date").textContent = MEM_FACTS.total_active + " fact đang hiệu lực";
+    }
+    renderMemoryFacts();
+  } catch (e) {
+    if (box) box.innerHTML = '<div class="empty">Không tải được bộ nhớ: ' + esc(e.message) + '</div>';
+  }
+}
+function bindMemoryControls(){
+  const searchEl = $("memory-search");
+  if (searchEl && !searchEl._bound) {
+    searchEl._bound = true;
+    searchEl.addEventListener("input", (e) => {
+      MEM_QUERY = e.target.value || "";
+      renderMemoryFacts();
+    });
+  }
+  const chipsWrap = $("memory-time-chips");
+  if (chipsWrap && !chipsWrap._bound) {
+    chipsWrap._bound = true;
+    chipsWrap.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-mem-days]");
+      if (!btn) return;
+      MEM_DAYS = btn.dataset.memDays || "";
+      chipsWrap.querySelectorAll(".filter-chip").forEach(c =>
+        c.classList.toggle("active", c === btn));
+      renderMemoryFacts();
+    });
+  }
+}
+function toggleMemoryGroup(gid){
+  if (MEM_OPEN_GROUPS.has(gid)) MEM_OPEN_GROUPS.delete(gid);
+  else MEM_OPEN_GROUPS.add(gid);
+  renderMemoryFacts();
+}
+function expandMemoryGroupLimit(gid){
+  MEM_GROUP_LIMITS[gid] = (MEM_GROUP_LIMITS[gid] || 20) + 20;
+  renderMemoryFacts();
+}
+function filterFactByDays(f, daysKey){
+  if (!daysKey) return true;
+  if (!f.valid_from) return false;
+  const ts = new Date(f.valid_from).getTime();
+  if (isNaN(ts)) return false;
+  const now = Date.now();
+  if (daysKey === "today") return (now - ts) <= 86400 * 1000;
+  if (daysKey === "7d") return (now - ts) <= 7 * 86400 * 1000;
+  if (daysKey === "30d") return (now - ts) <= 30 * 86400 * 1000;
+  return true;
+}
+function renderMemoryFacts(){
+  const box = $("memory-groups-box");
+  if (!box) return;
+  const allFacts = (MEM_FACTS && MEM_FACTS.facts) || [];
+  const totalActive = (MEM_FACTS && typeof MEM_FACTS.total_active === "number")
+    ? MEM_FACTS.total_active : allFacts.length;
+  const qNorm = stripAccents(MEM_QUERY.trim());
+  const filtered = allFacts.filter(f => {
+    if (!filterFactByDays(f, MEM_DAYS)) return false;
+    if (!qNorm) return true;
+    return stripAccents(f.text).includes(qNorm) ||
+           stripAccents(f.topic_label).includes(qNorm);
+  });
+  const titleEl = $("memory-screen-title");
+  if (titleEl) {
+    titleEl.textContent = (qNorm || MEM_DAYS)
+      ? ("Bộ nhớ dài hạn (" + filtered.length + " / " + totalActive + ")")
+      : ("Bộ nhớ dài hạn (" + totalActive + ")");
+  }
+  if (!allFacts.length){
+    box.innerHTML = '<div class="empty">Chưa có ký ức (fact) nào đang lưu.</div>';
+    return;
+  }
+  if (!filtered.length){
+    box.innerHTML = '<div class="empty">Không tìm thấy ký ức phù hợp bộ lọc.</div>';
+    return;
+  }
+  const groupsMap = {};
+  const groupOrder = [];
+  filtered.forEach(f => {
+    const gid = f.topic || "general";
+    if (!groupsMap[gid]) {
+      groupsMap[gid] = {id: gid, label: f.topic_label || "Ghi chú & Thông tin chung", items: []};
+      groupOrder.push(gid);
+    }
+    groupsMap[gid].items.push(f);
+  });
+  box.innerHTML = groupOrder.map(gid => {
+    const g = groupsMap[gid];
+    const isOpen = !!qNorm || MEM_OPEN_GROUPS.has(gid);
+    const limit = MEM_GROUP_LIMITS[gid] || 20;
+    const shown = g.items.slice(0, limit);
+    const remain = g.items.length - shown.length;
+    return '<div class="acc-group' + (isOpen ? ' open' : '') + '" data-group-id="' + esc(gid) + '">' +
+      '<div class="acc-head" data-mem-group="' + esc(gid) + '">' +
+        '<div class="acc-title">' + esc(g.label) + '</div>' +
+        '<span class="acc-count">' + g.items.length + ' ký ức</span>' +
+        '<span class="acc-chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
+      '</div>' +
+      '<div class="acc-body">' +
+        shown.map(f => {
+          const line = String(f.text || "").replace(/\s+/g, " ").trim();
+          const subParts = [];
+          if (f.valid_from) subParts.push(todayLabel(f.valid_from));
+          if (f.confidence && f.confidence < 1) subParts.push("Độ tin cậy " + Math.round(f.confidence * 100) + "%");
+          return '<div class="row" data-fact-id="' + esc(f.id) + '">' +
+            '<div class="r-main">' +
+              '<div class="r-title">' + esc(line) + '</div>' +
+              (subParts.length ? '<div class="r-sub">' + esc(subParts.join(" · ")) + '</div>' : '') +
+            '</div>' +
+            '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
+          '</div>';
+        }).join("") +
+        (remain > 0 ? '<button type="button" class="acc-more" data-mem-more="' + esc(gid) + '">Xem thêm (' + remain + ' ký ức)</button>' : '') +
+      '</div>' +
+    '</div>';
+  }).join("");
+}
+async function openFactDetail(factId){
+  showSub("screen-fact-detail");
+  const allFacts = (MEM_FACTS && MEM_FACTS.facts) || [];
+  let fact = allFacts.find(x => String(x.id) === String(factId)) || null;
+  $("fact-detail-text").innerHTML = '<div class="skel"><div class="bar w80"></div><div class="bar w60"></div></div>';
+  $("fact-detail-meta").innerHTML = "";
+  try {
+    if (!fact) {
+      const res = await api("/api/profile/facts/" + encodeURIComponent(factId));
+      fact = res.fact;
+    }
+    if (!fact) throw new Error("Không tìm thấy ký ức này.");
+    CUR_FACT = fact;
+    $("fact-detail-title").textContent = "Ký ức #" + fact.id;
+    $("fact-detail-text").innerHTML = renderMd(fact.text || "");
+    const confPct = fact.confidence != null ? Math.round(Number(fact.confidence) * 100) + "%" : "100%";
+    $("fact-detail-meta").innerHTML =
+      '<tr><td class="k">Chủ đề</td><td>' + esc(fact.topic_label || "Thông tin chung") + '</td></tr>' +
+      '<tr><td class="k">Thời gian ghi nhận</td><td>' + esc(todayLabel(fact.valid_from) || fact.valid_from || "—") + '</td></tr>' +
+      '<tr><td class="k">Độ tin cậy</td><td>' + esc(confPct) + '</td></tr>' +
+      (fact.source_turn_id ? '<tr><td class="k">Nguồn hội thoại</td><td>Lượt #' + esc(fact.source_turn_id) + '</td></tr>' : '');
+    const delBtn = $("btn-fact-delete");
+    if (delBtn) {
+      delBtn.onclick = () => {
+        confirmDialog("Ní có chắc muốn xoá ký ức này khỏi Bộ nhớ dài hạn?", async () => {
+          delBtn.disabled = true;
+          try {
+            const r = await api("/api/profile/facts/delete", "POST", {id: fact.id});
+            toast("Đã xoá ký ức #" + fact.id + ".");
+            haptic("impact");
+            if (MEM_FACTS && Array.isArray(MEM_FACTS.facts)) {
+              MEM_FACTS.facts = MEM_FACTS.facts.filter(x => String(x.id) !== String(fact.id));
+              MEM_FACTS.total_active = (r && typeof r.facts_active === "number")
+                ? r.facts_active : MEM_FACTS.facts.length;
+            }
+            if (S && S.profile && r && typeof r.facts_active === "number") {
+              S.profile.facts_active = r.facts_active;
+            }
+            renderProfile();
+            showSub("screen-sub-memory");
+          } catch (e) {
+            toast("Không xoá được ký ức: " + e.message);
+          } finally {
+            delBtn.disabled = false;
+          }
+        });
+      };
+    }
+  } catch (e) {
+    $("fact-detail-text").innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+  }
+}
+
+/* --- Màn con 3: Kỹ năng (tìm kiếm + nhóm danh mục gập/mở + tiếng Việt) --- */
 let SKILLS = null;
 let SKILL_FILTER = "";
+const SKILL_OPEN_GROUPS = new Set();
+const SKILL_GROUP_LIMITS = {};
+
+function toggleSkillGroup(gid){
+  if (SKILL_OPEN_GROUPS.has(gid)) SKILL_OPEN_GROUPS.delete(gid);
+  else SKILL_OPEN_GROUPS.add(gid);
+  renderSkills();
+}
+function expandSkillGroupLimit(gid){
+  SKILL_GROUP_LIMITS[gid] = (SKILL_GROUP_LIMITS[gid] || 20) + 20;
+  renderSkills();
+}
 function renderSkills(){
   const box = $("skills-box");
   if (!box || !SKILLS) return;
   const items = SKILLS.skills || [];
-  const titleEl = $("skills-card-title");
-  if (titleEl) {
-    titleEl.textContent = "Kỹ năng (" + items.length + ")";
+  const skSub = $("skills-count-sub");
+  if (skSub) {
+    skSub.textContent = items.length ? (items.length + " kỹ năng đã nạp") : "Chưa nạp kỹ năng nào";
   }
   const searchInput = $("skills-search");
   if (searchInput && !searchInput._bound) {
     searchInput._bound = true;
     searchInput.addEventListener("input", (e) => {
-      SKILL_FILTER = e.target.value;
+      SKILL_FILTER = e.target.value || "";
       renderSkills();
     });
+  }
+  const qNorm = stripAccents((SKILL_FILTER || "").trim());
+  const filtered = qNorm ? items.filter(s =>
+    stripAccents(s.name).includes(qNorm) ||
+    stripAccents(s.description).includes(qNorm) ||
+    stripAccents(s.group_label).includes(qNorm)
+  ) : items;
+
+  const titleEl = $("skills-card-title");
+  if (titleEl) {
+    titleEl.textContent = qNorm
+      ? ("Kỹ năng (" + filtered.length + " / " + items.length + ")")
+      : ("Kỹ năng (" + items.length + ")");
   }
   if (!SKILLS.available || !items.length){
     box.innerHTML = '<div class="empty">Chưa nạp kỹ năng nào.</div>';
     return;
   }
-  const q = (SKILL_FILTER || "").trim().toLowerCase();
-  const filtered = q ? items.filter(s =>
-    (s.name && s.name.toLowerCase().includes(q)) ||
-    (s.description && s.description.toLowerCase().includes(q))
-  ) : items;
-
   if (!filtered.length) {
     box.innerHTML = '<div class="empty">Không tìm thấy kỹ năng phù hợp.</div>';
     return;
   }
-  box.innerHTML = filtered.map(s =>
-    '<div class="row" data-skill="' + esc(s.name) + '">' +
-    '<div class="r-main"><div class="r-title">' + esc(s.name) +
-    '</div>' + (s.description ? '<div class="r-sub">' +
-      esc(s.description) + '</div>' : "") + '</div>' +
-    '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
-    '</div>').join("");
+  const groupsMap = {};
+  const groupOrder = [];
+  filtered.forEach(s => {
+    const gid = s.group || "general";
+    if (!groupsMap[gid]) {
+      groupsMap[gid] = {id: gid, label: s.group_label || "Tiện ích & Kỹ năng chung", items: []};
+      groupOrder.push(gid);
+    }
+    groupsMap[gid].items.push(s);
+  });
+  box.innerHTML = groupOrder.map(gid => {
+    const g = groupsMap[gid];
+    const isOpen = !!qNorm || SKILL_OPEN_GROUPS.has(gid);
+    const limit = SKILL_GROUP_LIMITS[gid] || 20;
+    const shown = g.items.slice(0, limit);
+    const remain = g.items.length - shown.length;
+    return '<div class="acc-group' + (isOpen ? ' open' : '') + '" data-skill-group-wrap="' + esc(gid) + '">' +
+      '<div class="acc-head" data-skill-group="' + esc(gid) + '">' +
+        '<div class="acc-title">' + esc(g.label) + '</div>' +
+        '<span class="acc-count">' + g.items.length + ' kỹ năng</span>' +
+        '<span class="acc-chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
+      '</div>' +
+      '<div class="acc-body">' +
+        shown.map(s =>
+          '<div class="row" data-skill="' + esc(s.name) + '">' +
+            '<div class="r-main">' +
+              '<div class="r-title">' + esc(s.name) + '</div>' +
+              (s.description ? '<div class="r-sub">' + esc(s.description) + '</div>' : '') +
+            '</div>' +
+            '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
+          '</div>'
+        ).join("") +
+        (remain > 0 ? '<button type="button" class="acc-more" data-skill-more="' + esc(gid) + '">Xem thêm (' + remain + ' kỹ năng)</button>' : '') +
+      '</div>' +
+    '</div>';
+  }).join("");
 }
 async function loadSkills(){
   try {
     SKILLS = await api("/api/skills");
-    renderSkills();
+    renderProfile();
   } catch (e) {
     toast("Không tải được danh sách kỹ năng: " + e.message);
   }
@@ -3100,37 +3569,299 @@ async function openSkill(name){
     toast("Không đọc được kỹ năng: " + e.message);
   }
 }
-$("card-dossier").addEventListener("click", async () => {
-  showSub("screen-profile");
-  $("profile-title").textContent = "Hồ sơ của agent";
-  $("profile-content").innerHTML = '<div class="skel"><div class="bar w80"></div><div class="bar w60"></div><div class="bar w90"></div><div class="bar w70"></div></div>';
+
+/* --- Màn con 4: Thư viện tài liệu (Danh sách gọn + Menu ⋯ + Xem trước + Thùng rác riêng) --- */
+let LIB_FILTER_Q = "";
+let LIB_FILTER_KIND = "";
+const LIB_KIND_LABELS = {
+  document: "Văn bản",
+  spreadsheet: "Bảng biểu",
+  image: "Hình ảnh",
+  audio: "Âm thanh",
+  video: "Video",
+  archive: "Tệp nén",
+  code: "Mã nguồn",
+  other: "Tệp khác"
+};
+function bindLibraryControls(){
+  const searchEl = $("library-search");
+  if (searchEl && !searchEl._bound) {
+    searchEl._bound = true;
+    searchEl.addEventListener("input", (e) => {
+      LIB_FILTER_Q = e.target.value || "";
+      renderLibrary();
+    });
+  }
+  const chipsWrap = $("library-kind-chips");
+  if (chipsWrap && !chipsWrap._bound) {
+    chipsWrap._bound = true;
+    chipsWrap.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-lib-kind]");
+      if (!btn) return;
+      LIB_FILTER_KIND = btn.dataset.libKind || "";
+      chipsWrap.querySelectorAll(".filter-chip").forEach(c =>
+        c.classList.toggle("active", c === btn));
+      renderLibrary();
+    });
+  }
+  const trashBtn = $("lib-trash-view");
+  if (trashBtn && !trashBtn._bound) {
+    trashBtn._bound = true;
+    trashBtn.addEventListener("click", () => {
+      haptic("select");
+      showSub("screen-library-trash");
+    });
+  }
+  const menuModal = $("modal-lib-menu");
+  const closeMenuBtn = $("btn-close-lib-menu");
+  if (closeMenuBtn && !closeMenuBtn._bound) {
+    closeMenuBtn._bound = true;
+    closeMenuBtn.addEventListener("click", () => {
+      if (menuModal) menuModal.classList.add("hidden");
+    });
+  }
+  if (menuModal && !menuModal._boundScrim) {
+    menuModal._boundScrim = true;
+    menuModal.addEventListener("click", (e) => {
+      if (e.target === menuModal) menuModal.classList.add("hidden");
+    });
+  }
+}
+function renderLibrary(){
+  const box = $("library-box");
+  if (!box) return;
+  bindLibraryControls();
+  const list = (S && S.library) || [];
+  const qNorm = stripAccents(LIB_FILTER_Q.trim());
+  const filtered = list.filter(it => {
+    if (LIB_FILTER_KIND && (it.kind || "other") !== LIB_FILTER_KIND) return false;
+    if (!qNorm) return true;
+    return stripAccents(it.title || it.name).includes(qNorm) ||
+           stripAccents(it.kind_label || "").includes(qNorm);
+  });
+  const titleEl = $("library-screen-title");
+  if (titleEl) {
+    titleEl.textContent = (qNorm || LIB_FILTER_KIND)
+      ? ("Thư viện tài liệu (" + filtered.length + " / " + list.length + ")")
+      : ("Thư viện tài liệu (" + list.length + ")");
+  }
+  if (!list.length){
+    box.innerHTML = '<div class="empty">Chưa có tài liệu nào trong thư viện. ' +
+      'Khi Mulon tạo artifact hoặc tài liệu, kết quả sẽ lưu ở đây.</div>';
+    return;
+  }
+  if (!filtered.length){
+    box.innerHTML = '<div class="empty">Không có tài liệu nào khớp bộ lọc.</div>';
+    return;
+  }
+  box.innerHTML = filtered.map(it => {
+    const pinBadge = it.pinned
+      ? '<span style="color:var(--ink2);font-size:11px;margin-right:6px"><span style="color:var(--ink3)">●</span> Đã ghim</span>'
+      : '';
+    const shared = it.share_status === "active" || it.share_status === "pending_host";
+    const metaParts = [];
+    const kLabel = it.kind_label || LIB_KIND_LABELS[it.kind] || "Tài liệu";
+    if (kLabel) metaParts.push(kLabel);
+    if (it.word_count) metaParts.push(it.word_count + " từ");
+    else if (it.size_bytes) metaParts.push(fmtBytes(it.size_bytes));
+    if (it.created_at) metaParts.push(todayLabel(it.created_at));
+    if (shared) metaParts.push("Đang chia sẻ");
+    return '<div class="row" data-lib-item="' + esc(it.id) + '">' +
+      '<div class="r-main">' +
+        '<div class="r-title">' + pinBadge + esc(it.title || it.name) + '</div>' +
+        '<div class="r-sub">' + esc(metaParts.join(" · ")) + '</div>' +
+      '</div>' +
+      '<button type="button" class="lib-more-btn" data-lib-menu="' + esc(it.id) + '" aria-label="Tác vụ tài liệu" title="Tác vụ">⋯</button>' +
+    '</div>';
+  }).join("");
+}
+
+async function doLibShare(id){
   try {
-    const d = await api("/api/profile/content?kind=dossier");
-    let parts = [];
-    if (d && d.files && Array.isArray(d.files)) {
-      parts = d.files.filter(f => f.name !== "BOOTSTRAP.md").map(f => `### ${f.name}\n\n${f.content}`);
-    } else if (d && d.content) {
-      parts = [d.content];
-    } else {
-      for (const f of ((S && S.profile && S.profile.dossier_files) || [])) {
-        if (f.name === "BOOTSTRAP.md") continue;
-        const res = await api("/api/profile/content?kind=dossier&name=" + encodeURIComponent(f.name));
-        parts.push(`### ${f.name}\n\n${res.content}`);
+    const r = await api("/api/library/items/" + encodeURIComponent(id) + "/share", "POST", {});
+    if (r.url) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(r.url);
+        toast("Đã sao chép link chia sẻ!");
+      } else {
+        promptModal("Link chia sẻ (sao chép bên dưới):", r.url, null, true);
       }
+      await load();
+    } else {
+      toast("Không tạo được link chia sẻ.");
     }
-    const combined = parts.join("\n\n---\n\n") || "(hồ sơ trống)";
-    $("profile-content").innerHTML = renderMd(combined);
-  } catch (e) { $("profile-content").innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; }
-});
-$("card-memory").addEventListener("click", async () => {
-  showSub("screen-profile");
-  $("profile-title").textContent = "Bộ nhớ dài hạn";
-  $("profile-content").innerHTML = '<div class="skel"><div class="bar w80"></div><div class="bar w60"></div><div class="bar w90"></div></div>';
+  } catch (e) { toast(e.message); }
+}
+async function doLibUnshare(id){
   try {
-    const d = await api("/api/profile/content?kind=memory");
-    $("profile-content").innerHTML = renderMd(d.content || "(bộ nhớ trống)");
-  } catch (e) { $("profile-content").innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; }
-});
+    const r = await api("/api/library/items/" + encodeURIComponent(id) + "/unshare", "POST", {});
+    if (r && r.ok === false) throw new Error(r.error || "không hủy chia sẻ được");
+    toast("Đã hủy link chia sẻ.");
+    await load();
+  } catch (e) { toast(e.message); }
+}
+async function doLibPin(id, curPinned){
+  try {
+    const r = await api("/api/library/items/" + encodeURIComponent(id) + "/pin", "POST", {pinned: !curPinned});
+    if (r && r.ok === false) throw new Error(r.error || "không ghim được");
+    toast(!curPinned ? "Đã ghim tài liệu lên đầu." : "Đã bỏ ghim tài liệu.");
+    await load();
+  } catch (e) { toast(e.message); }
+}
+function doLibRename(id, oldTitle, onDone){
+  promptModal("Nhập tên mới cho tài liệu:", oldTitle, async (newTitle) => {
+    if (newTitle && newTitle.trim() && newTitle.trim() !== oldTitle) {
+      try {
+        const r = await api("/api/library/items/" + encodeURIComponent(id) + "/rename", "POST", {name: newTitle.trim()});
+        if (r && r.ok === false) throw new Error(r.error || "không đổi tên được");
+        toast("Đã đổi tên tài liệu.");
+        await load();
+        if (onDone) onDone(newTitle.trim());
+      } catch (e) { toast(e.message); }
+    }
+  });
+}
+function doLibTrash(id, title, onDone){
+  confirmDialog("Chuyển '" + (title || "tài liệu này") + "' vào thùng rác?", async () => {
+    try {
+      const r = await api("/api/library/items/" + encodeURIComponent(id) + "/trash", "POST", {});
+      if (r && r.ok === false) throw new Error(r.error || "không xóa được");
+      toast("Đã chuyển tài liệu vào thùng rác.");
+      await load();
+      if (onDone) onDone();
+    } catch (e) { toast(e.message); }
+  });
+}
+
+function openLibMenu(id){
+  const list = (S && S.library) || [];
+  const it = list.find(x => String(x.id) === String(id));
+  if (!it) return;
+  const modal = $("modal-lib-menu");
+  if (!modal) return;
+  $("lib-menu-kind").textContent = it.kind_label || LIB_KIND_LABELS[it.kind] || "Tài liệu";
+  $("lib-menu-title").textContent = it.title || it.name;
+  const shared = it.share_status === "active" || it.share_status === "pending_host";
+  const pinLabel = it.pinned ? "Bỏ ghim khỏi đầu danh sách" : "Ghim lên đầu danh sách";
+  const btns = $("lib-menu-buttons");
+  btns.innerHTML =
+    '<button type="button" class="btn btn-soft" id="lm-preview">Xem trước nội dung</button>' +
+    '<button type="button" class="btn btn-soft" id="lm-share" data-lib-share="' + esc(it.id) + '">' + (shared ? "Sao chép link chia sẻ" : "Chia sẻ liên kết") + '</button>' +
+    (shared ? '<button type="button" class="btn btn-ghost" id="lm-unshare" data-lib-unshare="' + esc(it.id) + '">Hủy chia sẻ</button>' : '') +
+    '<button type="button" class="btn btn-ghost" id="lm-pin" data-lib-pin="' + esc(it.id) + '" data-pinned="' + (it.pinned ? 1 : 0) + '">' + esc(pinLabel) + '</button>' +
+    '<button type="button" class="btn btn-ghost" id="lm-rename" data-lib-rename="' + esc(it.id) + '" data-title="' + esc(it.title) + '">Sửa tên tài liệu</button>' +
+    '<button type="button" class="btn btn-danger" id="lm-trash" data-lib-trash="' + esc(it.id) + '">Chuyển vào thùng rác</button>';
+  const close = () => modal.classList.add("hidden");
+  $("lm-preview").onclick = () => { close(); openLibraryPreview(it.id); };
+  $("lm-share").onclick = () => { close(); doLibShare(it.id); };
+  if ($("lm-unshare")) $("lm-unshare").onclick = () => { close(); doLibUnshare(it.id); };
+  $("lm-pin").onclick = () => { close(); doLibPin(it.id, !!it.pinned); };
+  $("lm-rename").onclick = () => { close(); doLibRename(it.id, it.title); };
+  $("lm-trash").onclick = () => { close(); doLibTrash(it.id, it.title); };
+  const card = modal.querySelector(".modal-card");
+  if (card) bindSheetSwipeDismiss(modal, card);
+  modal.classList.remove("hidden");
+}
+
+async function openLibraryPreview(id){
+  showSub("screen-library-preview");
+  $("lib-preview-title").textContent = "Đang tải...";
+  $("lib-preview-body").innerHTML = '<div class="skel"><div class="bar w80"></div><div class="bar w60"></div><div class="bar w90"></div></div>';
+  $("lib-preview-meta").innerHTML = "";
+  $("lib-preview-actions").innerHTML = "";
+  try {
+    const res = await api("/api/library/items/" + encodeURIComponent(id));
+    const it = (res && res.item) ? res.item : res;
+    $("lib-preview-title").textContent = it.title || it.name || "Tài liệu";
+    if (it.media_url && it.kind === "image") {
+      $("lib-preview-body").innerHTML =
+        '<div class="img-preview-wrap"><img src="' + esc(it.media_url) + '" class="img-preview" alt="' + esc(it.title || "") + '" onclick="previewImage(this.src)"/></div>';
+    } else if (it.preview_text) {
+      if (it.kind === "code" || /\.(json|py|js|ts|sh|yaml|yml|toml|sql|css)$/i.test(it.filename || "")) {
+        $("lib-preview-body").innerHTML = '<pre class="code-block"><code>' + esc(maskPaths(it.preview_text)) + '</code></pre>';
+      } else {
+        $("lib-preview-body").innerHTML = '<div class="md-content">' + renderMd(it.preview_text) + '</div>';
+      }
+    } else {
+      $("lib-preview-body").innerHTML = '<div class="empty">Tệp này ở định dạng nhị phân (' + esc(it.kind_label || it.mime_type || "khác") + ') — bấm Chia sẻ bên dưới để lấy liên kết tải tệp gốc.</div>';
+    }
+    const shared = it.share_status === "active" || it.share_status === "pending_host";
+    $("lib-preview-meta").innerHTML =
+      '<tr><td class="k">Tên hiển thị</td><td>' + esc(it.title || it.name) + '</td></tr>' +
+      (it.filename ? '<tr><td class="k">Tên tệp gốc</td><td>' + esc(it.filename) + '</td></tr>' : '') +
+      '<tr><td class="k">Phân loại</td><td>' + esc(it.kind_label || LIB_KIND_LABELS[it.kind] || "Tài liệu") + '</td></tr>' +
+      (it.size_bytes ? '<tr><td class="k">Dung lượng</td><td>' + esc(fmtBytes(it.size_bytes)) + '</td></tr>' : '') +
+      (it.word_count ? '<tr><td class="k">Độ dài</td><td>' + esc(it.word_count + " từ") + '</td></tr>' : '') +
+      (it.created_at ? '<tr><td class="k">Thời gian tạo</td><td>' + esc(todayLabel(it.created_at)) + '</td></tr>' : '') +
+      '<tr><td class="k">Trạng thái</td><td>' + esc((it.pinned ? "Đã ghim · " : "") + (shared ? "Đang chia sẻ" : "Riêng tư")) + '</td></tr>';
+
+    const pinLabel = it.pinned ? "Bỏ ghim" : "Ghim";
+    const actBox = $("lib-preview-actions");
+    actBox.innerHTML =
+      '<button type="button" class="btn btn-soft btn-sm" id="lp-share">Chia sẻ</button>' +
+      (shared ? '<button type="button" class="btn btn-ghost btn-sm" id="lp-unshare">Hủy chia sẻ</button>' : '') +
+      '<button type="button" class="btn btn-ghost btn-sm" id="lp-pin">' + esc(pinLabel) + '</button>' +
+      '<button type="button" class="btn btn-ghost btn-sm" id="lp-rename">Sửa tên</button>' +
+      '<button type="button" class="btn btn-danger-text btn-sm" id="lp-trash">Chuyển vào thùng rác</button>';
+    $("lp-share").onclick = () => doLibShare(it.id);
+    if ($("lp-unshare")) $("lp-unshare").onclick = async () => { await doLibUnshare(it.id); openLibraryPreview(it.id); };
+    $("lp-pin").onclick = async () => { await doLibPin(it.id, !!it.pinned); openLibraryPreview(it.id); };
+    $("lp-rename").onclick = () => doLibRename(it.id, it.title, () => openLibraryPreview(it.id));
+    $("lp-trash").onclick = () => doLibTrash(it.id, it.title, () => showSub("screen-sub-library"));
+  } catch (e) {
+    $("lib-preview-body").innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+  }
+}
+
+async function loadLibraryTrash(){
+  const box = $("lib-trash-box");
+  if (!box) return;
+  box.innerHTML = '<div class="skel"><div class="bar w70"></div><div class="bar w50"></div></div>';
+  try {
+    const d = await api("/api/library/items?status=trashed");
+    const items = (d && d.items) || [];
+    if (!items.length){
+      box.innerHTML = '<div class="empty">Thùng rác trống.</div>';
+      return;
+    }
+    box.innerHTML = items.map(it =>
+      '<div class="row static">' +
+        '<div class="r-main">' +
+          '<div class="r-title">' + esc(it.name || it.title) + '</div>' +
+          '<div class="r-sub">' + esc(todayLabel(it.trashed_at || it.updated_at || it.created_at)) + '</div>' +
+        '</div>' +
+        '<div class="btn-row" style="padding:0; gap:6px;">' +
+          '<button type="button" class="btn btn-soft btn-sm" style="min-height:32px; padding:0 10px; font-size:12px;" data-lib-restore="' + esc(it.id) + '">Khôi phục</button>' +
+          '<button type="button" class="btn btn-danger-text btn-sm" style="min-height:32px; padding:0 10px; font-size:12px;" data-lib-purge="' + esc(it.id) + '" data-title="' + esc(it.name || it.title) + '">Xoá hẳn</button>' +
+        '</div>' +
+      '</div>'
+    ).join("");
+    box.querySelectorAll("[data-lib-restore]").forEach(btn => btn.addEventListener("click", async () => {
+      try {
+        const r = await api("/api/library/items/" + encodeURIComponent(btn.dataset.libRestore) + "/restore", "POST", {});
+        if (r && r.ok === false) throw new Error(r.error || "không khôi phục được");
+        toast("Đã khôi phục tài liệu.");
+        await load();
+        loadLibraryTrash();
+      } catch (e) { toast(e.message); }
+    }));
+    box.querySelectorAll("[data-lib-purge]").forEach(btn => btn.addEventListener("click", () => {
+      const id = btn.dataset.libPurge;
+      const t = btn.dataset.title || "tài liệu này";
+      confirmDialog("Xoá vĩnh viễn '" + t + "' khỏi đĩa? Hành động này không thể hoàn tác.", async () => {
+        try {
+          const r = await api("/api/library/items/" + encodeURIComponent(id) + "/delete", "POST", {});
+          if (r && r.ok === false) throw new Error(r.error || "không xoá vĩnh viễn được");
+          toast("Đã xoá vĩnh viễn tài liệu.");
+          await load();
+          loadLibraryTrash();
+        } catch (e) { toast(e.message); }
+      });
+    }));
+  } catch (e) {
+    box.innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+  }
+}
 
 /* ---------------- Cài đặt con ---------------- */
 function googleAction(g){

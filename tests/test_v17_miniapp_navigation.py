@@ -195,16 +195,22 @@ def test_browser_navigation_flow_with_playwright():
         page.wait_for_timeout(100)
         assert page.locator("#modal-heartbeat").evaluate("el => el.classList.contains('hidden')")
 
-        # Kiểm tra tab Hồ sơ -> nhấn thẻ Hồ sơ của agent và Bộ nhớ dài hạn + nút Quay lại
+        # Kiểm tra tab Hồ sơ -> nhấn 4 hàng điều hướng mở 4 màn con + nút Quay lại (T-23.3)
         page.locator("#segbar button[data-tab='hoso']").click()
         page.wait_for_timeout(100)
-        page.locator("#card-dossier").click()
-        page.wait_for_timeout(100)
-        assert page.evaluate("subScreen") == "screen-profile"
-        assert page.locator("#profile-title").inner_text() == "Hồ sơ của agent"
-        page.locator("#screen-profile .backrow").click()
-        page.wait_for_timeout(100)
-        assert page.evaluate("subScreen") is None
-        assert page.locator("#tab-hoso").is_visible()
-        
+        for card_id, screen_id in [
+            ("#card-dossier", "screen-sub-dossier"),
+            ("#card-memory", "screen-sub-memory"),
+            ("#card-skills", "screen-sub-skills"),
+            ("#card-library", "screen-sub-library"),
+        ]:
+            page.locator(card_id).click()
+            page.wait_for_timeout(100)
+            assert page.evaluate("subScreen") == screen_id
+            assert page.locator(f"#{screen_id}").is_visible()
+            page.locator(f"#{screen_id} .backrow").click()
+            page.wait_for_timeout(100)
+            assert page.evaluate("subScreen") is None
+            assert page.locator("#tab-hoso").is_visible()
+
         browser.close()

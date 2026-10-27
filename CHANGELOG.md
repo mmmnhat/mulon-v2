@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 1.7.15 — 2026-10-27 — Tách tab Hồ sơ thành 4 màn con, chuẩn hoá mô tả Kỹ năng tiếng Việt & Xem trước Thư viện (T-23.3, Làn 1)
+
+- **Kiến trúc thông tin tab Hồ sơ gọn thành 4 hàng điều hướng (`mulon/webapp/index.html`, QA Q-05 / T-23.3):**
+  - Chuyển toàn bộ `#tab-hoso` thành 1 thẻ `.card` duy nhất gồm đúng 4 hàng điều hướng chuẩn: **Hồ sơ của agent**, **Bộ nhớ dài hạn**, **Kỹ năng**, **Thư viện tài liệu** (kèm số lượng/ngày cập nhật ở `.r-sub` và mũi tên `›`), triệt tiêu việc đổ trực tiếp hàng trăm kỹ năng và ~400 nút bấm ra màn chính.
+- **4 màn con độc lập với phân nhóm gập mặc định, tìm kiếm không dấu và xem trước nội dung (`mulon/webapp/index.html`, `mulon/webapp_server.py`, `mulon/skills.py`):**
+  1. **Màn con Hồ sơ của agent (`#screen-sub-dossier`):** Liệt kê từng tệp hồ sơ (`IDENTITY.md`, `SOUL.md`, `USER.md`, `MEMORY.md`, v.v.) kèm mô tả tiếng Việt 1 dòng và thời điểm cập nhật; nhấn vào tệp nào chỉ mở đọc riêng tệp đó (`#screen-profile`).
+  2. **Màn con Bộ nhớ dài hạn (`#screen-sub-memory` & `#screen-fact-detail`):** Bổ sung API `/api/profile/facts`, `/api/profile/facts/{id}` và `/api/profile/facts/delete`. Đồng bộ 100% số lượng fact ngoài tab Hồ sơ và trong màn con (`total_active`). Hỗ trợ tìm kiếm không dấu, chip lọc thời gian (`Tất cả`, `Hôm nay`, `7 ngày`, `30 ngày`), nhóm theo chủ đề (gập mặc định, phân trang `Xem thêm` mỗi 20 mục), xem chi tiết fact và xoá fact có xác nhận.
+  3. **Màn con Kỹ năng (`#screen-sub-skills` & `#screen-skill`):** Sửa `parse_skill_md` và `_parse_meta_lines` trong `mulon/skills.py` để nối đầy đủ mô tả YAML đa dòng (`>`, `>-`, `|`, `|-`), triệt tiêu lỗi mô tả chỉ còn ký tự `">"`. Dịch mô tả kỹ năng sang tiếng Việt 1 dòng gọn gàng (`_localize_skill_description`), tự động gỡ YAML frontmatter khi mở đọc chi tiết kỹ năng, nhóm theo danh mục (gập mặc định, tự bung khi tìm kiếm và cập nhật tiêu đề `Kỹ năng (x / tổng)`).
+  4. **Màn con Thư viện tài liệu (`#screen-sub-library`, `#screen-library-preview`, `#screen-library-trash`):** Mỗi tài liệu chỉ hiển thị 1 hàng gọn (tiêu đề + phân loại/dung lượng/ngày tạo + nút `⋯`). Nhấn thân hàng mở màn **Xem trước tài liệu** (hỗ trợ xem ảnh, đọc Markdown, xem code block + bảng thông tin tệp). Nhấn `⋯` mở bottom sheet tác vụ (`Chia sẻ`, `Ghim`/`Bỏ ghim`, `Sửa tên`, `Chuyển vào thùng rác` có xác nhận). Tách **Thùng rác tài liệu** thành màn con riêng có `Khôi phục` và `Xoá hẳn` (có xác nhận).
+- **Kiểm thử hồi quy (`tests/test_v17_miniapp_profile_ia.py`, `tests/test_v17_miniapp_navigation.py`):**
+  - Bổ sung bộ test kiểm chứng parser YAML đa dòng, Việt hoá mô tả kỹ năng, API facts/library preview/delete và E2E Playwright Chromium cho toàn bộ 4 màn con của tab Hồ sơ.
+
 ## 1.7.14 — 2026-10-27 — Render rich markdown, triệt tiêu rò rỉ toast & tối ưu tải màn con (T-23.2, Làn 1)
 
 - **Render Rich Markdown toàn diện & triệt tiêu lộ HTML comments / đường dẫn máy (QA Q-02 / T-23.2):**

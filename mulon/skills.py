@@ -72,6 +72,12 @@ def _parse_meta_lines(lines: list[str]) -> dict:
                 meta[section] = _clean_scalar(val)
             elif section != "requires":
                 meta[section] = _clean_scalar(val)
+        elif section == "description":
+            part = _clean_scalar(s)
+            if meta["description"] in ("", ">", ">-", "|", "|-"):
+                meta["description"] = part
+            elif part:
+                meta["description"] = f"{meta['description']} {part}".strip()
         elif section == "requires":
             if s.startswith("env:") or s.startswith("tools:"):
                 key, _, val = s.partition(":")
@@ -100,7 +106,16 @@ def parse_skill_md(text: str) -> tuple[Optional[dict], str]:
     if i >= len(lines):
         return None, text
     body = "\n".join(lines[i + 1:]).strip()
-    return _parse_meta_lines(meta_lines), body
+    meta = _parse_meta_lines(meta_lines)
+    if meta.get("description") in (">", ">-", "|", "|-"):
+        for bline in body.splitlines():
+            bclean = bline.strip()
+            if bclean and not bclean.startswith(("#", "---", "```", "<!--")):
+                meta["description"] = bclean[:200]
+                break
+        else:
+            meta["description"] = ""
+    return meta, body
 
 
 # ---------------------------------------------------------------------------
