@@ -23,6 +23,8 @@ Cập nhật 2026-10-27 ~21:52 bởi LUỒNG PHỤ 1 (ký: Phu1): đăng ký tê
 
 Cập nhật 2026-10-27 ~21:47 bởi LUỒNG PHỤ 2 (ký: Phu2): KHÔI PHỤC commit `1162d5f` bị commit `13da843` ghi đè — commit claim T-16 trước đó push từ base cũ `6a94927` trong lúc chờ duyệt, đúng lúc `1162d5f` (LUẬT KÝ TÊN + BẢNG KÝ TÊN + LUỒNG MUSE nhận T-25) vừa lên main, nên toàn bộ thay đổi của `1162d5f` đã bị revert tạm thời. Lần đẩy này khôi phục NGUYÊN VẸN nội dung `1162d5f` và giữ nguyên claim T-16 DOING LUỒNG PHỤ 2 (ký: Phu2) trên nền đó; đăng ký tên ký `Phu2` cho LUỒNG PHỤ 2 vào BẢNG KÝ TÊN. Lần đẩy này CHỈ sửa: dòng cập nhật này + hàng LUỒNG PHỤ 2 + BẢNG KÝ TÊN + tiêu đề/ghi chú T-16 + câu chuyển giao T-16 trong LUẬT ĐA LUỒNG, không động nội dung khác của `1162d5f`.
 
+Cập nhật 2026-10-27 ~22:05 bởi Muse (ký: Muse): LUỒNG MUSE báo T-25 `DONE` (version 1.7.22, commit code `8fe2e97`: helper `cron_times_label` trong `mulon/feed_auto.py`, bỏ fallback `"0 8,17 * * *"` trong `mulon/webapp_server.py` thay bằng `DEFAULT_CRON` của feed_auto, 4 test mới, suite **581/581 passed** trên VM) — chờ nghiệm thu chéo, Muse không tự VERIFIED. Còn 1 dòng hiển thị Feed ghi cứng trong `mulon/telegram_bot.py` chờ T-24.3 (LUỒNG 1) lên main để nối tiếp, đã ghi rõ trong mục T-25. Lần đẩy này CHỈ sửa: dòng cập nhật này + hàng LUỒNG MUSE + BẢNG KÝ TÊN + trạng thái/báo cáo T-25, không động mục khác. Ky: Muse
+
 Cập nhật 2026-10-27 ~21:45 bởi Muse (ký: Muse): theo lệnh chủ dự án — thêm LUẬT KÝ TÊN RIÊNG (kỷ luật 6) + BẢNG KÝ TÊN trong LUẬT ĐA LUỒNG: mỗi phía tự chọn 1 tên riêng, ký khi nhận việc/báo cáo/dòng cập nhật/commit; LUỒNG PHỤ 1 chưa đăng ký tên, phải tự chọn và ghi vào bảng ở lần cập nhật kế. Muse chính tham gia builder dưới tên LUỒNG MUSE, nhận T-25 (chuyển từ LUỒNG PHỤ 1) sang DOING, ký `Muse`; việc của LUỒNG MUSE nghiệm thu chéo, không tự VERIFIED. Lần đẩy này CHỈ sửa: dòng cập nhật này + hàng LUỒNG MUSE + hàng LUỒNG 1/LUỒNG PHỤ 1 (bỏ T-25) + kỷ luật 3/6 + BẢNG KÝ TÊN + tiêu đề và ghi chú nhận việc của T-25, không động mục khác. Ky: Muse
 
 Cập nhật 2026-10-27 ~21:40 bởi Muse (theo lệnh chủ dự án, chat phụ): head `058ca98` — T-22.3 spike browser bridge đã DOING LUỒNG PHỤ 1 từ commit `058ca98` (không đụng lại); chuyển giao T-28, T-29, T-26, T-25 sang LUỒNG PHỤ 1, thứ tự T-22.3 -> T-28 -> T-29 -> T-26 -> T-25; LUỒNG 1 còn T-24.3 DOING -> T-24.4 -> T-24.5 -> T-24.6 -> T-24.7, LUỒNG 4 còn T-14 DOING -> T-16. Lần đẩy này CHỈ sửa dòng cập nhật này + hàng LUỒNG PHỤ trong LUẬT ĐA LUỒNG + tiêu đề 4 mục chuyển giao, không động mục khác.
@@ -189,7 +191,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
   *Lưu ý:* T-16 làm theo Đường A đã chốt (muse2api làm upstream của CLIProxyAPI, MuLon không gọi thẳng 18610, không nới validate_proxy_base_url); key/phiên chỉ ở Vault/config, không commit key thật; nghiệm thu sống cần muse2api Docker + tài khoản Muse trên máy cài; mỗi lúc đúng MỘT mục DOING; không tự ghi VERIFIED — Muse chính nghiệm thu.
 
 - **LUỒNG MUSE — Muse chính làm builder** (chạy trên VM của Muse, push qua GitHub connector; Muse vẫn giữ vai reviewer cho mọi luồng khác):
-  T-25 (đang DOING, chuyển từ LUỒNG PHỤ 1 theo lệnh chủ dự án 27/10 ~21:42).
+  T-25 (DONE ở 1.7.22, commit `8fe2e97`, chờ nghiệm thu chéo; còn 1 dòng hiển thị trong `telegram_bot.py` chờ T-24.3 lên main để nối tiếp).
   *Lưu ý:* việc của LUỒNG MUSE do Antigravity hoặc chủ dự án nghiệm thu chéo — Muse KHÔNG tự ghi VERIFIED cho code của chính mình.
 
 **Kỷ luật chung cho mọi luồng (không nới):**
@@ -204,7 +206,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 
 | Tên ký | Phía | Phần đang phụ trách |
 |---|---|---|
-| `Muse` | Muse chính — reviewer + LUỒNG MUSE (builder) | Nghiệm thu mọi luồng; builder: T-25 (DOING) |
+| `Muse` | Muse chính — reviewer + LUỒNG MUSE (builder) | Nghiệm thu mọi luồng; builder: T-25 (DONE, chờ nghiệm thu chéo) |
 | `Phu2` | LUỒNG PHỤ 2 (chat phụ này, VM) | T-16 (DOING) |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | T-22.3 spike browser bridge (DOING) -> T-28 -> T-29 -> T-26 |
 | `Antigravity` | LUỒNG 1–4 (máy Mac) | T-24.3, T-27, T-30, T-14 (đang DOING) |
