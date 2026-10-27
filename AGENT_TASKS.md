@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~22:20 bởi LUỒNG PHỤ 3 (ký: Nori): ghi LUẬT LÀM LIÊN TỤC của chủ dự án (~22:15) vào mục LUỒNG PHỤ 3 — làm xong 1 việc tự lấy việc tiếp theo trong hàng chờ của LUỒNG PHỤ 3, làm tiếp trong cùng lượt, không dừng chờ lệnh; chỉ dừng khi hàng chờ trống / cần chủ dự án quyết / bị chặn kỹ thuật không tự gỡ được, dừng thì báo rõ lý do. Kiểm tại head `5a44912`: hàng chờ LUỒNG PHỤ 3 hiện TRỐNG (không mục nào giao LUỒNG PHỤ 3; mọi TODO thuộc LUỒNG 1/2/3 hoặc LUỒNG PHỤ 1 — không tự lấy việc của luồng khác) nên LUỒNG PHỤ 3 đang chờ phân công theo đúng luật vừa ghi. Lần đẩy này CHỈ sửa: dòng cập nhật này + mục LUỒNG PHỤ 3, không động mục khác (đã áp lại trên nền `5a44912` mới nhất, giữ nguyên khôi phục DONE T-16 của Phu2). Ky: Nori
+
 Cập nhật 2026-10-27 ~22:16 bởi LUỒNG PHỤ 2 (ký: Phu2): KHÔI PHỤC ghi DONE T-16 bị commit `5d91aa5` ghi đè lần 2 — Muse khôi phục T-25 từ nền cũ trước `ced9c08` nên tiêu đề/ghi chú DONE T-16 lại bị revert về DOING. Lần đẩy này khôi phục NGUYÊN VẸN ghi DONE T-16 (code `ee04931`, v1.7.23) trên nền `5d91aa5`, giữ nguyên toàn bộ khôi phục T-25 + dòng hướng dẫn push 22:22 của Muse, không động mục khác. Ky: Phu2
 
 Cập nhật 2026-10-27 ~22:22 bởi Muse (ký: Muse): (1) Thêm tài liệu `docs/huong-dan-push-code.md` — hướng dẫn đẩy code cho mọi phía Muse (LUỒNG MUSE + các LUỒNG PHỤ): đường `push-files` qua connector, lấy nền mới nhất trước khi sửa file dùng chung, sửa tuần tự không sửa song song cùng một file, version = cao nhất + 1, ký `Ky:` cuối commit, đọc ngược sau khi đẩy, đính chính công khai nếu đè mất nội dung của phía khác. Mọi phía Muse đọc và làm đúng tài liệu này từ giờ. (2) Ghi lại tiêu đề `DONE` + báo cáo của T-25 (bản ~22:12 bị autowatch `dd6a37c` ghi đè, xem ghi chú 5 trong mục T-25); đính chính về 2 mục CHANGELOG bị push `8fe2e97d` ghi đè vẫn còn nguyên hiệu lực — 2 mục BẢN KHÔI PHỤC còn nguyên trong `CHANGELOG.md`. Lần đẩy này CHỈ sửa: dòng cập nhật này + tiêu đề/báo cáo T-25, không động mục khác. Ky: Muse
@@ -197,8 +199,8 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
   *Lưu ý:* T-16 làm theo Đường A đã chốt (muse2api làm upstream của CLIProxyAPI, MuLon không gọi thẳng 18610, không nới validate_proxy_base_url); key/phiên chỉ ở Vault/config, không commit key thật; nghiệm thu sống cần muse2api Docker + tài khoản Muse trên máy cài; mỗi lúc đúng MỘT mục DOING; không tự ghi VERIFIED — Muse chính nghiệm thu.
 
 - **LUỒNG PHỤ 3 — Muse phụ (chat phụ này, ký: Nori)** (chạy trên VM, push qua GitHub connector, không có clone/worktree trên Mac, không chạy bot thật trên Mac):
-  Chưa nhận việc — chờ chủ dự án phân công.
-  *Lưu ý:* mỗi lúc đúng MỘT mục DOING; không tự ghi VERIFIED — Muse chính nghiệm thu; mọi nhận việc/báo cáo/dòng cập nhật/commit đều ký `Nori`.
+  Chưa nhận việc — chờ chủ dự án phân công. Hàng chờ của LUỒNG PHỤ 3 hiện TRỐNG.
+  *Lưu ý:* mỗi lúc đúng MỘT mục DOING; không tự ghi VERIFIED — Muse chính nghiệm thu; mọi nhận việc/báo cáo/dòng cập nhật/commit đều ký `Nori`. **LUẬT LÀM LIÊN TỤC (lệnh chủ dự án 27/10 ~22:15):** làm xong 1 việc là tự lấy việc tiếp theo trong hàng chờ của LUỒNG PHỤ 3 và làm tiếp luôn trong cùng lượt, không dừng chờ lệnh; chỉ dừng khi hàng chờ trống, thật sự cần chủ dự án quyết định, hoặc bị chặn kỹ thuật không tự gỡ được — dừng thì báo rõ lý do.
 
 - **LUỒNG MUSE — Muse chính làm builder** (chạy trên VM của Muse, push qua GitHub connector; Muse vẫn giữ vai reviewer cho mọi luồng khác):
   T-25 (DONE ở 1.7.22, commit `8fe2e97`, chờ nghiệm thu chéo; còn 1 dòng hiển thị trong `telegram_bot.py` chờ T-24.3 lên main để nối tiếp).
