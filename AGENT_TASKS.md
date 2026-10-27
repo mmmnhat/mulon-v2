@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~01:17 bởi Muse (ký: Muse): theo lệnh chủ dự án ("giao việc cho 2 con, k có nghỉ") — **LUỒNG 4**: khép T-29 (lật DONE + báo cáo) rồi chẩn đoán CI cho T-28 (ghi chú trong mục T-28); **LUỒNG 5**: nhận T-33 mới (chẩn đoán + sửa 5 ca eval vàng đang fail), sau đó sửa phần còn lại của T-25 (ghi chú trong mục T-25). Lần đẩy này CHỈ sửa: dòng cập nhật này + mục T-33 mới + ghi chú trong mục T-28, T-25 + dòng roster, không động mục khác. Ky: Muse
+
 Cập nhật 2026-10-28 ~01:10 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): T-11 chuyển `DONE` (version 1.7.38, 689/689 test passed, evals vàng 31/36 = 86%; rà soát và chuẩn hóa slash commands, /help phân nhóm và chi tiết, chặn lệnh lạ, bảo vệ /the_duyet sau cờ dev, /memory tóm tắt cấu trúc không lộ thô dossier; đổi model trực tiếp trong chat và Mini App 3 tiers và session override SQLite KV; /setup api và Mini App verify-and-capture kiểm tra kết nối sống trước khi lưu Vault; công cụ self_verify_and_restart chạy pytest và tự động git rollback khi fail; bảo toàn quyền connector Action-Level read=allow / write=ask). Hàng chờ LUỒNG 5 ĐÃ HOÀN THÀNH 100% (cả 3 task T-16, T-28, T-11 đều DONE), sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L5]
 
 Cập nhật 2026-10-28 ~00:58 bởi Muse (ký: Muse): theo lệnh chủ dự án — **giao việc cho cả 3 luồng đang rảnh**: LUỒNG 1 chạy 3 bước live còn thiếu của T-16 trên Mac (ghi chú trong mục T-16); LUỒNG 3 test gửi DM Threads thật + kiểm Instagram send cho T-22.3 (ghi chú trong mục T-22.3); LUỒNG 2 khép T-13 (lật DONE + báo cáo), nhận T-32, và sau T-32 nghiệm thu chéo T-25 (việc của LUỒNG MUSE — Antigravity chấm, Muse không tự chấm việc mình). Lần đẩy này CHỈ sửa: dòng cập nhật này + ghi chú trong mục T-16, T-22.3 + dòng roster, không động mục khác. Ky: Muse
@@ -306,7 +308,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-13 + T-32 (L2), T-29 (L4) đang DOING; test live T-16 giao L1, test live T-22.3 giao L3 (lệnh chủ dự án 28/10 ~00:57); T-11 (L5), T-26, T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE; hàng chờ LUỒNG 5 hoàn thành 100% |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-13 + T-32 (L2), khép T-29 + chẩn đoán CI T-28 (L4), T-33 eval vàng (L5) đang DOING; test live T-16 giao L1, test live T-22.3 giao L3 (lệnh chủ dự án 28/10); T-11 (L5), T-26, T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE; hàng chờ LUỒNG 5 hoàn thành 100% |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -1465,6 +1467,7 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - **Nghiệm thu autowatch — Muse (28/10/2026 ~00:40 +07, head `d509c86`, code commit `f8e23c59` phía Mac): VERIFIED** — đối chiếu diff khớp báo cáo: `mulon/vault.py` (+52/−16, `resolve()` đủ 5 dạng), `mulon/tools.py` (+59/−8, thay thế + redact + fail-fast + chặn `find`/`grep` với từ khoá connector/kho), `mulon/agent.py` (+72, quy tắc đường thẳng trong `build_self_knowledge` + chặn lặp URL/tool trong `_act_loop`), `mulon/connectors.py` (+23/−6, gợi ý connector khi gọi sai tên). Suite chạy lại trên cây đồng bộ đủ từ head: **653 passed, 0 failed** (645 cũ + 8 test mới, 8/8 PASSED riêng); eval vàng **31/36 = 86%** qua cổng 85% (đúng 5 trượt cũ: `tool-list-dir`, 3 case marketplace, `self-read-own-source` — không liên quan cửa sổ này). Test sống hàm thật ngoài suite (`live_t246`, không mock phần đang kiểm): **12/12 PASS** — resolve đủ dạng trên file Vault thật, `run_command` thay thế thật bằng bí mật (hash SHA-256 của output khớp hash bí mật, giá trị không lộ), redact output, fail-fast khi thiếu bí mật (file marker không được tạo), chặn `find`/`grep` với từ khoá `threads`/`accesstrade`. **Đính chính số liệu:** báo cáo DONE ghi "647/647" là sai — số đúng là **653** (dòng cập nhật LUỒNG 1 ghi 653/653 mới đúng; 645 + 8 test mới, khớp tuyệt đối, không thiếu test). Giới hạn còn lại, không chặn VERIFIED (theo tiền lệ T-24.4/T-24.5): hành vi "một lượt" trên bot Telegram thật (đúng ca X-05 gốc: yêu cầu dùng key Accesstrade trong kho) vẫn cần 1 probe sống phía máy Mac/chủ dự án khi auto_watch pull bản này — VM không có bot thật để chạy lượt đó; các đường vòng đã bị chặn cứng bằng code (không chỉ bằng prompt) nên probe này chỉ còn xác nhận model chọn đường thẳng, không còn là điều kiện chặn. Không hardcode mới, không nới lỏng chốt bảo mật nào trong diff (chặn tìm kiếm chỉ áp dụng khi lệnh bắt đầu bằng `find`/`grep`/… và chứa từ khoá connector/kho — không chặn `find`/`grep` nói chung). (Giữ mục tại chỗ theo tiền lệ T-24.1–24.5.)
 
 ### [T-25] Nhãn giờ Feed trong Sắp tới sai + hardcode — Giao: Muse — `DONE` (ƯU TIÊN 23) — LUỒNG MUSE (ký: Muse)
+- **Giao phần còn lại — Muse theo lệnh chủ dự án (28/10 ~01:16):** dòng hardcode giờ Feed ở handler /upcoming (`mulon/telegram_bot.py`, đã ghi trong mục này) giao **LUỒNG 5** sửa sau T-33: thay bằng `cron_times_label(<effective cron>)`, ghi kết quả vào mục này. Ky: Muse
 - **Nhận việc — LUỒNG MUSE (2026-10-27 ~21:45 +07, ký: Muse):** chuyển tiếp từ LUỒNG PHỤ 1 sang LUỒNG MUSE theo lệnh chủ dự án ("bạn cũng tham gia luôn đi"); Muse làm builder mục này, nghiệm thu chéo bởi Antigravity/chủ dự án (Muse không tự VERIFIED). Phạm vi làm trước: helper suy nhãn giờ từ cron thật trong `mulon/feed_auto.py` + sửa `_upcoming_state` trong `mulon/webapp_server.py` dùng helper đó + test. Dòng hiển thị trong `mulon/telegram_bot.py` (file LUỒNG 1 đang sửa dở cho T-24.3) chỉ đụng khi LUỒNG 1 không đang sửa dở, theo lưu ý an toàn của LUẬT ĐA LUỒNG.
 - **Chuyển giao 2026-10-27 ~21:40 bởi Muse (lệnh chủ dự án):** từ LUỒNG 1 sang LUỒNG PHỤ 1; thứ tự trong LUỒNG PHỤ 1 lúc đó: T-22.3 -> T-28 -> T-29 -> T-26 -> T-25. (Đã chuyển tiếp sang LUỒNG MUSE ở ghi chú trên.)
 - Phát hiện khi Muse nghiệm thu T-10.2 (27/10/2026, đọc code `mulon/webapp_server.py` `_upcoming_state`): mục Feed chủ động trong `/api/upcoming` ghi cứng `time_label = "Hằng ngày (08:00 & 17:00)"`, trong khi cron mặc định thật là `feed_auto_cron = "0 8,20 * * *"` (`mulon/config.py`, `mulon/feed_auto.py` DEFAULT_CRON) tức 08:00 & **20:00** — nhãn lệch 3 tiếng so với lịch thật, và hardcode thay vì suy từ cron đang chạy (vi phạm luật AGENTS.md mục 4: giá trị đổi theo cấu hình thì không nằm trong code).
@@ -1534,6 +1537,7 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Nghiệm thu (mục 2.3): render thật trước/sau từng màn + chạm thử 0 hàng chết + đo lại thời gian mở màn + đối chiếu checklist 2.1 từng dòng. Không nghiệm thu bằng lời.
 
 ### [T-28] CI đỏ mọi commit — tìm chân gãy macOS/Windows — Giao: LUỒNG 5 — `DONE` (ƯU TIÊN 27) — LUỒNG 5
+- **Phân công chẩn đoán CI — Muse theo lệnh chủ dự án (28/10 ~01:16):** cổng CI còn thiếu của T-28 giao **LUỒNG 4**: lấy log GitHub Actions phía Mac, tách rõ leg nào bị chặn bởi billing, leg nào fail test thật (kèm tên test + đoạn log), ghi chẩn đoán vào mục này. Phần xử lý billing thuộc chủ dự án. Trước việc này, LUỒNG 4 khép T-29 của chính nó (lật `DONE` + báo cáo — code `427f3ab9` đã lên). Ky: Muse
 - **Nhận tiếp — Antigravity [L5] (2026-10-27 ~23:51 +07, phiên mới sau 22:47):** nhận T-28 DOING theo LUẬT ĐA LUỒNG và thứ tự hàng chờ LUỒNG 5 sau khi hoàn tất T-16; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L5]
 - **Báo cáo hoàn thành (Antigravity [L5] 2026-10-28 ~00:10 +07, version 1.7.30):**
   1. *Version & Commit:* 1.7.30.
@@ -1628,6 +1632,12 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
   2. docs/: cập nhật trạng thái ở `docs/muse-parity-checklist.md` theo verdict mới nhất; sitemap cập nhật nếu IA đã đổi sau T-12/T-23; tài liệu bị thay thế thì đánh dấu superseded rõ ràng, không để hai tài liệu mâu thuẫn nhau.
   3. Mục này CHỈ sửa tài liệu, không sửa code. Gặp chỗ code lệch docs thì ghi báo vào mục này cho Muse xử lý, không tự sửa code.
 - Nghiệm thu: Muse đối chiếu README/docs với AGENT_TASKS và kiểm chứng sống các khẳng định trong README (lệnh, cổng, tính năng phải chạy được thật).
+
+### [T-33] Chẩn đoán + sửa 5 ca eval vàng đang fail (eval đứng ở 31/36) — Giao: LUỒNG 5 — `TODO` (ƯU TIÊN 31) — LUỒNG 5
+- **Mở việc 2026-10-28 ~01:16 bởi Muse (lệnh chủ dự án):** eval vàng đứng ở 31/36 (86%) qua nhiều lượt autowatch mà 5 ca fail chưa ai chẩn đoán — giao LUỒNG 5 khép nốt. Ky: Muse
+- Yêu cầu: chạy `mulon.evals`, xác định đúng 5 ca fail; với mỗi ca phân loại rõ: (a) lỗi code thật -> sửa code + thêm test hồi quy; (b) kỳ vọng của ca đã cũ/lệch hành vi chuẩn Muse hiện tại -> KHÔNG tự sửa ca, ghi bằng chứng vào mục này cho Muse + chủ dự án quyết. Mục tiêu là eval xanh THẬT, không nới lỏng ca để lấy số.
+- Sau T-33: sửa phần còn lại của T-25 đã ghi chú trong mục T-25 (dòng hardcode /upcoming).
+- Nghiệm thu: Muse chạy lại eval + suite độc lập.
 
 ## Đã đóng (VERIFIED)
 
