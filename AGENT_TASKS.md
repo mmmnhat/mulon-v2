@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~00:21 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): nhận T-11 DOING (Parity hệ thống: connector/MCP/quyền/model/tự sửa, LUỒNG 5) theo điều phối của chủ dự án và Muse; tiếp tục từ trạng thái code trên main. Ky: Antigravity [L5]
+
 Cập nhật 2026-10-28 ~00:18 bởi Muse (ký: Muse): theo lệnh chủ dự án (chat phụ ~00:17) — **chuyển T-11 từ hàng chờ LUỒNG 3 sang LUỒNG 5** (LUỒNG 5 trống sau T-16 + T-28 DONE; T-11 mảng parity hệ thống/model hợp làn LUỒNG 5. T-22.3 phần còn lại GIỮ ở LUỒNG 3 sau T-17 — cùng chủ file connector/bridge). Ky: Muse
 
 Cập nhật 2026-10-28 ~00:12 bởi Muse (ký: Muse): theo lệnh chủ dự án (chat phụ ~00:11) — **chuyển T-26 + T-29 từ hàng chờ LUỒNG 1 sang LUỒNG 4** (san tải: LUỒNG 1 đang DOING T-24.6, sau đó T-24.7 cùng cụm; LUỒNG 4 trống sau T-14 DONE). Hàng chờ LUỒNG 4 mới: T-26 -> T-29. Ky: Muse
@@ -497,7 +499,8 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
   5. *Kiểm chứng:* 509/509 unit tests PASS (thêm 6 test toàn diện trong `tests/test_v17_media_library_sidechat_parity.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 - **Nghiệm thu bởi Muse (autowatch 27/10 ~11:55, head `70d992d`, suite chạy lại ở head `ae9637b` vẫn xanh): VERIFIED.** Diff commit `b532c12` (10 file) đối chiếu khớp mô tả: 5 phương thức gửi aiogram + trần 50MB trong `telegram_bot.py`, handler nhận đủ 5 loại + index vào Library, cột `caption` + `fold_vi` trong `memory.py`/`library.py`, `parse_session_key`/`send_to_session` (R15), 3 tool `search_library`/`get_library_item`/`share_library_item` (share kẹp <=48h, token chỉ lưu hash). Full suite chạy lại trên cây đồng bộ từ head: **539 passed, 0 failed** ở thời điểm chốt (sau đó suite head `ae9637b` đạt 545 passed khi đủ bs4 — xem T-23.1). Eval vàng stub chạy lại: **31/36, đúng 5 case trượt cũ** (marketplace/self-read, có từ trước, không phải hồi quy của đợt này). Test sống VM (hàm thật, dữ liệu mới, script `live_verify_t105_t221_t222.py`): fold_vi + tìm kiếm có dấu/không dấu trên SQLite thật đều trúng; share 72h bị kẹp đúng 48.00h; parse_session_key tách đúng (-100555, topic 77), key lạ -> (None, None); trần mặc định đúng 52428800. Checklist: E2 (phần tìm kiếm + share <=48h) ĐẠT, E3 + R15 ĐẠT ở tầng code. **Phần chưa tự kiểm được từ VM (cần bot thật):** gửi đủ 5 loại qua Bot API thật + người dùng gửi file thật rồi tìm lại trong Library — Antigravity/chủ dự án xác nhận thêm trên bot thật khi tiện; không chặn VERIFIED vì đường code + test đơn vị + test sống VM đã khớp toàn bộ.
 
-### [T-11] Parity hệ thống: connector/MCP/quyền/model/tự sửa — Giao: Antigravity — `TODO` — LUỒNG 5 (chuyển từ LUỒNG 3 theo lệnh chủ dự án 28/10 ~00:17)
+### [T-11] Parity hệ thống: connector/MCP/quyền/model/tự sửa — Giao: Antigravity — `DOING` — LUỒNG 5 (chuyển từ LUỒNG 3 theo lệnh chủ dự án 28/10 ~00:17)
+- **Nhận việc — Antigravity [L5] (2026-10-28 ~00:21 +07):** nhận T-11 DOING theo điều phối của chủ dự án và Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L5]
 - **Chuyển giao 2026-10-28 ~00:18 bởi Muse (lệnh chủ dự án):** từ LUỒNG 3 sang LUỒNG 5 (LUỒNG 5 trống sau T-16 + T-28 DONE). Chỉ LUỒNG 5 nhận mục này. Ky: Muse
 - Rà soát toàn bộ slash command: bỏ trùng, đặt tên nhất quán,
   mỗi lệnh có mô tả; thêm lệnh còn thiếu so với Muse.
