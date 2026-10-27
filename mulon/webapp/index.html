@@ -2861,13 +2861,19 @@ function googleAction(g){
     '<button class="btn btn-soft btn-sm" data-gdisconnect="1">Ngắt</button></div>';
 }
 function personalConnectorAction(c){
-  const p = c.zalo || c.telegram_personal || c.facebook_personal;
+  const p = c.zalo || c.telegram_personal || c.facebook_personal || c.instagram_messages || c.threads_messages;
   if (!p) return '';
   if (p.connected) {
     return '<button class="btn btn-soft btn-sm" data-pdisconnect="' + esc(c.id) + '">Ngắt</button>';
   }
   if (c.id === "facebook_personal") {
     return '<button class="btn btn-accent btn-sm" data-pfbconnect="' + esc(c.id) + '">Nhập Cookie</button>';
+  }
+  if (c.id === "instagram_messages") {
+    return '<button class="btn btn-accent btn-sm" data-pigconnect="' + esc(c.id) + '">Nhập Phiên</button>';
+  }
+  if (c.id === "threads_messages") {
+    return '<button class="btn btn-accent btn-sm" data-pthconnect="' + esc(c.id) + '">Nhập Phiên</button>';
   }
   return '<button class="btn btn-accent btn-sm" data-pqr="' + esc(c.id) + '">Quét QR</button>';
 }
@@ -2880,7 +2886,7 @@ function renderConnectors(){
   }
   box.innerHTML = list.map(c => {
     const isGoogle = !!c.google;
-    const isPersonal = !!(c.zalo || c.telegram_personal || c.facebook_personal);
+    const isPersonal = !!(c.zalo || c.telegram_personal || c.facebook_personal || c.instagram_messages || c.threads_messages);
     return '<div class="row ' + (isGoogle ? 'clickable' : 'static') + '"' +
       (isGoogle ? ' data-open-gconfig="1"' : '') + '>' +
       '<div class="mono">' + (c.kind === "mcp" ? "M" : "S") + '</div>' +
@@ -2959,6 +2965,32 @@ function renderConnectors(){
         const r = await api("/api/personal-connector/connect", "POST", { name, cookies });
         if (!r.ok) throw new Error(r.error || "Không thể lưu cookie");
         toast("Đã lưu cookie Facebook vào Kho an toàn (Vault).");
+        await load();
+      } catch (err) { toast(err.message); }
+    }));
+  box.querySelectorAll("[data-pigconnect]").forEach(btn =>
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const name = btn.dataset.pigconnect;
+      const cookies = window.prompt("Nhập chuỗi cookie/phiên Instagram (sessionid=... hoặc ds_user_id=...; sessionid=...):");
+      if (!cookies) return;
+      try {
+        const r = await api("/api/personal-connector/connect", "POST", { name, cookies });
+        if (!r.ok) throw new Error(r.error || "Không thể lưu phiên");
+        toast("Đã lưu phiên Instagram vào Kho an toàn (Vault).");
+        await load();
+      } catch (err) { toast(err.message); }
+    }));
+  box.querySelectorAll("[data-pthconnect]").forEach(btn =>
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const name = btn.dataset.pthconnect;
+      const cookies = window.prompt("⚠️ GIỚI HẠN CỨNG: Threads chỉ nhắn được người ĐÃ có hội thoại từ trước.\n\nNhập chuỗi phiên/cookie Threads (sessionid=... hoặc token):");
+      if (!cookies) return;
+      try {
+        const r = await api("/api/personal-connector/connect", "POST", { name, cookies });
+        if (!r.ok) throw new Error(r.error || "Không thể lưu phiên");
+        toast("Đã lưu phiên Threads vào Kho an toàn (Vault).");
         await load();
       } catch (err) { toast(err.message); }
     }));

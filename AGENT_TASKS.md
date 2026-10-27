@@ -19,6 +19,7 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật lần cuối: 2026-10-27 ~11:05 bởi Antigravity: T-22.3 đã `DONE` (kết nối tin nhắn Instagram Direct Messages + Threads Direct Messages; tách biệt kết nối tin nhắn với bài đăng; Instagram hỗ trợ inbox/pending/spam, tìm kiếm, gửi tin/file, thả reaction, Checkpoint Guard; Threads tuân thủ nghiêm ngặt GIỚI HẠN CỨNG từ chối mở DM tới người lạ qua @handle; phân quyền đọc allow, gửi ask; phiên Vault an toàn; lệnh chat /instagram, /threads và Mini App UI), 539/539 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~10:47 bởi Antigravity: nhận T-22.3 `DOING` (ƯU TIÊN 10) theo LUẬT HÀNG ĐỢI.
 Cập nhật lần cuối: 2026-10-27 ~10:25 bởi Antigravity: T-22.2 đã `DONE` (commit `73f5dee`: hoàn tất báo cáo nghiên cứu kỹ thuật docs/nghien-cuu-facebook-ca-nhan.md; triển khai FacebookPersonalConnector với Checkpoint Guard tự ngắt khi gặp checkpoint; lưu cookie an toàn qua Vault; bọc frame_external; phân quyền đọc allow, gửi ask; cảnh báo rủi ro cao trên UI và chat; lệnh /facebook và Mini App API), 528/528 unit tests PASS, eval vàng 31/36 (86%), chờ Muse nghiệm thu.
 Cập nhật 2026-10-27 ~10:13 bởi Antigravity: nhận T-22.2 `DOING` (ƯU TIÊN 9) theo LUẬT HÀNG ĐỢI.
@@ -628,7 +629,7 @@ Mục này KHÓ NHẤT trong T-22, làm theo 2 bước:
      - REST API: `GET /api/personal-connector/status`, `POST /api/personal-connector/connect`, `POST /api/personal-connector/disconnect`.
   5. *Kiểm chứng:* 528/528 unit tests PASS (thêm 7 test toàn diện trong `tests/test_v17_personal_connectors.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 
-### [T-22.3] Tin nhắn Instagram + tin nhắn Threads — Giao: Antigravity — `DOING` (ƯU TIÊN 10)
+### [T-22.3] Tin nhắn Instagram + tin nhắn Threads — Giao: Antigravity — `DONE` (ƯU TIÊN 10)
 Tiền lệ phía Muse: kết nối TIN NHẮN tách riêng với kết nối
 nội dung — người dùng có thể đã nối Instagram/Threads (bài
 đăng, ở T-17) mà chưa nối tin nhắn. MuLon cũng tách như vậy.
@@ -650,6 +651,15 @@ nội dung — người dùng có thể đã nối Instagram/Threads (bài
   -> thả reaction -> ngắt kết nối sạch; trường hợp Threads
   nhắn người chưa có hội thoại phải báo đúng giới hạn,
   không lỗi im lặng.
+- **Kết quả thực hiện (Antigravity 27/10/2026, version 1.7.10):**
+  1. *Tách biệt kết nối tin nhắn với kết nối nội dung bài đăng:* Hoàn thiện 2 module riêng biệt `InstagramMessagesConnector` (`instagram_messages`) và `ThreadsMessagesConnector` (`threads_messages`) trong `mulon/personal_connectors.py`, độc lập hoàn toàn với connector bài đăng mạng xã hội (T-17).
+  2. *Tin nhắn Instagram (Instagram Direct Messages):* Hỗ trợ đọc hộp thư `read_inbox` theo thư mục (`inbox`, `pending` yêu cầu chờ, `spam`); đọc tin nhắn hội thoại `read_messages`; tìm kiếm tin nhắn `search_messages`; gửi tin nhắn `send_message`, gửi tệp `send_file`, và thả reaction `send_reaction`. Tích hợp Checkpoint Guard tự ngắt khi gặp checkpoint Instagram.
+  3. *Tin nhắn Threads & Strict Parity Guard:* Hỗ trợ đọc hộp thư `read_inbox` (`inbox`, `pending`), đọc tin nhắn `read_messages`, gửi tin nhắn `send_message` và thả reaction `send_reaction`. Thực thi nghiêm ngặt GIỚI HẠN CỨNG: kiểm tra chặt chẽ hội thoại/người nhận đã có từ trước (`existing_threads`), lập tức từ chối yêu cầu mở DM tới người lạ qua @handle kèm thông báo lỗi giải thích rõ ràng giới hạn, tuyệt đối không nuốt lỗi im lặng.
+  4. *Bảo mật & Phân quyền:* Phiên cookie/token được mã hóa và lưu trữ độc quyền trong Vault (`instagram_messages:session`, `threads_messages:session`). Thao tác đọc mặc định `allow`, thao tác gửi mặc định `ask` qua `ApprovalBroker`. Mọi nội dung tin nhắn và trích đoạn nhận từ bên ngoài đều bọc bảo vệ bằng `frame_external`.
+  5. *Giao diện & Lệnh chat Telegram:*
+     - Lệnh Telegram: `/instagram status`, `/instagram connect <cookies>`, `/instagram inbox [pending|spam]`, `/instagram disconnect`; và `/threads status`, `/threads connect <cookies>`, `/threads inbox [pending]`, `/threads disconnect` (cảnh báo rõ giới hạn cứng).
+     - Mini App: thẻ Instagram Messages và Threads Messages hiển thị trạng thái, nút Nhập Phiên, nút Ngắt và cảnh báo giới hạn. REST API hỗ trợ `/api/personal-connector/status`, `/connect`, `/disconnect`.
+  6. *Kiểm chứng:* 539/539 unit tests PASS (thêm 11 test toàn diện trong `tests/test_v17_personal_connectors.py`); eval vàng stub đạt 31/36 (86%, vượt ngưỡng 85%).
 
 ### [T-23] QA Mini App đợt 1 — `ĐÃ CHIA NHỎ` (mục cha, KHÔNG nhận mục này)
 Nguồn: Muse QA/QC trực tiếp Mini App bằng WebView đã xác

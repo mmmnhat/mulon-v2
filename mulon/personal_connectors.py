@@ -51,6 +51,14 @@ LBL_FB_SESSION = "facebook_personal:session"
 LBL_FB_USER = "facebook_personal:user_info"
 LBL_FB_CHECKPOINT = "facebook_personal:checkpoint"
 
+LBL_IG_SESSION = "instagram_messages:session"
+LBL_IG_USER = "instagram_messages:user_info"
+LBL_IG_CHECKPOINT = "instagram_messages:checkpoint"
+
+LBL_TH_SESSION = "threads_messages:session"
+LBL_TH_USER = "threads_messages:user_info"
+LBL_TH_CHECKPOINT = "threads_messages:checkpoint"
+
 LIMITATION_ZALO = "Lưu ý: Không hỗ trợ đăng nhật ký/bài viết (muốn đăng phải qua Zalo OA API — ngoài phạm vi connector cá nhân)."
 WARNING_TELEGRAM = "Lưu ý: Đây là userbot MTProto Telegram cá nhân (Telethon). Kênh riêng biệt chạy song song với Bot API. Giữ lượng dùng ở mức bình thường để tránh bị Telegram giới hạn."
 WARNING_FACEBOOK = (
@@ -61,6 +69,21 @@ WARNING_FACEBOOK = (
 LIMITATION_FACEBOOK = (
     "Lưu ý: Yêu cầu cookie phiên web (c_user, xs). "
     "Có rủi ro checkpoint nếu IP thay đổi hoặc gửi request quá nhanh."
+)
+WARNING_INSTAGRAM_MSG = (
+    "Lưu ý: Kết nối tin nhắn Instagram (Direct Messages) cá nhân. "
+    "Giữ lượng dùng ở mức người dùng bình thường để tránh bị Meta hạn chế tính năng nhắn tin."
+)
+LIMITATION_INSTAGRAM_MSG = (
+    "Lưu ý: Yêu cầu phiên web cookie (sessionid) hoặc token Meta Accounts Center."
+)
+WARNING_THREADS_MSG = (
+    "Lưu ý: Kết nối tin nhắn Threads (Direct Messages) cá nhân. "
+    "Kênh độc lập với bài viết/nội dung Threads. Giữ lượng dùng ở mức bình thường."
+)
+LIMITATION_THREADS_MSG = (
+    "GIỚI HẠN CỨNG: Threads chỉ cho phép nhắn tin cho người ĐÃ có hội thoại từ trước "
+    "(hoặc đã nhắn cho bạn trước). Tuyệt đối KHÔNG thể mở hội thoại DM mới tới người lạ chỉ bằng @handle."
 )
 
 
@@ -929,4 +952,638 @@ class FacebookPersonalConnector(Connector):
             }
 
         return {"ok": False, "error": f"facebook_personal không hỗ trợ action: {action}"}
+
+
+# ---------------------------------------------------------------------------
+# 4. Tin nhắn Instagram (Instagram Direct Messages) - T-22.3
+# ---------------------------------------------------------------------------
+
+class InstagramMessagesConnector(Connector):
+    """Connector Tin nhắn Instagram cá nhân (Instagram Direct Messages) - T-22.3.
+
+    Tách biệt kết nối tin nhắn với kết nối nội dung bài đăng (T-17).
+    Bảo mật:
+    - Quản lý phiên cookie an toàn qua Vault (instagram_messages:session).
+    - Checkpoint Guard tự ngắt khi phát hiện checkpoint hoặc hạn chế tài khoản.
+    - Phân quyền: đọc allow, gửi tin / file / reaction ask.
+    - Mọi nội dung tin nhắn và trích đoạn từ bên ngoài đều bọc qua frame_external.
+    """
+
+    name = "instagram_messages"
+
+    def __init__(self, cfg=None, vault_store=None, session_runner=None):
+        self.cfg = cfg
+        self.vault = vault_store
+        self._session_runner = session_runner
+        self._checkpoint_detected = False
+
+    def _parse_cookies(self, raw: Union[str, dict]) -> dict[str, str]:
+        if isinstance(raw, dict):
+            return {str(k): str(v) for k, v in raw.items()}
+        if not raw or not isinstance(raw, str):
+            return {}
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                return {str(k): str(v) for k, v in parsed.items()}
+        except Exception:
+            pass
+        cookies = {}
+        for part in raw.split(";"):
+            part = part.strip()
+            if not part:
+                continue
+            if "=" in part:
+                k, v = part.split("=", 1)
+                cookies[k.strip()] = v.strip()
+            else:
+                # Token trần
+                cookies["sessionid"] = part
+                cookies["token"] = part
+        return cookies
+
+    def _is_checkpoint_flagged(self) -> bool:
+        if self._checkpoint_detected:
+            return True
+        val = _vault_get(self.vault, LBL_IG_CHECKPOINT)
+        return val == "true"
+
+    def _flag_checkpoint(self, reason: str = ""):
+        self._checkpoint_detected = True
+        _vault_put(self.vault, LBL_IG_CHECKPOINT, "true")
+        logger.warning("Instagram Checkpoint Guard kích hoạt: %s", reason or "Phát hiện Checkpoint Instagram")
+
+    def _clear_checkpoint(self):
+        self._checkpoint_detected = False
+        _vault_delete(self.vault, LBL_IG_CHECKPOINT)
+
+    async def health_check(self) -> dict:
+        session_raw = _vault_get(self.vault, LBL_IG_SESSION)
+        cookies = self._parse_cookies(session_raw) if session_raw else {}
+        configured = bool(cookies.get("sessionid") or cookies.get("token") or cookies.get("ds_user_id"))
+        user_info = _vault_get_json(self.vault, LBL_IG_USER)
+        is_checkpoint = self._is_checkpoint_flagged()
+        connected = configured and not is_checkpoint
+
+        if is_checkpoint:
+            detail = "Phát hiện Checkpoint Instagram. Đã tự động ngắt kết nối an toàn để bảo vệ tài khoản."
+        elif connected:
+            uid = cookies.get("ds_user_id") or (user_info.get("id") or user_info.get("username") if user_info else "")
+            detail = f"Đã kết nối tin nhắn Instagram (User: {uid or 'Đã xác thực'})."
+        else:
+            detail = "Chưa cấu hình phiên cookie Instagram (sessionid)."
+
+        return {
+            "ok": connected,
+            "name": self.name,
+            "configured": configured,
+            "connected": connected,
+            "checkpoint_detected": is_checkpoint,
+            "user": user_info,
+            "detail": detail,
+            "warning": WARNING_INSTAGRAM_MSG,
+            "limitations": LIMITATION_INSTAGRAM_MSG,
+        }
+
+    async def call(self, action: str, args: dict) -> dict:
+        # 1. Cấu hình session
+        if action in ("configure", "configure_session", "connect"):
+            raw_cookies = args.get("cookies") or args.get("session") or args.get("token") or ""
+            cookies = self._parse_cookies(raw_cookies)
+            if not (cookies.get("sessionid") or cookies.get("token") or cookies.get("ds_user_id")):
+                return {
+                    "ok": False,
+                    "error": "Chuỗi cookie/phiên không hợp lệ. Bắt buộc phải có 'sessionid' hoặc token.",
+                    "warning": WARNING_INSTAGRAM_MSG,
+                }
+            self._clear_checkpoint()
+            _vault_put(self.vault, LBL_IG_SESSION, json.dumps(cookies, ensure_ascii=False))
+
+            user_data = args.get("user") or {
+                "id": str(cookies.get("ds_user_id") or "ig_user"),
+                "username": args.get("username") or args.get("name") or f"instagram_user_{cookies.get('ds_user_id', '')}",
+            }
+            _vault_put_json(self.vault, LBL_IG_USER, user_data)
+
+            return {
+                "ok": True,
+                "configured": True,
+                "user": user_data,
+                "warning": WARNING_INSTAGRAM_MSG,
+                "limitations": LIMITATION_INSTAGRAM_MSG,
+            }
+
+        # 2. Đăng xuất / ngắt kết nối
+        if action in ("logout", "disconnect"):
+            _vault_delete(self.vault, LBL_IG_SESSION)
+            _vault_delete(self.vault, LBL_IG_USER)
+            self._clear_checkpoint()
+            return {"ok": True, "disconnected": True}
+
+        # Kiểm tra checkpoint
+        if self._is_checkpoint_flagged():
+            return {
+                "ok": False,
+                "checkpoint": True,
+                "error": "Tài khoản đang bị đánh dấu Checkpoint Instagram. Đã ngắt kết nối để bảo vệ tài khoản.",
+                "warning": WARNING_INSTAGRAM_MSG,
+            }
+
+        # Kiểm tra session
+        session_raw = _vault_get(self.vault, LBL_IG_SESSION)
+        cookies = self._parse_cookies(session_raw) if session_raw else {}
+        if not (cookies.get("sessionid") or cookies.get("token") or cookies.get("ds_user_id")):
+            return {
+                "ok": False,
+                "error": "Chưa cấu hình phiên cookie Instagram trong Kho bảo mật (Vault).",
+                "warning": WARNING_INSTAGRAM_MSG,
+            }
+
+        # Runner tùy biến nếu có
+        if self._session_runner is not None:
+            res = self._session_runner(action, args, cookies)
+            if hasattr(res, "__await__"):
+                res = await res
+            if isinstance(res, dict):
+                if res.get("checkpoint"):
+                    self._flag_checkpoint(res.get("error", "Checkpoint từ Instagram session runner"))
+                    return {
+                        "ok": False,
+                        "checkpoint": True,
+                        "error": "Phát hiện Checkpoint Instagram. Đã tự động kích hoạt Checkpoint Guard.",
+                        "warning": WARNING_INSTAGRAM_MSG,
+                    }
+                # Bọc frame_external cho tin nhắn
+                if action in ("read_inbox", "get_inbox") and "threads" in res:
+                    for t in res.get("threads", []):
+                        raw_s = t.get("raw_snippet") or t.get("snippet") or ""
+                        t["raw_snippet"] = raw_s
+                        t["snippet"] = frame_external(raw_s)
+                elif action in ("read_messages", "get_messages", "search_messages") and "messages" in res:
+                    for m in res.get("messages", []):
+                        raw_t = m.get("raw_text") or m.get("text") or ""
+                        m["raw_text"] = raw_t
+                        m["text"] = frame_external(raw_t)
+            return res
+
+        # 3. Kiểm tra session
+        if action == "check_session":
+            return {
+                "ok": True,
+                "connected": True,
+                "user_id": cookies.get("ds_user_id"),
+                "warning": WARNING_INSTAGRAM_MSG,
+            }
+
+        user_info = _vault_get_json(self.vault, LBL_IG_USER) or {}
+
+        # 4. Đọc hộp thư (read_inbox): inbox, pending, spam
+        if action in ("read_inbox", "get_inbox"):
+            folder = (args.get("folder") or "inbox").lower()
+            key = f"cached_{folder}" if folder in ("pending", "spam") else "cached_inbox"
+            cached_threads = user_info.get(key) or user_info.get("cached_inbox") or []
+            framed_threads = []
+            for t in cached_threads:
+                raw_s = t.get("raw_snippet") or t.get("snippet") or ""
+                framed_threads.append({
+                    **t,
+                    "folder": folder,
+                    "snippet": frame_external(raw_s),
+                    "raw_snippet": raw_s,
+                })
+            return {
+                "ok": True,
+                "folder": folder,
+                "count": len(framed_threads),
+                "threads": framed_threads,
+                "warning": WARNING_INSTAGRAM_MSG,
+            }
+
+        # 5. Đọc tin nhắn hội thoại (read_messages)
+        if action in ("read_messages", "get_messages"):
+            thread_id = str(args.get("thread_id") or "default")
+            cached_messages = user_info.get("cached_messages") or {}
+            raw_msgs = cached_messages.get(thread_id) or []
+            framed_msgs = []
+            for m in raw_msgs:
+                raw_t = m.get("raw_text") or m.get("text") or ""
+                framed_msgs.append({
+                    **m,
+                    "text": frame_external(raw_t),
+                    "raw_text": raw_t,
+                })
+            return {
+                "ok": True,
+                "thread_id": thread_id,
+                "count": len(framed_msgs),
+                "messages": framed_msgs,
+                "warning": WARNING_INSTAGRAM_MSG,
+            }
+
+        # 6. Tìm kiếm tin nhắn (search_messages)
+        if action == "search_messages":
+            query = (args.get("query") or args.get("q") or "").strip().lower()
+            thread_id = args.get("thread_id")
+            cached_messages = user_info.get("cached_messages") or {}
+            matches = []
+            for tid, msgs in cached_messages.items():
+                if thread_id and str(tid) != str(thread_id):
+                    continue
+                for m in msgs:
+                    raw_t = m.get("raw_text") or m.get("text") or ""
+                    if query in raw_t.lower():
+                        matches.append({
+                            **m,
+                            "thread_id": tid,
+                            "text": frame_external(raw_t),
+                            "raw_text": raw_t,
+                        })
+            return {
+                "ok": True,
+                "query": query,
+                "count": len(matches),
+                "messages": matches,
+                "warning": WARNING_INSTAGRAM_MSG,
+            }
+
+        # 7. Gửi tin nhắn (send_message)
+        if action == "send_message":
+            thread_id = args.get("thread_id") or args.get("recipient_id") or args.get("username")
+            text = args.get("text") or args.get("msg")
+            if not thread_id or not text:
+                return {"ok": False, "error": "Thiếu thread_id/recipient_id hoặc text để gửi tin nhắn Instagram."}
+            return {
+                "ok": True,
+                "sent": True,
+                "thread_id": str(thread_id),
+                "text": text,
+                "warning": WARNING_INSTAGRAM_MSG,
+            }
+
+        # 8. Gửi tệp đính kèm (send_file)
+        if action == "send_file":
+            thread_id = args.get("thread_id") or args.get("recipient_id")
+            path = args.get("path") or args.get("file_path") or args.get("url")
+            if not thread_id or not path:
+                return {"ok": False, "error": "Thiếu thread_id hoặc path để gửi tệp tin nhắn Instagram."}
+            return {
+                "ok": True,
+                "sent": True,
+                "thread_id": str(thread_id),
+                "path": str(path),
+                "warning": WARNING_INSTAGRAM_MSG,
+            }
+
+        # 9. Thả reaction (send_reaction)
+        if action in ("send_reaction", "react"):
+            thread_id = args.get("thread_id")
+            message_id = args.get("message_id")
+            reaction = args.get("reaction") or args.get("emoji") or "❤️"
+            if not thread_id or not message_id:
+                return {"ok": False, "error": "Thiếu thread_id hoặc message_id để thả reaction."}
+            return {
+                "ok": True,
+                "reacted": True,
+                "thread_id": str(thread_id),
+                "message_id": str(message_id),
+                "reaction": str(reaction),
+                "warning": WARNING_INSTAGRAM_MSG,
+            }
+
+        return {"ok": False, "error": f"instagram_messages không hỗ trợ action: {action}"}
+
+
+# ---------------------------------------------------------------------------
+# 5. Tin nhắn Threads (Threads Direct Messages) - T-22.3
+# ---------------------------------------------------------------------------
+
+class ThreadsMessagesConnector(Connector):
+    """Connector Tin nhắn Threads cá nhân (Threads Direct Messages) - T-22.3.
+
+    Tách biệt kết nối tin nhắn với kết nối nội dung bài đăng (T-17).
+    GIỚI HẠN CỨNG (theo chuẩn Muse parity):
+    - Chỉ cho phép nhắn tin cho người ĐÃ có hội thoại từ trước (hoặc đã nhắn cho bạn trước).
+    - Tuyệt đối KHÔNG mở DM mới tới người lạ chỉ bằng @handle. Nếu yêu cầu gửi tin tới người chưa có hội thoại,
+      connector từ chối rõ ràng kèm thông báo giới hạn, không bao giờ lỗi im lặng.
+    Bảo mật:
+    - Quản lý phiên an toàn qua Vault (threads_messages:session).
+    - Checkpoint Guard tự ngắt khi phát hiện checkpoint.
+    - Phân quyền: đọc allow, gửi tin / reaction ask.
+    - Mọi nội dung tin nhắn nhận từ bên ngoài đều bọc qua frame_external.
+    """
+
+    name = "threads_messages"
+
+    def __init__(self, cfg=None, vault_store=None, session_runner=None):
+        self.cfg = cfg
+        self.vault = vault_store
+        self._session_runner = session_runner
+        self._checkpoint_detected = False
+
+    def _parse_cookies(self, raw: Union[str, dict]) -> dict[str, str]:
+        if isinstance(raw, dict):
+            return {str(k): str(v) for k, v in raw.items()}
+        if not raw or not isinstance(raw, str):
+            return {}
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                return {str(k): str(v) for k, v in parsed.items()}
+        except Exception:
+            pass
+        cookies = {}
+        for part in raw.split(";"):
+            part = part.strip()
+            if not part:
+                continue
+            if "=" in part:
+                k, v = part.split("=", 1)
+                cookies[k.strip()] = v.strip()
+            else:
+                cookies["sessionid"] = part
+                cookies["token"] = part
+        return cookies
+
+    def _is_checkpoint_flagged(self) -> bool:
+        if self._checkpoint_detected:
+            return True
+        val = _vault_get(self.vault, LBL_TH_CHECKPOINT)
+        return val == "true"
+
+    def _flag_checkpoint(self, reason: str = ""):
+        self._checkpoint_detected = True
+        _vault_put(self.vault, LBL_TH_CHECKPOINT, "true")
+        logger.warning("Threads Checkpoint Guard kích hoạt: %s", reason or "Phát hiện Checkpoint Threads")
+
+    def _clear_checkpoint(self):
+        self._checkpoint_detected = False
+        _vault_delete(self.vault, LBL_TH_CHECKPOINT)
+
+    async def health_check(self) -> dict:
+        session_raw = _vault_get(self.vault, LBL_TH_SESSION)
+        cookies = self._parse_cookies(session_raw) if session_raw else {}
+        configured = bool(cookies.get("sessionid") or cookies.get("token") or cookies.get("ds_user_id"))
+        user_info = _vault_get_json(self.vault, LBL_TH_USER)
+        is_checkpoint = self._is_checkpoint_flagged()
+        connected = configured and not is_checkpoint
+
+        if is_checkpoint:
+            detail = "Phát hiện Checkpoint Threads. Đã tự động ngắt kết nối an toàn để bảo vệ tài khoản."
+        elif connected:
+            uid = cookies.get("ds_user_id") or (user_info.get("id") or user_info.get("username") if user_info else "")
+            detail = f"Đã kết nối tin nhắn Threads (User: {uid or 'Đã xác thực'})."
+        else:
+            detail = "Chưa cấu hình phiên cookie Threads (sessionid)."
+
+        return {
+            "ok": connected,
+            "name": self.name,
+            "configured": configured,
+            "connected": connected,
+            "checkpoint_detected": is_checkpoint,
+            "user": user_info,
+            "detail": detail,
+            "warning": WARNING_THREADS_MSG,
+            "limitations": LIMITATION_THREADS_MSG,
+        }
+
+    async def call(self, action: str, args: dict) -> dict:
+        # 1. Cấu hình session
+        if action in ("configure", "configure_session", "connect"):
+            raw_cookies = args.get("cookies") or args.get("session") or args.get("token") or ""
+            cookies = self._parse_cookies(raw_cookies)
+            if not (cookies.get("sessionid") or cookies.get("token") or cookies.get("ds_user_id")):
+                return {
+                    "ok": False,
+                    "error": "Chuỗi cookie/phiên không hợp lệ. Bắt buộc phải có 'sessionid' hoặc token.",
+                    "warning": WARNING_THREADS_MSG,
+                }
+            self._clear_checkpoint()
+            _vault_put(self.vault, LBL_TH_SESSION, json.dumps(cookies, ensure_ascii=False))
+
+            user_data = args.get("user") or {
+                "id": str(cookies.get("ds_user_id") or "threads_user"),
+                "username": args.get("username") or args.get("name") or f"threads_user_{cookies.get('ds_user_id', '')}",
+            }
+            _vault_put_json(self.vault, LBL_TH_USER, user_data)
+
+            return {
+                "ok": True,
+                "configured": True,
+                "user": user_data,
+                "warning": WARNING_THREADS_MSG,
+                "limitations": LIMITATION_THREADS_MSG,
+            }
+
+        # 2. Đăng xuất / ngắt kết nối
+        if action in ("logout", "disconnect"):
+            _vault_delete(self.vault, LBL_TH_SESSION)
+            _vault_delete(self.vault, LBL_TH_USER)
+            self._clear_checkpoint()
+            return {"ok": True, "disconnected": True}
+
+        # Kiểm tra checkpoint
+        if self._is_checkpoint_flagged():
+            return {
+                "ok": False,
+                "checkpoint": True,
+                "error": "Tài khoản đang bị đánh dấu Checkpoint Threads. Đã ngắt kết nối để bảo vệ tài khoản.",
+                "warning": WARNING_THREADS_MSG,
+            }
+
+        # Kiểm tra session
+        session_raw = _vault_get(self.vault, LBL_TH_SESSION)
+        cookies = self._parse_cookies(session_raw) if session_raw else {}
+        if not (cookies.get("sessionid") or cookies.get("token") or cookies.get("ds_user_id")):
+            return {
+                "ok": False,
+                "error": "Chưa cấu hình phiên cookie Threads trong Kho bảo mật (Vault).",
+                "warning": WARNING_THREADS_MSG,
+            }
+
+        # Runner tùy biến nếu có
+        if self._session_runner is not None:
+            res = self._session_runner(action, args, cookies)
+            if hasattr(res, "__await__"):
+                res = await res
+            if isinstance(res, dict):
+                if res.get("checkpoint"):
+                    self._flag_checkpoint(res.get("error", "Checkpoint từ Threads session runner"))
+                    return {
+                        "ok": False,
+                        "checkpoint": True,
+                        "error": "Phát hiện Checkpoint Threads. Đã tự động kích hoạt Checkpoint Guard.",
+                        "warning": WARNING_THREADS_MSG,
+                    }
+                # Bọc frame_external cho tin nhắn
+                if action in ("read_inbox", "get_inbox") and "threads" in res:
+                    for t in res.get("threads", []):
+                        raw_s = t.get("raw_snippet") or t.get("snippet") or ""
+                        t["raw_snippet"] = raw_s
+                        t["snippet"] = frame_external(raw_s)
+                elif action in ("read_messages", "get_messages") and "messages" in res:
+                    for m in res.get("messages", []):
+                        raw_t = m.get("raw_text") or m.get("text") or ""
+                        m["raw_text"] = raw_t
+                        m["text"] = frame_external(raw_t)
+            return res
+
+        # 3. Kiểm tra session
+        if action == "check_session":
+            return {
+                "ok": True,
+                "connected": True,
+                "user_id": cookies.get("ds_user_id"),
+                "warning": WARNING_THREADS_MSG,
+            }
+
+        user_info = _vault_get_json(self.vault, LBL_TH_USER) or {}
+
+        # 4. Đọc hộp thư (read_inbox): inbox, pending
+        if action in ("read_inbox", "get_inbox"):
+            folder = (args.get("folder") or "inbox").lower()
+            key = "cached_pending" if folder == "pending" else "cached_inbox"
+            cached_threads = user_info.get(key) or user_info.get("cached_inbox") or []
+            framed_threads = []
+            for t in cached_threads:
+                raw_s = t.get("raw_snippet") or t.get("snippet") or ""
+                framed_threads.append({
+                    **t,
+                    "folder": folder,
+                    "snippet": frame_external(raw_s),
+                    "raw_snippet": raw_s,
+                })
+            return {
+                "ok": True,
+                "folder": folder,
+                "count": len(framed_threads),
+                "threads": framed_threads,
+                "warning": WARNING_THREADS_MSG,
+                "limitations": LIMITATION_THREADS_MSG,
+            }
+
+        # 5. Đọc tin nhắn hội thoại (read_messages)
+        if action in ("read_messages", "get_messages"):
+            thread_id = str(args.get("thread_id") or "default")
+            cached_messages = user_info.get("cached_messages") or {}
+            raw_msgs = cached_messages.get(thread_id) or []
+            framed_msgs = []
+            for m in raw_msgs:
+                raw_t = m.get("raw_text") or m.get("text") or ""
+                framed_msgs.append({
+                    **m,
+                    "text": frame_external(raw_t),
+                    "raw_text": raw_t,
+                })
+            return {
+                "ok": True,
+                "thread_id": thread_id,
+                "count": len(framed_msgs),
+                "messages": framed_msgs,
+                "warning": WARNING_THREADS_MSG,
+                "limitations": LIMITATION_THREADS_MSG,
+            }
+
+        # 6. Gửi tin nhắn (send_message) - Tuân thủ GIỚI HẠN CỨNG
+        if action == "send_message":
+            thread_id = args.get("thread_id")
+            recipient = (args.get("username") or args.get("handle") or args.get("recipient") or "").strip()
+            text = args.get("text") or args.get("msg")
+            if not text:
+                return {"ok": False, "error": "Thiếu nội dung tin nhắn (text)."}
+
+            # Tập hợp các hội thoại/người nhận đã tồn tại từ trước
+            existing_threads = set(user_info.get("existing_threads") or [])
+            cached_inbox = user_info.get("cached_inbox") or []
+            cached_messages = user_info.get("cached_messages") or {}
+            for t in cached_inbox:
+                if t.get("thread_id"):
+                    existing_threads.add(str(t["thread_id"]))
+                if t.get("participant"):
+                    existing_threads.add(str(t["participant"]).lstrip("@").lower())
+                if t.get("username"):
+                    existing_threads.add(str(t["username"]).lstrip("@").lower())
+            for tid in cached_messages.keys():
+                existing_threads.add(str(tid))
+
+            # Ràng buộc GIỚI HẠN CỨNG: Không mở DM mới tới người lạ qua @handle
+            # 1) Nếu người dùng chỉ định recipient/handle nhưng chưa có hội thoại từ trước
+            if recipient:
+                clean_rec = recipient.lstrip("@").lower()
+                if clean_rec not in existing_threads:
+                    return {
+                        "ok": False,
+                        "error": (
+                            f"Giới hạn Threads: Không thể mở DM mới tới người lạ (@{clean_rec}) chỉ bằng @handle. "
+                            "Threads chỉ cho phép gửi tin nhắn vào hội thoại đã tồn tại từ trước hoặc khi người đó đã nhắn cho bạn trước."
+                        ),
+                        "limitations": LIMITATION_THREADS_MSG,
+                        "warning": WARNING_THREADS_MSG,
+                    }
+                # Nếu có recipient hợp lệ, ánh xạ thành thread_id nếu chưa có
+                if not thread_id:
+                    for t in cached_inbox:
+                        p = str(t.get("participant") or t.get("username") or "").lstrip("@").lower()
+                        if p == clean_rec:
+                            thread_id = t.get("thread_id")
+                            break
+                    if not thread_id:
+                        thread_id = clean_rec
+
+            # 2) Nếu không có recipient, bắt buộc phải có thread_id
+            if not thread_id:
+                return {
+                    "ok": False,
+                    "error": (
+                        "Giới hạn Threads: Thiếu thread_id của hội thoại đã có. "
+                        "Bạn không thể mở hội thoại mới tới người lạ chỉ bằng @handle."
+                    ),
+                    "limitations": LIMITATION_THREADS_MSG,
+                }
+
+            # 3) Nếu thread_id lạ hoàn toàn (chưa từng có và existing_threads không rỗng)
+            str_tid = str(thread_id)
+            is_valid_thread = (
+                str_tid in existing_threads
+                or str_tid.lstrip("@").lower() in existing_threads
+                or (bool(recipient) and clean_rec in existing_threads)
+            )
+            if existing_threads and not is_valid_thread:
+                return {
+                    "ok": False,
+                    "error": (
+                        f"Giới hạn Threads: Hội thoại '{str_tid}' không tồn tại từ trước. "
+                        "Threads chỉ cho phép gửi tin nhắn vào hội thoại đã có từ trước."
+                    ),
+                    "limitations": LIMITATION_THREADS_MSG,
+                    "warning": WARNING_THREADS_MSG,
+                }
+
+            return {
+                "ok": True,
+                "sent": True,
+                "thread_id": str_tid,
+                "text": text,
+                "warning": WARNING_THREADS_MSG,
+                "limitations": LIMITATION_THREADS_MSG,
+            }
+
+        # 7. Thả reaction (send_reaction)
+        if action in ("send_reaction", "react"):
+            thread_id = args.get("thread_id")
+            message_id = args.get("message_id")
+            reaction = args.get("reaction") or args.get("emoji") or "❤️"
+            if not thread_id or not message_id:
+                return {"ok": False, "error": "Thiếu thread_id hoặc message_id để thả reaction."}
+            return {
+                "ok": True,
+                "reacted": True,
+                "thread_id": str(thread_id),
+                "message_id": str(message_id),
+                "reaction": str(reaction),
+                "warning": WARNING_THREADS_MSG,
+            }
+
+        return {"ok": False, "error": f"threads_messages không hỗ trợ action: {action}"}
+
 

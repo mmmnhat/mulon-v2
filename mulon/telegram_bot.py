@@ -3458,6 +3458,201 @@ class TelegramSurface:
                     parse_mode="HTML"
                 )
 
+        @dp.message(F.text.startswith("/instagram") | F.text.startswith("/ig"))
+        async def cmd_instagram(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            full_arg = _arg_text(message).strip()
+            parts = full_arg.split(maxsplit=1)
+            subcmd = parts[0].lower() if parts else "status"
+            subarg = parts[1].strip() if len(parts) > 1 else ""
+
+            connectors = self.surfaces.get("connectors") if self.surfaces else None
+            conn = await connectors.get("instagram_messages") if connectors else None
+            if not conn:
+                await message.answer("⚠️ Connector Tin nhắn Instagram chưa sẵn sàng hoặc chưa nạp.")
+                return
+
+            if subcmd == "disconnect":
+                await conn.call("disconnect", {})
+                await message.answer("✅ Đã ngắt kết nối và xoá phiên Tin nhắn Instagram khỏi Kho an toàn.")
+                return
+
+            if subcmd == "connect":
+                if not subarg:
+                    await message.answer(
+                        "ℹ️ <b>HƯỚNG DẪN KẾT NỐI TIN NHẮN INSTAGRAM</b>\n\n"
+                        "Cú pháp: <code>/instagram connect sessionid=...; ds_user_id=...;</code>\n\n"
+                        "⚠️ <b>LƯU Ý BẢO MẬT:</b>\n"
+                        "• Phiên cookie/token được lưu mã hóa an toàn trong Kho bảo mật (Vault).\n"
+                        "• Giữ tần suất gửi tin nhắn ở mức bình thường để tránh bị Meta hạn chế tài khoản.",
+                        parse_mode="HTML"
+                    )
+                    return
+                res = await conn.call("configure", {"cookies": subarg})
+                if not res.get("ok"):
+                    await message.answer(f"⚠️ Kết nối thất bại: {res.get('error')}")
+                    return
+                user_name = res.get("user", {}).get("username") or "Đã ghi nhận"
+                await message.answer(
+                    f"✅ <b>ĐÃ CẤU HÌNH TIN NHẮN INSTAGRAM</b>\n"
+                    f"• Người dùng: <code>{user_name}</code>\n"
+                    f"• Phiên đã được lưu an toàn trong Kho bảo mật (Vault).\n\n"
+                    f"👉 Để kiểm tra: <code>/instagram status</code>\n"
+                    f"👉 Xem hộp thư: <code>/instagram inbox</code>\n"
+                    f"👉 Ngắt kết nối: <code>/instagram disconnect</code>",
+                    parse_mode="HTML"
+                )
+                return
+
+            if subcmd == "inbox":
+                folder = subarg.lower() if subarg in ("pending", "spam") else "inbox"
+                res = await conn.call("read_inbox", {"folder": folder})
+                if not res.get("ok"):
+                    await message.answer(f"⚠️ Không đọc được hộp thư: {res.get('error')}")
+                    return
+                threads = res.get("threads") or []
+                if not threads:
+                    await message.answer(f"📬 Hộp thư Instagram ({folder}) hiện đang trống.")
+                    return
+                lines = [f"📬 <b>HỘP THƯ INSTAGRAM ({folder.upper()})</b> ({len(threads)} hội thoại):\n"]
+                for t in threads[:5]:
+                    tid = t.get("thread_id", "")
+                    title = t.get("title") or t.get("participant") or tid
+                    snippet = t.get("snippet", "")
+                    lines.append(f"• <b>{title}</b> (<code>{tid}</code>): {snippet}")
+                await message.answer("\n".join(lines), parse_mode="HTML")
+                return
+
+            # Mặc định: status
+            health = await conn.health_check()
+            if health.get("checkpoint_detected"):
+                await message.answer(
+                    "🚨 <b>PHÁT HIỆN CHECKPOINT INSTAGRAM</b>\n\n"
+                    f"• Chi tiết: {health.get('detail')}\n"
+                    "• Checkpoint Guard đã tự ngắt kết nối an toàn để bảo vệ tài khoản.\n"
+                    "👉 Hãy đăng nhập Instagram trên trình duyệt để xác minh, sau đó kết nối lại.",
+                    parse_mode="HTML"
+                )
+            elif health.get("connected"):
+                user = health.get("user") or {}
+                uname = user.get("username") or str(user.get("id", ""))
+                await message.answer(
+                    f"✅ <b>TIN NHẮN INSTAGRAM ĐÃ KẾT NỐI</b>\n"
+                    f"• Tài khoản: <b>{uname}</b>\n"
+                    f"• Trạng thái: Sẵn sàng đọc hộp thư, tìm kiếm tin nhắn, gửi tin và thả reaction.\n\n"
+                    f"👉 Xem hộp thư: <code>/instagram inbox</code>\n"
+                    f"👉 Ngắt kết nối: <code>/instagram disconnect</code>",
+                    parse_mode="HTML"
+                )
+            else:
+                await message.answer(
+                    "⚠️ <b>TIN NHẮN INSTAGRAM CHƯA KẾT NỐI</b>\n\n"
+                    f"• Chi tiết: {health.get('detail', 'Chưa có phiên')}\n\n"
+                    "👉 Gõ <code>/instagram connect &lt;cookies&gt;</code> để kết nối.",
+                    parse_mode="HTML"
+                )
+
+        @dp.message(F.text.startswith("/threads_dm") | F.text.startswith("/threads"))
+        async def cmd_threads(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            full_arg = _arg_text(message).strip()
+            parts = full_arg.split(maxsplit=1)
+            subcmd = parts[0].lower() if parts else "status"
+            subarg = parts[1].strip() if len(parts) > 1 else ""
+
+            connectors = self.surfaces.get("connectors") if self.surfaces else None
+            conn = await connectors.get("threads_messages") if connectors else None
+            if not conn:
+                await message.answer("⚠️ Connector Tin nhắn Threads chưa sẵn sàng hoặc chưa nạp.")
+                return
+
+            if subcmd == "disconnect":
+                await conn.call("disconnect", {})
+                await message.answer("✅ Đã ngắt kết nối và xoá phiên Tin nhắn Threads khỏi Kho an toàn.")
+                return
+
+            if subcmd == "connect":
+                if not subarg:
+                    await message.answer(
+                        "ℹ️ <b>HƯỚNG DẪN KẾT NỐI TIN NHẮN THREADS</b>\n\n"
+                        "Cú pháp: <code>/threads connect sessionid=...; ds_user_id=...;</code>\n\n"
+                        "⚠️ <b>GIỚI HẠN CỨNG BẮT BUỘC:</b>\n"
+                        "• Threads chỉ cho phép gửi tin nhắn tới người ĐÃ có hội thoại từ trước.\n"
+                        "• Tuyệt đối KHÔNG mở DM mới tới người lạ chỉ bằng @handle.\n"
+                        "• Phiên cookie được lưu an toàn trong Kho bảo mật (Vault).",
+                        parse_mode="HTML"
+                    )
+                    return
+                res = await conn.call("configure", {"cookies": subarg})
+                if not res.get("ok"):
+                    await message.answer(f"⚠️ Kết nối thất bại: {res.get('error')}")
+                    return
+                user_name = res.get("user", {}).get("username") or "Đã ghi nhận"
+                await message.answer(
+                    f"✅ <b>ĐÃ CẤU HÌNH TIN NHẮN THREADS</b>\n"
+                    f"• Người dùng: <code>{user_name}</code>\n"
+                    f"• Phiên đã được lưu an toàn trong Kho bảo mật (Vault).\n\n"
+                    f"⚠️ <i>Lưu ý: Chỉ nhắn được người đã có hội thoại từ trước.</i>\n\n"
+                    f"👉 Để kiểm tra: <code>/threads status</code>\n"
+                    f"👉 Xem hộp thư: <code>/threads inbox</code>\n"
+                    f"👉 Ngắt kết nối: <code>/threads disconnect</code>",
+                    parse_mode="HTML"
+                )
+                return
+
+            if subcmd == "inbox":
+                folder = subarg.lower() if subarg == "pending" else "inbox"
+                res = await conn.call("read_inbox", {"folder": folder})
+                if not res.get("ok"):
+                    await message.answer(f"⚠️ Không đọc được hộp thư: {res.get('error')}")
+                    return
+                threads = res.get("threads") or []
+                if not threads:
+                    await message.answer(f"📬 Hộp thư Threads ({folder}) hiện đang trống.")
+                    return
+                lines = [f"📬 <b>HỘP THƯ THREADS ({folder.upper()})</b> ({len(threads)} hội thoại):\n"]
+                for t in threads[:5]:
+                    tid = t.get("thread_id", "")
+                    title = t.get("title") or t.get("participant") or tid
+                    snippet = t.get("snippet", "")
+                    lines.append(f"• <b>{title}</b> (<code>{tid}</code>): {snippet}")
+                await message.answer("\n".join(lines), parse_mode="HTML")
+                return
+
+            # Mặc định: status
+            health = await conn.health_check()
+            limitations_txt = health.get("limitations", "")
+            if health.get("checkpoint_detected"):
+                await message.answer(
+                    "🚨 <b>PHÁT HIỆN CHECKPOINT THREADS</b>\n\n"
+                    f"• Chi tiết: {health.get('detail')}\n"
+                    "• Checkpoint Guard đã tự ngắt kết nối an toàn để bảo vệ tài khoản.\n"
+                    "👉 Hãy đăng nhập Threads trên trình duyệt để xác minh, sau đó kết nối lại.",
+                    parse_mode="HTML"
+                )
+            elif health.get("connected"):
+                user = health.get("user") or {}
+                uname = user.get("username") or str(user.get("id", ""))
+                await message.answer(
+                    f"✅ <b>TIN NHẮN THREADS ĐÃ KẾT NỐI</b>\n"
+                    f"• Tài khoản: <b>{uname}</b>\n"
+                    f"• Trạng thái: Sẵn sàng đọc hộp thư, đọc tin nhắn và gửi tin (hội thoại có sẵn).\n\n"
+                    f"⚠️ <b>GIỚI HẠN:</b> <i>{limitations_txt}</i>\n\n"
+                    f"👉 Xem hộp thư: <code>/threads inbox</code>\n"
+                    f"👉 Ngắt kết nối: <code>/threads disconnect</code>",
+                    parse_mode="HTML"
+                )
+            else:
+                await message.answer(
+                    "⚠️ <b>TIN NHẮN THREADS CHƯA KẾT NỐI</b>\n\n"
+                    f"• Chi tiết: {health.get('detail', 'Chưa có phiên')}\n\n"
+                    f"⚠️ <b>LƯU Ý:</b> <i>{limitations_txt}</i>\n\n"
+                    "👉 Gõ <code>/threads connect &lt;cookies&gt;</code> để kết nối.",
+                    parse_mode="HTML"
+                )
+
         @dp.message(F.text.startswith("/forget"))
         async def cmd_forget(message: Message) -> None:
             if not self._is_allowed(message):

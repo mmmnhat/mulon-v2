@@ -1,5 +1,36 @@
 # CHANGELOG
 
+## 1.7.10 — 2026-10-27 — Tin nhắn Instagram + Tin nhắn Threads (T-22.3)
+
+- **Tách biệt kết nối TIN NHẮN với kết nối nội dung bài đăng (chuẩn Muse Parity):**
+  - Người dùng có thể kết nối riêng biệt hộp thư/tin nhắn mà không bắt buộc liên kết bài đăng (T-17).
+  - Sử dụng tài khoản Meta của người cài, phiên đăng nhập/cookie/token lưu trữ an toàn trong Vault.
+- **Tin nhắn Instagram (`instagram_messages`):**
+  - `read_inbox`: đọc hộp thư với các thư mục phân loại: `inbox` (hộp thư chính), `pending` (yêu cầu chờ), `spam`. Mọi trích đoạn bọc bảo vệ bằng `frame_external`.
+  - `read_messages`: đọc chi tiết tin nhắn trong từng hội thoại (`thread_id`), bảo vệ bằng `frame_external`.
+  - `search_messages`: tìm kiếm tin nhắn theo từ khóa `query`, bọc `frame_external`.
+  - `send_message`: gửi tin nhắn văn bản vào hội thoại có sẵn hoặc cho người nhận xác định (phân quyền `ask`).
+  - `send_file`: gửi tệp đính kèm hoặc hình ảnh vào hội thoại (phân quyền `ask`).
+  - `send_reaction`: thả reaction emoji (❤️, 🔥, ...) vào tin nhắn (phân quyền `ask`).
+  - Tích hợp **Checkpoint Guard**: tự động ngắt kết nối an toàn khi phát hiện checkpoint Instagram, lưu cờ trong Vault (`instagram_messages:checkpoint`) để chặn gửi request tiếp theo.
+- **Tin nhắn Threads (`threads_messages`):**
+  - `read_inbox`: đọc hộp thư (`inbox`, `pending`). Bọc bảo vệ bằng `frame_external`.
+  - `read_messages`: đọc tin nhắn chi tiết trong hội thoại, bọc `frame_external`.
+  - **GIỚI HẠN CỨNG BẮT BUỘC (Strict Parity Guard):**
+    - Chỉ cho phép gửi tin nhắn tới người ĐÃ có hội thoại từ trước (hoặc đã nhắn cho mình trước).
+    - Tuyệt đối KHÔNG mở DM mới tới người lạ chỉ bằng @handle. Nếu người dùng cố gửi tin nhắn tới người lạ chưa từng có hội thoại, connector từ chối ngay lập tức kèm thông báo lỗi giải thích rõ ràng giới hạn, tuyệt đối không nuốt lỗi im lặng.
+  - `send_reaction`: thả reaction emoji vào tin nhắn (phân quyền `ask`).
+  - Tích hợp Checkpoint Guard an toàn.
+- **Bảo mật và Phân quyền hành động (Policy Engine):**
+  - Phiên và bí mật chỉ lưu trữ trong Vault (`instagram_messages:session`, `threads_messages:session`).
+  - Thao tác đọc (`read_inbox`, `read_messages`, `search_messages`, `check_session`) mặc định Cho phép (`allow`).
+  - Thao tác gửi (`send_message`, `send_file`, `send_reaction`) mặc định Hỏi trước (`ask`) qua `ApprovalBroker`.
+- **Bề mặt Giao diện & Lệnh chat Telegram:**
+  - Lệnh Telegram: `/instagram status`, `/instagram connect <cookies>`, `/instagram inbox [pending|spam]`, `/instagram disconnect`.
+  - Lệnh Telegram: `/threads status`, `/threads connect <cookies>`, `/threads inbox [pending]`, `/threads disconnect` (cảnh báo rõ giới hạn cứng).
+  - Mini App (Cài đặt -> Công cụ kết nối): tích hợp thẻ Instagram Messages và Threads Messages với nút Nhập Phiên, nút Ngắt, huy hiệu trạng thái và ghi chú giới hạn cứng.
+  - REST API: hỗ trợ đầy đủ qua `/api/personal-connector/status`, `/connect`, `/disconnect`, và `/api/state`.
+
 ## 1.7.9 — 2026-10-27 — Nghiên cứu và Triển khai Connector Facebook cá nhân (T-22.2)
 
 - **Hoàn tất Nghiên cứu Kỹ thuật Chuyên sâu (Bước 1):**

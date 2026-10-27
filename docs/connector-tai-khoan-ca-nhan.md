@@ -1,8 +1,7 @@
-# Tài liệu Kỹ thuật: Connector Tài khoản Cá nhân (Zalo & Telegram MTProto)
+# Tài liệu Kỹ thuật: Connector Tài khoản Cá nhân (Zalo, Telegram MTProto, Facebook, Instagram DM, Threads DM)
 
-> Mục tiêu: Parity tính năng với Muse thật (T-22.1 — Parity Connector tài khoản cá nhân).
-> Cung cấp khả năng kết nối tài khoản Zalo cá nhân và Telegram cá nhân của chính người dùng
-> thông qua quét mã QR an toàn, không cần mật khẩu.
+> Mục tiêu: Parity tính năng với Muse thật (T-22.1, T-22.2, T-22.3 — Parity Connector tài khoản cá nhân).
+> Cung cấp khả năng kết nối tài khoản Zalo cá nhân, Telegram cá nhân, Facebook cá nhân, tin nhắn Instagram (Direct Messages), và tin nhắn Threads của chính người dùng.
 
 ---
 
@@ -98,7 +97,52 @@ MuLon bổ sung hai connector tích hợp sẵn (built-in) dành cho tài khoả
 
 ---
 
-## 5. Bề mặt Sử dụng
+## 5. Chi tiết Connector Tin nhắn Instagram (`instagram_messages`)
+
+> Tiền lệ phía Muse: Kết nối TIN NHẮN tách riêng với kết nối bài đăng/nội dung (T-17). Người dùng có thể đã nối Instagram (bài đăng) mà chưa nối tin nhắn.
+
+### Cơ chế & Đăng nhập
+- Kết nối bằng phiên cookie (`sessionid`, `ds_user_id`, `csrftoken`) hoặc Token Meta Accounts Center.
+- Phiên được lưu trữ an toàn trong Vault (`instagram_messages:session`), thông tin tài khoản tại `instagram_messages:user_info`.
+- Tích hợp **Checkpoint Guard** tự ngắt khi phát hiện checkpoint (`instagram_messages:checkpoint`).
+
+### Các hành động hỗ trợ
+- `configure` / `connect`: Cấu hình phiên đăng nhập.
+- `check_session`: Kiểm tra trạng thái phiên.
+- `read_inbox` / `get_inbox`: Đọc hộp thư với tuỳ chọn thư mục `inbox`, `pending` (yêu cầu chờ), `spam`. Toàn bộ nội dung trích đoạn bọc bảo vệ bằng `frame_external`.
+- `read_messages` / `get_messages`: Đọc tin nhắn chi tiết trong 1 hội thoại (`thread_id`). Bọc `frame_external`.
+- `search_messages`: Tìm kiếm tin nhắn theo từ khóa `query`. Bọc `frame_external`.
+- `send_message`: Gửi tin nhắn văn bản vào hội thoại có sẵn hoặc người nhận (phân quyền `ask`).
+- `send_file`: Gửi tệp đính kèm hoặc hình ảnh vào hội thoại (phân quyền `ask`).
+- `send_reaction`: Thả reaction emoji vào tin nhắn (phân quyền `ask`).
+- `disconnect`: Đăng xuất và dọn dẹp sạch Vault.
+
+---
+
+## 6. Chi tiết Connector Tin nhắn Threads (`threads_messages`)
+
+> Tiền lệ phía Muse: Kết nối TIN NHẮN tách riêng với kết nối bài đăng/nội dung (T-17).
+
+### Cơ chế & Đăng nhập
+- Kết nối bằng phiên cookie (`sessionid`, `token`).
+- Lưu trữ an toàn trong Vault (`threads_messages:session`).
+
+### GIỚI HẠN CỨNG BẮT BUỘC (Strict Parity Guard)
+- **Chỉ nhắn được người ĐÃ có hội thoại từ trước** (hoặc đã nhắn cho mình trước).
+- **Tuyệt đối KHÔNG mở DM mới tới người lạ chỉ bằng @handle.**
+- Khi có yêu cầu gửi tin nhắn tới người chưa từng có hội thoại, connector **từ chối ngay lập tức** kèm thông báo lỗi giải thích rõ giới hạn, tuyệt đối không nuốt lỗi im lặng.
+
+### Các hành động hỗ trợ
+- `configure` / `connect`: Cấu hình phiên đăng nhập.
+- `read_inbox` / `get_inbox`: Đọc hộp thư (`inbox`, `pending`). Bọc `frame_external`.
+- `read_messages` / `get_messages`: Đọc tin nhắn hội thoại (`thread_id`). Bọc `frame_external`.
+- `send_message`: Gửi tin nhắn vào hội thoại đã có từ trước (phân quyền `ask`). Kiểm tra nghiêm ngặt giới hạn cứng.
+- `send_reaction`: Thả reaction emoji vào tin nhắn (phân quyền `ask`).
+- `disconnect`: Đăng xuất và dọn dẹp sạch Vault.
+
+---
+
+## 7. Bề mặt Sử dụng
 
 ### 1. Telegram Chat Bot
 - `/zalo status`: Kiểm tra trạng thái kết nối Zalo.
@@ -110,15 +154,23 @@ MuLon bổ sung hai connector tích hợp sẵn (built-in) dành cho tài khoả
 - `/facebook status`: Kiểm tra trạng thái kết nối Facebook, phát hiện checkpoint và xem cảnh báo rủi ro.
 - `/facebook connect <cookies>`: Kết nối Facebook cá nhân bằng chuỗi cookie web.
 - `/facebook disconnect`: Đăng xuất và ngắt kết nối Facebook cá nhân.
+- `/instagram status`: Kiểm tra trạng thái kết nối tin nhắn Instagram.
+- `/instagram connect <cookies/session>`: Kết nối tin nhắn Instagram bằng chuỗi cookie/sessionid.
+- `/instagram inbox [pending|spam]`: Xem tóm tắt hộp thư tin nhắn Instagram.
+- `/instagram disconnect`: Đăng xuất và ngắt kết nối tin nhắn Instagram.
+- `/threads status`: Kiểm tra trạng thái tin nhắn Threads và xem thông tin giới hạn cứng.
+- `/threads connect <cookies/session>`: Kết nối tin nhắn Threads.
+- `/threads inbox [pending]`: Xem tóm tắt hộp thư tin nhắn Threads.
+- `/threads disconnect`: Đăng xuất và ngắt kết nối tin nhắn Threads.
 
 ### 2. Telegram Mini App
 - Truy cập tab **Cài đặt** -> **Công cụ kết nối**.
-- Các thẻ `zalo_personal`, `telegram_personal`, và `facebook_personal` hiển thị trạng thái kết nối trực quan.
-- Thẻ `facebook_personal` có cảnh báo rủi ro cao nổi bật, nút **Nhập Cookie** và nút **Ngắt**.
+- Các thẻ `zalo_personal`, `telegram_personal`, `facebook_personal`, `instagram_messages`, và `threads_messages` hiển thị trạng thái kết nối trực quan.
+- Thẻ `instagram_messages` và `threads_messages` hỗ trợ nút **Nhập Phiên** và nút **Ngắt**. Thẻ Threads ghi rõ giới hạn cứng.
 
 ---
 
-## 6. Hướng dẫn cài đặt bổ sung cho máy chủ
+## 8. Hướng dẫn cài đặt bổ sung cho máy chủ
 
 Nếu máy chủ cài đặt MuLon muốn kích hoạt đầy đủ 100% cả 2 connector:
 1. **Telegram cá nhân**:
