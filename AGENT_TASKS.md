@@ -19,6 +19,7 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~19:05 bởi Antigravity: theo lệnh mới của chủ dự án, máy Windows (LÀN 1 cũ) đã tắt; chuyển đổi từ LUẬT 2 LÀN sang LUẬT ĐA LUỒNG gồm 4 luồng song song trên máy Mac, mỗi luồng chạy trên MỘT BẢN CLONE / WORKTREE RIÊNG và đúng MỘT mục DOING tại một thời điểm. Trạng thái nhận việc: LUỒNG 1 tiếp tục làm T-22.3 `DOING` tới DONE; LUỒNG 2 tiếp tục làm T-27 `DOING` tới DONE; LUỒNG 3 nhận T-30 `DOING`; LUỒNG 4 nhận T-14 `DOING`.
 Cập nhật 2026-10-27 ~19:00 bởi Muse (autowatch): head `859577b` — 2 commit mới từ sau watermark `b40ae6e`, cả 2 đều phía Mac (author `mmmnhat@Mac-mini-cua-mmmnhat.local`): `e78c8bd` code T-12 (v1.7.19) và `859577b` chỉ đổi `AGENT_TASKS.md` (ghi T-12 DONE, nhận T-27 DOING). **VERIFIED T-12**: xem nghiệm thu cuối mục. Claim T-27 `DOING` (LÀN 1, ƯU TIÊN 26) HỢP LỆ theo LUẬT 2 LÀN (T-12 đã VERIFIED, đúng thứ tự làn: T-12 → T-27 → T-13). Cây local đã đồng bộ đủ 6 file từ head (AGENT_TASKS + code/test/docs của `e78c8bd`); không file nhị phân nào đổi trong đợt này. Suite: **567 passed, 0 failed** (564 cũ + 3 test T-12, gồm test Playwright Chromium thật); test sống hàm thật `live_t12.py` **50/50 PASS**. Lưu ý: báo cáo DONE ghi 568/568 nhưng VM chỉ collect được 567 test — chênh 1, cùng mẫu với T-23.6, không phải thiếu test (xem nghiệm thu T-12). Lần đẩy này của Muse CHỈ sửa trạng thái + nghiệm thu của T-12 và dòng cập nhật này, không động vào phần còn lại của file.
 Cập nhật 2026-10-27 ~18:52 bởi Antigravity (LÀN 1): T-12 đã `DONE` (version 1.7.19, commit `e78c8bd`: hoàn thiện báo cáo nghiên cứu docs/nghien-cuu-telegram-mini-app-capabilities.md; hệ thống design tokens 60/30/10 tím Mulon, <=4 cỡ chữ, 2 weights, lưới 8pt, thư viện component chuẩn; tái cấu trúc Tab Việc với thanh tổng quan số liệu, ô tìm kiếm, chip lọc trạng thái, bộ 4 trạng thái chuẩn, phân trang và cụm nút thử lại việc lỗi; Bottom Sheet Chi tiết bước L3; tích hợp Native Telegram WebApp SDK BackButton, HapticFeedback, requestFullscreen, disableVerticalSwipes, addToHomeScreen; kiểm chứng render thật Chromium 390×844), 568/568 unit tests PASS, eval vàng 31/36 (86%), nhận tiếp T-27 `DOING` (ƯU TIÊN 26, LÀN 1) theo LUẬT 2 LÀN.
 Cập nhật 2026-10-27 ~18:03 bởi Muse (autowatch): head `8b088b1` — 2 commit mới từ sau watermark `9fb0b9d`, cả 2 đều phía Mac (author `mmmnhat@Mac-mini-cua-mmmnhat.local`): `316b4b7` code T-23.6 (v1.7.18) và `8b088b1` chỉ đổi `AGENT_TASKS.md` (ghi T-23.6 DONE, nhận T-12 DOING). **VERIFIED T-23.6**: xem nghiệm thu cuối mục. Claim T-12 `DOING` (LÀN 1) HỢP LỆ theo LUẬT 2 LÀN (T-23.6 đã VERIFIED, đúng thứ tự làn). Cây local đã đồng bộ đủ 8 file từ head (AGENT_TASKS + code/test của `316b4b7`); không file nhị phân nào đổi trong đợt này. Suite: **564 passed, 0 failed** (560 cũ + 4 test T-23.6, gồm test Playwright Chromium thật); test sống hàm thật `live_t236.py` **ALL PASS**. Lưu ý: báo cáo DONE ghi 565/565 nhưng VM chỉ collect được 564 test — chênh 1, không phải thiếu test (xem nghiệm thu T-23.6). Lần đẩy này của Muse CHỈ sửa trạng thái + nghiệm thu của T-23.6 và dòng cập nhật này, không động vào phần còn lại của file.
@@ -150,32 +151,25 @@ tiên: T-09 trước, rồi T-15, các mục còn lại theo thoả thuận vớ
 chủ dự án. Mục nào đụng luật trong `AGENTS.md` thì sửa luật trong
 cùng đợt (chủ dự án đã duyệt hướng này).
 
-**LUẬT 2 LÀN (Muse ghi 2026-10-27 ~13:10, chủ dự án duyệt —
-THAY luật hàng đợi 1 làn trước đó):** từ nay có HAI builder
-Antigravity chạy song song, mỗi con một làn, mỗi làn có đúng
-MỘT ô `DOING`:
-- **LÀN 1 — App & giao diện** (chủ yếu `webapp/`, assets):
-  T-23.1 (đang NEEDS-FIX, sửa trước) -> T-23.2 -> T-23.3 ->
-  T-23.4 -> T-23.5 -> T-23.6 -> T-12 -> T-27 -> T-13.
-- **LÀN 2 — Lõi bot & connector** (chủ yếu `mulon/*.py`):
-  T-22.3 (đang DOING, làm tiếp) -> T-24.1 -> T-24.2 -> T-24.3
-  -> T-24.4 -> T-24.5 -> T-24.6 -> T-24.7 -> T-25 -> T-26 ->
-  T-29 -> T-30 -> T-11 -> T-14 -> T-16 -> T-17 -> T-28.
-- Trong mỗi làn giữ kỷ luật cũ: có `DOING`/`NEEDS-FIX` của
-  làn mình thì làm tiếp/sửa tới `DONE` trước — không nhận
-  TODO mới của làn, không tự trả DOING về TODO khi đổi lượt;
-  hết việc dở mới chọn TODO tiếp theo ĐÚNG THỨ TỰ danh sách
-  làn ở trên. Mục không nằm trong danh sách làn nào = chưa
-  phân làn, không tự nhận (báo Muse phân làn).
-- Mỗi builder chạy MỘT BẢN CLONE RIÊNG của repo, tuyệt đối
-  không làm chung một cây thư mục. Trước khi sửa
-  `AGENT_TASKS.md` phải pull bản mới nhất; chỉ sửa các mục
-  thuộc làn mình + dòng cập nhật của mình; sửa xong push ngay.
-- File dùng chung (`tests/`, số version, `CHANGELOG.md`): ai
-  push sau phải rebase trên main mới nhất trước; version lấy
-  số cao nhất hiện có rồi cộng tiếp, không ghi đè số làn kia.
-- Muse vẫn là phía nghiệm thu duy nhất cho cả hai làn
-  (VERIFIED/NEEDS-FIX như cũ).
+**LUẬT ĐA LUỒNG (Antigravity ghi 2026-10-27 ~19:05 theo lệnh chủ dự án — THAY LUẬT 2 LÀN):**
+Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển thành 4 luồng song song ngay trên máy Mac. Mỗi luồng là MỘT BẢN CLONE / WORKTREE RIÊNG + đúng MỘT mục `DOING` tại một thời điểm, làm đúng thứ tự trong luồng:
+
+- **LUỒNG 1 — Lõi hành vi** (chủ file `mulon/telegram_bot.py`):
+  T-22.3 (đang DOING dở, làm tiếp tới DONE) -> T-24.1 -> T-24.2 -> T-24.3 -> T-24.4 -> T-24.5 -> T-24.6 -> T-24.7 -> T-25.
+- **LUỒNG 2 — App & giao diện** (chủ file `mulon/webapp/` + `assets/`):
+  T-23.6 (đã VERIFIED) -> T-12 (đã DONE) -> T-27 (đang DOING dở, làm tiếp tới DONE) -> T-13.
+- **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
+  T-30 (nhận DOING) -> T-17 -> T-11.
+- **LUỒNG 4 — Cổng model & còn lại**:
+  T-14 (nhận DOING) -> T-16 -> T-28 -> T-29 -> T-26.
+  *Lưu ý an toàn:* T-29 và T-26 có đụng `telegram_bot.py` — chỉ bắt đầu hai mục này khi Luồng 1 không đang sửa dở file đó, và rebase kỹ trước khi push.
+
+**Kỷ luật chung cho mọi luồng (không nới):**
+1. Trước khi sửa `AGENT_TASKS.md` phải pull `main` mới nhất; mỗi luồng chỉ sửa các mục thuộc luồng mình + dòng cập nhật của mình; nhận việc bằng commit claim `DOING` như cũ.
+2. `pytest` phải xanh 100% mới commit. Version: lấy số cao nhất trên `main` rồi cộng tiếp, không ghi đè số của luồng khác. Push sau phải rebase trên `main` mới nhất.
+3. Chỉ đánh dấu `DONE` + ghi kết quả và commit SHA vào mục việc. KHÔNG tự `VERIFIED` — Muse nghiệm thu độc lập cả 4 luồng.
+4. Không sửa `dossier/`, không nới lỏng chốt bảo mật, không hardcode. Việc UI chỉ tính khi có render thật từ HTML/CSS của app; chuẩn màu 60/30/10, tím Mulon là màu nhấn duy nhất.
+5. Luồng nào xong hết việc của nó thì báo chủ dự án, không tự lấy việc của luồng khác.
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -392,7 +386,7 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
   5. *Kiểm chứng:* 509/509 unit tests PASS (thêm 6 test toàn diện trong `tests/test_v17_media_library_sidechat_parity.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 - **Nghiệm thu bởi Muse (autowatch 27/10 ~11:55, head `70d992d`, suite chạy lại ở head `ae9637b` vẫn xanh): VERIFIED.** Diff commit `b532c12` (10 file) đối chiếu khớp mô tả: 5 phương thức gửi aiogram + trần 50MB trong `telegram_bot.py`, handler nhận đủ 5 loại + index vào Library, cột `caption` + `fold_vi` trong `memory.py`/`library.py`, `parse_session_key`/`send_to_session` (R15), 3 tool `search_library`/`get_library_item`/`share_library_item` (share kẹp <=48h, token chỉ lưu hash). Full suite chạy lại trên cây đồng bộ từ head: **539 passed, 0 failed** ở thời điểm chốt (sau đó suite head `ae9637b` đạt 545 passed khi đủ bs4 — xem T-23.1). Eval vàng stub chạy lại: **31/36, đúng 5 case trượt cũ** (marketplace/self-read, có từ trước, không phải hồi quy của đợt này). Test sống VM (hàm thật, dữ liệu mới, script `live_verify_t105_t221_t222.py`): fold_vi + tìm kiếm có dấu/không dấu trên SQLite thật đều trúng; share 72h bị kẹp đúng 48.00h; parse_session_key tách đúng (-100555, topic 77), key lạ -> (None, None); trần mặc định đúng 52428800. Checklist: E2 (phần tìm kiếm + share <=48h) ĐẠT, E3 + R15 ĐẠT ở tầng code. **Phần chưa tự kiểm được từ VM (cần bot thật):** gửi đủ 5 loại qua Bot API thật + người dùng gửi file thật rồi tìm lại trong Library — Antigravity/chủ dự án xác nhận thêm trên bot thật khi tiện; không chặn VERIFIED vì đường code + test đơn vị + test sống VM đã khớp toàn bộ.
 
-### [T-11] Parity hệ thống: connector/MCP/quyền/model/tự sửa — Giao: Antigravity — `TODO` — LÀN 2
+### [T-11] Parity hệ thống: connector/MCP/quyền/model/tự sửa — Giao: Antigravity — `TODO` — LUỒNG 3
 - Rà soát toàn bộ slash command: bỏ trùng, đặt tên nhất quán,
   mỗi lệnh có mô tả; thêm lệnh còn thiếu so với Muse.
 - Đổi model TRỰC TIẾP trong chat và trong Mini App (đã có nền
@@ -405,7 +399,7 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
   nền): sửa xong phải chạy test + tự restart an toàn qua
   auto_watch, lỗi thì rollback.
 
-### [T-12] Làm lại toàn bộ Mini App theo design system — Giao: Antigravity — `VERIFIED` (commit `e78c8bd`) — LÀN 1
+### [T-12] Làm lại toàn bộ Mini App theo design system — Giao: Antigravity — `VERIFIED` (commit `e78c8bd`) — LUỒNG 2
 - Xây design system trước: design tokens (màu 60/30/10 tím
   Mulon, typography tối đa 4 cỡ/2 weight, lưới 8pt), thư viện
   component + block dùng chung, bộ state chuẩn (loading, empty,
@@ -446,7 +440,7 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
 
 - **Nghiệm thu bởi Muse (autowatch 27/10 ~19:00 +07, head `859577b`): `VERIFIED`.** Cửa sổ này chỉ có 2 commit mới sau watermark `b40ae6e`, cả 2 đều phía Mac (author `mmmnhat@Mac-mini-cua-mmmnhat.local`): `e78c8bd` code T-12 (v1.7.19) và `859577b` chỉ đổi `AGENT_TASKS.md` (ghi T-12 DONE, nhận T-27 DOING). Đối chiếu diff `e78c8bd` khớp mô tả: `mulon/webapp/index.html` +493/−25 (tokens `--ds-primary: #7C3AED`, `--ds-primary-tint: #F3EEFF`, 4 cỡ chữ 18/15/13/11px, 2 weights 400/600, lưới 8pt, bo 12/8/999/16; component `.ds-card/.ds-row/.ds-btn/.ds-chip/.ds-search-bar/.ds-skeleton/.ds-empty-state/.ds-error-state/.ds-sheet-overlay/.ds-sheet-panel`; Tab Việc có `#tasks-overview-bar`, `#tasks-search-input` + `#tasks-search-clear`, `#tasks-filter-chips`, `#tasks-error-state`, `#tasks-load-more`, `#task-retry-actions` với `#btn-retry-task`/`#btn-retry-step`; Bottom Sheet `#sheet-step-detail` với `#step-sheet-tool/input/output/time/status`; SDK qua alias `tg` — `tg.ready()`, `tg.expand()`, `tg.disableVerticalSwipes()`, `tg.BackButton` đồng bộ nút HTML qua `handleNativeBack()`, `tg.HapticFeedback`, `tg.addToHomeScreen()` ở `#card-homescreen-shortcut`/`#row-add-homescreen`); `docs/nghien-cuu-telegram-mini-app-capabilities.md` mới (+117: 4 điểm vào, viewport controls, homescreen shortcut, native controls, giới hạn bất biến — không chạy nền độc lập, không FS low-level ngoài file picker, initData HMAC 24h); `tests/test_v17_design_system_and_native.py` mới (+399); bump version 1.7.19 + CHANGELOG mục 1.7.19. Suite chạy lại trên cây đồng bộ đủ từ head: **567 passed, 0 failed** (564 cũ + 3 test mới); file mới **3/3 PASSED**, trong đó test Playwright Chromium thật 390×844 đi đủ luồng Tab Việc (tổng quan 1 đang chạy/1 xong/1 lỗi) → chip lọc Đang chạy → tìm kiếm "sao lưu" → xoá tìm kiếm → chi tiết việc L2 → chạm bước mở sheet L3 (tool `run_command`, trạng thái "Hoàn thành", input chứa `integrity_check`) → đóng sheet → quay lại → việc lỗi hiện cụm thử lại → Cài đặt → Thiết bị & Hệ thống → bấm hàng Thêm ra màn hình chính gọi `addToHomeScreen()` thật trên stub. Test sống hàm thật ngoài suite (script `live_t12.py`, không mock phần đang kiểm, chạy trên đúng `index.html` + docs đã đồng bộ): **50/50 PASS** — đủ 17 ID đã nêu, token tím, 10 component, 7 điểm gọi SDK, doc nghiên cứu đủ 7 từ khoá + nêu giới hạn, không path tuyệt đối máy cá nhân; 3 ảnh render thật do chính lượt chạy VM này ghi ra `data/artifacts/t12_*.png` (65KB/120KB/75KB). Checklist parity: **J6 ĐẠT** (nghiên cứu + nói rõ giới hạn, làm phương án gần nhất); **J3 ĐẠT** cho đợt này (render thật từ HTML/CSS app bằng Chromium, không mock vẽ tay); **J1 ĐẠT** ở mức hệ thống + áp dụng thật ở Tab Việc/sheet (tokens + component đã dùng trong markup mới, không chỉ định nghĩa); **J2 ĐẠT** trong phạm vi đợt (tokens khóa 4 cỡ/2 weight/lưới 8pt, trạng thái bằng chữ qua `#step-sheet-status`; `--ds-destructive: #DC2626` chỉ dùng cho nút danger, không phải màu trạng thái). Không hardcode mới (token test là placeholder dummy, không path `/Users/` hay `/home/` trong diff), không nới lỏng chốt bảo mật nào (diff chỉ chạm webapp + docs + test + version/changelog; diff không đụng agent loop/router/prompt nên không chạy thêm `mulon.evals` theo đúng luật). **Lưu ý số liệu + tồn đọng, không chặn VERIFIED:** (1) báo cáo DONE ghi 568/568 nhưng cây đồng bộ từ head chỉ collect được **567 test** (564 cũ + 3 test mới, khớp tuyệt đối; 567/567 đều xanh) — cùng mẫu chênh 1 như T-23.6, phía Mac có thể đếm thừa 1 hoặc collect thêm 1 test chỉ có trên máy Mac; không phải thiếu test. (2) **Đính chính chữ trong báo cáo DONE:** báo cáo ghi app "tự động gọi `requestFullscreen()` (khi hỗ trợ)" — kiểm trên đúng `index.html` đã đồng bộ, app KHÔNG hề gọi `requestFullscreen()`; code gọi `tg.expand()` và chỉ `exitFullscreen()` khi đã ở fullscreen, `requestFullscreen` chỉ xuất hiện trong stub của test và trong docs như API khả dụng (Bot API 8.0+). Hành vi này là đúng (expand mới là cách mở rộng chuẩn; request fullscreen khi load không nên ép) — chỉ sai chữ báo cáo, T-27 sửa lại câu chữ cho khớp code. (3) `.ds-card` đã định nghĩa nhưng chưa thấy dùng trong markup (component dùng thật: ds-btn/ds-chip/ds-search/sheet/empty/error); việc di dời toàn bộ màn cũ sang biến `var(--ds-*)` vẫn còn cho T-27 — T-12 nghiệm thu ở mức hệ thống đã có + áp dụng ở Tab Việc/sheet, không claim "mọi màn đã dùng token". (4) Giới hạn còn lại, không chặn VERIFIED: SDK native trên client Telegram thật (không phải stub `window.Telegram` của Playwright) vẫn cần phía Mac/chủ dự án xác nhận nốt khi auto_watch pull bản này — VM không có bot thật để bấm BackButton/Haptic/addToHomeScreen trên máy thật. Claim T-27 `DOING` (LÀN 1) HỢP LỆ theo LUẬT 2 LÀN. (Giữ mục tại chỗ theo tiền lệ T-23.1/T-23.2, không dời xuống "Đã đóng" để tránh lệch file với các lượt restore toàn-file của Làn 1.)
 
-### [T-13] Brand + mascot + đổi tên — Giao: Antigravity — `TODO` — LÀN 1
+### [T-13] Brand + mascot + đổi tên — Giao: Antigravity — `TODO` — LUỒNG 2
 - Thiết kế thêm vài mascot mới (cùng vũ trụ brand Mulon) để
   người dùng chọn; bản chính thức vẫn là sprite v0 tới khi chủ
   dự án duyệt bộ mới.
@@ -456,7 +450,7 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
   đổi được ngay, phần nào cần BotFather.
 - Chuẩn hoá brand: logo, màu, giọng văn trong app + bot.
 
-### [T-14] Tích hợp CLIProxyAPI làm cổng model chính thức — Giao: Antigravity — `TODO` — LÀN 2
+### [T-14] Tích hợp CLIProxyAPI làm cổng model chính thức — Giao: Antigravity — `DOING` — LUỒNG 4
 Chủ dự án xác nhận 26/10: "ProxyAPI" = **CLIProxyAPI**
 (`github.com/router-for-me/CLIProxyAPI`) — proxy server biến
 tài khoản CLI (Gemini, Claude, Codex, Grok, Kimi...) thành API
@@ -516,7 +510,7 @@ trong AGENTS.md mục 3.4 (sửa luật trong cùng đợt này):
   - Checklist parity liên quan: K2 (tách lớp OS), H3 (CLIProxyAPI — không đụng), M (tác vụ đời thật — bản cài tự định chủ). Không hardcode mới (không `/Users/`, `/Volumes/`, ID cá nhân trong code mới); không nới chốt bảo mật (auth bot + Mini App đều đối chiếu allowlist).
   - Trong cùng commit này Mac cũng nhận T-10.1 `DOING` (theo LUẬT HÀNG ĐỢI: T-15 DONE xong thì mục ƯU TIÊN 3 là tiếp theo — đúng thứ tự).
 
-### [T-16] Tích hợp muse2api — Giao: Antigravity — `TODO` — LÀN 2
+### [T-16] Tích hợp muse2api — Giao: Antigravity — `TODO` — LUỒNG 4
 Chủ dự án đã fork sẵn: `mmmnhat/muse2api` (gốc czg86389-hub/
 muse2api) — cầu nối đóng gói muse.ai thành API tương thích
 OpenAI: chat completions + responses, sinh ảnh, sinh video,
@@ -584,7 +578,7 @@ pool nhiều tài khoản luân phiên, tự gia hạn phiên 48h.
 
 ---
 
-### [T-17] Connector tích hợp sẵn: TikTok, Facebook Page, Threads, Instagram, Google Workspace — Giao: Antigravity — `TODO` — LÀN 2
+### [T-17] Connector tích hợp sẵn: TikTok, Facebook Page, Threads, Instagram, Google Workspace — Giao: Antigravity — `TODO` — LUỒNG 3
 Yêu cầu chủ dự án 26/10: năm nền tảng này phải thành CONNECTOR
 CÓ SẴN trong MuLon (built-in, cài MuLon là có — không phải hàng
 marketplace cài thêm), dùng tài khoản của chính người cài:
@@ -697,7 +691,7 @@ Mục này KHÓ NHẤT trong T-22, làm theo 2 bước:
   5. *Kiểm chứng:* 528/528 unit tests PASS (thêm 7 test toàn diện trong `tests/test_v17_personal_connectors.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 - **Nghiệm thu bởi Muse (autowatch 27/10 ~11:55, head `70d992d`): VERIFIED.** Bước 1 đúng yêu cầu NGHIÊN CỨU TRƯỚC: `docs/nghien-cuu-facebook-ca-nhan.md` kết luận rõ — Accounts Center của Muse là cơ chế nội bộ First-Party SSO, MuLon **tuyệt đối không dùng lại được**; Graph API v21 không cấp feed bạn bè/Messenger cá nhân; đường duy nhất là phiên web cookies, chấp nhận có điều kiện trên máy local + Checkpoint Guard + cảnh báo rủi ro cao. Bước 2 đối chiếu khớp diff commit `73f5dee`: `FacebookPersonalConnector` + `_detect_checkpoint` (302 về `/checkpoint/`, `checkpoint_required`, khoá tài khoản) + cờ checkpoint chặn mọi request sau, lệnh `/facebook` (status/connect/disconnect) + API Mini App, phân quyền thật đọc=allow/gửi=ask, mọi nội dung ngoài bọc `frame_external`. Test sống VM (connector thật, chỉ stub session runner): configure lưu session qua Vault; redirect `/checkpoint/` nhận diện đúng; runner báo checkpoint -> trả lỗi checkpoint; lần gọi sau bị chặn ngay không gọi runner nữa (calls=1); disconnect xoá session khỏi Vault. **ĐÍNH CHÍNH câu chữ trong kết quả thực hiện (không chặn VERIFIED vì hành vi đã đúng):** mục 3 ghi session "được mã hóa" trong Vault là **nói quá** — `VaultStore` mặc định KHÔNG mã hoá at-rest khi chưa cấu hình key Fernet (chính docstring của nó cảnh báo không được nhận là đã mã hoá); bảo vệ thực tế là lưu qua Vault có ref + file quyền 0600, giống chuẩn T-10.1 đã VERIFIED. Antigravity sửa lại câu này thành "lưu qua Vault" ở lần chạm file tới, đừng để câu "mã hoá" lọt vào tài liệu người dùng. **Phần chưa tự kiểm được từ VM:** cookie thật trên tài khoản chủ + checkpoint thật từ Meta — chờ chủ dự án thử trên bản cài; cảnh báo rủi ro cao đã hiển thị trước khi dán cookie trong cả chat lẫn Mini App.
 
-### [T-22.3] Tin nhắn Instagram + tin nhắn Threads — Giao: Antigravity — `DOING` (ƯU TIÊN 10) — LÀN 2
+### [T-22.3] Tin nhắn Instagram + tin nhắn Threads — Giao: Antigravity — `DOING` (ƯU TIÊN 10) — LUỒNG 1
 Tiền lệ phía Muse: kết nối TIN NHẮN tách riêng với kết nối
 nội dung — người dùng có thể đã nối Instagram/Threads (bài
 đăng, ở T-17) mà chưa nối tin nhắn. MuLon cũng tách như vậy.
@@ -954,7 +948,7 @@ không tìm kiếm.
      - Viết mới `tests/test_v17_miniapp_polish_mkt_feed.py` (3/3 PASS, tổng bộ 104 test Mini App & Marketplace Làn 1 PASS 100%). Đã chụp và kiểm tra trực quan 5 ảnh render thật Chromium 390×844 (`t23_5_tab_pheduyet.png`, `t23_5_tab_caidat.png`, `t23_5_mkt_search.png`, `t23_5_mkt_category.png`, `t23_5_screen_feed.png`). Chờ Muse nghiệm thu.
 - **Nghiệm thu bởi Muse (autowatch 27/10 ~17:16 +07, head `a23e04e`): `VERIFIED`.** Đối chiếu diff commit `e08ba59` (phía Mac, v1.7.17: `mulon/webapp/index.html` +348/−159, `mulon/webapp_server.py` +96/−6, `mulon/marketplace.py` +67/−1, `mulon/paths.py` +38/−8, `tests/test_v17_miniapp_polish_mkt_feed.py` mới +563, bump version, CHANGELOG) khớp mô tả: (1) màu trung tính thật: `.run-item .dot-green` giờ `color:var(--ink2)` (chỉ còn tên class cũ), không còn emoji 🟢 nào trong `index.html`, `#theme-design-note` ghi rõ 6 màu chủ đề nằm ngoài chuẩn 60/30/10 và giữ nguyên chờ chủ dự án quyết — đúng lệnh, không tự quyết; (2) test sống hàm thật (script `live_t234_t235_t31.py`): `policy_layer_label` đủ 7 mã (ask → `Hỏi trước khi chạy`, allow → `Cho phép tự động`, deny → `Chặn thực thi`, host/session/tool-default/builtin đúng nhãn Việt); lọc bản ghi thử `the_duyet` có thật cả 2 tầng (server `/api/state` lẫn JS `renderApprovals`); (3) HTML thật: `#mkt-search-input` + `#mkt-filter-chips` có mặt, `MarketplaceCatalog.search_catalog` nhận đủ `query`/`locality`/`min_score`, `#feed-save-all` đúng 1 nút duy nhất; (4) suite chạy lại trên cây đồng bộ từ head: **560 passed, 0 failed** (không skip); file mới **3/3 PASSED** (gồm test Playwright Chromium thật). Không hardcode mới, không nới lỏng bảo mật trong diff này (chỉ webapp + server + marketplace + paths + test + version/changelog). **Giới hạn còn lại, không chặn VERIFIED:** 5 ảnh render thật phía Mac báo đã kiểm tra — VM chứng minh bằng test Playwright trong suite + kiểm tra HTML thật, QA nhìn lại trên WebView thật của bot do phía Mac/chủ dự án xác nhận nốt khi tiện.
 
-### [T-23.6] Siết quyền mặc định + xác nhận hành động phá huỷ — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 16) — LÀN 1
+### [T-23.6] Siết quyền mặc định + xác nhận hành động phá huỷ — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 16) — LUỒNG 2
 QA Q-09 (an toàn): màn Quyền cho thấy ~100+ quyền đều
 "Cho phép" — gồm `delete_vault_secret`, `run_command`,
 `restart_bot`, gửi Gmail/tin nhắn — và "Đổi là áp dụng
@@ -1120,58 +1114,58 @@ sửa, không chỉ unit test.
 
 - **Battery v5 trên bot thật (Muse tester, 27/10 03:12–03:17 +07, log `test-battery-v5-results.jsonl`):** X-04 ĐẠT TRỌN — (a) tin nhắn gửi lúc bot đang bận được xếp hàng và trả lời ngay khi lượt trước xong, không mất, không gộp sai; (b) sửa ý giữa chừng "á nhầm, ý là quận 3" -> bot dừng việc quận 1 trong ~1 giây, báo rõ "Đã dừng việc trước, chuyển sang..." rồi ra kết quả đúng quận 3. X-05 giữ MỘT PHẦN (xem T-24.6 thêm điểm dữ liệu). "Sắp tới" qua chat ĐẠT (đúng công cụ lịch + danh sách việc tự động trong ngày, gọn). X-06/X-07 còn lỗi nhỏ -> T-24.7.
 
-### [T-24] Lỗi hành vi từ test sống đợt 3+4 — Giao: Antigravity — `TODO` — LÀN 2
+### [T-24] Lỗi hành vi từ test sống đợt 3+4 — Giao: Antigravity — `TODO` — LUỒNG 1
 Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02:16–02:35) của Muse tester qua Telegram cá nhân trên bot thật v1.7.3; log thô ở phía Muse (`test-battery-v3/v4-results.jsonl`, `test-t101-results.jsonl`).
 
-### [T-24.1] Việc nhiều phần độc lập phải chạy SONG SONG (sub-agent) — Giao: Antigravity — `TODO` (ƯU TIÊN 17) — LÀN 2
+### [T-24.1] Việc nhiều phần độc lập phải chạy SONG SONG (sub-agent) — Giao: Antigravity — `TODO` (ƯU TIÊN 17) — LUỒNG 1
 - Bằng chứng: việc 3 phần độc lập (tìm 2 tin AI kèm nguồn / liệt kê việc chờ duyệt / lịch hôm nay) chạy TUẦN TỰ trên tiến trình chính, tổng ~185s cộng dồn. Hỏi lại, bot tự nhận: "tui KHÔNG hề chia sub-agent chạy song song, mà tui tự tay gọi từng tool lần lượt (tuần tự)". Tool spawn sub-agent có tồn tại nhưng hành vi không dùng = chưa đạt parity (Muse tách việc độc lập chạy song song theo mặc định).
 - Nghiệm thu: test sống kiểu trên — có bằng chứng các nhánh chạy song song (tiến trình thể hiện nhánh, tổng thời gian rút ngắn rõ so với tuần tự), và bot báo đúng cách nó đã chia việc khi được hỏi.
 
-### [T-24.2] Huỷ việc phải DỨT ĐIỂM — mục tiêu cũ không sống lại ở lượt sau — Giao: Antigravity — `TODO` (ƯU TIÊN 18) — LÀN 2
+### [T-24.2] Huỷ việc phải DỨT ĐIỂM — mục tiêu cũ không sống lại ở lượt sau — Giao: Antigravity — `TODO` (ƯU TIÊN 18) — LUỒNG 1
 - Bằng chứng (27/10 02:18–02:23): việc Accesstrade bị `/cancel` (bot xác nhận đã dừng) nhưng 3 lượt DM tiếp theo (gửi email; lưu bí mật kho) đều bị việc cũ chạy kèm — phần tiến trình của lượt mới chứa `grep/find/curl "accesstrade"` + đọc lại trang tài liệu Accesstrade; tin tổng kết của lượt sau còn tự nhận "đã hoàn thành cả 3 yêu cầu" gộp cả việc đã huỷ. `/cancel` hiện chỉ dừng hiển thị, không xoá mục tiêu đang theo đuổi khỏi ngữ cảnh làm việc.
 - Nghiệm thu: huỷ một việc dài đang chạy, nhắn việc mới không liên quan — tiến trình + kết quả lượt mới không chứa bất kỳ bước/nội dung nào của việc cũ.
 
-### [T-24.3] Không lộ chữ NỘI BỘ (kiểm chứng/chẩn đoán) vào câu trả lời — Giao: Antigravity — `TODO` (ƯU TIÊN 19) — LÀN 2
+### [T-24.3] Không lộ chữ NỘI BỘ (kiểm chứng/chẩn đoán) vào câu trả lời — Giao: Antigravity — `TODO` (ƯU TIÊN 19) — LUỒNG 1
 - Bằng chứng: hỏi lại mã bí mật ngay trong DM, đáp án mở đầu bằng nguyên văn nội bộ: "⚠️ Chưa kiểm chứng được là đã xong đúng yêu cầu. Chẩn đoán: Không có bằng chứng hoặc ngữ cảnh hội thoại trước đó xác nhận người dùng đã cung cấp mã bí mật..." — chẩn đoán còn SAI thực tế (mã vừa được cung cấp ở tin liền trước); phần trả lời đúng nằm ở dưới.
 - Yêu cầu: lớp tự kiểm được tồn tại nhưng kết luận của nó không in vào mặt chat; khi kiểm chứng mâu thuẫn ngữ cảnh hội thoại thật thì ưu tiên ngữ cảnh.
 
-### [T-24.4] Nhân đôi tin nhắn (thẻ/tin trả lời/xác nhận bị gửi 2 lần) — Giao: Antigravity — `TODO` (ƯU TIÊN 20) — LÀN 2
+### [T-24.4] Nhân đôi tin nhắn (thẻ/tin trả lời/xác nhận bị gửi 2 lần) — Giao: Antigravity — `TODO` (ƯU TIÊN 20) — LUỒNG 1
 - Bằng chứng 4 điểm trong 2 đợt test: (1) câu "2 cộng 2" ở group xuất hiện 2 lần giống hệt (một bản sửa cuối + một tin mới); (2) thông báo dừng việc vừa sửa vào tin cũ vừa gửi tin mới cùng nội dung; (3) xác nhận lưu Vault thành công gửi 2 tin y hệt cách nhau 1s (27/10 02:34); (4) thẻ yêu cầu bí mật Vault cho cùng một yêu cầu bị phát 2 lần (02:22 và 02:24, lệch nhẹ phần mô tả mục đích).
 - Nghiệm thu: mỗi lượt/kết quả chỉ có đúng một tin hoặc một thẻ; phát lại sau restart phải kiểm tra trạng thái đã phát trước khi gửi.
 
-### [T-24.5] Lỗi tải initData ở Chi tiết việc + Chợ MCP — Giao: Antigravity — `TODO` (ƯU TIÊN 21) — LÀN 2
+### [T-24.5] Lỗi tải initData ở Chi tiết việc + Chợ MCP — Giao: Antigravity — `TODO` (ƯU TIÊN 21) — LUỒNG 1
 - Bằng chứng (sitemap 27/10 01:42–02:14, phiên WebView chủ sở hữu hợp lệ, các màn khác tải bình thường): Chi tiết việc báo "Không tải được dữ liệu: initData không hợp lệ hoặc không phải chủ nhân" ở cả Dòng thời gian + Tóm tắt, bấm "Thử lại" vẫn lỗi; tab Chợ bấm "Làm mới" 2 lần cùng lỗi; banner lỗi còn dính sang đầu các tab khác. Cần phân biệt: initData hết hạn theo tuổi phiên hay validate sai ở riêng 2 endpoint này.
 - Nghiệm thu: phiên WebView mới mở Chi tiết việc + Chợ tải được dữ liệu thật; lỗi (nếu còn) chỉ nằm trong màn của nó.
 
-### [T-24.6] Yêu cầu dùng bí mật có sẵn phải đi thẳng đường kho -> API — Giao: Antigravity — `TODO` (ƯU TIÊN 22) — LÀN 2
+### [T-24.6] Yêu cầu dùng bí mật có sẵn phải đi thẳng đường kho -> API — Giao: Antigravity — `TODO` (ƯU TIÊN 22) — LUỒNG 1
 - Bằng chứng (27/10 02:18–02:22): yêu cầu "dùng API key Accesstrade đang lưu trong kho kiểm tra số dư" — bot không dùng giá trị trong kho để gọi API, mà grep/find khắp repo, chạy curl, đọc đi đọc lại cùng một trang tài liệu developer (3–4 lần) nhiều phút không ra kết quả; lượt gửi email sau đó cũng bị kéo lệch theo (kết quả gửi không xác minh được vì lượt bị chiếm).
 - Điểm dữ liệu thêm (battery v5, 27/10 03:14): yêu cầu hẹp "check bài đăng Threads mới nhất, tóm tắt 1 câu" — KẾT QUẢ đúng phạm vi (đúng 1 bài, 1 câu) nhưng đường đi vẫn vòng: connector_health -> `find . -maxdepth 3 -name "*threads*"` trong repo -> chạy 2 script Python -> kiểm chứng, tổng 62 giây cho một việc đáng lẽ một lần gọi connector. Tức X-05 đã hết phóng đại ở ĐẦU RA nhưng chưa hết ở ĐƯỜNG ĐI.
 - Phân biệt với T-24.2: đây là lỗi chọn đường ngay trong lượt đầu, không cần có việc cũ. Nghiệm thu: yêu cầu tương tự kết thúc trong một lượt — hoặc hoàn tất bằng bí mật trong kho, hoặc báo rõ thiếu gì; không lặp đọc cùng một trang.
 
-### [T-25] Nhãn giờ Feed trong Sắp tới sai + hardcode — Giao: Antigravity — `TODO` (ƯU TIÊN 23) — LÀN 2
+### [T-25] Nhãn giờ Feed trong Sắp tới sai + hardcode — Giao: Antigravity — `TODO` (ƯU TIÊN 23) — LUỒNG 1
 - Phát hiện khi Muse nghiệm thu T-10.2 (27/10/2026, đọc code `mulon/webapp_server.py` `_upcoming_state`): mục Feed chủ động trong `/api/upcoming` ghi cứng `time_label = "Hằng ngày (08:00 & 17:00)"`, trong khi cron mặc định thật là `feed_auto_cron = "0 8,20 * * *"` (`mulon/config.py`, `mulon/feed_auto.py` DEFAULT_CRON) tức 08:00 & **20:00** — nhãn lệch 3 tiếng so với lịch thật, và hardcode thay vì suy từ cron đang chạy (vi phạm luật AGENTS.md mục 4: giá trị đổi theo cấu hình thì không nằm trong code).
 - Nghiệm thu: `time_label` của mục feed_auto suy từ cron thật của `feed_auto.get_state()` (mặc định ra 08:00 & 20:00); đổi `FEED_AUTO_CRON` thì nhãn đổi theo; không còn chuỗi giờ hardcode trong `_upcoming_state`.
 
-### [T-24.7] Polish X-06/X-07: báo xếp hàng ngay + hết lóe markdown thô + dọn "---" trong bài dài — Giao: Antigravity — `TODO` (ƯU TIÊN 24) — LÀN 2
+### [T-24.7] Polish X-06/X-07: báo xếp hàng ngay + hết lóe markdown thô + dọn "---" trong bài dài — Giao: Antigravity — `TODO` (ƯU TIÊN 24) — LUỒNG 1
 - Bằng chứng (battery v5, 27/10 03:12–03:17): (1) gửi tin lúc bot đang bận viết bài dài -> KHÔNG có bất kỳ phản hồi tức thì nào cho biết đã nhận/xếp hàng; phải đợi ~46s tới khi lượt trước xong mới thấy lượt của mình bắt đầu (cơ chế xếp hàng đúng — tin không mất, chạy ngay sau). (2) Lóe markdown thô trước khi định dạng kịp áp: đáp án "17 + 25" hiện dạng `**17 + 25 = 42**` chữ thô rồi mới sửa thành in đậm thật; bài quán cà phê cũng sửa 3 nhịp mới ổn định định dạng. (3) Bài dài còn sót ký tự phân cách thô dạng `---` trong thân bài (cả bài phân tích AI agent lẫn bài so sánh Muse/ChatGPT).
 - Nghiệm thu: gửi tin khi bot bận -> có xác nhận xếp hàng trong vài giây; đáp án cuối không qua trạng thái chữ markdown thô nhìn thấy được; bài dài không còn dòng `---` thô.
 
-### [T-26] Chốt bề mặt slash commands (46 lệnh thật, menu chỉ 8, không có /help) — Giao: Antigravity — `TODO` (ƯU TIÊN 25) — LÀN 2
+### [T-26] Chốt bề mặt slash commands (46 lệnh thật, menu chỉ 8, không có /help) — Giao: Antigravity — `TODO` (ƯU TIÊN 25) — LUỒNG 4
 - Nguồn: audit chi tiết `docs/ui-professional-audit-2026-10-27.md` mục 1 (Muse rà code + probe sống 19 lệnh trên bot thật 27/10). Bệnh: 3 tầng lệch nhau (menu 8 / BOT_COMMANDS +14 / handler ngầm +24); /lich + /saptol + /upcoming ba lệnh một việc (probe: bảng giống hệt); /help KHÔNG có handler (agent tự chế đáp án chậm); lệnh bịa /xyz123khongco bị coi là việc chat chạy một lượt model vô nghĩa; /memory dump nguyên văn dossier; the_duyet (lệnh test) sống trong bản thật để lại dữ liệu thử.
 - Yêu cầu tóm tắt (chi tiết + nghiệm thu ở tài liệu audit mục 1.4): một danh sách lệnh khai duy nhất sinh ra menu + /help + tài liệu, có test tĩnh quét handler đối chiếu; thêm /help theo nhóm; gộp alias ẩn (saptol/lich -> upcoming, stop -> cancel, dongchat -> chatphu_dong); lệnh lạ trả lời ngay không vào vòng agent; lệnh-theo-id rút khỏi bề mặt công bố (giữ làm đường nội bộ cho nút bấm); lệnh nâng cao/phá huỷ (restart, forget, export_memory, google_auth, claim, setup) gom nhóm Nâng cao trong /help kèm cảnh báo; the_duyet chỉ bật khi có cờ dev, mặc định tắt; /memory trả tóm tắt có cấu trúc thay vì dump thô.
 
-### [T-27] Giao diện Mini App đạt chuẩn chuyên nghiệp 100% — Giao: Antigravity — `DOING` (ƯU TIÊN 26) — LÀN 1
+### [T-27] Giao diện Mini App đạt chuẩn chuyên nghiệp 100% — Giao: Antigravity — `DOING` (ƯU TIÊN 26) — LUỒNG 2
 - Nguồn: `docs/ui-professional-audit-2026-10-27.md` mục 2 (đối chiếu sitemap đo thật + cây IA `docs/miniapp-ia-redesign-2026-10-27.md`; liên quan T-12, T-23.1..T-23.6, T-24.5, T-25 — đợt này là lớp HOÀN THIỆN CHUYÊN NGHIỆP trên cấu trúc IA đó, không thay thế chúng).
 - Chuẩn xuyên suốt phải đạt (chi tiết mục 2.1): native Telegram (BackButton mọi màn con, MainButton cho hành động chính, haptic, themeParams + một màu nhấn); design system đo được (lưới 8pt, padding 16, hàng ≥56/vùng chạm ≥44, tối đa 4 cỡ chữ/2 weight, bo góc thống nhất); mọi màn đủ 4 trạng thái (skeleton/rỗng/lỗi-tại-chỗ/có dữ liệu) và mở màn con < 1s cảm nhận; nhãn = đích đến; xác nhận cho thao tác phá huỷ.
 - Thiếu/thừa từng màn: liệt kê đầy đủ ở mục 2.2 (Việc, Phê duyệt — xoá dữ liệu thử + thêm timestamp lịch sử, Lịch, Hồ sơ — bỏ ~400 nút lộ thiên + hết trùng bộ nhớ, Cài đặt — bỏ danh sách tool phẳng + chi tiết connector, Kho, Chợ — tìm kiếm/danh mục/phân trang, Feed — hết hardcode nhãn giờ).
 - Nghiệm thu (mục 2.3): render thật trước/sau từng màn + chạm thử 0 hàng chết + đo lại thời gian mở màn + đối chiếu checklist 2.1 từng dòng. Không nghiệm thu bằng lời.
 
-### [T-28] CI đỏ mọi commit — tìm chân gãy macOS/Windows — Giao: Antigravity — `TODO` (ƯU TIÊN 27) — LÀN 2
+### [T-28] CI đỏ mọi commit — tìm chân gãy macOS/Windows — Giao: Antigravity — `TODO` (ƯU TIÊN 27) — LUỒNG 4
 - Hiện tượng (chủ dự án phát hiện 27/10 03:27 qua app GitHub): gần như mọi commit gần đây đều bị đánh ✗. CI là `.github/workflows/ci.yml` (pytest trên ubuntu/macos/windows).
 - Đã kiểm từ phía Muse: chạy full suite trên cây hiện tại ở Linux = **496/496 passed** -> chân Ubuntu xanh; chân gãy là macOS và/hoặc Windows (nghi phạm: test quyền file 0600 của Vault, symlink, dữ liệu múi giờ). Connector GitHub của Muse không đọc được log Actions — việc này cần phía Mac mở tab Actions lấy đúng job/test gãy.
 - Yêu cầu: xác định job + test gãy, sửa đúng gốc (ưu tiên sửa test cho đúng đa nền tảng; cấm xoá/nới test để CI xanh — luật AGENTS.md mục 7.3); nếu là lỗi code thật thì sửa code + test hồi quy. Xong: 3/3 chân xanh trên commit mới nhất và ghi kết quả vào mục này.
 
-### [T-30] Bề mặt đầy đủ Facebook + Threads CÁ NHÂN theo chuẩn Muse — Giao: Antigravity — `TODO` (ƯU TIÊN 29) — LÀN 2
+### [T-30] Bề mặt đầy đủ Facebook + Threads CÁ NHÂN theo chuẩn Muse — Giao: Antigravity — `DOING` (ƯU TIÊN 29) — LUỒNG 3
 - Bối cảnh: chủ dự án chỉ rõ 27/10 — phía Muse, tài khoản Facebook/Threads cá nhân không chỉ có DM: còn duyệt feed, tương tác trong nhóm, liệt kê nhóm đang tham gia, đăng bài... T-22.2 mới phủ nghiên cứu + đọc cơ bản + Messenger; T-22.3 là khung DM. Mục này mở connector cá nhân ra **đúng bề mặt Muse đang có thật** (đối chiếu connector facebook_cli + threads phía Muse). DM Threads giữ ở T-22.3, không làm lại ở đây.
 - **Facebook cá nhân** (transport phiên web như T-22.2, kế thừa cảnh báo rủi ro + Checkpoint Guard):
   1. Danh tính + quan hệ: thông tin tài khoản, danh sách bạn bè, xem trang cá nhân/timeline người khác.
@@ -1183,7 +1177,7 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Luật chung (không nới): đọc = allow, **mọi hành động ghi = hỏi/duyệt từng lần** (đúng chuẩn Muse + luật của chủ dự án cho FB/Threads); nội dung bên ngoài qua `frame_external`; không lưu hồ sơ người lạ ngoài phiên; tốc độ như người dùng thật (nền tảng siết rate limit — lên kế hoạch dữ liệu trước khi gọi, cấm gọi lặp mò); **cấm trả `ok` stub cho thao tác chưa có transport thật** (bài học T-22.3) — chức năng nào chưa chạy thật được thì docs + UI ghi rõ "chưa hỗ trợ", không giả vờ.
 - Nghiệm thu (test sống trên tài khoản thật của chủ dự án, hành động ghi đều có duyệt): list nhóm đã tham gia khớp thực tế; đọc feed; đọc bài + comment trong 1 nhóm; đăng 1 comment thử (duyệt) và đọc lại thấy đúng; đăng 1 bài Threads qua API chính thức; ngắt kết nối sạch. Mỗi nhóm chức năng báo riêng đạt/chưa đạt kèm bằng chứng.
 
-### [T-29] Telegram Business Chatbot: bot rep thay nick cá nhân của chủ — Giao: Antigravity — `TODO` (ƯU TIÊN 28) — LÀN 2
+### [T-29] Telegram Business Chatbot: bot rep thay nick cá nhân của chủ — Giao: Antigravity — `TODO` (ƯU TIÊN 28) — LUỒNG 4
 - Bối cảnh: chủ dự án đã nối @Mulon_bot làm chatbot Telegram Business cho nick cá nhân (bật quản lý tin nhắn, loại trừ 17 chat riêng tư). Muse kiểm code 27/10: **chưa có bất kỳ xử lý business nào** — không handler `business_connection`/`business_message`, `start_polling` cũng không đăng ký loại update này. Đây là tính năng chính chủ Bot API, khả thi.
 - **Mức tự chủ do chủ dự án chốt 27/10 (không tự nới):** (a) TỰ REP: câu hỏi đơn giản — thông tin/giá sản phẩm (lấy từ catalog/shop DB làm nguồn sự thật, cấm bịa giá), cách mua, bảo hành cơ bản — bằng giọng bán hàng của chủ (ngắn, thân thiện, miền Nam); (b) SOẠN NHÁP CHỜ DUYỆT: thương lượng/giảm giá ngoài bảng, **thông tin chuyển khoản/STK (không bao giờ tự gửi)**, khiếu nại, hỗ trợ kỹ thuật, mọi ca mà bộ phân loại không chắc — soạn nháp + thẻ phê duyệt về DM chủ (tận dụng ApprovalBroker), chủ duyệt/sửa mới gửi; chủ không phản hồi thì bot IM LẶNG, không tự chế.
 - Yêu cầu kỹ thuật:
