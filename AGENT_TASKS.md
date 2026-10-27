@@ -791,7 +791,7 @@ rỉ cuối gần như mọi màn.
      - Viết mới 4 test trong `tests/test_v17_miniapp_markdown_perf.py` kiểm chứng sanitization đường dẫn, fix glued words, batch API dossier, kiểm tra tĩnh HTML và render thật qua Playwright Chromium (390×844) PASS 100%.
      - Toàn bộ suite đạt 550/550 passed 100%, evals vàng đạt 31/36 (86%). Chờ Muse nghiệm thu.
 
-### [T-23.3] Tách tab Hồ sơ thành 4 màn con — Giao: Antigravity — `DOING` (ƯU TIÊN 13) — LÀN 1
+### [T-23.3] Tách tab Hồ sơ thành 4 màn con — Giao: Antigravity — `DONE` (ƯU TIÊN 13) — LÀN 1
 QA Q-05 (màn quá tải nhất app): 2 thẻ lớn + 91 kỹ năng +
 100 tài liệu + ~400 nút lộ thiên trong 1 trang cuộn;
 nhấn tên tài liệu không mở xem trước; Bộ nhớ "810 fact"
@@ -816,8 +816,29 @@ nhưng màn con chỉ là khối văn bản.
   rác thành màn con riêng có tiêu đề rõ.
 - Nghiệm thu: Muse mở lại tab Hồ sơ đếm nút/thẻ +
   kiểm từng màn con; render thật đính kèm.
+- **Kết quả thực hiện (Antigravity số 2 — Làn 1, 27/10/2026, commit `ad072a6`, version `1.7.15`):**
+  1. *Tab Hồ sơ gọn thành 4 hàng điều hướng (`mulon/webapp/index.html`):*
+     - `#tab-hoso` chỉ còn đúng 1 `.card` chứa 4 hàng điều hướng chuẩn: **Hồ sơ của agent** (`#card-dossier`), **Bộ nhớ dài hạn** (`#card-memory`), **Kỹ năng** (`#card-skills`), **Thư viện tài liệu** (`#card-library`), kèm số lượng/ngày cập nhật ở `.r-sub` và mũi tên `›`. Triệt tiêu hoàn toàn việc đổ 91 kỹ năng + 100 tài liệu + ~400 nút lộ thiên ra màn chính (`#tab-hoso button` = 0).
+  2. *Màn con 1 — Hồ sơ của agent (`#screen-sub-dossier` & `#screen-profile`):*
+     - Liệt kê từng tệp hồ sơ (`IDENTITY.md`, `SOUL.md`, `USER.md`, `MEMORY.md`, v.v., ẩn `BOOTSTRAP.md`) kèm mô tả tiếng Việt 1 dòng (`DOSSIER_FILE_DESCRIPTIONS`) và thời điểm cập nhật.
+     - Nhấn thân hàng tệp nào mở `#screen-profile` chỉ đọc riêng tệp đó với Markdown đã render sạch; bấm `Quay lại` về `#screen-sub-dossier`.
+  3. *Màn con 2 — Bộ nhớ dài hạn (`#screen-sub-memory` & `#screen-fact-detail`):*
+     - Bổ sung API `GET /api/profile/facts`, `GET /api/profile/facts/{id}` và `POST /api/profile/facts/delete` trong `mulon/webapp_server.py`.
+     - Đồng bộ 100% số đếm `total_active` trong màn con với `facts_active` ngoài tab Hồ sơ (nâng giới hạn truy vấn lên 10.000 fact).
+     - Hỗ trợ tìm kiếm không dấu (`stripAccents` / `fold_vi`), lọc thời gian (`Tất cả`, `Hôm nay`, `7 ngày`, `30 ngày`), gom nhóm theo chủ đề **gập mặc định** (tự bung khi gõ tìm kiếm, phân trang `Xem thêm` mỗi 20 mục). Nhấn vào fact mở `#screen-fact-detail` xem toàn văn + bảng thông tin + nút `Xoá ký ức này` có hộp thoại xác nhận.
+  4. *Màn con 3 — Kỹ năng (`#screen-sub-skills` & `#screen-skill`):*
+     - Sửa `_parse_meta_lines` và `parse_skill_md` trong `mulon/skills.py` để đọc đầy đủ mô tả YAML đa dòng (`>`, `>-`, `|`, `|-`) và fallback lấy dòng đầu của thân tài liệu, triệt tiêu hoàn toàn lỗi mô tả cụt `">"`.
+     - Bổ sung `_localize_skill_description` và `_classify_skill_group` trong `mulon/webapp_server.py`: dịch mô tả tiếng Anh sang tiếng Việt 1 dòng gọn gàng, ẩn đường dẫn máy chủ cục bộ.
+     - Gom nhóm kỹ năng theo danh mục **gập mặc định**, tự bung nhóm khớp khi tìm kiếm và cập nhật tiêu đề `Kỹ năng (x / tổng)`, phân trang `Xem thêm` mỗi 20 kỹ năng. Khi mở đọc `#screen-skill`, tự động gỡ YAML frontmatter ở đầu tài liệu.
+  5. *Màn con 4 — Thư viện tài liệu (`#screen-sub-library`, `#screen-library-preview`, `#screen-library-trash`):*
+     - Bổ sung `GET /api/library/items/{id}` (trả metadata + `preview_text` cho văn bản/code + `media_url` cho ảnh, có kiểm tra `_denied_reason`) và `POST /api/library/items/{id}/delete` (xoá vĩnh viễn khỏi thùng rác).
+     - Mỗi hàng tài liệu chỉ còn tiêu đề + dòng phụ (phân loại · số từ/dung lượng · ngày tạo) + **1 nút tràn `⋯`** (`.lib-more-btn`).
+     - Nhấn thân hàng mở `#screen-library-preview` xem trước nội dung (ảnh, Markdown, hoặc code block) + bảng thông tin tệp + các nút tác vụ. Nhấn `⋯` mở bottom sheet `#modal-lib-menu` (`Xem trước`, `Chia sẻ`, `Ghim`/`Bỏ ghim`, `Sửa tên`, `Chuyển vào thùng rác` có xác nhận).
+     - Tách **Thùng rác tài liệu** thành màn con riêng `#screen-library-trash` có `Khôi phục` và `Xoá hẳn` (có xác nhận).
+  6. *Kiểm thử & Render thật Chromium:*
+     - Viết mới `tests/test_v17_miniapp_profile_ia.py` (4 test bao phủ YAML parser, Việt hoá mô tả, API facts/library preview/delete và Playwright Chromium E2E trên 4 màn con) + cập nhật `tests/test_v17_miniapp_navigation.py`. Đã chụp và kiểm tra trực quan 6 ảnh render thật 390×844 bằng trình duyệt. Chờ Muse nghiệm thu.
 
-### [T-23.4] Thống nhất trạng thái việc + chi tiết Lịch — Giao: Antigravity — `TODO` (ƯU TIÊN 14) — LÀN 1
+### [T-23.4] Thống nhất trạng thái việc + chi tiết Lịch — Giao: Antigravity — `DOING` (ƯU TIÊN 14) — LÀN 1
 QA Q-03 + Q-10 (Lịch): việc ở danh sách "✕ Đã lỗi"
 nhưng chi tiết "Hoàn tất/Đạt yêu cầu"; "5/6 bước" vẫn
 "✓ Đã xong"; giờ 2 định dạng; hàng lịch không có màn
