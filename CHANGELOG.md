@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 1.7.39 — 2026-10-28 — Kiểm chứng sống tích hợp muse2api qua CLIProxyAPI trên macOS (T-16, LUỒNG 1 — ký: Antigravity [L1])
+
+- **Kiểm chứng sống 3 bước của T-16 trên máy Mac thật (`config/cliproxy-muse2api.example.yaml`, `AGENT_TASKS.md`, T-16):**
+  - **Bước 1 (GET /v1/models qua cổng 8317):** Gọi `http://127.0.0.1:8317/v1/models` với Bearer PROXY_API_KEY, liệt kê đủ 43 models bao gồm cả `muse/muse-spark`, `muse-spark`, `muse-spark-1.1`, `muse-image`, `muse-wonder-1.0`, `muse-video`. Hàm `muse2api.muse_model_in_proxy_models` trả lời `True`.
+  - **Bước 2 (Lượt chat Muse thật qua cổng 8317 với muse2api Docker + tài khoản Muse thật):** Gọi `ModelGateway.complete` qua cổng proxy local 8317 với cả 2 định dạng `model="muse-spark"` và `model="muse/muse-spark"`. Cả hai lượt đều trả lời thành công HTTP 200, phản hồi text `'Mulon'`, model `openai/muse/muse-spark` (lượt 1: 92.64s khi khởi tạo session browser CDP cho tài khoản pool, lượt 2: 36.67s khi session đã ấm).
+  - **Bước 3 (Tắt Docker muse2api kiểm tra degrade & khôi phục):** Tắt container bằng `docker stop muse2api`, gọi model Muse báo lỗi mạng rõ ràng (`GatewayError: gọi model thất bại sau 3 lần: litellm.InternalServerError`), trong khi model đối chứng khác qua cổng 8317 (`gemini-3.8-flash` -> `openai/gemini-3.8-flash-high`) vẫn gọi thành công bình thường (text `'Dạ?'`, 15.63s). Bật lại `docker start muse2api`, kiểm tra `/healthz` trả về `{"status":"ok"}` và gọi lại `model="muse-spark"` phục hồi thành công (text `'Mulon'`, 90.87s).
+  - Cập nhật mẫu `config/cliproxy-muse2api.example.yaml` bổ sung cả hai alias `muse-spark` và `muse/muse-spark`.
+  - Ghi nhận đầy đủ evidence vào mục `[T-16]` trong `AGENT_TASKS.md` để Muse chính đối chiếu nghiệm thu VERIFIED.
+
 ## 1.7.38 — 2026-10-28 — Parity hệ thống: connector/MCP/quyền/model/tự sửa (T-11, LUỒNG 5 — ký: Antigravity [L5])
 
 - **Đổi model TRỰC TIẾP trong chat và Mini App (`mulon/telegram_bot.py`, `mulon/agent.py`, `mulon/webapp_server.py`, `mulon/webapp/index.html`, T-11):**

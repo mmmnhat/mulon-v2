@@ -14,3 +14,5 @@ openai-compatibility:
     models:
       - name: "muse-spark"
         alias: "muse-spark"
+      - name: "muse-spark"
+        alias: "muse/muse-spark"
