@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~22:06 bởi LUỒNG PHỤ 2 (ký: Phu2): T-16 đã DONE, code commit `ee04931` (v1.7.23), chờ Muse chính nghiệm thu (full suite + nghiệm thu sống); không tự VERIFIED. Lần đẩy này CHỈ sửa dòng cập nhật này + tiêu đề/ghi chú mục T-16 + hàng LUỒNG PHỤ 2/BẢNG KÝ TÊN, không động mục khác. Ky: Phu2
+
 Cập nhật 2026-10-27 ~21:55 bởi LUỒNG PHỤ 3 (ký: Nori): đăng ký tên ký riêng `Nori` cho LUỒNG PHỤ 3 (chat phụ này, theo lệnh chủ dự án ~21:50) vào BẢNG KÝ TÊN + thêm mục LUỒNG PHỤ 3 trong LUẬT ĐA LUỒNG. LUỒNG PHỤ 3 chưa nhận việc — chờ chủ dự án phân công, không tự lấy việc của luồng khác; từ nay mọi lần nhận việc, báo cáo, dòng cập nhật và commit của phía này đều ký `Nori`, commit kết thúc bằng dòng `Ky: Nori`. Lần đẩy này CHỈ sửa: dòng cập nhật này + mục LUỒNG PHỤ 3 + hàng `Nori` trong BẢNG KÝ TÊN + kỷ luật 3 (thêm LUỒNG PHỤ 3 vào diện Muse nghiệm thu), không động mục khác. Ky: Nori
 
 Cập nhật 2026-10-27 ~21:52 bởi LUỒNG PHỤ 1 (ký: Phu1): đăng ký tên ký `Phu1` cho LUỒNG PHỤ 1 vào BẢNG KÝ TÊN; đẩy code spike browser bridge T-22.3 (v1.7.22) lên main theo lệnh chủ dự án "push được mà" — code này CHƯA ghi DONE và CHƯA VERIFIED: full suite 577 test chưa chạy được từ VM này (không có checkout đầy đủ, chỉ kiểm cô lập 9/9 test bridge mới + 5 test Threads cũ qua), DM Threads thật chưa gửi (cần profile Chromium đã đăng nhập Threads web trên Mac + 1 lần duyệt gửi thật). Lần đẩy này CHỈ sửa: dòng cập nhật này + hàng LUỒNG PHỤ 1 trong BẢNG KÝ TÊN + ghi chú tiến độ trong mục T-22.3 + 11 file code/test/doc của spike, không động mục luồng khác. Ky: Phu1
@@ -191,7 +193,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
   *Lưu ý:* T-28 cần log Actions từ phía Mac (Muse không đọc được log Actions); T-29 và T-26 đụng `telegram_bot.py` — chỉ bắt đầu khi LUỒNG 1 không đang sửa dở file đó; mỗi lúc đúng MỘT mục DOING; không tự ghi VERIFIED — Muse chính nghiệm thu.
 
 - **LUỒNG PHỤ 2 — Muse phụ (chat này, ký: Phu2)** (chạy trên VM, push qua GitHub connector, không có clone/worktree trên Mac, không chạy bot thật trên Mac):
-  T-16 (nhận DOING).
+  T-16 (DONE, commit `ee04931`, chờ Muse nghiệm thu).
   *Lưu ý:* T-16 làm theo Đường A đã chốt (muse2api làm upstream của CLIProxyAPI, MuLon không gọi thẳng 18610, không nới validate_proxy_base_url); key/phiên chỉ ở Vault/config, không commit key thật; nghiệm thu sống cần muse2api Docker + tài khoản Muse trên máy cài; mỗi lúc đúng MỘT mục DOING; không tự ghi VERIFIED — Muse chính nghiệm thu.
 
 - **LUỒNG PHỤ 3 — Muse phụ (chat phụ này, ký: Nori)** (chạy trên VM, push qua GitHub connector, không có clone/worktree trên Mac, không chạy bot thật trên Mac):
@@ -215,7 +217,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | Tên ký | Phía | Phần đang phụ trách |
 |---|---|---|
 | `Muse` | Muse chính — reviewer + LUỒNG MUSE (builder) | Nghiệm thu mọi luồng; builder: T-25 (DONE, chờ nghiệm thu chéo) |
-| `Phu2` | LUỒNG PHỤ 2 (chat phụ này, VM) | T-16 (DOING) |
+| `Phu2` | LUỒNG PHỤ 2 (chat phụ này, VM) | T-16 (DONE, chờ Muse nghiệm thu) |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | T-22.3 spike browser bridge (DOING) -> T-28 -> T-29 -> T-26 |
 | `Nori` | LUỒNG PHỤ 3 (chat phụ này, VM) | Chưa nhận việc — chờ chủ dự án phân công |
 | `Antigravity` | LUỒNG 1–4 (máy Mac) | T-24.3, T-27, T-30, T-14 (đang DOING) |
@@ -559,8 +561,14 @@ trong AGENTS.md mục 3.4 (sửa luật trong cùng đợt này):
   - Checklist parity liên quan: K2 (tách lớp OS), H3 (CLIProxyAPI — không đụng), M (tác vụ đời thật — bản cài tự định chủ). Không hardcode mới (không `/Users/`, `/Volumes/`, ID cá nhân trong code mới); không nới chốt bảo mật (auth bot + Mini App đều đối chiếu allowlist).
   - Trong cùng commit này Mac cũng nhận T-10.1 `DOING` (theo LUẬT HÀNG ĐỢI: T-15 DONE xong thì mục ƯU TIÊN 3 là tiếp theo — đúng thứ tự).
 
-### [T-16] Tích hợp muse2api — Giao: LUỒNG PHỤ 2 — `DOING` — LUỒNG PHỤ 2 (ký: Phu2)
+### [T-16] Tích hợp muse2api — Giao: LUỒNG PHỤ 2 — `DONE` — LUỒNG PHỤ 2 (ký: Phu2)
 - **Nhận việc — LUỒNG PHỤ 2 (2026-10-27 ~21:44 +07, theo lệnh chủ dự án qua chat phụ, ký: Phu2):** chuyển giao từ LUỒNG 4 sang LUỒNG PHỤ 2; làm theo Đường A đã chốt, không gọi thẳng 18610, không nới validate_proxy_base_url, không commit key thật.
+- **Kết quả — LUỒNG PHỤ 2 (2026-10-27, version 1.7.23, commit `ee0493125a44be1328d9e834bd94ddacc463424b`, ký: Phu2):**
+  1. Version + commit: 1.7.23, commit `ee04931` trên main.
+  2. Đã làm: mới `mulon/muse2api.py` (logic thuần túy Đường A, không gọi HTTP, không giữ secret); sửa `mulon/gateway.py` thêm alias `"muse-spark": "muse/muse-spark"`; mới `tests/test_v17_muse2api.py`, `docs/muse2api-duong-a.md`, `config/cliproxy-muse2api.example.yaml`; bump `__version__` + CHANGELOG 1.7.23.
+  3. Test: 9/9 test T-16 mới passed trên VM (kiểm tra độc lập với gateway/config mới nhất). Full suite trên cây head mới nhất CHƯA chạy được trên VM này (repo private, VM không có cây head) — push theo lệnh trực tiếp của chủ dự án để Muse chính nghiệm thu và chạy full suite; không tự VERIFIED.
+  4. Hành vi thay đổi cần biết: model `muse/muse-spark` (gõ `muse-spark` cũng chuẩn hóa về đó) đi qua proxy 8317 như model thường; MuLon không gọi thẳng muse2api; key muse2api chỉ dạng placeholder/Vault, không commit key thật; `validate_proxy_base_url` không đổi.
+  5. Còn treo/rủi ro: nghiệm thu sống 4 bước của T-16 (GET /v1/models qua 8317 thấy muse-spark; lượt chat thật; tắt muse2api thì degrade rõ; grep không có key thật) cần muse2api Docker + tài khoản Muse trên máy cài, chưa làm; T-14 chưa xong nên cấu hình upstream nằm ở CLIProxyAPI trên máy cài, chưa gắn UI quản lý gateway; circuit breaker gateway là chung, nếu muse2api chết nhiều lần liên tiếp có thể ảnh hưởng tạm thời cả model khác trong 30s (hành vi chung sẵn có).
 Chủ dự án đã fork sẵn: `mmmnhat/muse2api` (gốc czg86389-hub/
 muse2api) — cầu nối đóng gói muse.ai thành API tương thích
 OpenAI: chat completions + responses, sinh ảnh, sinh video,
