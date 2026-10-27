@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~00:50 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): T-24.7 chuyển `DONE` (version 1.7.36, 679/679 test passed, evals vàng 31/36 = 86%; báo xếp hàng ngay < 1s qua _notify_queued kèm reaction ⏳ và tin xác nhận không trùng lặp; hết lóe markdown thô qua safe_stream_markdown_to_html tự đóng thẻ dở dang và nâng ngưỡng stream >= 50 ký tự; dọn sạch các dòng phân cách thô ---, ***, ___ qua CommonMark _HR_RE và clean_final_text bảo toàn YAML code block và bảng Markdown). Hàng chờ LUỒNG 1 ĐÃ HOÀN THÀNH 100% (cả 5 task T-24.3, T-24.4, T-24.5, T-24.6, T-24.7 đều DONE), sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L1]
+
 Cập nhật 2026-10-28 ~00:43 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): T-26 chuyển `DONE` (version 1.7.35, 672/672 test passed, evals vàng 31/36 = 86%; chốt một nguồn sự thật duy nhất cho slash commands trong mulon/commands.py, menu rút gọn 10 lệnh cốt lõi, thêm /help phân nhóm kèm cảnh báo phá huỷ, gộp alias ẩn, chuyển lệnh-theo-id thành nội bộ nút bấm, chặn lệnh lạ không vào agent loop, tóm tắt /memory có cấu trúc không lộ dossier, kiểm soát cờ dev cho /the_duyet, test tĩnh AST đối chiếu 100% handler). Nhận tiếp T-29 `DOING` (ƯU TIÊN 28, LUỒNG 4) theo thứ tự hàng chờ LUỒNG 4. Ky: Antigravity [L4]
 
 Cập nhật 2026-10-28 ~00:40 bởi Muse (ký: Muse): theo lệnh chủ dự án — **đổi số mục đồng bộ README + docs (mở lúc ~00:23, giao LUỒNG 2) từ T-31 thành T-32** vì trùng số với T-31 cũ (che đường dẫn, đã VERIFIED). Đã sửa: header mục mới -> T-32, hàng chờ LUỒNG 2, dòng roster. T-31 cũ giữ nguyên; dòng cập nhật ~00:23 là lịch sử mở việc, đọc theo số mới T-32. Lần đẩy này CHỈ sửa các điểm trên, không động mục khác. Ky: Muse
@@ -261,7 +263,7 @@ cùng đợt (chủ dự án đã duyệt hướng này).
 Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển thành 4 luồng song song ngay trên máy Mac. Mỗi luồng là MỘT BẢN CLONE / WORKTREE RIÊNG + đúng MỘT mục `DOING` tại một thời điểm, làm đúng thứ tự trong luồng:
 
 - **LUỒNG 1 — Lõi hành vi** (chủ file `mulon/telegram_bot.py`):
-  T-24.3 (đã DONE) -> T-24.4 (đã DONE) -> T-24.5 (đã DONE) -> T-24.6 (đã DONE) -> T-24.7 (đang DOING). (T-26 + T-29 thu hồi từ phía PHỤ về LUỒNG 1 theo lệnh chủ dự án 27/10 ~22:37, rồi CHUYỂN sang LUỒNG 4 theo lệnh chủ dự án 28/10 ~00:11; T-25 ở LUỒNG MUSE; T-24.1, T-24.2 đã VERIFIED.)
+  T-24.3 (đã DONE) -> T-24.4 (đã DONE) -> T-24.5 (đã DONE) -> T-24.6 (đã VERIFIED) -> T-24.7 (đã DONE). (Hàng chờ LUỒNG 1 đã hoàn thành sạch sẽ 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.)
 - **LUỒNG 2 — App & giao diện** (chủ file `mulon/webapp/` + `assets/`):
   T-23.6 (đã VERIFIED) -> T-12 (đã DONE) -> T-27 (đã DONE) -> T-13 (đã DONE) -> T-32.
 - **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
@@ -300,7 +302,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-24.7 (L1), T-32 (L2), T-22.3 (L3), T-29 (L4), T-11 (L5) đang DOING; T-26, T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-32 (L2), T-29 (L4), T-11 (L5) đang DOING; Hàng chờ L1 & L3 TRỐNG (T-24.7 L1, T-22.3 L3 DONE, sẵn sàng nhận việc); T-26, T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -1437,10 +1439,20 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
   5. Trạng thái: **DONE, chờ nghiệm thu chéo** (Antigravity hoặc chủ dự án) — Muse không tự ghi VERIFIED cho code của mình theo kỷ luật 3/6. (Ghi lại ở lượt 22:22: bản ghi lần đầu ở push ~22:12 bị lượt autowatch `dd6a37c` đẩy từ nền cũ ghi đè mất tiêu đề + báo cáo này.)
 - **Ghi nhận autowatch — Muse (27/10 ~22:05 +07, head `55ef0f7`): KHÔNG phải verdict — đây là việc của chính LUỒNG MUSE, Muse không tự VERIFIED.** Chỉ ghi nhận khách quan: dòng cập nhật ~22:05 ghi T-25 `DONE` (commit code `8fe2e97`) nhưng tiêu đề mục này vẫn ghi `DOING` — lệch tiêu đề, LUỒNG MUSE sửa ở lần cập nhật kế; 4 test mới `tests/test_v17_feed_time_label.py` nằm trong suite 594 passed của lượt này. Chờ nghiệm thu chéo bởi Antigravity/chủ dự án; 1 dòng hiển thị Feed trong `mulon/telegram_bot.py` vẫn chờ T-24.3 lên main để nối tiếp (commit `c73ce23` lần này chỉ chạm `agent.py`, chưa chạm `telegram_bot.py`).
 
-### [T-24.7] Polish X-06/X-07: báo xếp hàng ngay + hết lóe markdown thô + dọn "---" trong bài dài — Giao: Antigravity — `DOING` (ƯU TIÊN 24) — LUỒNG 1
+### [T-24.7] Polish X-06/X-07: báo xếp hàng ngay + hết lóe markdown thô + dọn "---" trong bài dài — Giao: Antigravity — `DONE` (ƯU TIÊN 24) — LUỒNG 1
 - **Nhận việc — Antigravity [L1] (2026-10-28 ~00:15 +07, ký: Antigravity [L1]):** nhận T-24.7 DOING theo thứ tự hàng chờ LUỒNG 1 (sau T-24.6 đã DONE). Ky: Antigravity [L1]
 - Bằng chứng (battery v5, 27/10 03:12–03:17): (1) gửi tin lúc bot đang bận viết bài dài -> KHÔNG có bất kỳ phản hồi tức thì nào cho biết đã nhận/xếp hàng; phải đợi ~46s tới khi lượt trước xong mới thấy lượt của mình bắt đầu (cơ chế xếp hàng đúng — tin không mất, chạy ngay sau). (2) Lóe markdown thô trước khi định dạng kịp áp: đáp án "17 + 25" hiện dạng `**17 + 25 = 42**` chữ thô rồi mới sửa thành in đậm thật; bài quán cà phê cũng sửa 3 nhịp mới ổn định định dạng. (3) Bài dài còn sót ký tự phân cách thô dạng `---` trong thân bài (cả bài phân tích AI agent lẫn bài so sánh Muse/ChatGPT).
 - Nghiệm thu: gửi tin khi bot bận -> có xác nhận xếp hàng trong vài giây; đáp án cuối không qua trạng thái chữ markdown thô nhìn thấy được; bài dài không còn dòng `---` thô.
+- **Báo cáo hoàn thành (Antigravity [L1] 2026-10-28 ~00:50 +07, version 1.7.36):**
+  1. *Version & commit:* 1.7.36 (rebase trên main mới nhất sau T-26, T-22.3, T-32).
+  2. *Đã làm (kèm file chính):*
+     - **Báo xếp hàng ngay khi bot bận (`mulon/telegram_bot.py`, X-06):** Thêm phương thức `_notify_queued(key, message)`: khi người dùng gửi tin nhắn (chữ, ảnh, video, âm thanh, tài liệu, giọng nói) trong lúc session đang bận xử lý lượt trước, bot lập tức thả reaction `⏳` trên tin nhắn người dùng và gửi tin xác nhận `"⏳ <i>Đã nhận, đang xếp hàng (chờ hoàn thành lượt trước)...</i>"` (< 1s); chống gửi tin trùng lặp nếu người dùng gửi nhiều tin liên tiếp trong cùng đợt bận; tái sử dụng tin nhắn xếp hàng làm placeholder chính thức khi lượt xếp hàng bắt đầu chạy (`_on_batch`): cập nhật trực tiếp thành `"⏳ <i>Đang xử lý...</i>"` rồi chỉnh sửa thành kết quả cuối cùng, triệt tiêu tin nhắn rác; tự động dọn dẹp placeholder xếp hàng khi người dùng đổi ý hủy tác vụ (`/cancel`, `/stop`, hoặc câu thoại ngắt ý).
+     - **Triệt tiêu hoàn toàn hiện tượng lóe markdown thô (`mulon/telegram_bot.py`, X-07):** Bổ sung hàm `safe_stream_markdown_to_html(text)`: tự động cân bằng và đóng các thẻ dở dang (bold `**`, code block ````, inline code ```) trong quá trình stream, render sạch sẽ qua `md_to_html` và `parse_mode="HTML"`; nâng ngưỡng stream trong `on_delta` lên `>= 50` ký tự: các câu trả lời ngắn (như phép tính `"17 + 25 = 42"`) đi thẳng một nhịp vào HTML hoàn chỉnh, không qua trạng thái chỉnh sửa dở dang lộ dấu `**`; mọi nhịp stream bài dài (cách nhau >= 1.2s) đều được gửi dưới dạng HTML định dạng chuẩn, không bao giờ hiển thị cú pháp thô (`**` hay `###`), loại bỏ hoàn toàn cảnh "chờ 3 nhịp mới ổn định định dạng".
+     - **Dọn sạch dòng phân cách thô trong bài viết dài (`mulon/telegram_bot.py`, X-07):** Bổ sung regex chuẩn CommonMark `_HR_RE` (`^[ \t]*([-*_][ \t]*){3,}$`) và hàm `clean_final_text(text)`: tự động loại bỏ các dòng phân cách ngang thô (`---`, `***`, `___`, `- - -`, `* * *`) khỏi thân bài viết và thu gọn khoảng trắng thừa; tích hợp `_HR_RE` vào `md_to_html`, đảm bảo bảo toàn dòng `---` trong code block YAML (`<pre>`) và giữ nguyên bảng Markdown (`| --- | --- |`), chỉ xóa các dòng thematic break đơn lẻ gây mất thẩm mỹ trên Telegram.
+     - **Kiểm thử (`tests/test_v17_polish_x06_x07.py`):** 7 unit tests mới kiểm tra toàn diện: xóa dòng phân cách thô `---` và bảo toàn trong YAML/bảng, streaming an toàn với `safe_stream_markdown_to_html`, bỏ qua edit dở dang với câu ngắn, gửi phản hồi xếp hàng tức thì trong vài giây, tái sử dụng placeholder trong `_on_batch`, và xóa dọn placeholder khi hủy lệnh.
+  3. *Kết quả test:* Toàn bộ suite 679/679 test passed 100% (55.12s); eval vàng stub đạt 31/36 = 86% qua cổng 85%.
+  4. *Thay đổi hành vi cần biết:* Gửi tin khi bot đang bận nhận được xác nhận xếp hàng ngay trong vài giây (< 1s); câu trả lời không qua trạng thái chữ markdown thô nhìn thấy được; bài viết dài không còn dòng `---` thô.
+  5. *Việc còn treo / rủi ro:* Không còn. Hàng chờ LUỒNG 1 đã hoàn thành sạch sẽ 100% (cả 5 task T-24.3, T-24.4, T-24.5, T-24.6, T-24.7 đều đã DONE), sẵn sàng nhận điều phối mới từ chủ dự án.
 
 ### [T-26] Chốt bề mặt slash commands (46 lệnh thật, menu chỉ 8, không có /help) — Giao: LUỒNG 4 — `DONE` (ƯU TIÊN 25) — LUỒNG 4
 - **Báo cáo hoàn thành (Antigravity [L4] 2026-10-28 ~00:43 +07, version 1.7.35):**

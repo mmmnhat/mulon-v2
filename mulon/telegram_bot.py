@@ -298,6 +298,32 @@ _CODE_OR_LINK_RE = re.compile(
     r"```([\s\S]*?)```|`([^`\n]+)`|\[([^\]]+)\]\((https?://[^\s)]+)\)")
 _BOLD_RE = re.compile(r"\*\*([^*\n]+)\*\*")
 _HEADING_RE = re.compile(r"^#{1,6}\s+(.+)$", flags=re.MULTILINE)
+_HR_RE = re.compile(r"^[ \t]*([-*_][ \t]*){3,}$", flags=re.MULTILINE)
+
+
+def clean_final_text(text: str) -> str:
+    """Làm sạch văn bản đầu ra: loại bỏ các dòng phân cách thô (---, ***, ___) và chuẩn hóa dòng trống thừa (T-24.7)."""
+    if not text:
+        return ""
+    cleaned = _HR_RE.sub("", text)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned
+
+
+def safe_stream_markdown_to_html(text: str) -> str:
+    """Chuyển đổi markdown đang stream thành HTML an toàn, tự đóng các thẻ dở dang để không bao giờ lộ markdown thô trên Telegram (T-24.7)."""
+    if not text:
+        return ""
+    # Tự đóng code block dở dang (số lượng ``` lẻ)
+    if text.count("```") % 2 == 1:
+        text = text + "\n```"
+    elif text.count("`") % 2 == 1:
+        text = text + "`"
+    if text.count("**") % 2 == 1:
+        text = text + "**"
+    html_text = md_to_html(text)
+    chunks = chunk_html(html_text)
+    return chunks[0] if chunks else ""
 
 
 def md_to_html(text: str) -> str:
@@ -323,6 +349,8 @@ def md_to_html(text: str) -> str:
         return f"\x00{len(stash) - 1}\x00"
 
     out = _CODE_OR_LINK_RE.sub(_keep, text or "")
+    out = _HR_RE.sub("", out)
+    out = re.sub(r"\n{3,}", "\n\n", out)
     out = html.escape(out, quote=False)
     out = _BOLD_RE.sub(r"<b>\1</b>", out)
     out = _HEADING_RE.sub(r"\n<b>\1</b>\n", out)
@@ -557,6 +585,7 @@ class TelegramSurface:
         self._seen_messages_order: deque[tuple[int, int]] = deque(maxlen=5000)
         self._recent_captured_vault: dict[str, float] = {}
         self._sent_approval_cards: set[str] = set()
+        self._queued_placeholders: dict[str, Any] = {}
         self.batcher = MessageBatcher(cfg.debounce_seconds, self._on_batch)
         from .vault import VaultBroker
         self.vault_broker = VaultBroker()
@@ -684,6 +713,27 @@ class TelegramSurface:
             except asyncio.TimeoutError:
                 pass
 
+    async def _notify_queued(self, key: str, message: Message) -> None:
+        """Xác nhận xếp hàng ngay khi bot đang bận (T-24.7, X-06).
+
+        Thả reaction ⏳ tức thì và gửi tin nhắn xếp hàng nếu session chưa có
+        placeholder đang chờ. Tin nhắn này sẽ được tái sử dụng làm placeholder
+        khi lượt xếp hàng bắt đầu, chỉnh sửa trực tiếp thành kết quả xử lý.
+        """
+        try:
+            await message.react([ReactionTypeEmoji(emoji="⏳")])
+        except Exception:
+            pass
+        if key not in self._queued_placeholders:
+            try:
+                msg = await message.answer(
+                    "⏳ <i>Đã nhận, đang xếp hàng (chờ hoàn thành lượt trước)...</i>",
+                    parse_mode="HTML",
+                )
+                self._queued_placeholders[key] = msg
+            except Exception as e:
+                logger.debug("Không thể gửi tin báo xếp hàng: %s", e)
+
     # ---- luồng xử lý 1 lượt ----
     async def _on_batch(self, key: str, joined: str, parts: list[str]) -> None:
         anchor = self._sessions_meta.get(key)
@@ -710,8 +760,8 @@ class TelegramSurface:
             )
         try:
             lock = self._locks.setdefault(key, asyncio.Lock())
-            placeholder = None
-            if lock.locked():
+            placeholder = self._queued_placeholders.pop(key, None)
+            if placeholder is None and lock.locked():
                 # X-06: Tín hiệu hàng đợi khi kẹt lượt trước
                 try:
                     placeholder = await anchor.answer("⏳ <i>Đang xếp hàng (chờ hoàn thành lượt trước)...</i>", parse_mode="HTML")
@@ -736,15 +786,27 @@ class TelegramSurface:
                 async def on_delta(piece: str) -> None:
                     state["shown"] += piece
                     now = asyncio.get_event_loop().time()
-                    # X-07 (c): Tránh flash 1 ký tự, chỉ edit khi đủ dài (>=15 ký tự) và cách nhau >= 1.2s
-                    if placeholder is not None and len(state["shown"]) >= 15 and now - state["last_edit"] > 1.2:
+                    # T-24.7 (X-06/X-07): Hết lóe markdown thô:
+                    # - Không edit ở độ dài quá ngắn (<50 ký tự) để câu trả lời ngắn đi thẳng một nhịp vào HTML hoàn chỉnh.
+                    # - Khi stream (>= 50 ký tự, cách nhau >= 1.2s): luôn render qua safe_stream_markdown_to_html
+                    #   kèm parse_mode="HTML" để không bao giờ lộ markdown thô (** hoặc ###) trên màn hình Telegram.
+                    if placeholder is not None and len(state["shown"]) >= 50 and now - state["last_edit"] > 1.2:
                         state["last_edit"] = now
-                        try:
-                            await placeholder.edit_text(state["shown"][:4000])
-                        except Exception:
-                            pass
+                        formatted_delta = safe_stream_markdown_to_html(state["shown"])
+                        if formatted_delta:
+                            try:
+                                await placeholder.edit_text(formatted_delta, parse_mode="HTML")
+                            except Exception as edit_err:
+                                err_str = str(edit_err).lower()
+                                if "message is not modified" not in err_str:
+                                    logger.debug("on_delta edit error: %s", edit_err)
 
-                if placeholder is None:
+                if placeholder is not None:
+                    try:
+                        await placeholder.edit_text("⏳ <i>Đang xử lý...</i>", parse_mode="HTML")
+                    except Exception:
+                        pass
+                else:
                     try:
                         placeholder = await anchor.answer("…")
                     except Exception:
@@ -887,7 +949,7 @@ class TelegramSurface:
                     result = SimpleNamespace(
                         text="Đường gọi model đang lỗi, việc chưa "
                              "chạy xong — anh thử lại sau ít phút.")
-                final = result.text or "(không có nội dung)"
+                final = clean_final_text(result.text or "(không có nội dung)")
                 chunks = chunk_html(md_to_html(final))
                 sent_chunks = False
                 try:
@@ -936,6 +998,7 @@ class TelegramSurface:
                             "nạp lại dossier sau lượt bootstrap lỗi: %s",
                             exc)
         finally:
+            self._queued_placeholders.pop(key, None)
             self._active_tasks.pop(key, None)
             typing_stop.set()
             if typing_task is not None:
@@ -1135,6 +1198,8 @@ class TelegramSurface:
             return
         self._sessions_meta[key] = message
         text = format_reply_context(message, text)
+        if self.batcher.is_busy(key):
+            await self._notify_queued(key, message)
         await self.batcher.add(key, text)
 
     # ---- Phase 6: helpers cho bề mặt group ----
@@ -4122,6 +4187,8 @@ class TelegramSurface:
             text = format_reply_context(message, text)
             key = session_key_for(message)
             self._sessions_meta[key] = message
+            if self.batcher.is_busy(key):
+                await self._notify_queued(key, message)
             await self.batcher.add(key, text)
 
         @dp.message(F.text.startswith("/quyen"))
@@ -4272,6 +4339,12 @@ class TelegramSurface:
                 return
 
             key = session_key_for(message)
+            qp = self._queued_placeholders.pop(key, None)
+            if qp:
+                try:
+                    await qp.delete()
+                except Exception:
+                    pass
             if self.batcher.is_busy(key):
                 running_task = self._active_tasks.get(key)
                 had_running_task = bool(running_task and not running_task.done())
@@ -4341,6 +4414,12 @@ class TelegramSurface:
             if self.batcher.is_busy(key):
                 is_cancel, redirect = is_cancellation_intent(message.text or "")
                 if is_cancel:
+                    qp = self._queued_placeholders.pop(key, None)
+                    if qp:
+                        try:
+                            await qp.delete()
+                        except Exception:
+                            pass
                     running_task = self._active_tasks.get(key)
                     had_running_task = bool(running_task and not running_task.done())
                     if had_running_task:
@@ -4360,6 +4439,8 @@ class TelegramSurface:
                         if not had_running_task:
                             await message.answer("Đã dừng tác vụ theo yêu cầu.")
                     return
+                # Gửi tin lúc bot đang bận: xác nhận xếp hàng ngay trong vài giây (T-24.7, X-06)
+                await self._notify_queued(key, message)
 
             text = format_reply_context(message, message.text or "")
             await self.batcher.add(key, text)
@@ -4413,6 +4494,8 @@ class TelegramSurface:
                 text = caption or "[Người dùng gửi một hình ảnh]"
 
             text = format_reply_context(message, text)
+            if self.batcher.is_busy(key):
+                await self._notify_queued(key, message)
             await self.batcher.add(key, text)
 
         @dp.message(F.video)
@@ -4462,6 +4545,8 @@ class TelegramSurface:
                 text = caption or f"[Người dùng gửi một video]"
 
             text = format_reply_context(message, text)
+            if self.batcher.is_busy(key):
+                await self._notify_queued(key, message)
             await self.batcher.add(key, text)
 
         @dp.message(F.audio)
@@ -4511,6 +4596,8 @@ class TelegramSurface:
                 text = caption or f"[Người dùng gửi một tệp âm thanh]"
 
             text = format_reply_context(message, text)
+            if self.batcher.is_busy(key):
+                await self._notify_queued(key, message)
             await self.batcher.add(key, text)
 
     async def _consolidate_closed(self, key: str) -> None:

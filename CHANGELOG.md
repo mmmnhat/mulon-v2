@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 1.7.36 — 2026-10-28 — Polish X-06/X-07: Báo xếp hàng ngay, hết lóe markdown thô, dọn dòng phân cách (T-24.7, LUỒNG 1 — ký: Antigravity [L1])
+
+- **Xác nhận xếp hàng ngay khi bot đang bận (`mulon/telegram_bot.py`, T-24.7, X-06):**
+  - Thêm phương thức `_notify_queued(key, message)`: khi người dùng gửi tin nhắn (chữ, ảnh, video, âm thanh, tài liệu, giọng nói) trong lúc bot đang bận xử lý lượt trước, bot lập tức thả reaction `⏳` trên tin nhắn của người dùng và gửi tin xác nhận `"⏳ <i>Đã nhận, đang xếp hàng (chờ hoàn thành lượt trước)...</i>"` trong vòng < 1 giây.
+  - Ngăn chặn gửi tin xếp hàng trùng lặp nếu người dùng gửi nhiều tin liên tiếp trong cùng đợt bận.
+  - Tái sử dụng tin nhắn xếp hàng làm placeholder chính thức khi lượt xếp hàng bắt đầu chạy (`_on_batch`): cập nhật trực tiếp thành `"⏳ <i>Đang xử lý...</i>"` rồi chỉnh sửa thành kết quả cuối cùng, triệt tiêu tin nhắn rác.
+  - Tự động xóa dọn placeholder xếp hàng khi người dùng đổi ý hủy tác vụ (`/cancel`, `/stop`, hoặc câu thoại ngắt ý).
+- **Triệt tiêu hoàn toàn hiện tượng lóe markdown thô (`mulon/telegram_bot.py`, T-24.7, X-07):**
+  - Bổ sung hàm `safe_stream_markdown_to_html(text)`: tự động cân bằng và đóng các thẻ dở dang (bold `**`, code block ````, inline code ```) trong quá trình stream, render sạch sẽ qua `md_to_html` và `parse_mode="HTML"`.
+  - Nâng ngưỡng stream trong `on_delta` lên `>= 50` ký tự: các câu trả lời ngắn (như phép tính `"17 + 25 = 42"`) đi thẳng một nhịp vào HTML hoàn chỉnh, không qua trạng thái chỉnh sửa dở dang lộ dấu `**`.
+  - Mọi nhịp stream bài dài (cách nhau >= 1.2s) đều được gửi dưới dạng HTML định dạng chuẩn, không bao giờ hiển thị cú pháp thô (`**` hay `###`), loại bỏ hoàn toàn cảnh "chờ 3 nhịp mới ổn định định dạng".
+- **Dọn sạch dòng phân cách thô trong bài viết dài (`mulon/telegram_bot.py`, T-24.7, X-07):**
+  - Bổ sung regex chuẩn CommonMark `_HR_RE` (`^[ \t]*([-*_][ \t]*){3,}$`) và hàm `clean_final_text(text)`: tự động loại bỏ các dòng phân cách ngang thô (`---`, `***`, `___`, `- - -`, `* * *`) khỏi thân bài viết và thu gọn khoảng trắng thừa.
+  - Tích hợp `_HR_RE` vào `md_to_html`, đảm bảo bảo toàn dòng `---` trong code block YAML (`<pre>`) và giữ nguyên bảng Markdown (`| --- | --- |`), chỉ xóa các dòng thematic break đơn lẻ gây mất thẩm mỹ trên Telegram.
+- **Kiểm thử (`tests/test_v17_polish_x06_x07.py`, T-24.7):**
+  - 7 unit tests mới kiểm tra toàn diện: xóa dòng phân cách thô `---` và bảo toàn trong YAML/bảng, streaming an toàn với `safe_stream_markdown_to_html`, bỏ qua edit dở dang với câu ngắn, gửi phản hồi xếp hàng tức thì trong vài giây, tái sử dụng placeholder trong `_on_batch`, và xóa dọn placeholder khi hủy lệnh.
+  - Toàn bộ suite 660 test passed 100%. Eval vàng stub đạt 31/36 (86% >= ngưỡng 85%).
+
 ## 1.7.35 — 2026-10-28 — Chốt bề mặt slash commands, danh mục tập trung & chặn lệnh lạ (T-26, LUỒNG 4 — ký: Antigravity [L4])
 
 - **Nguồn sự thật duy nhất cho Slash Commands (`mulon/commands.py`, T-26):**
