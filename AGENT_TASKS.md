@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~21:55 bởi LUỒNG PHỤ 3 (ký: Nori): đăng ký tên ký riêng `Nori` cho LUỒNG PHỤ 3 (chat phụ này, theo lệnh chủ dự án ~21:50) vào BẢNG KÝ TÊN + thêm mục LUỒNG PHỤ 3 trong LUẬT ĐA LUỒNG. LUỒNG PHỤ 3 chưa nhận việc — chờ chủ dự án phân công, không tự lấy việc của luồng khác; từ nay mọi lần nhận việc, báo cáo, dòng cập nhật và commit của phía này đều ký `Nori`, commit kết thúc bằng dòng `Ky: Nori`. Lần đẩy này CHỈ sửa: dòng cập nhật này + mục LUỒNG PHỤ 3 + hàng `Nori` trong BẢNG KÝ TÊN + kỷ luật 3 (thêm LUỒNG PHỤ 3 vào diện Muse nghiệm thu), không động mục khác. Ky: Nori
+
 Cập nhật 2026-10-27 ~21:52 bởi LUỒNG PHỤ 1 (ký: Phu1): đăng ký tên ký `Phu1` cho LUỒNG PHỤ 1 vào BẢNG KÝ TÊN; đẩy code spike browser bridge T-22.3 (v1.7.22) lên main theo lệnh chủ dự án "push được mà" — code này CHƯA ghi DONE và CHƯA VERIFIED: full suite 577 test chưa chạy được từ VM này (không có checkout đầy đủ, chỉ kiểm cô lập 9/9 test bridge mới + 5 test Threads cũ qua), DM Threads thật chưa gửi (cần profile Chromium đã đăng nhập Threads web trên Mac + 1 lần duyệt gửi thật). Lần đẩy này CHỈ sửa: dòng cập nhật này + hàng LUỒNG PHỤ 1 trong BẢNG KÝ TÊN + ghi chú tiến độ trong mục T-22.3 + 11 file code/test/doc của spike, không động mục luồng khác. Ky: Phu1
 
 Cập nhật 2026-10-27 ~21:47 bởi LUỒNG PHỤ 2 (ký: Phu2): KHÔI PHỤC commit `1162d5f` bị commit `13da843` ghi đè — commit claim T-16 trước đó push từ base cũ `6a94927` trong lúc chờ duyệt, đúng lúc `1162d5f` (LUẬT KÝ TÊN + BẢNG KÝ TÊN + LUỒNG MUSE nhận T-25) vừa lên main, nên toàn bộ thay đổi của `1162d5f` đã bị revert tạm thời. Lần đẩy này khôi phục NGUYÊN VẸN nội dung `1162d5f` và giữ nguyên claim T-16 DOING LUỒNG PHỤ 2 (ký: Phu2) trên nền đó; đăng ký tên ký `Phu2` cho LUỒNG PHỤ 2 vào BẢNG KÝ TÊN. Lần đẩy này CHỈ sửa: dòng cập nhật này + hàng LUỒNG PHỤ 2 + BẢNG KÝ TÊN + tiêu đề/ghi chú T-16 + câu chuyển giao T-16 trong LUẬT ĐA LUỒNG, không động nội dung khác của `1162d5f`.
@@ -190,6 +192,10 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
   T-16 (nhận DOING).
   *Lưu ý:* T-16 làm theo Đường A đã chốt (muse2api làm upstream của CLIProxyAPI, MuLon không gọi thẳng 18610, không nới validate_proxy_base_url); key/phiên chỉ ở Vault/config, không commit key thật; nghiệm thu sống cần muse2api Docker + tài khoản Muse trên máy cài; mỗi lúc đúng MỘT mục DOING; không tự ghi VERIFIED — Muse chính nghiệm thu.
 
+- **LUỒNG PHỤ 3 — Muse phụ (chat phụ này, ký: Nori)** (chạy trên VM, push qua GitHub connector, không có clone/worktree trên Mac, không chạy bot thật trên Mac):
+  Chưa nhận việc — chờ chủ dự án phân công.
+  *Lưu ý:* mỗi lúc đúng MỘT mục DOING; không tự ghi VERIFIED — Muse chính nghiệm thu; mọi nhận việc/báo cáo/dòng cập nhật/commit đều ký `Nori`.
+
 - **LUỒNG MUSE — Muse chính làm builder** (chạy trên VM của Muse, push qua GitHub connector; Muse vẫn giữ vai reviewer cho mọi luồng khác):
   T-25 (DONE ở 1.7.22, commit `8fe2e97`, chờ nghiệm thu chéo; còn 1 dòng hiển thị trong `telegram_bot.py` chờ T-24.3 lên main để nối tiếp).
   *Lưu ý:* việc của LUỒNG MUSE do Antigravity hoặc chủ dự án nghiệm thu chéo — Muse KHÔNG tự ghi VERIFIED cho code của chính mình.
@@ -197,7 +203,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 **Kỷ luật chung cho mọi luồng (không nới):**
 1. Trước khi sửa `AGENT_TASKS.md` phải pull `main` mới nhất; mỗi luồng chỉ sửa các mục thuộc luồng mình + dòng cập nhật của mình; nhận việc bằng commit claim `DOING` như cũ.
 2. `pytest` phải xanh 100% mới commit. Version: lấy số cao nhất trên `main` rồi cộng tiếp, không ghi đè số của luồng khác. Push sau phải rebase trên `main` mới nhất.
-3. Chỉ đánh dấu `DONE` + ghi kết quả và commit SHA vào mục việc. KHÔNG tự `VERIFIED` — Muse nghiệm thu độc lập cả 4 luồng + LUỒNG PHỤ 1 + LUỒNG PHỤ 2. (Ngoại lệ: việc của LUỒNG MUSE do Antigravity hoặc chủ dự án nghiệm thu chéo, Muse không tự chấm việc mình làm.)
+3. Chỉ đánh dấu `DONE` + ghi kết quả và commit SHA vào mục việc. KHÔNG tự `VERIFIED` — Muse nghiệm thu độc lập cả 4 luồng + LUỒNG PHỤ 1 + LUỒNG PHỤ 2 + LUỒNG PHỤ 3. (Ngoại lệ: việc của LUỒNG MUSE do Antigravity hoặc chủ dự án nghiệm thu chéo, Muse không tự chấm việc mình làm.)
 4. Không sửa `dossier/`, không nới lỏng chốt bảo mật, không hardcode. Việc UI chỉ tính khi có render thật từ HTML/CSS của app; chuẩn màu 60/30/10, tím Mulon là màu nhấn duy nhất.
 5. Luồng nào xong hết việc của nó thì báo chủ dự án, không tự lấy việc của luồng khác. (Ngoại lệ duy nhất do chủ dự án duyệt 27/10 ~21:37: 5 mục T-22.3, T-28, T-29, T-26, T-25 chuyển từ LUỒNG 1/4 sang LUỒNG PHỤ 1; LUỒNG 1/4 không nhận lại các mục này. Bổ sung 27/10 ~21:42: T-25 chuyển tiếp từ LUỒNG PHỤ 1 sang LUỒNG MUSE; 27/10 ~21:44: T-16 chuyển từ LUỒNG 4 sang LUỒNG PHỤ 2.)
 6. **KÝ TÊN RIÊNG (lệnh chủ dự án 27/10 ~21:42):** mỗi phía tự chọn MỘT tên riêng duy nhất, ghi vào BẢNG KÝ TÊN dưới đây TRƯỚC khi nhận việc, và ký tên đó trong mọi lần nhận việc (`DOING`), báo cáo `DONE`, dòng cập nhật ở đầu file, và cuối mỗi commit message (thêm dòng `Ky: <tên>`). Không đổi tên giữa chừng. Tên `Muse` đã có chủ (Muse chính) — các phía khác không dùng lại, kể cả các account Muse phụ.
@@ -209,6 +215,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Muse` | Muse chính — reviewer + LUỒNG MUSE (builder) | Nghiệm thu mọi luồng; builder: T-25 (DONE, chờ nghiệm thu chéo) |
 | `Phu2` | LUỒNG PHỤ 2 (chat phụ này, VM) | T-16 (DOING) |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | T-22.3 spike browser bridge (DOING) -> T-28 -> T-29 -> T-26 |
+| `Nori` | LUỒNG PHỤ 3 (chat phụ này, VM) | Chưa nhận việc — chờ chủ dự án phân công |
 | `Antigravity` | LUỒNG 1–4 (máy Mac) | T-24.3, T-27, T-30, T-14 (đang DOING) |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
