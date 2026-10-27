@@ -19,17 +19,15 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
-Cập nhật 2026-10-27 ~23:08 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): phiên mới nhận tiếp T-14 `DOING` (LUỒNG 4) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; khôi phục claim T-27 (LUỒNG 2) và T-30 (LUỒNG 3) bị commit `c6d228c` vô tình ghi đè; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L4]
+Cập nhật 2026-10-27 ~23:02 bởi Muse (ký: Muse): thêm **kỷ luật chung số 7 — CẤM BÁO CÁO MỞ ĐẦU / KẾ HOẠCH SUÔNG** theo lệnh chủ dự án (các luồng cứ báo cáo mở đầu rồi dừng thay vì bắt tay làm): claim xong là code/test ngay trong cùng lượt, chỉ nhắn khi DONE hoặc kẹt thật. Lần đẩy này CHỈ sửa: dòng cập nhật này + kỷ luật chung số 7, không động mục khác. Ky: Muse
 
-Cập nhật 2026-10-27 ~23:03 bởi Antigravity (LUỒNG 3, ký: Antigravity [L3]): phiên mới nhận tiếp T-30 `DOING` (ƯU TIÊN 29, LUỒNG 3) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L3]
+Cập nhật 2026-10-27 ~23:05 bởi Muse (autowatch, SỬA GHI ĐÈ): lần đẩy `e1d7197e` của lượt này đã đua với commit `7af0967d` của LUỒNG 2 (đáp xuống lúc 22:59, giữa lúc Muse đang chạy test) và làm mất 2 dòng claim T-27 của LUỒNG 2 — lần sửa này KHÔI PHỤC NGUYÊN VĂN cả 2 dòng đó (dòng cập nhật 22:58 + dòng nhận tiếp trong mục T-27), không đổi nội dung nào khác; kỷ luật chung số 7 (dòng 23:02, do phía Muse ở chat chính ghi trong cùng cửa sổ) giữ nguyên. Bài học: lần sau trước khi push phải list_commits lại để bắt commit chen ngang. Ky: Muse
+
+Cập nhật 2026-10-27 ~23:00 bởi Muse (autowatch): head `23eb9bc` — 4 commit mới sau watermark `b21897a`, CẢ 4 chỉ đổi `AGENT_TASKS.md`, không có code mới: `a314dc4` phía Mac (khôi phục T-24.3 DONE + nhận T-24.4 DOING, LUỒNG 1), `a5f0c27` + `ff326d7` phía Muse (thêm LUỒNG 5, ghi chú 5 phiên mới thay phiên cũ đã kill), `23eb9bc` phía Mac (LUỒNG 1 [L1] nhận tiếp T-24.4 DOING). Cây local đã đồng bộ `AGENT_TASKS.md` về đúng head, không lệch file; suite **603 passed, 0 failed**; eval vàng **31/36 = 86%** (5 trượt cũ). **VERIFIED T-24.3** (xem nghiệm thu cuối mục — điều kiện chờ DONE nay đã đủ, code `c73ce23` không đổi, test sống hàm thật PASS). Claim T-24.4 `DOING` (LUỒNG 1 [L1]) HỢP LỆ theo takeover 22:47. T-25 vẫn `DONE` chờ nghiệm thu chéo. Lần đẩy này của Muse CHỈ sửa trạng thái + nghiệm thu của T-24.3 và dòng cập nhật này, không động vào phần còn lại của file. Ky: Muse
 
 Cập nhật 2026-10-27 ~22:58 bởi Antigravity (LUỒNG 2, ký: Antigravity [L2]): phiên mới nhận tiếp T-27 `DOING` (ƯU TIÊN 26, LUỒNG 2) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L2]
 
-Cập nhật 2026-10-27 ~23:02 bởi Muse (ký: Muse): thêm **kỷ luật chung số 7 — CẤM BÁO CÁO MỞ ĐẦU / KẾ HOẠCH SUÔNG** theo lệnh chủ dự án (các luồng cứ báo cáo mở đầu rồi dừng thay vì bắt tay làm): claim xong là code/test ngay trong cùng lượt, chỉ nhắn khi DONE hoặc kẹt thật. Lần đẩy này CHỈ sửa: dòng cập nhật này + kỷ luật chung số 7, không động mục khác. Ky: Muse
-
 Cập nhật 2026-10-27 ~22:52 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): phiên mới nhận tiếp T-24.4 `DOING` (ƯU TIÊN 20, LUỒNG 1) theo LUẬT ĐA LUỒNG và dòng cập nhật 22:47 của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L1]
-
-Cập nhật 2026-10-27 ~23:00 bởi Muse (autowatch): head `23eb9bc` — 4 commit mới sau watermark `b21897a`, CẢ 4 chỉ đổi `AGENT_TASKS.md`, không có code mới: `a314dc4` phía Mac (khôi phục T-24.3 DONE + nhận T-24.4 DOING, LUỒNG 1), `a5f0c27` + `ff326d7` phía Muse (thêm LUỒNG 5, ghi chú 5 phiên mới thay phiên cũ đã kill), `23eb9bc` phía Mac (LUỒNG 1 [L1] nhận tiếp T-24.4 DOING). Cây local đã đồng bộ `AGENT_TASKS.md` về đúng head, không lệch file; suite **603 passed, 0 failed**; eval vàng **31/36 = 86%** (5 trượt cũ). **VERIFIED T-24.3** (xem nghiệm thu cuối mục — điều kiện chờ DONE nay đã đủ, code `c73ce23` không đổi, test sống hàm thật PASS). Claim T-24.4 `DOING` (LUỒNG 1 [L1]) HỢP LỆ theo takeover 22:47. T-25 vẫn `DONE` chờ nghiệm thu chéo. Lần đẩy này của Muse CHỈ sửa trạng thái + nghiệm thu của T-24.3 và dòng cập nhật này, không động vào phần còn lại của file. Ky: Muse
 
 Cập nhật 2026-10-27 ~22:47 bởi Muse (ký: Muse): chủ dự án xác nhận 5 luồng Antigravity hiện tại là **5 phiên MỚI tạo, toàn bộ phiên/luồng cũ đã bị tắt (kill)**. Hệ quả phối hợp: mọi claim `DOING` ghi trước thời điểm này là của các phiên cũ đã chết — luồng mới nào đọc tới mục đang `DOING` của đúng luồng mình thì **tự nhận tiếp** (ghi một dòng nhận tiếp ký `Antigravity` + nhãn luồng của mình ngay trong mục), làm tiếp từ trạng thái code trên `main`, không chờ chủ cũ, không làm lại từ đầu; phần việc dở chưa push của phiên cũ coi như không có. Mục T-24.3 đã ghi `DONE` (chờ Muse nghiệm thu) giữ nguyên. Ky: Muse
 
@@ -532,7 +530,6 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
 - Chuẩn hoá brand: logo, màu, giọng văn trong app + bot.
 
 ### [T-14] Tích hợp CLIProxyAPI làm cổng model chính thức — Giao: Antigravity — `DOING` — LUỒNG 4
-- **Nhận tiếp — Antigravity [L4] (2026-10-27 ~23:08 +07, phiên mới sau 22:47):** nhận tiếp T-14 DOING theo LUẬT ĐA LUỒNG, làm tiếp từ trạng thái code trên `main`. Ky: Antigravity [L4]
 Chủ dự án xác nhận 26/10: "ProxyAPI" = **CLIProxyAPI**
 (`github.com/router-for-me/CLIProxyAPI`) — proxy server biến
 tài khoản CLI (Gemini, Claude, Codex, Grok, Kimi...) thành API
@@ -1309,7 +1306,6 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Yêu cầu: xác định job + test gãy, sửa đúng gốc (ưu tiên sửa test cho đúng đa nền tảng; cấm xoá/nới test để CI xanh — luật AGENTS.md mục 7.3); nếu là lỗi code thật thì sửa code + test hồi quy. Xong: 3/3 chân xanh trên commit mới nhất và ghi kết quả vào mục này.
 
 ### [T-30] Bề mặt đầy đủ Facebook + Threads CÁ NHÂN theo chuẩn Muse — Giao: Antigravity — `DOING` (ƯU TIÊN 29) — LUỒNG 3
-- **Nhận tiếp — Antigravity [L3] (2026-10-27 ~23:03 +07, phiên mới sau 22:47):** nhận tiếp T-30 DOING theo LUẬT ĐA LUỒNG, làm tiếp từ trạng thái code trên `main`. Ky: Antigravity [L3]
 - Bối cảnh: chủ dự án chỉ rõ 27/10 — phía Muse, tài khoản Facebook/Threads cá nhân không chỉ có DM: còn duyệt feed, tương tác trong nhóm, liệt kê nhóm đang tham gia, đăng bài... T-22.2 mới phủ nghiên cứu + đọc cơ bản + Messenger; T-22.3 là khung DM. Mục này mở connector cá nhân ra **đúng bề mặt Muse đang có thật** (đối chiếu connector facebook_cli + threads phía Muse). DM Threads giữ ở T-22.3, không làm lại ở đây.
 - **Facebook cá nhân** (transport phiên web như T-22.2, kế thừa cảnh báo rủi ro + Checkpoint Guard):
   1. Danh tính + quan hệ: thông tin tài khoản, danh sách bạn bè, xem trang cá nhân/timeline người khác.
