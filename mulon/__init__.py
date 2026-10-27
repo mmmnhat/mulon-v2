@@ -77,7 +77,7 @@ Phân quyền chi tiết từng hành động cho connector (Action-Level
 Connector Policy); Cài đặt MCP 1-Click từ Mini App.
 """
 
-__version__ = "1.7.34"
+__version__ = "1.7.35"
 
 # Shim cho LiteLLM 1.106+ khi dùng với thư viện mcp
 try:

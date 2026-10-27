@@ -52,45 +52,16 @@ from .config import PROJECT_ROOT
 from .datafiles import load_json_data
 from .ideas import format_idea_card, parse_do_reply
 from .proactivity import effective_enabled as heartbeat_effective
+from .commands import (
+    ALL_HANDLED_COMMANDS,
+    BOT_COMMANDS,
+    MENU_COMMANDS,
+    format_help_text,
+)
 from .webapp_server import ActivityTracker, plain_step_label, \
     tool_action_label
 
 logger = logging.getLogger("mulon.telegram")
-
-# ----------------- Danh sách lệnh cho Telegram UI menu -------------
-# Menu lệnh "/" tinh gọn cho user
-MENU_COMMANDS: list[tuple[str, str]] = [
-    ("start", "Bắt đầu / Chào Mulon"),
-    ("menu", "Mở bảng điều khiển (Mini App)"),
-    ("restart", "Khởi động lại bot tiến trình"),
-    ("model", "Xem hoặc đổi model AI đang chạy (/model <tên>)"),
-    ("status", "Trạng thái hệ thống"),
-    ("vault", "Nhập API Key & Khóa bảo mật"),
-    ("new", "Chốt phiên, bắt đầu ngữ cảnh mới"),
-    ("cancel", "Dừng tác vụ đang chạy"),
-]
-
-# Danh sách đầy đủ cho tương thích ngược & các công cụ kiểm thử
-BOT_COMMANDS: list[tuple[str, str]] = MENU_COMMANDS + [
-    ("memory", "Xem bộ nhớ + fact kèm nguồn"),
-    ("chatphu", "Tạo chat phụ (topic tự do)"),
-    ("setup_topics", "Thiết lập Topic-tab cho group"),
-    ("quyen", "Quyền của agent bằng lời thường"),
-    ("approvals", "Lịch sử quyết định quyền"),
-    ("goals", "Xem mục tiêu đang theo dõi (Goals)"),
-    ("goal", "Quản lý mục tiêu (/goal create, close, briefing)"),
-    ("ideas", "Sinh thẻ ý tưởng mới"),
-    ("feed_now", "Đăng bài Feed công nghệ & AI"),
-    ("library", "Xem Thư viện & kho ảnh visual"),
-    ("feedbrief", "Xem/sửa brief của Feed"),
-    ("feedsources", "Nguồn bổ sung của Feed"),
-    ("the_duyet", "Gửi thẻ phê duyệt thử (thật, vô hại)"),
-    ("pin_item", "Ghim item Library theo id"),
-    ("rename_item", "Đổi tên item Library theo id"),
-    ("zalo", "Zalo cá nhân (/zalo status, qr, disconnect)"),
-    ("telethon", "Telegram cá nhân userbot (/telethon status, qr, disconnect)"),
-    ("facebook", "Facebook cá nhân (/facebook status, connect, disconnect)"),
-]
 
 
 def webapp_direct_link(cfg, bot_username: Optional[str],
@@ -2331,6 +2302,13 @@ class TelegramSurface:
                 kwargs["reply_markup"] = kb
             await message.answer(text, parse_mode="HTML", **kwargs)
 
+        @dp.message(F.text.startswith("/help"))
+        async def cmd_help(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            is_dev = getattr(self.cfg, "enable_dev_commands", False) or getattr(self.cfg, "debug", False)
+            await message.answer(format_help_text(is_dev=is_dev), parse_mode="HTML")
+
         @dp.callback_query(F.data.startswith("appr:"))
         async def on_approval_button(query: CallbackQuery) -> None:
             user_id = query.from_user.id if query.from_user else 0
@@ -2547,36 +2525,39 @@ class TelegramSurface:
         async def cmd_memory(message: Message) -> None:
             if not self._is_allowed(message):
                 return
-            facts = await self.memory.active_facts(limit=50)
-            lines = ["Fact đang hiệu lực (kèm nguồn — hỏi 'sao mày "
-                     "biết' là truy được tới đây):"]
-            if not facts:
-                lines.append("(chưa có)")
+            facts = await self.memory.active_facts(limit=100)
+            total_facts = len(facts)
+            subjects: dict[str, int] = {}
             for f in facts:
-                prefix = f"[{f['subject']}] " if f["subject"] else ""
-                lines.append(f"- #{f['id']} {prefix}{f['fact']}")
-                prov = []
-                if f.get("source"):
-                    prov.append(f"nguồn: {f['source']}")
-                if f.get("created_at"):
-                    prov.append(f"ghi lúc {f['created_at']}")
-                if prov:
-                    lines.append("  · " + " · ".join(prov))
-                if f.get("source_msg_id"):
-                    src = await self.memory.get_message(
-                        int(f["source_msg_id"]))
-                    if src:
-                        excerpt = str(src["content"])[:120]
-                        lines.append(
-                            f"  · từ tin #{src['id']} "
-                            f"({src['role']}): {excerpt}")
-            mem_md = self.dossier.files.get("MEMORY.md", "").strip()
-            if mem_md:
-                lines.append("\nMEMORY.md:\n" + mem_md[:2500])
-            # Text thuần (NC-1): không chèn **, không parse HTML —
-            # nội dung fact/MEMORY.md chứa gì cũng hiển thị nguyên.
+                subj = (f.get("subject") or "Chung").strip()
+                subjects[subj] = subjects.get(subj, 0) + 1
+
+            lines = [
+                "🧠 <b>TỔNG QUAN BỘ NHỚ & TRI THỨC</b>",
+                f"• Tổng số dữ kiện ghi nhớ (facts): <b>{total_facts}</b>",
+            ]
+            if subjects:
+                top_subjs = sorted(subjects.items(), key=lambda x: x[1], reverse=True)[:6]
+                subj_str = ", ".join(f"{s} ({c})" for s, c in top_subjs)
+                lines.append(f"• Chủ đề chính: {subj_str}")
+
+            lines.append("\n📌 <b>Các dữ kiện gần nhất:</b>")
+            if not facts:
+                lines.append("<i>(Chưa có dữ kiện nào được ghi nhớ)</i>")
+            else:
+                for f in facts[:5]:
+                    prefix = f"[{html.escape(f['subject'])}] " if f.get("subject") else ""
+                    lines.append(f"• #{f['id']} {prefix}{html.escape(f['fact'])}")
+
+            if total_facts > 5:
+                lines.append(f"\n<i>... và còn {total_facts - 5} dữ kiện khác.</i>")
+
+            lines.append(
+                "\n💡 <i>Xem và quản lý toàn bộ bộ nhớ tại Mini App (tab Hồ sơ → Bộ nhớ dài hạn), "
+                "hoặc gõ /export_memory để tải bản sao lưu đầy đủ.</i>"
+            )
             text = "\n".join(lines)
-            for chunk in chunk_html(html.escape(text)):
+            for chunk in chunk_html(text):
                 await message.answer(chunk, parse_mode="HTML")
 
         # ---------- Phase 6: bề mặt group (mục 16) ----------
@@ -3376,6 +3357,13 @@ class TelegramSurface:
         @dp.message(F.text.startswith("/the_duyet"))
         async def cmd_the_duyet(message: Message) -> None:
             if not self._is_allowed(message):
+                return
+            is_dev = getattr(self.cfg, "enable_dev_commands", False) or getattr(self.cfg, "debug", False)
+            if not is_dev:
+                await message.answer(
+                    "⚠️ Lệnh dev thử nghiệm (/the_duyet) đang tắt ở bản chạy thật. "
+                    "Bật ENABLE_DEV_COMMANDS=1 nếu muốn thử."
+                )
                 return
             thread_id = None
             if getattr(message, "is_topic_message", False):
@@ -4210,7 +4198,7 @@ class TelegramSurface:
             await self._send_typing(message)
             await self._process_voice_message(message)
 
-        @dp.message(F.text.startswith("/upcoming") | F.text.startswith("/saptol") | (F.text == "/lich"))
+        @dp.message(F.text.startswith("/upcoming") | F.text.startswith("/saptol") | F.text.startswith("/lich"))
         async def cmd_upcoming(message: Message) -> None:
             if not self._is_allowed(message):
                 return
@@ -4235,7 +4223,14 @@ class TelegramSurface:
             # Heartbeat
             lines.append("💓 <b>Heartbeat:</b> 30 phút một lần (quét chủ động) · <i>Chỉ xem</i>")
             # Feed
-            lines.append("📰 <b>Feed chủ động:</b> 08:00 & 17:00 (2 bài/ngày) · <i>Chỉ xem</i>")
+            try:
+                from .feed_auto import cron_times_label, DEFAULT_CRON
+                feed_svc = self._svc("feed_auto")
+                feed_cron = getattr(feed_svc, "cron", None) or DEFAULT_CRON
+                feed_lbl = cron_times_label(feed_cron) or "08:00 & 20:00"
+                lines.append(f"📰 <b>Feed chủ động:</b> {feed_lbl} (2 bài/ngày) · <i>Chỉ xem</i>")
+            except Exception:
+                lines.append("📰 <b>Feed chủ động:</b> 08:00 & 20:00 (2 bài/ngày) · <i>Chỉ xem</i>")
 
             # Tracked items
             try:
@@ -4309,7 +4304,18 @@ class TelegramSurface:
                 return
             if self._is_duplicate_message(message):
                 return
-            clean_txt = (message.text or "").strip().lower()
+            raw_text = (message.text or "").strip()
+
+            # Chặn lệnh lạ không có handler, trả lời ngay không vào vòng agent (T-26)
+            if raw_text.startswith("/"):
+                first_token = raw_text.split()[0]
+                if re.match(r"^/[a-zA-Z0-9_]+(@[a-zA-Z0-9_]+)?$", first_token):
+                    cmd_name = first_token[1:].split("@")[0].lower()
+                    if cmd_name not in ALL_HANDLED_COMMANDS:
+                        await message.answer("Không có lệnh này — xem /help")
+                        return
+
+            clean_txt = raw_text.lower()
             if clean_txt in ("restart", "restart bot", "restart bot lại đi", "khởi động lại", "khởi động lại bot", "/restart"):
                 await cmd_restart(message)
                 return

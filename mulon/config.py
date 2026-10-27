@@ -138,6 +138,9 @@ class Config:
     cliproxy_config_path: Optional[Path] = None
     cliproxy_dir: Optional[Path] = None
 
+    # Lệnh dev thử nghiệm (the_duyet, v.v., T-26)
+    enable_dev_commands: bool = False
+
     # --- Telegram & Xác thực quyền (T-15 mở khoá cài đặt) ---
     telegram_bot_token: str = ""
     allowed_user_id: int = 0
@@ -439,6 +442,7 @@ class Config:
             cliproxy_binary_path=_resolve(_env("CLIPROXY_BINARY_PATH", "")) if _env("CLIPROXY_BINARY_PATH", "") else None,
             cliproxy_config_path=_resolve(_env("CLIPROXY_CONFIG_PATH", "")) if _env("CLIPROXY_CONFIG_PATH", "") else None,
             cliproxy_dir=_resolve(_env("CLIPROXY_DIR", "")) if _env("CLIPROXY_DIR", "") else None,
+            enable_dev_commands=_env_bool("ENABLE_DEV_COMMANDS", False),
             telegram_bot_token=_env("TELEGRAM_BOT_TOKEN", ""),
             allowed_user_id=final_owner_id,
             allowed_user_ids=tuple(allowed_list),

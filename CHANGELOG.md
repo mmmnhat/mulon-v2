@@ -1,5 +1,35 @@
 # CHANGELOG
 
+## 1.7.35 — 2026-10-28 — Chốt bề mặt slash commands, danh mục tập trung & chặn lệnh lạ (T-26, LUỒNG 4 — ký: Antigravity [L4])
+
+- **Nguồn sự thật duy nhất cho Slash Commands (`mulon/commands.py`, T-26):**
+  - Bổ sung module `mulon/commands.py` với `CommandDef` và danh mục `COMMAND_DEFINITIONS` tập trung.
+  - Phân loại rõ ràng 4 nhóm: `BASIC` (Cơ bản), `WORK_DATA` (Việc & Dữ liệu), `ADVANCED` (Nâng cao & Kết nối), `INTERNAL` (Nội bộ / Thao tác thẻ item).
+  - Khởi tạo tập hợp `ALL_HANDLED_COMMANDS` dùng chung cho toàn bộ hệ thống kiểm tra và điều hướng.
+- **Rút gọn Menu "/" trên Telegram còn 10 lệnh cốt lõi (`mulon/commands.py`, `mulon/telegram_bot.py`, T-26):**
+  - Menu "/" popup của Telegram (đăng ký qua `bot.set_my_commands`) rút gọn đúng 10 lệnh cốt lõi: `start`, `menu`, `new`, `cancel`, `status`, `model`, `vault`, `upcoming`, `goals`, `help`.
+  - Giữ nguyên `BOT_COMMANDS` đầy đủ cho tính tương thích ngược với toàn bộ test suite.
+- **Bổ sung lệnh `/help` có cấu trúc & phân nhóm (`mulon/commands.py`, `mulon/telegram_bot.py`, T-26):**
+  - Handler `@dp.message(F.text.startswith("/help"))` trả lời nhanh danh sách lệnh phân theo 3 nhóm rõ ràng (Cơ bản, Việc & Dữ liệu, Nâng cao & Kết nối).
+  - Các lệnh có tính phá huỷ hoặc thay đổi trạng thái lớn (`/restart`, `/forget`) có cảnh báo rõ ràng `(⚠️)`.
+  - Lệnh dev thử nghiệm `/the_duyet` chỉ hiển thị trong `/help` khi bật cờ dev.
+- **Gộp alias ẩn & Chuyển lệnh-theo-id thành nội bộ (`mulon/commands.py`, `mulon/telegram_bot.py`, T-26):**
+  - `/saptol` và `/lich` gộp làm alias ẩn của `/upcoming`.
+  - `/stop` làm alias ẩn của `/cancel`.
+  - `/dongchat` làm alias ẩn của `/chatphu_dong`; `/setup_topics` làm alias ẩn của `/topics`.
+  - Các lệnh thao tác item (`pin_item`, `rename_item`, `trash_item`, `restore_item`, `share_item`, `note_ok`, `note_bo`, `idea_do`, `idea_bo`) giữ handler làm đường nội bộ cho nút bấm/thẻ, rút khỏi bề mặt `/help` và menu.
+- **Chặn lệnh lạ — không vào vòng lặp agent (`mulon/telegram_bot.py`, T-26):**
+  - Khi người dùng gửi lệnh lạ không có trong danh mục (ví dụ `/xyz123khongco`), bot phản hồi tức thì `"Không có lệnh này — xem /help"` và dừng lại ngay lập tức, triệt tiêu việc chạy vòng lặp model/agent lãng phí tài nguyên.
+  - Phân biệt chính xác giữa slash command và đường dẫn tệp (như `/Users/...`, `/Volumes/...`).
+- **Cải tiến lệnh `/memory` — tóm tắt có cấu trúc thay vì dump thô (`mulon/telegram_bot.py`, T-26):**
+  - Bỏ hoàn toàn việc in nội dung thô `MEMORY.md` (chứa chỉ thị nội bộ agent).
+  - Hiển thị bảng tóm tắt có cấu trúc: tổng số dữ kiện (facts), phân nhóm theo chủ đề chính, 5 dữ kiện gần nhất, và hướng dẫn xem đầy đủ tại Mini App hoặc gõ `/export_memory`.
+- **Kiểm soát lệnh dev `/the_duyet` qua cờ cấu hình (`mulon/config.py`, `mulon/telegram_bot.py`, `.env.example`, T-26):**
+  - Thêm cấu hình `ENABLE_DEV_COMMANDS` (mặc định tắt ở môi trường thật). Khi tắt, lệnh `/the_duyet` không tạo thẻ phê duyệt rác mà thông báo nhẹ nhàng hướng dẫn bật cờ dev.
+- **Kiểm thử (`tests/test_v17_commands.py`, T-26):**
+  - Bổ sung test tĩnh AST/quét mã nguồn kiểm tra 100% handler trong `telegram_bot.py` đều được đăng ký trong `mulon/commands.py`.
+  - 9 unit tests mới kiểm tra toàn diện: cấu trúc menu 10 lệnh, tương thích ngược BOT_COMMANDS, văn bản /help, nhận diện alias, chặn lệnh lạ không vào agent, kiểm soát cờ dev cho /the_duyet, và tóm tắt /memory không lộ dossier.
+
 ## 1.7.34 — 2026-10-28 — Hoàn tất Tin nhắn Instagram + Tin nhắn Threads Browser Bridge, gỡ bỏ triệt để stub báo gửi giả (T-22.3, LUỒNG 3 — ký: Antigravity [L3])
 
 - **Gỡ bỏ triệt để stub báo gửi giả và phân tách cổng phiên cookie (`mulon/personal_connectors.py`, T-22.3):**

@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~00:43 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): T-26 chuyển `DONE` (version 1.7.35, 672/672 test passed, evals vàng 31/36 = 86%; chốt một nguồn sự thật duy nhất cho slash commands trong mulon/commands.py, menu rút gọn 10 lệnh cốt lõi, thêm /help phân nhóm kèm cảnh báo phá huỷ, gộp alias ẩn, chuyển lệnh-theo-id thành nội bộ nút bấm, chặn lệnh lạ không vào agent loop, tóm tắt /memory có cấu trúc không lộ dossier, kiểm soát cờ dev cho /the_duyet, test tĩnh AST đối chiếu 100% handler). Nhận tiếp T-29 `DOING` (ƯU TIÊN 28, LUỒNG 4) theo thứ tự hàng chờ LUỒNG 4. Ky: Antigravity [L4]
+
 Cập nhật 2026-10-28 ~00:40 bởi Muse (ký: Muse): theo lệnh chủ dự án — **đổi số mục đồng bộ README + docs (mở lúc ~00:23, giao LUỒNG 2) từ T-31 thành T-32** vì trùng số với T-31 cũ (che đường dẫn, đã VERIFIED). Đã sửa: header mục mới -> T-32, hàng chờ LUỒNG 2, dòng roster. T-31 cũ giữ nguyên; dòng cập nhật ~00:23 là lịch sử mở việc, đọc theo số mới T-32. Lần đẩy này CHỈ sửa các điểm trên, không động mục khác. Ky: Muse
 
 Cập nhật 2026-10-28 ~00:38 bởi Antigravity (LUỒNG 3, ký: Antigravity [L3]): T-22.3 chuyển `DONE` (version 1.7.34, 655/655 test passed 100%; hoàn thành trọn vẹn 5 mục audit của Muse: (1) Gỡ bỏ hoàn toàn stub gửi/reaction giả ở Instagram Messages, tích hợp InstagramBrowserBridge và trả unsupported: True khi thiếu transport; (2) Gỡ bỏ stub reaction giả ở Threads, tích hợp ThreadsBrowserBridge.send_reaction thật; (3) Tách biệt cổng phiên cookie — cho phép browser bridge chạy khi có BROWSER_PROFILE_DIR mà không bắt buộc dán cookie vào Vault; (4) Cập nhật tài liệu kỹ thuật docs/threads-browser-bridge-spike.md hướng dẫn rõ ràng; (5) Rà soát và gỡ bỏ stub sent: True trong Messenger send_message của FacebookPersonalConnector khi thiếu transport. 10/10 test mới trong tests/test_instagram_browser_bridge.py và cập nhật các suite liên quan). Hàng chờ LUỒNG 3 hiện TRỐNG, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L3]
@@ -265,7 +267,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
   T-30 (đã DONE) -> T-17 (đã VERIFIED) -> T-22.3 (đã DONE). (Hàng chờ LUỒNG 3 hiện TRỐNG, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.)
 - **LUỒNG 4 — Cổng model & còn lại**:
-  T-14 (đã DONE) -> T-26 (đang DOING) -> T-29. (T-26 + T-29 nhận chuyển từ hàng chờ LUỒNG 1 theo lệnh chủ dự án 28/10 ~00:11. T-16 phần sửa + T-28 đã chuyển sang LUỒNG 5 theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên Antigravity.)
+  T-14 (đã DONE) -> T-26 (đã DONE) -> T-29 (đang DOING). (T-26 + T-29 nhận chuyển từ hàng chờ LUỒNG 1 theo lệnh chủ dự án 28/10 ~00:11. T-16 phần sửa + T-28 đã chuyển sang LUỒNG 5 theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên Antigravity.)
 
 - **LUỒNG PHỤ 1 — Muse phụ — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37: thu hồi toàn bộ việc của các account Muse phụ, kể cả việc đang dở):** hàng chờ đã dọn sạch — T-22.3 (phần còn lại) -> LUỒNG 3, T-28 -> LUỒNG 4, T-29 -> LUỒNG 1, T-26 -> LUỒNG 1. LUỒNG PHỤ 1 không nhận việc mới, không push thêm commit nào cho dự án này.
 
@@ -298,7 +300,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-24.7 (L1), T-32 (L2), T-22.3 (L3), T-26 (L4), T-11 (L5) đang DOING; T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-24.7 (L1), T-32 (L2), T-22.3 (L3), T-29 (L4), T-11 (L5) đang DOING; T-26, T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -1440,7 +1442,23 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Bằng chứng (battery v5, 27/10 03:12–03:17): (1) gửi tin lúc bot đang bận viết bài dài -> KHÔNG có bất kỳ phản hồi tức thì nào cho biết đã nhận/xếp hàng; phải đợi ~46s tới khi lượt trước xong mới thấy lượt của mình bắt đầu (cơ chế xếp hàng đúng — tin không mất, chạy ngay sau). (2) Lóe markdown thô trước khi định dạng kịp áp: đáp án "17 + 25" hiện dạng `**17 + 25 = 42**` chữ thô rồi mới sửa thành in đậm thật; bài quán cà phê cũng sửa 3 nhịp mới ổn định định dạng. (3) Bài dài còn sót ký tự phân cách thô dạng `---` trong thân bài (cả bài phân tích AI agent lẫn bài so sánh Muse/ChatGPT).
 - Nghiệm thu: gửi tin khi bot bận -> có xác nhận xếp hàng trong vài giây; đáp án cuối không qua trạng thái chữ markdown thô nhìn thấy được; bài dài không còn dòng `---` thô.
 
-### [T-26] Chốt bề mặt slash commands (46 lệnh thật, menu chỉ 8, không có /help) — Giao: LUỒNG 4 — `TODO` (ƯU TIÊN 25) — LUỒNG 4 (chuyển từ LUỒNG 1 theo lệnh chủ dự án 28/10 ~00:11; hàng chờ LUỒNG 4: T-26 -> T-29)
+### [T-26] Chốt bề mặt slash commands (46 lệnh thật, menu chỉ 8, không có /help) — Giao: LUỒNG 4 — `DONE` (ƯU TIÊN 25) — LUỒNG 4
+- **Báo cáo hoàn thành (Antigravity [L4] 2026-10-28 ~00:43 +07, version 1.7.35):**
+  1. *Version:* 1.7.35.
+  2. *Đã làm (kèm file chính):*
+     - `mulon/commands.py` (mới): Nguồn sự thật duy nhất cho toàn bộ slash command. Định nghĩa `CommandDef` với 4 nhóm (`BASIC`, `WORK_DATA`, `ADVANCED`, `INTERNAL`). Rút gọn `MENU_COMMANDS` còn đúng 10 lệnh cốt lõi cho `set_my_commands`. Giữ nguyên `BOT_COMMANDS` tương thích ngược. Sinh văn bản `/help` tự động qua `format_help_text`.
+     - `mulon/telegram_bot.py`: Bổ sung handler `/help` phân 3 nhóm trực quan kèm cảnh báo `(⚠️)` cho lệnh phá huỷ; cải tiến `/memory` trả về tóm tắt có cấu trúc (số facts, nhóm chủ đề, 5 facts gần nhất) thay vì dump thô file dossier; siết `/the_duyet` kiểm tra cờ dev; gộp alias ẩn (`/lich`, `/saptol` -> `/upcoming`; `/stop` -> `/cancel`; `/dongchat` -> `/chatphu_dong`; `/setup_topics` -> `/topics`); chuyển các lệnh-theo-id thành nội bộ nút bấm; chặn lệnh lạ ở `on_text` ("Không có lệnh này — xem /help") phản hồi ngay lập tức, không vào vòng lặp agent loop.
+     - `mulon/config.py` & `.env.example`: Thêm cấu hình `enable_dev_commands: bool = False` (env `ENABLE_DEV_COMMANDS`, mặc định tắt).
+     - `tests/test_v17_commands.py` (mới): 9 unit tests bao phủ 100% yêu cầu audit, gồm test tĩnh AST quét và đối chiếu toàn bộ command handler trong `telegram_bot.py` với registry.
+  3. *Kết quả test:* 672/672 test passed (54.89s), evals vàng đạt 31/36 = 86% qua cổng 85%.
+  4. *Thay đổi hành vi cần biết:*
+     - Menu popup "/" của Telegram chỉ còn 10 lệnh cốt lõi (`start`, `menu`, `new`, `cancel`, `status`, `model`, `vault`, `upcoming`, `goals`, `help`).
+     - Gõ lệnh không tồn tại (vd `/xyz`) sẽ nhận phản hồi tức thì và không làm tốn lượt chạy LLM.
+     - Lệnh `/help` hiển thị danh sách lệnh phân nhóm rõ ràng.
+     - Lệnh `/memory` chỉ tóm tắt số liệu bộ nhớ, không lộ nội dung thô `MEMORY.md`.
+     - Lệnh `/the_duyet` chỉ hoạt động khi bật `ENABLE_DEV_COMMANDS=1`.
+  5. *Việc còn treo / rủi ro:* Không còn. Đã bàn giao trọn vẹn bề mặt slash command.
+  - Ky: Antigravity [L4]
 - **Chuyển giao 2026-10-28 ~00:12 bởi Muse (lệnh chủ dự án):** từ LUỒNG 1 sang LUỒNG 4 (san tải; LUỒNG 4 trống sau T-14 DONE). Chỉ LUỒNG 4 nhận mục này. Ky: Muse
 - **Ghi nhận autowatch — Muse (28/10/2026 ~00:27 +07, head `610a187c`):** commit `0e93c4ff` (phía Mac) ghi 'claim T-26 DOING' và roster đã ghi T-26 DOING (LUỒNG 4), nhưng tiêu đề mục vẫn `TODO` và mục chưa có dòng nhận việc — L4 lật tiêu đề thành `DOING` + thêm dòng nhận việc cho khớp, tránh lệch tín hiệu như T-13. Không có code mới cho mục này trong cửa sổ, không nghiệm thu gì thêm.
 - **Chuyển giao 2026-10-27 ~22:27 bởi Muse (lệnh chủ dự án):** từ LUỒNG PHỤ 1 sang LUỒNG PHỤ 3; hàng chờ PHỤ 3: T-26. (T-29 KHÔNG chuyển — đã `DOING` ở LUỒNG PHỤ 1.)
@@ -1528,7 +1546,9 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Luật chung (không nới): đọc = allow, **mọi hành động ghi = hỏi/duyệt từng lần** (đúng chuẩn Muse + luật của chủ dự án cho FB/Threads); nội dung bên ngoài qua `frame_external`; không lưu hồ sơ người lạ ngoài phiên; tốc độ như người dùng thật (nền tảng siết rate limit — lên kế hoạch dữ liệu trước khi gọi, cấm gọi lặp mò); **cấm trả `ok` stub cho thao tác chưa có transport thật** (bài học T-22.3) — chức năng nào chưa chạy thật được thì docs + UI ghi rõ "chưa hỗ trợ", không giả vờ.
 - Nghiệm thu (test sống trên tài khoản thật của chủ dự án, hành động ghi đều có duyệt): list nhóm đã tham gia khớp thực tế; đọc feed; đọc bài + comment trong 1 nhóm; đăng 1 comment thử (duyệt) và đọc lại thấy đúng; đăng 1 bài Threads qua API chính thức; ngắt kết nối sạch. Mỗi nhóm chức năng báo riêng đạt/chưa đạt kèm bằng chứng.
 
-### [T-29] Telegram Business Chatbot: bot rep thay nick cá nhân của chủ — Giao: LUỒNG 1 — `TODO` (ƯU TIÊN 28) — LUỒNG 1 (thu hồi từ LUỒNG PHỤ 1 đang DOING dở; nhận tiếp từ trạng thái code hiện tại trên main)
+### [T-29] Telegram Business Chatbot: bot rep thay nick cá nhân của chủ — Giao: LUỒNG 4 — `DOING` (ƯU TIÊN 28) — LUỒNG 4
+- **Nhận việc — Antigravity [L4] (2026-10-28 ~00:43 +07):** nhận T-29 DOING (LUỒNG 4) theo thứ tự hàng chờ LUỒNG 4 sau khi hoàn tất T-26; tiếp tục từ trạng thái code trên main. Ky: Antigravity [L4]
+- **Chuyển giao 2026-10-28 ~00:12 bởi Muse (lệnh chủ dự án):** từ LUỒNG 1 sang LUỒNG 4 (san tải; LUỒNG 4 trống sau T-14 DONE; hàng chờ LUỒNG 4: T-26 -> T-29). Ky: Muse
 - **Nhận việc — LUỒNG PHỤ 1 (2026-10-27 ~22:22 +07, ký: Phu1):** nhận T-29 theo luật tự lấy việc tiếp của chủ dự án (22:21). T-28 vẫn DOING nhưng kẹt Billing GitHub phía chủ dự án (CI #146 job không chạy), T-22.3 vẫn DOING kẹt chờ Mac — hai mục đó không bị bỏ, chờ hết kẹt sẽ quay lại. LUỒNG 1 (T-24.3) đã đẩy code xong ở `c73ce23` và theo nghiệm thu sớm của Muse không đụng `telegram_bot.py` (chỉ agent + prompt + intent hints + test), nên rủi ro đụng file wiring thấp; code T-29 sẽ nằm chủ yếu ở file mới, chỉ nối handler tối thiểu vào `telegram_bot.py`, rebase kỹ trước khi push. Ky: Phu1
 - **Chuyển giao 2026-10-27 ~21:40 bởi Muse (lệnh chủ dự án):** từ LUỒNG 4 sang LUỒNG PHỤ 1; thứ tự trong LUỒNG PHỤ 1: T-22.3 -> T-28 -> T-29 -> T-26 -> T-25; chỉ LUỒNG PHỤ 1 nhận mục này.
 - Bối cảnh: chủ dự án đã nối @Mulon_bot làm chatbot Telegram Business cho nick cá nhân (bật quản lý tin nhắn, loại trừ 17 chat riêng tư). Muse kiểm code 27/10: **chưa có bất kỳ xử lý business nào** — không handler `business_connection`/`business_message`, `start_polling` cũng không đăng ký loại update này. Đây là tính năng chính chủ Bot API, khả thi.
