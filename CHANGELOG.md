@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 1.7.33 — 2026-10-28 — Đường thẳng Kho bí mật -> API, chống loop và chặn lục lọi repo (T-24.6, LUỒNG 1 — ký: Antigravity [L1])
+
+- **Giải mã Vault đa định dạng & Fail-fast trong lệnh (`mulon/vault.py`, `mulon/tools.py`, T-24.6):**
+  - Mở rộng `VaultStore.resolve()` hỗ trợ linh hoạt: ref UUID (`vault:<uuid>`), nhãn trực tiếp (`accesstrade:api_key`), tham chiếu prefix (`vault:accesstrade:api_key`), placeholder template (`${VAULT:accesstrade:api_key}`, `${vault:...}`) và tra cứu chuẩn hóa ký tự (`:` vs `_`, không phân biệt hoa thường). Đồng bộ `VaultStore.exists()`.
+  - Trong `run_command`: tự động phân tích và thay thế các mẫu `${VAULT:<nhãn>}` và `vault:<nhãn>` thành giá trị bí mật thật trước khi chạy subprocess; bảo toàn cơ chế redaction giấu bí mật khỏi stdout/stderr; nếu nhãn yêu cầu không tồn tại trong Kho an toàn, trả về lỗi ngay lập tức (`ok: False`), gợi ý dùng `list_vault_secrets` hoặc `request_vault_secret`, tuyệt đối không chạy lệnh shell với placeholder rác.
+- **Chặn lùng sục mã nguồn repo khi đã có Connector hoặc Kho bí mật (`mulon/tools.py`, `mulon/agent.py`, T-24.6):**
+  - Trong `run_command`: chặn các lệnh tìm kiếm mã nguồn (`find`, `grep`, `egrep`, `ag`, `rg`) nhắm vào các từ khóa của connector (`threads`, `facebook`, `zalo`) hoặc kho bí mật (`accesstrade`). Hướng dẫn thẳng tới tool `connector_call` hoặc dùng `${VAULT:...}`.
+  - Cập nhật khối TỰ NHẬN THỨC (`build_self_knowledge` trong `mulon/agent.py`): quy tắc cứng số 7 và 2 mục chỉ dẫn chi tiết về "ĐƯỜNG THẲNG KHO BÍ MẬT -> API" và "ĐƯỜNG THẲNG CONNECTOR", yêu cầu hoàn tất trong MỘT lượt (hoặc báo rõ thiếu gì), cấm tuyệt đối lùng sục mã nguồn hay tự viết script ngoài.
+- **Chống lặp đọc tài liệu & Chống loop vô tận trong vòng lặp agent (`mulon/agent.py`, T-24.6):**
+  - Trong `_act_loop`: theo dõi các lượt gọi `web_fetch` / `web_read`. Nếu một URL đã đọc thành công ở bước trước, chặn ngay lượt đọc lặp lại thứ 2; nếu trang lỗi, cho phép tối đa 2 lần thử, chặn từ lần thứ 3.
+  - Chặn bất kỳ tool call nào được gọi lặp lại 3 lần liên tiếp với cùng tham số (`tool_call_counts[tool_sig] >= 3`), yêu cầu agent tổng hợp kết quả hiện có hoặc báo rõ thiếu gì để kết thúc.
+- **Đường thẳng Connector (`mulon/connectors.py`, T-24.6):**
+  - Cập nhật mô tả và schema tham số của `connector_call` liệt kê tường minh các connector khả dụng (`threads_personal`, `threads_messages`, `facebook_personal`, `zalo_personal`, `telegram_personal`, `gmail`, `gcalendar`, `system`) và các action phổ biến.
+  - Khi gọi connector không khả dụng, `ConnectorRegistry.call()` liệt kê danh sách connector hiện có.
+- **Kiểm thử (`tests/test_v17_direct_vault_and_connector_path.py`, T-24.6):**
+  - 8 test mới kiểm chứng: resolve đa dạng định dạng, run_command thay thế và redact bí mật, fail-fast khi thiếu bí mật, chặn find/grep tìm kiếm repo, chỉ dẫn Tự nhận thức, connector_call báo lỗi hữu ích, và vòng lặp `_act_loop` chặn lặp đọc web cũng như chặn lặp tool 3 lần.
+  - Toàn bộ suite test passed 100%. Eval vàng stub đạt 31/36 (86% >= ngưỡng 85%).
+
 ## 1.7.32 — 2026-10-28 — Connector tích hợp sẵn: TikTok, Facebook Page, Threads, Instagram, Google Workspace (T-17, LUỒNG 3 — ký: Antigravity [L3])
 
 - **Nâng cấp toàn diện bộ Google Workspace built-in (`mulon/google_conn.py`, `mulon/connectors.py`, T-17):**
@@ -47,6 +65,7 @@
   - Kiểm thử render tương tác thật với Playwright Chromium viewport iPhone 390×844, chụp và lưu ảnh artifact kiểm chứng tại `data/artifacts/t13_screen_brand.png` và `data/artifacts/t13_brand_updated.png`.
   - 100% test suite xanh (639 passed).
 
+## 1.7.31 — 2026-10-28 — Brand, mascot và đổi tên hiển thị bot (T-13, LUỒNG 2 — ký: Antigravity [L2])
 
 ## 1.7.30 — 2026-10-28 — Sửa lỗi CI đa nền tảng Windows & macOS và chẩn đoán hạ tầng Actions (T-28, LUỒNG 5 — ký: Antigravity [L5])
 

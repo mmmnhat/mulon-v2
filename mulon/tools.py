@@ -529,7 +529,7 @@ def build_default_registry(cfg, memory, dossier=None, vault_store=None) -> ToolR
     # --- shell ---
     @spec(
         "run_command",
-        "Chạy lệnh shell trong workspace. cwd tường minh, có timeout. Tự động giải mã tham chiếu vault:<uuid> khi chạy và giấu key khỏi kết quả.",
+        "Chạy lệnh shell trong workspace. cwd tường minh, có timeout. Tự động giải mã tham chiếu vault:<uuid> hoặc ${VAULT:<nhãn>} khi chạy và giấu bí mật khỏi kết quả.",
         {
             "type": "object",
             "properties": {
@@ -543,25 +543,76 @@ def build_default_registry(cfg, memory, dossier=None, vault_store=None) -> ToolR
     )
     async def run_command(command: str, cwd: str = "", timeout: int = 60):
         project_root = (getattr(cfg, "project_root", None) or Path(__file__).resolve().parent.parent).resolve()
+        cmd_lower = command.lower().strip()
+
+        # Chặn tìm kiếm mã nguồn khi đã có connector hoặc kho bí mật (T-24.6)
+        connector_secret_keywords = ("threads", "facebook", "zalo", "accesstrade")
+        is_search_cmd = (
+            cmd_lower.startswith("find ")
+            or cmd_lower.startswith("grep ")
+            or cmd_lower.startswith("egrep ")
+            or cmd_lower.startswith("ag ")
+            or cmd_lower.startswith("rg ")
+        )
+        if is_search_cmd:
+            for kw in connector_secret_keywords:
+                if re.search(r"\b" + re.escape(kw) + r"\b", cmd_lower):
+                    if kw == "accesstrade":
+                        return {
+                            "ok": False,
+                            "error": (
+                                "Chặn tìm kiếm mã nguồn: Bí mật Accesstrade (API key/token) được lưu trong "
+                                "Kho an toàn Vault, không nằm trong mã nguồn. Hãy dùng '${VAULT:accesstrade:api_key}' "
+                                "trong lệnh gọi API (curl) hoặc dùng tool 'list_vault_secrets' để kiểm tra nhãn."
+                            ),
+                        }
+                    else:
+                        return {
+                            "ok": False,
+                            "error": (
+                                f"Chặn tìm kiếm mã nguồn: Đã có sẵn connector cho '{kw}' trong tool 'connector_call'. "
+                                "TUYỆT ĐỐI không lục lọi mã nguồn repo hoặc viết script ngoài. "
+                                f"Hãy dùng tool 'connector_call(name=\"{kw}_personal\", ...)' để thao tác trực tiếp."
+                            ),
+                        }
+
         if cwd:
             workdir = _resolve_in_workspace(cfg, cwd)
         else:
-            cmd_lower = command.lower().strip()
             if any(cmd_lower.startswith(pfx) for pfx in ("git ", "pytest", "python3 -m pytest", "python -m pytest", "python3 -m mulon", "python -m mulon", "python3 scripts/", "python scripts/", "ruff ")):
                 workdir = project_root
             else:
                 workdir = Path(cfg.workspace_dir).resolve()
         workdir.mkdir(parents=True, exist_ok=True)
-        # Tự động thay thế tham chiếu vault:<uuid> thành giá trị thật trước khi chạy
+
+        # Tự động thay thế tham chiếu vault:<uuid> hoặc ${VAULT:<nhãn>} thành giá trị thật trước khi chạy (T-24.6)
         exec_cmd = command
         secret_map = {}
         if vault_store is not None:
-            refs = re.findall(r"vault:[A-Za-z0-9\-_]+", command)
-            for ref in refs:
-                val = vault_store.resolve(ref)
+            matches_to_resolve = []
+            # 1. Tìm các mẫu ${VAULT:...} hoặc ${vault:...}
+            for m in re.finditer(r"\$\{[Vv][Aa][Uu][Ll][Tt]:([^}]+)\}", command):
+                matches_to_resolve.append((m.group(0), m.group(1).strip()))
+            # 2. Tìm các mẫu vault:<label_hoặc_ref>
+            for m in re.finditer(r"(?<![A-Za-z0-9_\$])vault:([A-Za-z0-9\-_:.]+)", command):
+                matches_to_resolve.append((m.group(0), m.group(0)))
+
+            for match_str, ref_key in matches_to_resolve:
+                val = vault_store.resolve(ref_key) or vault_store.resolve(match_str)
                 if val:
-                    secret_map[val] = ref
-                    exec_cmd = exec_cmd.replace(ref, val)
+                    secret_map[val] = match_str
+                    exec_cmd = exec_cmd.replace(match_str, val)
+                else:
+                    available_labels = [str(item.get("label", "")) for item in vault_store.labels() if item.get("label")]
+                    lbl_hint = f" Các nhãn hiện có trong Kho: {available_labels}." if available_labels else " Kho hiện chưa có bí mật nào."
+                    return {
+                        "ok": False,
+                        "error": (
+                            f"Không tìm thấy bí mật trong Kho an toàn cho '{match_str}'.{lbl_hint} "
+                            "Vui lòng dùng tool 'list_vault_secrets' để kiểm tra nhãn hoặc "
+                            "'request_vault_secret' để yêu cầu chủ nhân cung cấp."
+                        )
+                    }
 
         proc = await asyncio.create_subprocess_shell(
             exec_cmd,

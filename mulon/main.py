@@ -94,7 +94,7 @@ async def build_system(cfg: Config):
     # Google Calendar dùng chung 1 GoogleAuth; VaultStore dựng
     # sớm ở đây để auth đọc credential (marketplace + phase 6
     # dùng lại đúng instance này).
-    register_vault_tools(registry, cfg)
+    register_vault_tools(registry, cfg, vault_store=vault_store)
     google_auth = None
     if getattr(cfg, "google_legacy_connectors", False):
         from .google_conn import build_google_auth

@@ -314,6 +314,30 @@ def build_self_knowledge(cfg, registry) -> str:
         "(/the_duyet chỉ là thẻ duyệt phân quyền thử nghiệm). Bạn "
         "chỉ cầm mã tham chiếu dạng vault:<uuid> và không bao giờ "
         "thấy giá trị thật.\n"
+        "- ĐƯỜNG THẲNG KHO BÍ MẬT -> API (T-24.6): Khi chủ nhân yêu cầu dùng API key, token "
+        "hoặc bí mật có sẵn trong Kho (ví dụ: Accesstrade, OpenAI, Meta, Google...):\n"
+        "  1. Dùng tool `list_vault_secrets()` để tra cứu danh sách nhãn (label) và ref đang có trong Kho.\n"
+        "  2. Nhúng trực tiếp placeholder dạng `${VAULT:<nhãn>}` hoặc `vault:<nhãn>` vào lệnh gọi API "
+        "(ví dụ `run_command` chạy curl với header 'Authorization: Bearer ${VAULT:accesstrade:api_key}' "
+        "hoặc 'Token ${VAULT:accesstrade:api_key}'). Hệ thống sẽ tự động tra Kho, thay thế giá trị thật "
+        "trước khi thực thi và che giấu bí mật khỏi kết quả trả về.\n"
+        "  3. TUYỆT ĐỐI KHÔNG lùng sục mã nguồn (find, grep, list_dir, read_file) trong repo để tìm key. "
+        "Bí mật của chủ nhân KHÔNG BAO GIỜ nằm trong repo.\n"
+        "  4. Nếu Kho chưa có bí mật, hoặc lệnh báo không tìm thấy bí mật: gọi ngay tool "
+        "`request_vault_secret` hoặc báo rõ cho chủ nhân thiếu gì và KẾT THÚC TRONG MỘT LƯỢT. "
+        "Không đọc đi đọc lại tài liệu, không đi đường vòng.\n"
+        "- ĐƯỜNG THẲNG CONNECTOR (T-24.6): Khi cần kiểm tra bài đăng, tin nhắn, feed, trạng thái trên các "
+        "nền tảng tài khoản cá nhân (Threads, Facebook, Instagram, Zalo, Telegram, Gmail, Google Calendar):\n"
+        "  1. GỌI TRỰC TIẾP `connector_call(name=..., action=..., args=...)` "
+        "(ví dụ name='threads_personal', action='list_posts' để check bài đăng Threads; "
+        "name='facebook_personal', action='read_feed'; name='zalo_personal', action='get_messages'...). "
+        "Các connector này đã được tích hợp sẵn thành tool trong hệ thống của bạn.\n"
+        "  2. TUYỆT ĐỐI KHÔNG chạy lệnh `find`, `grep` trong repo để tìm code connector.\n"
+        "  3. TUYỆT ĐỐI KHÔNG tự viết script Python ngoài workspace để làm thay việc của connector.\n"
+        "  4. Nếu connector báo chưa kết nối hoặc thiếu phiên/token: báo rõ cho chủ nhân trong MỘT lượt duy nhất.\n"
+        "- CẤM LẶP ĐỌC CÙNG MỘT TRANG TÀI LIỆU (T-24.6): Khi đọc web/tài liệu qua `web_fetch` hoặc `web_read`, "
+        "chỉ đọc MỘT LẦN duy nhất mỗi URL. Tuyệt đối không đọc đi đọc lại cùng một trang 3–4 lần. "
+        "Nếu đọc xong trang mà thiếu thông tin, hãy kết luận rõ ràng hoặc thử phương án khác ngay.\n"
         "QUY TẮC CỨNG VỀ KHẢ NĂNG CỦA CHÍNH MÌNH:\n"
         "1. Không bao giờ tuyên bố \"không có tool / chưa có "
         "công cụ / không làm được\" khi chưa đối chiếu danh sách "
@@ -347,6 +371,9 @@ def build_self_knowledge(cfg, registry) -> str:
         "tạo ảnh 'giống vầy', 'tương tự ảnh này', 'từ ảnh này', BẠN PHẢI "
         "truyền đường dẫn file ảnh đính kèm vào tham số image_path của tool generate_image "
         "để thực hiện Image-to-Image (i2i) giữ nguyên nét khuôn mặt và phong cách.\n"
+        "7. TUYỆT ĐỐI KHÔNG lùng sục mã nguồn trong repo (find, grep) hay tự viết script Python "
+        "khi tác vụ liên quan đến bí mật trong Kho hoặc dịch vụ đã có Connector. "
+        "Hãy đi đường thẳng: dùng ${VAULT:<nhãn>} trong run_command hoặc connector_call.\n"
         "- CƠ CHẾ CHIA VIỆC SONG SONG (SUB-AGENTS): Khi yêu cầu có từ 2 phần việc độc lập "
         "trở lên (ví dụ: vừa tìm tin tức vừa xem lịch, kiểm tra duyệt...), hệ thống tự động "
         "chia việc cho các sub-agent chạy song song đồng thời qua tool `spawn_subagents_parallel`. "
@@ -846,6 +873,10 @@ class Agent:
     ) -> str:
         """Chạy tool cho tới khi model dừng gọi tool hoặc chạm trần."""
         final_text = ""
+        url_fetch_success: set[str] = set()
+        url_fetch_counts: dict[str, int] = {}
+        tool_call_counts: dict[str, int] = {}
+
         while self.cfg.max_llm_calls_per_task <= 0 or self._llm_calls < self.cfg.max_llm_calls_per_task:
             comp = await self._call(
                 convo, model=self.cfg.model_brain, tools=schemas,
@@ -876,6 +907,43 @@ class Agent:
                         args = {}
                 except json.JSONDecodeError:
                     args = {}
+
+                # Chống lặp đọc cùng một trang web/tài liệu (T-24.6)
+                if tc.name in ("web_fetch", "web_read"):
+                    url = str(args.get("url") or "").strip().lower()
+                    if url:
+                        if url in url_fetch_success:
+                            return tc, {
+                                "ok": False,
+                                "error": (
+                                    f"Trang '{url}' đã được đọc thành công ở bước trước trong tác vụ này. "
+                                    "TUYỆT ĐỐI không đọc lại cùng một URL. "
+                                    "Hãy sử dụng thông tin đã thu thập được để thực hiện hoặc báo cáo kết quả."
+                                ),
+                            }
+                        url_fetch_counts[url] = url_fetch_counts.get(url, 0) + 1
+                        if url_fetch_counts[url] > 2:
+                            return tc, {
+                                "ok": False,
+                                "error": (
+                                    f"Trang '{url}' đã được thử đọc {url_fetch_counts[url]} lần nhưng không hoàn tất được. "
+                                    "TUYỆT ĐỐI dừng đọc lại trang này và báo cáo rõ thiếu gì."
+                                ),
+                            }
+
+                # Chống lặp cùng một tool call với cùng tham số >= 3 lần (T-24.6)
+                tool_sig = f"{tc.name}:{json.dumps(args, sort_keys=True)}"
+                tool_call_counts[tool_sig] = tool_call_counts.get(tool_sig, 0) + 1
+                if tool_call_counts[tool_sig] >= 3:
+                    return tc, {
+                        "ok": False,
+                        "error": (
+                            f"Công cụ '{tc.name}' với cùng tham số này đã được gọi 3 lần trong tác vụ "
+                            "nhưng không đem lại kết quả mới. TUYỆT ĐỐI dừng lặp lại. "
+                            "Hãy tổng hợp kết quả hiện có hoặc báo rõ thiếu gì để kết thúc tác vụ."
+                        ),
+                    }
+
                 spec = self.registry.get(tc.name)
                 group = spec.group if spec else ""
                 if tc.name == "connector_call" and args.get("name"):
@@ -910,6 +978,10 @@ class Agent:
                 await self.memory.clear_placeholder_steps(task_id)
 
                 result = await self.registry.execute(tc.name, args)
+                if tc.name in ("web_fetch", "web_read") and result.get("ok"):
+                    succ_url = str(args.get("url") or "").strip().lower()
+                    if succ_url:
+                        url_fetch_success.add(succ_url)
                 step_status = "done" if result.get("ok") else "failed"
                 step_detail = format_step_detail(tc.name, args, result)
                 await self.memory.update_step(task_id, step_idx, step_status, detail=step_detail)

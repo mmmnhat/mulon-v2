@@ -208,14 +208,50 @@ class VaultStore:
 
     def resolve(self, ref: str) -> Optional[str]:
         """CỬA ĐỌC DUY NHẤT. Chỉ các luồng cần dùng giá trị thật mới
-        gọi hàm này; mọi bề mặt hiển thị chỉ được thấy ref + label."""
+        gọi hàm này; mọi bề mặt hiển thị chỉ được thấy ref + label.
+
+        Hỗ trợ giải mã:
+        - ref UUID trực tiếp: vault:<uuid>
+        - nhãn trực tiếp: accesstrade:api_key
+        - tham chiếu vault theo nhãn: vault:accesstrade:api_key
+        - template: ${VAULT:accesstrade:api_key} hoặc ${vault:...}
+        """
+        if not ref or not isinstance(ref, str):
+            return None
+        raw_ref = ref.strip()
+        clean_ref = raw_ref
+        if clean_ref.startswith("${") and clean_ref.endswith("}"):
+            inner = clean_ref[2:-1].strip()
+            if inner.lower().startswith("vault:"):
+                clean_ref = inner[6:].strip()
+            else:
+                clean_ref = inner
+
+        unprefixed = clean_ref
+        if unprefixed.lower().startswith("vault:"):
+            unprefixed = unprefixed[6:].strip()
+
         with self._lock:
             data = self._load()
-            entry = data.get(ref)
+            entry = data.get(raw_ref) or data.get(clean_ref)
             if not isinstance(entry, dict):
-                # Cho phép resolve bằng label nếu truyền nhãn thay vì ref UUID
+                # Tra cứu theo nhãn (label) khớp chính xác
                 for e in data.values():
-                    if isinstance(e, dict) and e.get("label") == ref:
+                    if not isinstance(e, dict):
+                        continue
+                    lbl = str(e.get("label") or "").strip()
+                    if lbl in (raw_ref, clean_ref, unprefixed):
+                        entry = e
+                        break
+            if not isinstance(entry, dict):
+                # Tra cứu mềm (không phân biệt hoa thường, chuẩn hóa dấu ':' và '_')
+                norm_target = unprefixed.lower().replace("-", "_").replace(":", "_")
+                for e in data.values():
+                    if not isinstance(e, dict):
+                        continue
+                    lbl = str(e.get("label") or "").strip()
+                    norm_lbl = lbl.lower().replace("-", "_").replace(":", "_")
+                    if norm_lbl == norm_target:
                         entry = e
                         break
         if not isinstance(entry, dict):
@@ -227,11 +263,9 @@ class VaultStore:
         return entry.get("value")
 
     def exists(self, ref: str) -> bool:
-        with self._lock:
-            data = self._load()
-            if ref in data:
-                return True
-            return any(isinstance(e, dict) and e.get("label") == ref for e in data.values())
+        if not ref or not isinstance(ref, str):
+            return False
+        return self.resolve(ref) is not None
 
     def labels(self) -> list[dict]:
         """Danh sách ref + label + thời gian — KHÔNG kèm giá trị."""
@@ -512,7 +546,8 @@ class VaultBroker:
 
 
 def register_vault_tools(registry, cfg, notifier=None,
-                         vault_broker: Optional[VaultBroker] = None) -> None:
+                         vault_broker: Optional[VaultBroker] = None,
+                         vault_store: Optional[VaultStore] = None) -> None:
     """Đăng ký tool request_vault_secret (1.6.0 + 1.7.3) cho agent.
 
     Khi agent thiếu bí mật (API key, OAuth credentials, tokens...),
@@ -636,11 +671,11 @@ def register_vault_tools(registry, cfg, notifier=None,
         handler=request_vault_secret,
     ), overwrite=True)
 
-    # Sửa 1.6.2: truyền key mã hoá (nếu cfg có) để store này cũng
-    # mã hoá như store dựng ở main.py; thiếu trường thì VaultStore
-    # tự đọc env VAULT_ENCRYPTION_KEY.
-    store = VaultStore(cfg.vault_path,
-                       getattr(cfg, "vault_encryption_key", ""))
+    # Sửa 1.6.2 & 1.7.31: dùng vault_store được truyền vào (nếu có)
+    # hoặc dựng mới từ cfg.vault_path; truyền key mã hoá nếu cfg có.
+    store = vault_store if vault_store is not None else VaultStore(
+        cfg.vault_path, getattr(cfg, "vault_encryption_key", "")
+    )
 
     async def list_vault_secrets() -> dict:
         items = store.labels()
@@ -654,7 +689,8 @@ def register_vault_tools(registry, cfg, notifier=None,
         name="list_vault_secrets",
         description=(
             "Liệt kê danh sách các bí mật đang có trong Kho lưu trữ an toàn (chỉ nhãn, ref "
-            "và thời gian tạo — KHÔNG BAO GIỜ hiện giá trị bí mật)."
+            "và thời gian tạo — KHÔNG BAO GIỜ hiện giá trị bí mật). "
+            "Dùng tool này để tra cứu nhãn API key/bí mật có trong Kho trước khi gọi API."
         ),
         parameters={"type": "object", "properties": {}},
         group="vault",

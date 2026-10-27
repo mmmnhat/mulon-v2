@@ -112,7 +112,7 @@ class ConnectorRegistry:
         conn = await self.get(name)
         if conn is None:
             return {"ok": False,
-                    "error": f"connector không khả dụng: {name}"}
+                    "error": f"connector không khả dụng: {name}. Các connector hiện có: {self.names()}"}
         try:
             result = await conn.call(action, args or {})
         except Exception as exc:
@@ -276,15 +276,32 @@ def register_connector_tools(registry, connectors: ConnectorRegistry) -> None:
     registry.register(ToolSpec(
         name="connector_call",
         description=(
-            "Gọi 1 action của connector theo tên. Kết quả không bao "
-            "giờ chứa credential."
+            "Gọi 1 action của connector theo tên. ĐI ĐƯỜNG THẲNG: Khi kiểm tra hoặc gửi tin "
+            "trên Threads, Facebook, Zalo, Telegram, Gmail, Calendar, BẮT BUỘC gọi tool này, "
+            "tuyệt đối không tìm kiếm trong repo hoặc tự viết script Python. "
+            "Kết quả không bao giờ chứa credential."
         ),
         parameters={
             "type": "object",
             "properties": {
-                "name": {"type": "string"},
-                "action": {"type": "string"},
-                "args": {"type": "object", "default": {}},
+                "name": {
+                    "type": "string",
+                    "description": (
+                        "Tên connector: threads_personal, threads_messages, facebook_personal, "
+                        "zalo_personal, telegram_personal, gmail, gcalendar, system."
+                    ),
+                },
+                "action": {
+                    "type": "string",
+                    "description": (
+                        "Tên hành động. Ví dụ: threads_personal (list_posts, read_feed, get_post, "
+                        "create_post, search_posts), threads_messages (get_messages, send_message), "
+                        "facebook_personal (read_feed, list_posts, create_post), zalo_personal "
+                        "(get_messages, send_message), telegram_personal (get_dialogs, send_message), "
+                        "gmail (list_messages, send_message), gcalendar (list_events, create_event)."
+                    ),
+                },
+                "args": {"type": "object", "default": {}, "description": "Tham số cho action (ví dụ: limit, query, text...)"},
             },
             "required": ["name", "action"],
         },
