@@ -193,8 +193,31 @@ TOOL_ACTION_LABELS = {
     "spawn_subagent": "Giao việc cho agent con",
     "send_message": "Gửi tin nhắn",
     "github_push": "Đẩy lên GitHub",
-    "the_duyet": "Gửi thẻ phê duyệt thử",
 }
+
+_POLICY_LAYER_LABELS = {
+    "ask": "Hỏi trước khi chạy",
+    "allow": "Cho phép tự động",
+    "deny": "Chặn thực thi",
+    "host": "Quy tắc lưu bền trên máy",
+    "host-tool": "Quy tắc lưu bền trên máy",
+    "host-group": "Quy tắc lưu bền trên máy",
+    "session": "Quy tắc nhớ trong phiên",
+    "session-tool": "Quy tắc nhớ trong phiên",
+    "session-group": "Quy tắc nhớ trong phiên",
+    "tool-default": "Mặc định an toàn hệ thống",
+    "connector-action-default": "Mặc định an toàn hệ thống",
+    "connector-action-fallback": "Mặc định an toàn hệ thống",
+    "builtin": "Mặc định hệ thống",
+}
+
+
+def policy_layer_label(layer: str) -> str:
+    """Nhãn tiếng Việt cho chế độ quyền (layer) trong lịch sử phê duyệt."""
+    raw = str(layer or "ask").strip().lower()
+    if raw in _POLICY_LAYER_LABELS:
+        return _POLICY_LAYER_LABELS[raw]
+    return "Hỏi trước khi chạy"
 
 
 def plain_step_label(kind: str, payload: Optional[dict] = None) -> str:
@@ -1880,6 +1903,14 @@ class WebAppServer:
                 p = r.get("payload") or {}
                 h_tool = str(p.get("tool", "?"))
                 h_group = str(p.get("group", ""))
+                # T-23.5: Loại bỏ hoàn toàn các bản ghi thẻ duyệt thử khỏi Mini App
+                if (h_tool == "the_duyet"
+                        or bool(p.get("test"))
+                        or str(p.get("kind") or "") == "test"
+                        or "phê duyệt thử" in str(p.get("summary") or "").lower()
+                        or "thẻ duyệt thử" in str(p.get("summary") or "").lower()):
+                    continue
+                h_layer = str(p.get("layer") or "ask")
                 history.append({
                     "tool": h_tool,
                     "group": h_group,
@@ -1888,7 +1919,8 @@ class WebAppServer:
                     # về tên tool (chi tiết vẫn còn tên thô).
                     "action_label": known_action_label(h_tool, h_group),
                     "group_label": policy_group_label(h_group),
-                    "layer": p.get("layer", "ask"),
+                    "layer": h_layer,
+                    "layer_label": policy_layer_label(h_layer),
                     "outcome": p.get("outcome", ""),
                     "approved": bool(p.get("approved")),
                     "remember": bool(p.get("remember")),
@@ -1906,6 +1938,12 @@ class WebAppServer:
                 item = dict(item)
                 i_tool = str(item.get("tool") or "")
                 i_group = str(item.get("group") or "")
+                if (i_tool == "the_duyet"
+                        or bool(item.get("test"))
+                        or str(item.get("kind") or "") == "test"
+                        or "phê duyệt thử" in str(item.get("summary") or "").lower()
+                        or "thẻ duyệt thử" in str(item.get("summary") or "").lower()):
+                    continue
                 item["action_label"] = tool_action_label(
                     i_tool, i_group)
                 item["group_label"] = policy_group_label(i_group)
@@ -1933,7 +1971,7 @@ class WebAppServer:
                                     else None),
             # 1.4.0: trạng thái Feed chủ động cho màn Cài đặt →
             # Feed chủ động. None khi bản chạy chưa nối runner.
-            "feed": (await self.feed_auto.get_state()
+            "feed": (await self._feed_state()
                      if self.feed_auto is not None else None),
             "ideas": (await self.memory.list_idea_cards(status="open")
                       if self.memory is not None else []),
@@ -2961,6 +2999,40 @@ class WebAppServer:
                 return _bad("denylist phải là danh sách domain")
             await runner.apply_settings(
                 {"denylist": [str(d) for d in raw]})
+        elif action == "save_all":
+            changes = {}
+            if "cron" in body and body.get("cron") is not None:
+                cron = str(body.get("cron") or "").strip()
+                try:
+                    parse_cron(cron)
+                except Exception:
+                    return _bad("cron không hợp lệ (cần 5 trường: "
+                                "phút giờ ngày tháng thứ)")
+                changes["cron"] = cron
+            if "quiet_hours" in body and body.get("quiet_hours") is not None:
+                quiet = str(body.get("quiet_hours") or "").strip()
+                if not valid_quiet_hours(quiet):
+                    return _bad("giờ yên lặng phải dạng HH:MM-HH:MM")
+                changes["quiet_hours"] = quiet
+            for key in ("max_posts_per_day", "daily_token_budget"):
+                if body.get(key) is not None and str(body.get(key)).strip() != "":
+                    try:
+                        value = int(body[key])
+                    except (TypeError, ValueError):
+                        return _bad(f"{key} phải là số nguyên")
+                    if value < 0:
+                        return _bad(f"{key} không được âm")
+                    changes[key] = value
+            if "denylist" in body and body.get("denylist") is not None:
+                raw_dl = body.get("denylist")
+                if not isinstance(raw_dl, list):
+                    return _bad("denylist phải là danh sách domain")
+                changes["denylist"] = [
+                    str(d).strip() for d in raw_dl if str(d).strip()
+                ]
+            if not changes:
+                return _bad("không có cấu hình nào để lưu")
+            await runner.apply_settings(changes)
         elif action == "run_now":
             if runner._sender is None:
                 return web.json_response(
@@ -2971,7 +3043,7 @@ class WebAppServer:
             result = await runner.run_once(force=True)
             return web.json_response(
                 {"ok": bool(result.get("ok")), "result": result,
-                 "feed": await runner.get_state()})
+                 "feed": await self._feed_state()})
         elif action == "resume":
             await runner.resume()
         elif action == "set_enabled":
@@ -2985,7 +3057,17 @@ class WebAppServer:
         else:
             return _bad(f"action không hỗ trợ: {action or '(trống)'}")
         return web.json_response(
-            {"ok": True, "feed": await runner.get_state()})
+            {"ok": True, "feed": await self._feed_state()})
+
+    async def _feed_state(self) -> Optional[dict]:
+        if self.feed_auto is None:
+            return None
+        st = await self.feed_auto.get_state()
+        if isinstance(st, dict):
+            cron_raw = str(st.get("cron") or "")
+            st["cron_human"] = _describe_cron_vi(cron_raw)
+            st["cron_display"] = _format_cron_display(cron_raw)
+        return st
 
     # ---------- Ideas chủ động theo chuẩn Muse (T-10.3) ----------
     async def _handle_ideas_list(self, request):
@@ -3706,10 +3788,18 @@ p {{ line-height: 1.5; color: #6E6A61; margin-bottom: 24px; }}
             return guard
         q = request.query
         page = int(q.get("page", "1") or 1)
+        query = (q.get("query") or q.get("q") or "").strip()
+        locality = (q.get("locality") or "").strip().lower()
+        try:
+            min_score = float(q.get("min_score") or 0)
+        except (TypeError, ValueError):
+            min_score = 0.0
         result = await self.marketplace.search_catalog_async(
-            query=q.get("query", ""), category=q.get("category", ""),
+            query=query, category=q.get("category", ""),
             pricing=q.get("pricing", ""),
             installed=q.get("installed", ""),
+            locality=locality,
+            min_score=min_score,
             cursor=q.get("cursor", ""),
             page=page,
             limit=int(q.get("limit", "20") or 20))

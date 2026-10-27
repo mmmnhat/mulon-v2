@@ -67,17 +67,15 @@ def get_default_paths(
     }
 
 
-def sanitize_path_display(path_str: str | Path) -> str:
-    """Rút gọn đường dẫn hiển thị để ẩn tuyệt đối path máy chủ cục bộ (T-23.2).
+_EMBEDDED_PATH_RE = re.compile(
+    r"(?:(?:/Volumes|/Users|/home)/[^\s\"')\]<>]+|[a-zA-Z]:[\\/](?:[^\s\"')\]<>]+))"
+)
 
-    Chỉ hiển thị đường dẫn tương đối so với project hoặc tên thư mục/file hợp lý.
-    """
-    if not path_str:
-        return ""
-    p_str = str(path_str).strip()
+
+def _sanitize_single_path(p_str: str) -> str:
+    """Rút gọn 1 đường dẫn đơn lẻ để ẩn tuyệt đối path máy chủ cục bộ."""
     if not p_str:
         return ""
-    # Chuyển backslash Windows thành slash để xử lý đồng nhất
     normalized = p_str.replace("\\", "/")
 
     # Nếu nằm trong project root
@@ -114,6 +112,38 @@ def sanitize_path_display(path_str: str | Path) -> str:
         return parts[-1] if parts else normalized
 
     return normalized
+
+
+def mask_embedded_paths(text: str) -> str:
+    """Che mọi đường dẫn tuyệt đối nhúng giữa câu văn bản (T-31)."""
+    if not text:
+        return ""
+
+    def _repl(match: "re.Match[str]") -> str:
+        raw = match.group(0)
+        trail = ""
+        while raw and raw[-1] in ".,;:!?":
+            trail = raw[-1] + trail
+            raw = raw[:-1]
+        return _sanitize_single_path(raw) + trail
+
+    return _EMBEDDED_PATH_RE.sub(_repl, str(text))
+
+
+def sanitize_path_display(path_str: str | Path) -> str:
+    """Rút gọn đường dẫn hiển thị để ẩn tuyệt đối path máy chủ cục bộ (T-23.2 / T-31).
+
+    Hỗ trợ cả chuỗi chỉ chứa 1 đường dẫn lẫn câu mô tả có nhúng đường dẫn ở giữa.
+    """
+    if not path_str:
+        return ""
+    p_str = str(path_str).strip()
+    if not p_str:
+        return ""
+    if any(ch.isspace() for ch in p_str):
+        return mask_embedded_paths(p_str)
+    single = _sanitize_single_path(p_str)
+    return mask_embedded_paths(single)
 
 
 def fix_glued_words(text: str) -> str:

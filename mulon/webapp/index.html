@@ -128,10 +128,10 @@ button, .backrow, .tgl, .segbar, .swatch{
 .avatar.sprite-on #avatar-letter{visibility:hidden}
 .app-name{font-size:21px; font-weight:700;
   letter-spacing:-0.02em; line-height:1.2; margin-bottom:2px; text-align:center;}
-.app-status{font-size:var(--fs-cap); font-weight:var(--fw-m); color:var(--ok);
+.app-status{font-size:var(--fs-cap); font-weight:var(--fw-m); color:var(--ink2);
   display:inline-flex; align-items:center; justify-content:center; gap:6px;
   margin:0 auto; white-space:nowrap;}
-.dot{width:8px; height:8px; border-radius:50%; background:var(--ok);
+.dot{width:8px; height:8px; border-radius:50%; background:var(--ink3);
   display:inline-block}
 .dot.busy{background:var(--lav); animation:pulse 1.2s infinite}
 
@@ -190,7 +190,7 @@ button, .backrow, .tgl, .segbar, .swatch{
 }
 .modal-history-list{display:flex; flex-direction:column; gap:12px; font-size:14px;}
 .run-item{display:flex; align-items:center; justify-content:space-between; color:var(--ink);}
-.run-item .dot-green{color:var(--ok); font-size:10px; margin-right:6px;}
+.run-item .dot-green{color:var(--ink2); font-size:10px; margin-right:6px;}
 .run-item .run-time{color:var(--ink2); font-variant-numeric:tabular-nums; font-weight:500;}
 .btn-link{background:transparent; border:0; color:var(--accent); font-size:13px; font-weight:600; cursor:pointer; padding:6px 12px;}
 .modal-action-row{display:flex; gap:12px; margin-top:20px;}
@@ -738,13 +738,13 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   scrollbar-width:none; -webkit-overflow-scrolling:touch;
 }
 .filter-chips::-webkit-scrollbar{display:none}
-.filter-chip{
+.filter-chip, .fchip{
   flex:0 0 auto; height:32px; padding:0 12px; border-radius:999px;
   border:1px solid var(--line); background:var(--surface);
   color:var(--ink2); font-size:var(--fs-cap); font-weight:var(--fw-m);
   font-family:inherit; cursor:pointer; white-space:nowrap;
 }
-.filter-chip.active{
+.filter-chip.active, .fchip.active{
   background:var(--tint-lav); color:var(--lav-deep);
   border-color:transparent; font-weight:var(--fw-s);
 }
@@ -1234,6 +1234,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
         <div class="r-sub" id="theme-name">Tím Mulon</div></div>
     </div>
     <div class="swatches" id="theme-swatches"></div>
+    <div class="note" id="theme-design-note" style="padding:4px 16px 12px; margin:0; font-size:12px;">Lưu ý thiết kế: Tuỳ chọn 6 màu chủ đề (bao gồm Xanh lá) nằm ngoài chuẩn mặc định 60/30/10 (Tím Mulon chủ đạo) — giữ nguyên chờ chủ dự án quyết định giữ hoặc bỏ.</div>
   </div>
 </section>
 
@@ -1262,77 +1263,83 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <div class="row static">
       <div class="r-main">
         <div class="r-title">Tự động đăng bài theo lịch</div>
-        <div class="r-sub" id="feed-master-desc">🟢 Mặc định tự động đăng theo vòng lặp hệ thống Muse</div>
+        <div class="r-sub" id="feed-master-desc">Đang bật tự động theo lịch cron</div>
       </div>
-      <span class="r-state" style="color:var(--ok); font-weight:600;">Mặc định</span>
+      <label class="tgl"><input type="checkbox" id="feed-master-switch" checked><span class="tr"></span></label>
     </div>
   </div>
   <div class="note">Mỗi lượt, hệ thống tự tìm tin từ nguồn tin cậy/chính thống theo brief và đăng vào topic Feed theo lịch hệ thống.</div>
   <div id="feed-paused"></div>
   <div class="card">
-    <div class="card-title">Trạng thái</div>
+    <div class="card-title">Trạng thái hoạt động (chỉ xem)</div>
     <div id="feed-state"></div>
-    <div class="btn-row" style="padding:12px 0 0">
-      <button class="btn btn-accent" id="feed-run-now">Chạy ngay một lượt</button>
+    <div class="btn-row" style="padding:12px 16px 8px">
+      <button class="btn btn-soft" id="feed-run-now" type="button" style="width:100%">Chạy ngay một lượt</button>
+    </div>
+    <div id="feed-run-confirm-box" class="hidden" style="margin:4px 16px 12px; padding:12px; border-radius:12px; background:var(--surface2);">
+      <div style="font-size:13px; color:var(--ink); font-weight:500; margin-bottom:10px; line-height:1.45;">Chạy ngay một lượt tổng hợp và đăng bài Feed vào kênh hiện tại?</div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-soft btn-sm" id="feed-run-cancel" type="button" style="flex:1;">Huỷ</button>
+        <button class="btn btn-accent btn-sm" id="feed-run-confirm" type="button" style="flex:1;">Xác nhận chạy</button>
+      </div>
     </div>
   </div>
-  <div class="card">
-    <div class="card-title">Nhịp đăng</div>
-    <input id="feed-cron" class="field-input" type="text"
-      placeholder="Cron 5 trường (vd: 0 8,20 * * *)" autocomplete="off"
-      spellcheck="false">
-    <div class="btn-row" style="padding:12px 0 0">
-      <button class="btn btn-soft btn-sm" data-cron-preset="0 8 * * *">1 lần/ngày (8:00)</button>
-      <button class="btn btn-soft btn-sm" data-cron-preset="0 8,20 * * *">2 lần/ngày (8:00 + 20:00)</button>
-      <button class="btn btn-accent btn-sm" id="feed-cron-save">Lưu nhịp</button>
-    </div>
-    <div class="card-title" style="margin-top:16px">Giờ yên lặng</div>
-    <input id="feed-quiet" class="field-input" type="text"
-      placeholder="HH:MM-HH:MM (vd: 23:00-07:00)" autocomplete="off"
-      spellcheck="false">
-    <div class="btn-row" style="padding:12px 0 0">
-      <button class="btn btn-accent btn-sm" id="feed-quiet-save">Lưu giờ yên lặng</button>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">Giới hạn mỗi ngày</div>
-    <div class="r-sub">Số bài tự động tối đa</div>
-    <input id="feed-max-posts" class="field-input" type="number"
-      min="0" inputmode="numeric">
-    <div class="r-sub" style="margin-top:8px">Trần token model rẻ (0 = không đặt theo token)</div>
-    <input id="feed-token-budget" class="field-input" type="number"
-      min="0" inputmode="numeric">
-    <div class="btn-row" style="padding:12px 0 0">
-      <button class="btn btn-accent btn-sm" id="feed-limits-save">Lưu giới hạn</button>
+  <div class="card" style="padding-bottom:12px;">
+    <div class="card-title">Cấu hình Feed chủ động</div>
+    <div style="padding:0 16px;">
+      <div class="r-sub" style="margin-top:4px; font-weight:600; color:var(--ink);">Nhịp đăng (Cron 5 trường: phút giờ ngày tháng thứ)</div>
+      <input id="feed-cron" class="field-input" type="text"
+        placeholder="Cron 5 trường (vd: 0 8,20 * * *)" autocomplete="off"
+        spellcheck="false" style="margin:6px 0 0; width:100%;">
+      <div class="r-sub" id="feed-cron-preview" style="margin-top:4px;">Diễn giải: Mỗi ngày lúc 08:00, 20:00</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+        <button class="btn btn-soft btn-sm" type="button" data-cron-preset="0 8 * * *" style="min-height:34px; padding:0 10px; font-size:12px;">1 lần/ngày (8:00)</button>
+        <button class="btn btn-soft btn-sm" type="button" data-cron-preset="0 8,20 * * *" style="min-height:34px; padding:0 10px; font-size:12px;">2 lần/ngày (8:00, 20:00)</button>
+        <button class="btn btn-soft btn-sm" type="button" data-cron-preset="0 8,13,20 * * *" style="min-height:34px; padding:0 10px; font-size:12px;">3 lần/ngày</button>
+      </div>
+
+      <div class="r-sub" style="margin-top:14px; font-weight:600; color:var(--ink);">Giờ yên lặng (tạm hoãn đăng bài)</div>
+      <input id="feed-quiet" class="field-input" type="text"
+        placeholder="HH:MM-HH:MM (vd: 23:00-07:00)" autocomplete="off"
+        spellcheck="false" style="margin:6px 0 0; width:100%;">
+
+      <div class="r-sub" style="margin-top:14px; font-weight:600; color:var(--ink);">Số bài tự động tối đa mỗi ngày</div>
+      <input id="feed-max-posts" class="field-input" type="number"
+        min="0" inputmode="numeric" style="margin:6px 0 0; width:100%;">
+
+      <div class="r-sub" style="margin-top:14px; font-weight:600; color:var(--ink);">Trần token model rẻ mỗi ngày (0 = không giới hạn)</div>
+      <input id="feed-token-budget" class="field-input" type="number"
+        min="0" inputmode="numeric" style="margin:6px 0 0; width:100%;">
+
+      <div class="r-sub" style="margin-top:14px; font-weight:600; color:var(--ink);">Domain luôn tránh (mỗi dòng một domain)</div>
+      <textarea id="feed-denylist" class="field-input" rows="3"
+        spellcheck="false" placeholder="vd: example.xyz" style="margin:6px 0 0; width:100%;"></textarea>
+
+      <div class="btn-row" style="padding:14px 0 0;">
+        <button class="btn btn-accent" id="feed-save-all" type="button" style="width:100%;">Lưu cấu hình Feed</button>
+      </div>
     </div>
   </div>
   <div class="card">
     <div class="card-title">Nguồn bổ sung đã ghim</div>
     <div id="feed-sources"></div>
-    <input id="feed-src-url" class="field-input" type="url"
-      placeholder="URL nguồn (trang tin hoặc RSS)" autocomplete="off"
-      style="margin-top:8px">
-    <input id="feed-src-label" class="field-input" type="text"
-      placeholder="Nhãn (tuỳ chọn)" autocomplete="off"
-      style="margin-top:8px">
-    <div class="btn-row" style="padding:12px 0 0; display:flex; gap:var(--s2); align-items:center;">
-      <div class="field-input" id="feed-trust-trigger" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; flex:1; width:auto; user-select:none; -webkit-user-select:none;">
-        <span id="feed-trust-label" style="font-size:var(--fs-cap); font-weight:var(--fw-m); color:var(--ink);">Tin cậy thường</span>
-        <span class="pol-chev" style="color:var(--ink3); display:flex; align-items:center;">
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9.5l4-4 4 4M8 14.5l4 4 4-4"/></svg>
-        </span>
+    <div style="padding:0 16px 8px;">
+      <input id="feed-src-url" class="field-input" type="url"
+        placeholder="URL nguồn (trang tin hoặc RSS)" autocomplete="off"
+        style="margin-top:8px">
+      <input id="feed-src-label" class="field-input" type="text"
+        placeholder="Nhãn (tuỳ chọn)" autocomplete="off"
+        style="margin-top:8px">
+      <div class="btn-row" style="padding:12px 0 0; display:flex; gap:var(--s2); align-items:center;">
+        <div class="field-input" id="feed-trust-trigger" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; flex:1; width:auto; user-select:none; -webkit-user-select:none;">
+          <span id="feed-trust-label" style="font-size:var(--fs-cap); font-weight:var(--fw-m); color:var(--ink);">Tin cậy thường</span>
+          <span class="pol-chev" style="color:var(--ink3); display:flex; align-items:center;">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9.5l4-4 4 4M8 14.5l4 4 4-4"/></svg>
+          </span>
+        </div>
+        <input type="hidden" id="feed-src-trust" value="normal">
+        <button class="btn btn-soft btn-sm" id="feed-src-add" style="flex-shrink:0; font-weight:var(--fw-s)">Ghim nguồn</button>
       </div>
-      <input type="hidden" id="feed-src-trust" value="normal">
-      <button class="btn btn-soft btn-sm" id="feed-src-add" style="flex-shrink:0; font-weight:var(--fw-s)">Ghim nguồn</button>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">Domain luôn tránh</div>
-    <div class="r-sub">Mỗi dòng một domain — Feed không lấy tin từ các domain này.</div>
-    <textarea id="feed-denylist" class="field-input" rows="3"
-      spellcheck="false" placeholder="vd: example.xyz"></textarea>
-    <div class="btn-row" style="padding:12px 0 0">
-      <button class="btn btn-soft btn-sm" id="feed-denylist-save" style="font-weight:var(--fw-s)">Lưu danh sách tránh</button>
     </div>
   </div>
 </section>
@@ -1355,9 +1362,21 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     </div></div>
   </div>
   <div id="conn-view-market" class="hidden">
-    <!-- Đợt vá sau 1.4 (owner bắt): bỏ ô tìm MCP (danh mục ít,
-         tìm là thừa) và bấm danh mục mở MÀN CON riêng — hết
-         cảnh 2 danh sách chồng nhau phải cuộn xuống. -->
+    <div class="card" style="padding:12px 16px;">
+      <input id="mkt-search-input" class="field-input" type="search"
+        placeholder="Tìm công cụ theo tên, mô tả..." autocomplete="off" spellcheck="false"
+        style="margin:0; width:100%;">
+      <div class="filter-chips" id="mkt-filter-chips" style="margin-top:10px; margin-bottom:0; padding-bottom:2px;">
+        <button type="button" class="filter-chip active" data-mkt-filter="all">Tất cả</button>
+        <button type="button" class="filter-chip" data-mkt-filter="local">Chạy cục bộ</button>
+        <button type="button" class="filter-chip" data-mkt-filter="remote">Từ xa</button>
+        <button type="button" class="filter-chip" data-mkt-filter="sec8">Bảo mật ≥ 8</button>
+      </div>
+    </div>
+    <div class="card hidden" id="mkt-inline-card">
+      <div class="card-title" id="mkt-inline-title">Kết quả lọc nhanh</div>
+      <div id="mkt-inline-list"></div>
+    </div>
     <div class="card">
       <div class="card-title">Danh mục</div>
       <div id="mkt-cats"></div>
@@ -1419,6 +1438,17 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <section id="screen-mktcat" class="hidden">
   <div class="backrow" data-back id="mktcat-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Công cụ kết nối</div>
   <h2 class="screen-title" id="mktcat-title">Danh mục</h2>
+  <div class="card" style="padding:12px 16px;">
+    <input id="mktcat-search-input" class="field-input" type="search"
+      placeholder="Tìm công cụ theo tên, mô tả..." autocomplete="off" spellcheck="false"
+      style="margin:0; width:100%;">
+    <div class="filter-chips" id="mktcat-filter-chips" style="margin-top:10px; margin-bottom:0; padding-bottom:2px;">
+      <button type="button" class="filter-chip active" data-mktcat-filter="all">Tất cả</button>
+      <button type="button" class="filter-chip" data-mktcat-filter="local">Chạy cục bộ</button>
+      <button type="button" class="filter-chip" data-mktcat-filter="remote">Từ xa</button>
+      <button type="button" class="filter-chip" data-mktcat-filter="sec8">Bảo mật ≥ 8</button>
+    </div>
+  </div>
   <div class="card"><div id="mkt-list"></div></div>
   <div class="card" id="mkt-pagination" style="display:flex; justify-content:space-between; align-items:center; padding:var(--s2) var(--s3); margin-top:var(--s2);">
     <button class="btn btn-soft btn-sm btn-auto" id="mkt-prev" disabled>Trang trước</button>
@@ -1637,7 +1667,14 @@ function cleanPath(p){
 function maskPaths(text){
   if (!text) return "";
   let s = String(text);
-  s = s.replace(/(?:(?:\/Volumes|\/Users|\/home)\/[^\s"')\]<>]+|[A-Za-z]:\\(?:Users\\)?[^\s"')\]<>]+)/g, (m) => cleanPath(m));
+  s = s.replace(/(?:(?:\/Volumes|\/Users|\/home)\/[^\s"')\]<>]+|[A-Za-z]:[\\\/][^\s"')\]<>]+)/g, (m) => {
+    let trail = "";
+    while (m.length && ".,;:!?".includes(m[m.length - 1])) {
+      trail = m[m.length - 1] + trail;
+      m = m.slice(0, -1);
+    }
+    return cleanPath(m) + trail;
+  });
   return s;
 }
 function fixGluedWords(text){
@@ -2979,9 +3016,36 @@ function apprMeta(p){
   }
   return h;
 }
+const POLICY_LAYER_LABELS = {
+  ask: "Hỏi trước khi chạy",
+  allow: "Cho phép tự động",
+  deny: "Chặn thực thi",
+  host: "Quy tắc lưu bền trên máy",
+  "host-tool": "Quy tắc lưu bền trên máy",
+  "host-group": "Quy tắc lưu bền trên máy",
+  session: "Quy tắc nhớ trong phiên",
+  "session-tool": "Quy tắc nhớ trong phiên",
+  "session-group": "Quy tắc nhớ trong phiên",
+  "tool-default": "Mặc định an toàn hệ thống",
+  "connector-action-default": "Mặc định an toàn hệ thống",
+  "connector-action-fallback": "Mặc định an toàn hệ thống",
+  builtin: "Mặc định hệ thống",
+};
+function policyLayerLabel(layer){
+  const k = String(layer || "ask").trim().toLowerCase();
+  return POLICY_LAYER_LABELS[k] || "Hỏi trước khi chạy";
+}
+function isTestApprovalItem(item){
+  if (!item) return false;
+  if (item.tool === "the_duyet" || item.kind === "test" || item.test === true) return true;
+  const act = String(item.action_label || "").toLowerCase();
+  const sum = String(item.summary || "").toLowerCase();
+  return act.includes("phê duyệt thử") || act.includes("thẻ duyệt thử") ||
+    sum.includes("phê duyệt thử") || sum.includes("thẻ duyệt thử");
+}
 function renderApprovals(){
   const wrap = $("pending-wrap");
-  const pending = (S && S.approvals.pending) || [];
+  const pending = ((S && S.approvals.pending) || []).filter(p => !isTestApprovalItem(p));
   const tabDot = $("tab-appr-dot");
   if (tabDot) tabDot.classList.toggle("hidden", pending.length === 0);
   if (pending.length){
@@ -3036,7 +3100,7 @@ function renderApprovals(){
       'Không có yêu cầu nào đang chờ duyệt. Khi Mulon cần anh ' +
       'quyết, thẻ duyệt sẽ hiện ở đây.</div></div>';
   }
-  const hist = (S && S.approvals.history) || [];
+  const hist = ((S && S.approvals.history) || []).filter(h => !isTestApprovalItem(h));
   const box = $("history-list");
   if (!hist.length){
     box.innerHTML = '<div class="empty">Chưa có quyết định duyệt nào. Các quyết định anh đã bấm sẽ lưu ở đây để xem lại.</div>';
@@ -3055,7 +3119,7 @@ function renderApprovals(){
     '<tr><td class="k">Công cụ</td><td>' + esc(h.tool) + '</td></tr>' +
     '<tr><td class="k">Nhóm việc</td><td>' +
     esc(h.group_label || h.group || "—") + '</td></tr>' +
-    '<tr><td class="k">Lớp policy</td><td>' + esc(h.layer || "ask") + '</td></tr>' +
+    '<tr><td class="k">Chế độ quyền</td><td>' + esc(h.layer_label || policyLayerLabel(h.layer || "ask")) + '</td></tr>' +
     '<tr><td class="k">Thời gian</td><td>' + esc(todayLabel(h.at)) + '</td></tr>' +
     '<tr><td class="k">Kết quả</td><td>' + outcomeLabel(h) +
       (h.remember ? " (đã nhớ cho phiên)" : "") + '</td></tr>' +
@@ -3375,15 +3439,9 @@ function updateHeartbeatModalState(isEn) {
   const badge = $("heartbeat-badge");
   const delBtn = $("btn-heartbeat-del");
   if (badge) {
-    if (isEn) {
-      badge.textContent = "Đã lên lịch";
-      badge.style.background = "var(--surface2)";
-      badge.style.color = "var(--ink2)";
-    } else {
-      badge.textContent = "Đã tạm dừng";
-      badge.style.background = "var(--tint-err)";
-      badge.style.color = "var(--err)";
-    }
+    badge.textContent = isEn ? "Đã lên lịch" : "Đã tạm dừng";
+    badge.style.background = "var(--surface2)";
+    badge.style.color = "var(--ink2)";
   }
   if (delBtn) {
     if (isEn) {
@@ -3923,7 +3981,7 @@ function renderSkills(){
           '<div class="row" data-skill="' + esc(s.name) + '">' +
             '<div class="r-main">' +
               '<div class="r-title">' + esc(s.name) + '</div>' +
-              (s.description ? '<div class="r-sub">' + esc(s.description) + '</div>' : '') +
+              (s.description ? '<div class="r-sub">' + esc(maskPaths(s.description)) + '</div>' : '') +
             '</div>' +
             '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
           '</div>'
@@ -4895,7 +4953,7 @@ function renderSystem(){
    esc() khi vào HTML. Không ô nhập giá trị bí mật ở bất kỳ
    bước nào: bí mật chỉ gắn bằng cách CHỌN Vault item sẵn có. */
 const MKT = {installed:[], summary:null, cats:[], items:[],
-  fresh:null, snapshot:null, q:"", cat:"", marketLoaded:false};
+  fresh:null, snapshot:null, q:"", filter:"all", cat:"", marketLoaded:false};
 let connTab = "installed";
 let curListing = null;    // listing đang xem ở screen-listing
 let listingReturn = "screen-connectors";  // back từ chi tiết về đâu
@@ -4931,7 +4989,7 @@ function lifecycleText(it){
     t = "Bị giữ — tool đã thay đổi";
   else t = LIFECYCLE_LABELS[it.lifecycle_state] || it.lifecycle_state || "";
   if (it.lifecycle_state === "active" && it.tool_count != null)
-    t += " · " + it.tool_count + " tool";
+    t += " · " + it.tool_count + " công cụ";
   if (it.pending_restart && it.lifecycle_state !== "pending_restart")
     t += " · Chờ khởi động lại";
   return t;
@@ -4943,13 +5001,14 @@ function mktInstalledFor(c){
 }
 function connSub(c){
   /* Server MCP có dữ kiện marketplace: dòng phụ là trạng
-     thái vòng đời bằng chữ, thay "Đang nối/Chưa nối". Toggle
-     vẫn POST /api/connector như cũ (server route tiếp). */
+     thái vòng đời bằng chữ. Connector tích hợp sẵn hiển thị
+     loại kết nối + chi tiết, không lặp chữ "Đang nối" với "Đang bật". */
   const m = mktInstalledFor(c);
   if (m) return lifecycleText(m) +
     (c.detail ? " · " + c.detail : "");
-  return (c.ok ? "Đang nối" : "Chưa nối") +
-    (c.detail ? " · " + c.detail : "");
+  const kindLabel = c.kind === "mcp" ? "Máy chủ MCP" : "Tích hợp sẵn";
+  const stateLabel = c.ok ? "Đã kết nối" : "Chưa kết nối";
+  return [kindLabel, c.detail || stateLabel].filter(Boolean).join(" · ");
 }
 function mktInstalledForListing(L){
   if (!L) return null;
@@ -5073,8 +5132,10 @@ async function loadMktCategories(){
 }
 function renderMktCats(){
   const box = $("mkt-cats");
+  if (!box) return;
+  const q = (MKT.q || "").trim().toLowerCase();
   const total = MKT.cats.reduce((a, c) => a + (c.count || 0), 0);
-  const fmt = (n) => (n != null ? Number(n).toLocaleString("vi-VN") : "");
+  const fmt = (n) => (n != null ? String(n) + " mục" : "");
   const row = (id, label, count, desc) =>
     '<div class="row mkt-cat' + (MKT.cat === id ? " active" : "") +
     '" data-cat="' + esc(id) + '"><div class="r-main">' +
@@ -5083,12 +5144,136 @@ function renderMktCats(){
     '</div>' +
     '<span class="r-time">' + esc(fmt(count)) + '</span>' +
     '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span></div>';
-  box.innerHTML = row("", "Tất cả", total, "Toàn bộ danh mục server MCP") +
-    MKT.cats.map(c => row(c.id, c.label, c.count, c.description)).join("");
+  const filteredCats = q
+    ? MKT.cats.filter(c =>
+        String(c.label || "").toLowerCase().includes(q) ||
+        String(c.description || "").toLowerCase().includes(q) ||
+        String(c.id || "").toLowerCase().includes(q))
+    : MKT.cats;
+  box.innerHTML = (!q ? row("", "Tất cả", total, "Toàn bộ danh mục server MCP") : "") +
+    filteredCats.map(c => row(c.id, c.label, c.count, c.description)).join("");
+  if (!box.innerHTML) {
+    box.innerHTML = '<div class="empty">Không có danh mục khớp từ khoá — xem kết quả công cụ bên trên.</div>';
+  }
 }
+function buildMktRowHtml(it){
+  const parts = [];
+  const locRaw = String(it.locality || "local_process").toLowerCase();
+  const locLabel = (!locRaw || locRaw === "local" || locRaw === "local_process" || locRaw === "stdio")
+    ? "Chạy cục bộ"
+    : (locRaw === "remote" || locRaw === "http" || locRaw === "sse" ? "Từ xa" : it.locality);
+  parts.push(locLabel);
+  if (it.tool_count_known != null && Number(it.tool_count_known) > 0)
+    parts.push(it.tool_count_known + " công cụ");
+  else
+    parts.push(it.tool_count_label || "Đa công cụ");
+  const sec = it.security || {};
+  parts.push(sec.score != null
+    ? "Bảo mật " + sec.score : "Bảo mật: chưa đánh giá");
+  let state = "";
+  if (it.update_available) state = "Có bản mới";
+  else if (it.installed_state === "installed") state = "Đã cài";
+  else if (it.support_state === "unsupported" ||
+      (it.unsupported_reasons || []).length){
+    const rs = reasonsText(it.unsupported_reasons);
+    state = "Chưa hỗ trợ" + (rs.length ? " — " + rs[0] : "");
+  }
+  return '<div class="row" data-pid="' + esc(it.provider_id) +
+    '" data-slug="' + esc(it.slug) + '">' +
+    '<div class="r-main"><div class="r-title">' + esc(it.name) +
+    '</div><div class="r-sub">' + esc(parts.join(" · ")) +
+    '</div></div>' +
+    (state ? '<span class="r-state">' + esc(state) + '</span>' : "") +
+    '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span></div>';
+}
+function applyMktFilterParams(qs){
+  const q = (MKT.q || "").trim();
+  const f = MKT.filter || "all";
+  if (q) qs.set("query", q);
+  if (f === "local") qs.set("locality", "local");
+  else if (f === "remote") qs.set("locality", "remote");
+  else if (f === "sec8") qs.set("min_score", "8");
+}
+async function loadMktInlineResults(){
+  const card = $("mkt-inline-card");
+  const box = $("mkt-inline-list");
+  const titleEl = $("mkt-inline-title");
+  if (!card || !box) return;
+  const q = (MKT.q || "").trim();
+  const f = MKT.filter || "all";
+  if (!q && f === "all"){
+    card.classList.add("hidden");
+    return;
+  }
+  card.classList.remove("hidden");
+  box.innerHTML = '<div class="skel"><div class="bar w70"></div><div class="bar w40"></div></div>';
+  try {
+    const qs = new URLSearchParams();
+    applyMktFilterParams(qs);
+    qs.set("page", "1");
+    qs.set("limit", "20");
+    const d = await api("/api/marketplace/catalog?" + qs.toString());
+    const items = d.items || [];
+    if (titleEl) {
+      titleEl.textContent = "Kết quả lọc nhanh (" + items.length + " mục)";
+    }
+    if (!items.length){
+      box.innerHTML = '<div class="empty">Không tìm thấy công cụ nào khớp bộ lọc.</div>';
+    } else {
+      box.innerHTML = items.map(buildMktRowHtml).join("");
+    }
+  } catch (e) {
+    box.innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+  }
+}
+function syncMktFilterUI(){
+  const s1 = $("mkt-search-input");
+  const s2 = $("mktcat-search-input");
+  if (s1 && document.activeElement !== s1) s1.value = MKT.q || "";
+  if (s2 && document.activeElement !== s2) s2.value = MKT.q || "";
+  document.querySelectorAll("[data-mkt-filter]").forEach(b =>
+    b.classList.toggle("active", b.dataset.mktFilter === (MKT.filter || "all")));
+  document.querySelectorAll("[data-mktcat-filter]").forEach(b =>
+    b.classList.toggle("active", b.dataset.mktcatFilter === (MKT.filter || "all")));
+}
+let mktSearchTimer = null;
+function handleMktQueryChange(val, inCatScreen){
+  MKT.q = val || "";
+  MKT.page = 1;
+  syncMktFilterUI();
+  renderMktCats();
+  if (mktSearchTimer) clearTimeout(mktSearchTimer);
+  mktSearchTimer = setTimeout(() => {
+    if (inCatScreen || subScreen === "screen-mktcat") loadMktCatalog(1);
+    else loadMktInlineResults();
+  }, 160);
+}
+if ($("mkt-search-input")) {
+  $("mkt-search-input").addEventListener("input", (e) => handleMktQueryChange(e.target.value, false));
+}
+if ($("mktcat-search-input")) {
+  $("mktcat-search-input").addEventListener("input", (e) => handleMktQueryChange(e.target.value, true));
+}
+document.querySelectorAll("[data-mkt-filter]").forEach(b =>
+  b.addEventListener("click", () => {
+    haptic("select");
+    MKT.filter = b.dataset.mktFilter || "all";
+    MKT.page = 1;
+    syncMktFilterUI();
+    loadMktInlineResults();
+  }));
+document.querySelectorAll("[data-mktcat-filter]").forEach(b =>
+  b.addEventListener("click", () => {
+    haptic("select");
+    MKT.filter = b.dataset.mktcatFilter || "all";
+    MKT.page = 1;
+    syncMktFilterUI();
+    loadMktCatalog(1);
+  }));
 async function loadMktCatalog(page){
   if (page != null) MKT.page = page;
   else if (!MKT.page) MKT.page = 1;
+  syncMktFilterUI();
   const box = $("mkt-list");
   box.innerHTML = '<div class="skel"><div class="bar w70"></div>' +
     '<div class="bar w40"></div></div>';
@@ -5096,6 +5281,7 @@ async function loadMktCatalog(page){
   try {
     const qs = new URLSearchParams();
     if (MKT.cat) qs.set("category", MKT.cat);
+    applyMktFilterParams(qs);
     qs.set("page", String(MKT.page));
     qs.set("limit", "20");
     const d = await api("/api/marketplace/catalog?" + qs.toString());
@@ -5131,7 +5317,8 @@ function updateMktPagination(loading){
   let txt = "Trang " + curPage;
   if (MKT.total > 0){
     const maxPage = Math.ceil(MKT.total / 20);
-    if (maxPage > 1) txt += " / " + maxPage.toLocaleString("vi-VN");
+    if (maxPage > 1) txt += " / " + String(maxPage) + " (" + MKT.total + " mục)";
+    else txt += " (" + MKT.total + " mục)";
   }
   info.textContent = txt;
   pag.style.display = (!MKT.items.length && curPage <= 1) ? "none" : "flex";
@@ -5141,39 +5328,11 @@ function renderMktList(){
   const items = MKT.items || [];
   if (!items.length){
     box.innerHTML = '<div class="empty">' + (MKT.cat
-      ? "Danh mục này chưa có mục nào."
-      : "Chưa có mục nào.") + '</div>';
+      ? "Danh mục này chưa có mục nào khớp bộ lọc."
+      : "Chưa có mục nào khớp bộ lọc.") + '</div>';
     return;
   }
-  box.innerHTML = items.map(it => {
-    const parts = [];
-    // Dòng phụ duy nhất: Local · số tool · bảo mật. Tên tác
-    // giả để ở màn chi tiết — nhét vào đây làm tràn mất
-    // phần bảo mật trên màn 390px (đã kiểm bằng render).
-    // Không hiện giá: chợ chỉ lấy đồ free (luật 1.3).
-    parts.push(!it.locality || it.locality === "local" ||
-      it.locality === "local_process" ? "Local" : it.locality);
-    if (it.tool_count_known != null)
-      parts.push(it.tool_count_known + " tool");
-    const sec = it.security || {};
-    parts.push(sec.score != null
-      ? "Bảo mật " + sec.score : "Bảo mật: chưa có");
-    let state = "";
-    if (it.update_available) state = "Có bản mới";
-    else if (it.installed_state === "installed") state = "Đã cài";
-    else if (it.support_state === "unsupported" ||
-        (it.unsupported_reasons || []).length){
-      const rs = reasonsText(it.unsupported_reasons);
-      state = "Chưa hỗ trợ" + (rs.length ? " — " + rs[0] : "");
-    }
-    return '<div class="row" data-pid="' + esc(it.provider_id) +
-      '" data-slug="' + esc(it.slug) + '">' +
-      '<div class="r-main"><div class="r-title">' + esc(it.name) +
-      '</div><div class="r-sub">' + esc(parts.join(" · ")) +
-      '</div></div>' +
-      (state ? '<span class="r-state">' + esc(state) + '</span>' : "") +
-      '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span></div>';
-  }).join("");
+  box.innerHTML = items.map(buildMktRowHtml).join("");
 }
 $("mkt-refresh").addEventListener("click", async () => {
   try {
@@ -5292,7 +5451,7 @@ function renderListingDetail(){
   /* Trạng thái hỗ trợ */
   h += '<div class="card"><div class="card-title">Hỗ trợ</div>' +
     '<div class="row static"><div class="r-main">' +
-    '<div class="r-title" style="color:var(--accent,#10b981);font-weight:600">' +
+    '<div class="r-title" style="color:var(--ink);font-weight:600">' +
     '✓ Được hỗ trợ đầy đủ' +
     '</div><div class="r-sub">' +
     (man.url ? ('Server từ xa: ' + esc(man.url)) : ('Lệnh chạy: ' + esc(maskPaths((man.command || 'npx') + ' ' + (man.args||[]).join(' '))))) +
@@ -5659,7 +5818,7 @@ function renderOperation(){
     const errMsg = op.error
       ? [op.error.code, op.error.message].filter(Boolean).join(" · ")
       : "Đã lỗi không rõ nguyên nhân.";
-    h += '<div class="card"><div class="card-title" style="color:var(--err)">Thất bại</div>' +
+    h += '<div class="card"><div class="card-title" style="color:var(--ink)">✕ Thất bại</div>' +
       '<div class="op-note">' + esc(errMsg) + '</div>';
     if (errMsg.includes("Connection closed") || (op.subject_name || "").includes("Telegram")) {
       h += '<div class="detail-list" style="margin-top:var(--s2);font-size:var(--fs-cap);color:var(--ink2)">' +
@@ -5825,20 +5984,26 @@ function renderFeed(){
     try { await feedPost({action:"resume"}); toast("Đã chạy lại Feed."); }
     catch (e) { toast(e.message); }
   });
+  const cronHuman = f.cron_human || describeCronVi(f.cron || "");
   const rows = [
+    ["Nhịp đăng hiện tại", cronHuman || "Định kỳ"],
     ["Lượt kế tiếp", f.next_run_at ? todayLabel(f.next_run_at) : "—"],
-    ["Bài hôm nay", String(f.posts_today) + " / " +
+    ["Bài đã đăng hôm nay", String(f.posts_today) + " / " +
       String(f.max_posts_per_day)],
     ["Token hôm nay", Number(f.tokens_today || 0).toLocaleString("vi-VN") +
       " / " + Number(f.daily_token_budget || 0).toLocaleString("vi-VN")],
-    ["Giờ yên lặng", f.quiet_hours || ""],
+    ["Khung giờ nghỉ", f.quiet_hours || "Không đặt"],
   ];
   stateBox.innerHTML = rows.map(r =>
     '<div class="row static"><div class="r-main"><div class="r-title">' +
     esc(r[0]) + '</div></div><span class="r-state">' + esc(r[1]) +
     '</span></div>').join("");
-  if (document.activeElement !== $("feed-cron"))
+  if (document.activeElement !== $("feed-cron")) {
     $("feed-cron").value = f.cron || "";
+    if ($("feed-cron-preview")) {
+      $("feed-cron-preview").textContent = "Diễn giải: " + formatCronDisplay(f.cron || "");
+    }
+  }
   if (document.activeElement !== $("feed-quiet"))
     $("feed-quiet").value = f.quiet_hours || "";
   if (document.activeElement !== $("feed-max-posts"))
@@ -5897,39 +6062,71 @@ if (feedMasterSw) {
     }
   });
 }
-$("feed-run-now").addEventListener("click", async () => {
-  try {
-    const r = await feedPost({action:"run_now"});
-    toast(r && r.result && r.result.ok
-      ? "Đã đăng một bài Feed." : "Lượt này không đăng bài: " +
-        ((r && r.result && (r.result.status || r.result.error)) || "?"));
-  } catch (e) { toast(e.message); }
+if ($("feed-cron")) {
+  $("feed-cron").addEventListener("input", (e) => {
+    if ($("feed-cron-preview")) {
+      $("feed-cron-preview").textContent = "Diễn giải: " + formatCronDisplay(e.target.value);
+    }
+  });
+}
+$("feed-run-now").addEventListener("click", () => {
+  const box = $("feed-run-confirm-box");
+  if (box) box.classList.toggle("hidden");
 });
-$("feed-cron-save").addEventListener("click", async () => {
-  try {
-    await feedPost({action:"set_cron", cron: $("feed-cron").value});
-    toast("Đã lưu nhịp đăng.");
-  } catch (e) { toast(e.message); }
-});
+if ($("feed-run-cancel")) {
+  $("feed-run-cancel").addEventListener("click", () => {
+    const box = $("feed-run-confirm-box");
+    if (box) box.classList.add("hidden");
+  });
+}
+if ($("feed-run-confirm")) {
+  $("feed-run-confirm").addEventListener("click", async () => {
+    const btn = $("feed-run-confirm");
+    const box = $("feed-run-confirm-box");
+    try {
+      btn.disabled = true;
+      if (box) box.classList.add("hidden");
+      const r = await feedPost({action:"run_now"});
+      toast(r && r.result && r.result.ok
+        ? "Đã đăng một bài Feed." : "Lượt này không đăng bài: " +
+          ((r && r.result && (r.result.status || r.result.error)) || "?"));
+    } catch (e) {
+      toast(e.message);
+    } finally {
+      if (box) box.classList.add("hidden");
+      btn.disabled = false;
+    }
+  });
+}
 document.querySelectorAll("[data-cron-preset]").forEach(b =>
   b.addEventListener("click", () => {
     $("feed-cron").value = b.dataset.cronPreset;
+    if ($("feed-cron-preview")) {
+      $("feed-cron-preview").textContent = "Diễn giải: " + formatCronDisplay(b.dataset.cronPreset);
+    }
   }));
-$("feed-quiet-save").addEventListener("click", async () => {
-  try {
-    await feedPost({action:"set_quiet",
-      quiet_hours: $("feed-quiet").value});
-    toast("Đã lưu giờ yên lặng.");
-  } catch (e) { toast(e.message); }
-});
-$("feed-limits-save").addEventListener("click", async () => {
-  try {
-    await feedPost({action:"set_limits",
-      max_posts_per_day: parseInt($("feed-max-posts").value, 10),
-      daily_token_budget: parseInt($("feed-token-budget").value, 10)});
-    toast("Đã lưu giới hạn.");
-  } catch (e) { toast(e.message); }
-});
+if ($("feed-save-all")) {
+  $("feed-save-all").addEventListener("click", async () => {
+    const btn = $("feed-save-all");
+    try {
+      btn.disabled = true;
+      await feedPost({
+        action: "save_all",
+        cron: $("feed-cron").value.trim(),
+        quiet_hours: $("feed-quiet").value.trim(),
+        max_posts_per_day: parseInt($("feed-max-posts").value, 10),
+        daily_token_budget: parseInt($("feed-token-budget").value, 10),
+        denylist: $("feed-denylist").value.split("\n")
+          .map(s => s.trim()).filter(Boolean),
+      });
+      toast("Đã lưu toàn bộ cấu hình Feed.");
+    } catch (e) {
+      toast(e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
 $("feed-src-add").addEventListener("click", async () => {
   try {
     await feedPost({action:"add_source",
@@ -5939,14 +6136,6 @@ $("feed-src-add").addEventListener("click", async () => {
     $("feed-src-trust").value = "normal";
     if ($("feed-trust-label")) $("feed-trust-label").textContent = "Tin cậy thường";
     toast("Đã ghim nguồn.");
-  } catch (e) { toast(e.message); }
-});
-$("feed-denylist-save").addEventListener("click", async () => {
-  try {
-    await feedPost({action:"set_denylist",
-      denylist: $("feed-denylist").value.split("\n")
-        .map(s => s.trim()).filter(Boolean)});
-    toast("Đã lưu danh sách tránh.");
   } catch (e) { toast(e.message); }
 });
 

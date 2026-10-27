@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## 1.7.17 — 2026-10-27 — Chuẩn hoá màu 60/30/10, Việt hoá nhãn kỹ thuật, Tìm kiếm/Lọc Chợ MCP & Hợp nhất cấu hình Feed chủ động (T-23.5 & T-31, Làn 1)
+
+- **Chuẩn hoá bảng màu 60/30/10 & ghi chú thiết kế (`mulon/webapp/index.html`, QA Q-06 / T-23.5):**
+  - Đổi chấm và chữ trạng thái header (`.app-status`, `.dot`), lịch sử chạy (`.run-item .dot-green`), trạng thái tạm dừng Heartbeat (`updateHeartbeatModalState`) và dòng trạng thái chi tiết listing/thao tác sang gam trung tính (`var(--ink)`, `var(--ink2)`, `var(--ink3)`, `var(--surface2)`), giữ đúng một màu nhấn thương hiệu tím Mulon (`#7C3AED`).
+  - Bổ sung ghi chú thiết kế `#theme-design-note` ngay dưới bộ chọn giao diện trong tab Cài đặt (`#tab-caidat`).
+- **Dọn dữ liệu phê duyệt thử & Việt hoá toàn bộ nhãn kỹ thuật (`mulon/webapp_server.py`, `mulon/webapp/index.html`, QA Q-08 / T-23.5):**
+  - Xoá `"the_duyet": "Gửi thẻ phê duyệt thử"` khỏi `TOOL_ACTION_LABELS` và lọc bỏ mọi bản ghi phê duyệt thử (`tool == "the_duyet"`, `test == True`, `kind == "test"` hoặc tóm tắt chứa `"phê duyệt thử"` / `"thẻ duyệt thử"`) ở cả `/api/state` lẫn `renderApprovals()`.
+  - Bổ sung `_POLICY_LAYER_LABELS` và `policy_layer_label()` dịch toàn bộ mã lớp quyền (`ask`, `allow`, `deny`, `host`, `session`, `tool-default`, `builtin`) sang tiếng Việt đời thường; đổi nhãn `"Lớp policy"` thành `"Chế độ quyền"`.
+  - Đổi `"X tool"` thành `"X công cụ"` và thay `"Đang nối"` / `"Chưa nối"` ở phụ đề Connector bằng `"Tích hợp sẵn"` / `"Máy chủ MCP"` hoặc `"Đã kết nối"` / `"Chưa kết nối"`, hết trùng lặp với cột phải `"Đang bật"`.
+- **Chợ MCP có ô tìm kiếm, chip lọc, phân trang chuẩn & số công cụ rõ ràng (`mulon/marketplace.py`, `mulon/webapp_server.py`, `mulon/webapp/index.html`, QA Q-08 / Q-10 / T-23.5):**
+  - Bổ sung ô tìm kiếm `#mkt-search-input` và dải chip lọc `#mkt-filter-chips` (`Tất cả`, `Chạy cục bộ`, `Từ xa`, `Bảo mật ≥ 8`) ngay tại tab Chợ MCP (`#conn-view-market`) và đồng bộ với màn danh mục `#screen-mktcat`.
+  - Backend `_mkt_catalog` và `MarketplaceCatalog.search_catalog` / `search_catalog_async` hỗ trợ lọc kết hợp `query`, `locality` (`local` / `remote`) và `min_score`.
+  - Bổ sung `tool_count_label` (`"X công cụ"` hoặc `"Đa công cụ"`) cho mọi mục trên Chợ MCP; sửa hiển thị tổng số mục và phân trang (`"Trang 1 / 106 (2107 mục)"`) không còn dùng dấu chấm ngăn cách hàng nghìn gây hiểu nhầm số thập phân.
+- **Feed chủ động tách rõ Trạng thái chỉ xem và Cấu hình 1 nút Lưu (`mulon/webapp_server.py`, `mulon/webapp/index.html`, QA Q-08 / Q-10 / T-23.5):**
+  - Bỏ emoji `🟢` và chữ xanh lá ở thẻ công tắc tự động; gắn công tắc thật `#feed-master-switch` ở đầu màn `#screen-feed`.
+  - Tách riêng **Thẻ Trạng thái hoạt động (chỉ xem)** (hiển thị `Nhịp đăng hiện tại` tiếng Việt, `Lượt kế tiếp`, `Bài đã đăng hôm nay`, `Token hôm nay`, `Khung giờ nghỉ` — không lặp nhãn `"Giờ yên lặng"`, kèm nút `Chạy ngay một lượt` có hộp xác nhận `#feed-run-confirm-box`) và **Thẻ Cấu hình Feed chủ động** (gộp `cron`, `quiet_hours`, `max_posts_per_day`, `daily_token_budget`, `denylist` vào một nút `Lưu cấu hình Feed` duy nhất qua action `save_all`).
+- **Kiểm thử hồi quy & Render thật Chromium (`tests/test_v17_miniapp_polish_mkt_feed.py`, `mulon/paths.py`, T-31):**
+  - Bổ sung `mask_embedded_paths` trong `mulon/paths.py` và bọc `maskPaths(...)` khi render mô tả hàng kỹ năng trong `mulon/webapp/index.html` (T-31), che triệt để mọi đường dẫn tuyệt đối (`/Users/...`, `/Volumes/...`, `/home/...`, `C:\...`) nhúng giữa câu.
+  - Viết mới bộ test `tests/test_v17_miniapp_polish_mkt_feed.py` kiểm chứng lọc thẻ thử, dịch chế độ quyền, lọc Chợ MCP, `save_all` Feed, che path nhúng giữa câu (T-31) và E2E Playwright Chromium (390×844) chụp & kiểm tra trực quan 5 màn hình thật.
+
 ## 1.7.16 — 2026-10-27 — Thống nhất trạng thái Việc một nguồn sự thật, định dạng thời gian duy nhất & màn chi tiết Lịch trình (T-23.4, Làn 1)
 
 - **Một nguồn sự thật duy nhất cho trạng thái Việc giữa Danh sách, Chi tiết, Dòng thời gian và Tóm tắt (`mulon/webapp_server.py`, `mulon/memory.py`, `mulon/webapp/index.html`, QA Q-03 / T-23.4):**

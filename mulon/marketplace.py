@@ -725,6 +725,11 @@ class MarketplaceService:
                 "critical_findings_count":
                     security.get("critical_findings_count", 0)},
             "tool_count_known": listing.get("tool_count_known") or 0,
+            "tool_count_label": (
+                f"{int(listing.get('tool_count_known') or 0)} công cụ"
+                if (listing.get("tool_count_known") or 0) > 0
+                else "Đa công cụ"
+            ),
             "installed_state": state,
             "update_available": update,
             "support_state": listing.get("support_state", "supported"),
@@ -808,6 +813,27 @@ class MarketplaceService:
         risk_level = item.get("risk_level")
         pricing_str = (item.get("pricing") or "Free").lower()
         cat = cat_slug or item.get("category") or ""
+        tool_count_val = item.get("tool_count_known")
+        if tool_count_val is None:
+            tool_count_val = item.get("tool_count", item.get("tools_count"))
+        if (tool_count_val is None
+                and isinstance(item.get("tool_names"), list)
+                and item["tool_names"]):
+            tool_count_val = len(item["tool_names"])
+        if (tool_count_val is None
+                and isinstance(item.get("tools"), list)
+                and item["tools"]):
+            tool_count_val = len(item["tools"])
+        if tool_count_val is not None:
+            try:
+                tool_count_val = int(tool_count_val)
+            except (TypeError, ValueError):
+                tool_count_val = None
+        tool_count_label = (
+            f"{tool_count_val} công cụ"
+            if (tool_count_val is not None and tool_count_val > 0)
+            else "Đa công cụ"
+        )
         return {
             "canonical_id": canonical_id,
             "provider_id": "mcp-marketplace",
@@ -827,7 +853,8 @@ class MarketplaceService:
                 "risk_label": risk_level,
                 "critical_findings_count": item.get("critical_findings") or 0,
             },
-            "tool_count_known": None,
+            "tool_count_known": tool_count_val,
+            "tool_count_label": tool_count_label,
             "installed_state": installed_state,
             "update_available": update,
             "support_state": "supported",
@@ -1031,8 +1058,31 @@ class MarketplaceService:
                 f"Không thể tải chi tiết server '{slug}' từ MCP Marketplace.")
         return self.listing_detail(provider_id, slug)
 
+    @staticmethod
+    def _matches_locality_and_score(item: dict, locality: str = "",
+                                    min_score: float = 0.0) -> bool:
+        loc_filter = (locality or "").strip().lower()
+        if loc_filter:
+            item_loc = str(item.get("locality") or "local_process").strip().lower()
+            if loc_filter == "local":
+                if item_loc not in ("local", "local_process", "stdio", ""):
+                    return False
+            elif loc_filter == "remote":
+                if item_loc not in ("remote", "http", "sse"):
+                    return False
+        if min_score and min_score > 0:
+            sec = item.get("security") or {}
+            score = sec.get("score")
+            try:
+                if score is None or float(score) < float(min_score):
+                    return False
+            except (TypeError, ValueError):
+                return False
+        return True
+
     def search_catalog(self, *, query: str = "", category: str = "",
                        pricing: str = "", installed: str = "",
+                       locality: str = "", min_score: float = 0.0,
                        cursor: str = "", limit: int = 20) -> dict:
         items = [self.listing_summary(item)
                  for item in self.provider.listings()]
@@ -1043,6 +1093,7 @@ class MarketplaceService:
             items = [i for i in items
                      if needle in str(i.get("name") or "").lower()
                      or needle in str(i.get("summary") or "").lower()
+                     or needle in str(i.get("slug") or "").lower()
                      or needle in str(i.get("creator_name")
                                       or "").lower()]
         if category:
@@ -1060,6 +1111,12 @@ class MarketplaceService:
             items = [i for i in items
                      if i["installed_state"]
                      in ("not_installed", "uninstalled")]
+        if locality or (min_score and min_score > 0):
+            items = [
+                i for i in items
+                if self._matches_locality_and_score(
+                    i, locality=locality, min_score=min_score)
+            ]
         start = 0
         if cursor:
             try:
@@ -1077,6 +1134,8 @@ class MarketplaceService:
                                   category: str = "",
                                   pricing: str = "",
                                   installed: str = "",
+                                  locality: str = "",
+                                  min_score: float = 0.0,
                                   cursor: str = "",
                                   page: int = 1,
                                   limit: int = 20) -> dict:
@@ -1089,6 +1148,7 @@ class MarketplaceService:
         if cur_page == 1:
             res = self.search_catalog(query=query, category=category,
                                       pricing=pricing, installed=installed,
+                                      locality=locality, min_score=min_score,
                                       cursor=cursor, limit=req_limit)
             items = list(res.get("items") or [])
             curated_slugs = {it["slug"] for it in items}
@@ -1127,11 +1187,17 @@ class MarketplaceService:
                                     and it["installed_state"]
                                     not in ("not_installed", "uninstalled")):
                                 continue
+                            if not self._matches_locality_and_score(
+                                    it, locality=locality, min_score=min_score):
+                                continue
                             items.append(it)
                             curated_slugs.add(rslug)
             except Exception as exc:
                 logger.debug("lỗi search_servers từ mcp-marketplace: %s",
                              exc)
+
+        if locality or (min_score and min_score > 0):
+            total_matches = len(items) if not has_more else max(len(items), total_matches)
 
         next_cursor = str(cur_page + 1) if has_more else None
         return {
