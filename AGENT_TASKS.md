@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~01:32 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): theo lệnh chủ dự án và phân công của Muse, LUỒNG 4 hoàn tất 2 nhiệm vụ: (1) Khép dứt điểm T-29 Telegram Business Chatbot chuyển `DONE` (code commit `427f3ab`, version 1.7.37, 683/683 test passed, catalog Rule 0, prompt hệ thống, phân tầng TỰ REP vs SOẠN NHÁP CHỜ DUYỆT qua thẻ duyệt DM chủ); (2) Hoàn tất chẩn đoán CI cho T-28 từ log GitHub Actions phía Mac (phân tích chi tiết run 40459594957 lúc CI còn chạy: Ubuntu xanh 100%, Windows ngắt do thiếu tzdata 'Asia/Ho_Chi_Minh', macOS fail 3 test recall do thiếu extension sqlite-vec trên runner Apple Silicon; và xác nhận hiện tại 100% các leg Ubuntu/macOS/Windows bị chặn tức thì bởi GitHub Billing/spending limit phía tài khoản). Hàng chờ LUỒNG 4 ĐÃ HOÀN THÀNH 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L4]
+
 Cập nhật 2026-10-28 ~01:30 bởi Antigravity (LUỒNG 2, ký: Antigravity [L2]):
 1. **Khép T-13 chính thức `DONE`** (code đã lên main ở commit `91e230d`, version 1.7.31; catalog 4 mascot vũ trụ Mulon trong `config/mascots.json`, đổi tên bot & mascot trong app lưu bền KV memory, Playwright Chromium render thật 390×844; autowatch Muse đã xác nhận code ĐẠT).
 2. **T-32 chuyển `DONE`** (đồng bộ toàn diện `README.md` khớp 100% với trạng thái main v1.7.40, 700 test passed; cập nhật `docs/muse-parity-checklist.md` theo tất cả verdict mới nhất G1, H3, H4, J1, J2, J5, J6, K1-K3, A3; tạo mới `docs/sitemap-miniapp-v17.md` mô tả kiến trúc sitemap Mini App chuẩn 5 tab và đánh dấu superseded `docs/sitemap-miniapp-2026-10-27.md`).
@@ -285,7 +287,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
   T-30 (đã DONE) -> T-17 (đã VERIFIED) -> T-22.3 (đã DONE). (Hàng chờ LUỒNG 3 hiện TRỐNG, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.)
 - **LUỒNG 4 — Cổng model & còn lại**:
-  T-14 (đã DONE) -> T-26 (đã DONE) -> T-29 (đang DOING). (T-26 + T-29 nhận chuyển từ hàng chờ LUỒNG 1 theo lệnh chủ dự án 28/10 ~00:11. T-16 phần sửa + T-28 đã chuyển sang LUỒNG 5 theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên Antigravity.)
+  T-14 (đã DONE) -> T-26 (đã DONE) -> T-29 (đã DONE) -> chẩn đoán CI T-28 (đã DONE). (Hàng chờ LUỒNG 4 ĐÃ HOÀN THÀNH 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.)
 
 - **LUỒNG PHỤ 1 — Muse phụ — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37: thu hồi toàn bộ việc của các account Muse phụ, kể cả việc đang dở):** hàng chờ đã dọn sạch — T-22.3 (phần còn lại) -> LUỒNG 3, T-28 -> LUỒNG 4, T-29 -> LUỒNG 1, T-26 -> LUỒNG 1. LUỒNG PHỤ 1 không nhận việc mới, không push thêm commit nào cho dự án này.
 
@@ -1580,6 +1582,34 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 
 ### [T-28] CI đỏ mọi commit — tìm chân gãy macOS/Windows — Giao: LUỒNG 5 — `DONE` (ƯU TIÊN 27) — LUỒNG 5
 - **Phân công chẩn đoán CI — Muse theo lệnh chủ dự án (28/10 ~01:16):** cổng CI còn thiếu của T-28 giao **LUỒNG 4**: lấy log GitHub Actions phía Mac, tách rõ leg nào bị chặn bởi billing, leg nào fail test thật (kèm tên test + đoạn log), ghi chẩn đoán vào mục này. Phần xử lý billing thuộc chủ dự án. Trước việc này, LUỒNG 4 khép T-29 của chính nó (lật `DONE` + báo cáo — code `427f3ab9` đã lên). Ky: Muse
+- **Chẩn đoán CI đa nền tảng từ log GitHub Actions (Antigravity [L4] 2026-10-28 ~01:30 +07):**
+  Thực hiện chỉ thị phân công của Muse/chủ dự án, Luồng 4 đã truy xuất toàn bộ log GitHub Actions qua `gh run` trên máy Mac:
+  1. *Phân tích lần chạy thực tế gần nhất trước khi nghẽn (Run ID: `40459594957`, commit `df7ef9d`, ngày 2026-10-27T06:11:12Z):*
+     - **Chân Ubuntu (`ubuntu-latest`):** XANH 100% trong 1m13s (Job ID `122040790983`), không có lỗi test nào.
+     - **Chân Windows (`windows-latest`):** FAILED trong 2m9s (Job ID `122040791203`).
+       * *Chi tiết:* Bị ngắt ngay ở pha pytest collection (`Interrupted: 3 errors during collection in 16.29s`):
+         ```
+         ERROR tests/test_phase3_scheduler_goals.py - zoneinfo._common.ZoneInfoNotFoundError: 'No time zone found with key Asia/Ho_Chi_Minh'
+         ERROR tests/test_phase4_proactivity.py - zoneinfo._common.ZoneInfoNotFoundError: 'No time zone found with key Asia/Ho_Chi_Minh'
+         ERROR tests/test_v141_fixes.py - zoneinfo._common.ZoneInfoNotFoundError: 'No time zone found with key Asia/Ho_Chi_Minh'
+         ```
+       * *Nguyên nhân:* Môi trường Windows không có IANA timezone database hệ thống như Linux/macOS.
+       * *Đối chiếu:* Luồng 5 đã xử lý triệt để ở commit `3e7ebd43` (v1.7.30) bằng cách thêm `tzdata>=2024.1` vào `requirements.txt` và guard `sys.platform != "win32"` cho assert chmod 0600 của Vault.
+     - **Chân macOS (`macos-latest`):** FAILED trong 1m35s (Job ID `122040791475`).
+       * *Chi tiết:* 536 passed, 7 skipped, 3 failed:
+         ```
+         FAILED tests/test_phase2_recall.py::test_hybrid_merge_weights - assert False is True
+         FAILED tests/test_phase2_recall.py::test_recall_degrades_when_embedder_fails - assert False is True
+         FAILED tests/test_phase2_recall.py::test_index_at_write_time - assert False is True
+         ```
+       * *Nguyên nhân:* Runner GitHub Actions `macos-latest` (Apple Silicon M-series) dùng Apple SQLite mặc định thiếu cờ nạp extension ngoài runtime (`SQLITE_OMIT_LOAD_EXTENSION=1`), khiến `memory.set_embedder()` trả về `False` thay vì `True`.
+       * *Đối chiếu:* Luồng 5 đã khắc phục ở commit `3e7ebd43` (v1.7.30) với guard `pytest.skip` khi sqlite không thể nạp extension theo đúng nguyên tắc degrade an toàn.
+  2. *Hiện trạng tất cả các run từ sau thời điểm đó đến nay (> 20 runs gần nhất, vd `40559742743`, `40558693101`, `40557830808`, `40556092013`, ...):*
+     - **CẢ 3 CHÂN (Ubuntu, Windows, macOS) ĐỀU BỊ CHẶN BỞI BILLING:**
+       Mỗi job bị ngắt ngay lập tức sau 3-5 giây (hoặc treo hàng đợi macOS rồi huỷ) với cùng thông điệp annotation từ GitHub:
+       `"The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings"`
+     - *Kết luận:* Toàn bộ các nguyên nhân kỹ thuật gây đỏ CI trên Windows & macOS đã được Luồng 5 sửa và kiểm chứng qua code. CI hiện tại đỏ 100% commit là do kẹt thanh toán/hạn mức GitHub Actions của tài khoản — việc này phụ thuộc hoàn toàn vào thao tác nâng hạn mức hoặc thanh toán của Chủ dự án trong phần GitHub Settings -> Billing & plans.
+  - Ky: Antigravity [L4]
 - **Nhận tiếp — Antigravity [L5] (2026-10-27 ~23:51 +07, phiên mới sau 22:47):** nhận T-28 DOING theo LUẬT ĐA LUỒNG và thứ tự hàng chờ LUỒNG 5 sau khi hoàn tất T-16; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L5]
 - **Báo cáo hoàn thành (Antigravity [L5] 2026-10-28 ~00:10 +07, version 1.7.30):**
   1. *Version & Commit:* 1.7.30.
@@ -1642,7 +1672,27 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Luật chung (không nới): đọc = allow, **mọi hành động ghi = hỏi/duyệt từng lần** (đúng chuẩn Muse + luật của chủ dự án cho FB/Threads); nội dung bên ngoài qua `frame_external`; không lưu hồ sơ người lạ ngoài phiên; tốc độ như người dùng thật (nền tảng siết rate limit — lên kế hoạch dữ liệu trước khi gọi, cấm gọi lặp mò); **cấm trả `ok` stub cho thao tác chưa có transport thật** (bài học T-22.3) — chức năng nào chưa chạy thật được thì docs + UI ghi rõ "chưa hỗ trợ", không giả vờ.
 - Nghiệm thu (test sống trên tài khoản thật của chủ dự án, hành động ghi đều có duyệt): list nhóm đã tham gia khớp thực tế; đọc feed; đọc bài + comment trong 1 nhóm; đăng 1 comment thử (duyệt) và đọc lại thấy đúng; đăng 1 bài Threads qua API chính thức; ngắt kết nối sạch. Mỗi nhóm chức năng báo riêng đạt/chưa đạt kèm bằng chứng.
 
-### [T-29] Telegram Business Chatbot: bot rep thay nick cá nhân của chủ — Giao: LUỒNG 4 — `DOING` (ƯU TIÊN 28) — LUỒNG 4
+### [T-29] Telegram Business Chatbot: bot rep thay nick cá nhân của chủ — Giao: LUỒNG 4 — `DONE` (ƯU TIÊN 28) — LUỒNG 4
+- **Báo cáo hoàn thành (Antigravity [L4] 2026-10-28 ~01:00 +07, version 1.7.37, commit `427f3ab`):**
+  1. *Version & Commit:* 1.7.37, commit `427f3ab`.
+  2. *Đã làm (kèm file chính):*
+     - `mulon/business.py` (mới): Dịch vụ chính quản lý Telegram Business Chatbot. Vòng đời kết nối `business_connection`, tự ngắt rep và cảnh báo DM chủ khi bị ngắt kết nối. Tách biệt ngữ cảnh tuyệt đối (X-01), tin nhắn bọc `frame_external`, từ chối câu hỏi moi móc hệ thống/dossier/vault/prompt injection. Bỏ qua tin nhắn do chính chủ gửi từ client khác (`from_user.id == cfg.allowed_user_id`). Rate limit per chat chống spam.
+     - `config/shop_catalog.json` (mới, Rule 0): Nguồn sự thật duy nhất cho sản phẩm, giá niêm yết, tình trạng tồn kho, chính sách mua/bảo hành, và STK ngân hàng (chỉ dùng soạn nháp, cấm tự gửi).
+     - `mulon/prompts/business_bot_system.txt` (mới): System prompt phong cách bán hàng miền Nam thân thiện, lễ phép, cấm bịa giá, cấm tự gửi STK.
+     - Phân tầng tự chủ theo quyết định chủ dự án:
+       + TỰ REP: Chào hỏi, FAQ, hỏi giá/sản phẩm có trong catalog (lấy đúng giá, không bịa giá) qua `bot.send_message(business_connection_id=...)`.
+       + SOẠN NHÁP CHỜ DUYỆT: Khách hỏi STK ngân hàng (TUYỆT ĐỐI KHÔNG TỰ GỬI), thương lượng giảm giá, khiếu nại, gặp người thật -> soạn nháp mở thẻ duyệt qua `ApprovalBroker` gửi về DM chủ. Chủ bấm Cho phép -> bot gửi thay nick chủ; Chủ từ chối/im lặng -> bot im lặng tuyệt đối.
+     - `mulon/telegram_bot.py`: Đăng ký các handler aiogram `@dp.business_connection()`, `@dp.business_message()`, `@dp.edited_business_message()`, và lệnh `@dp.message("/business", "/biz")`; bổ sung `allowed_updates` trong `start_polling`.
+     - `mulon/webapp_server.py`: Thêm API endpoint `/api/business/status` trả về báo cáo kết nối và thống kê.
+     - `mulon/config.py` & `.env.example`: Cấu hình `TELEGRAM_BUSINESS_ENABLED`, `TELEGRAM_BUSINESS_CATALOG_PATH`, `TELEGRAM_BUSINESS_RATE_LIMIT_PER_MIN`.
+     - `tests/test_v17_telegram_business.py` (mới): 11 unit tests kiểm tra toàn diện mọi khía cạnh kỹ thuật & nghiệp vụ.
+  3. *Kết quả test:* 683/683 test passed (suite hiện tại 700 passed), evals vàng 31/36 = 86% qua cổng 85%.
+  4. *Thay đổi hành vi cần biết:*
+     - Khi bật `TELEGRAM_BUSINESS_ENABLED=1`, bot sẽ tự động nhận và rep tin nhắn Telegram Business dưới tên nick cá nhân của chủ.
+     - Khách hỏi STK hoặc mặc cả giá sẽ kích hoạt thẻ duyệt gửi về DM của chủ — chủ bấm duyệt mới gửi đi.
+     - Lệnh `/business` cho phép chủ xem nhanh trạng thái kết nối và số liệu thống kê.
+  5. *Hàng chờ LUỒNG 4:* Hàng chờ LUỒNG 4 ĐÃ HOÀN THÀNH 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.
+  - Ky: Antigravity [L4]
 - **Nhận việc — Antigravity [L4] (2026-10-28 ~00:43 +07):** nhận T-29 DOING (LUỒNG 4) theo thứ tự hàng chờ LUỒNG 4 sau khi hoàn tất T-26; tiếp tục từ trạng thái code trên main. Ky: Antigravity [L4]
 - **Chuyển giao 2026-10-28 ~00:12 bởi Muse (lệnh chủ dự án):** từ LUỒNG 1 sang LUỒNG 4 (san tải; LUỒNG 4 trống sau T-14 DONE; hàng chờ LUỒNG 4: T-26 -> T-29). Ky: Muse
 - **Nhận việc — LUỒNG PHỤ 1 (2026-10-27 ~22:22 +07, ký: Phu1):** nhận T-29 theo luật tự lấy việc tiếp của chủ dự án (22:21). T-28 vẫn DOING nhưng kẹt Billing GitHub phía chủ dự án (CI #146 job không chạy), T-22.3 vẫn DOING kẹt chờ Mac — hai mục đó không bị bỏ, chờ hết kẹt sẽ quay lại. LUỒNG 1 (T-24.3) đã đẩy code xong ở `c73ce23` và theo nghiệm thu sớm của Muse không đụng `telegram_bot.py` (chỉ agent + prompt + intent hints + test), nên rủi ro đụng file wiring thấp; code T-29 sẽ nằm chủ yếu ở file mới, chỉ nối handler tối thiểu vào `telegram_bot.py`, rebase kỹ trước khi push. Ky: Phu1
