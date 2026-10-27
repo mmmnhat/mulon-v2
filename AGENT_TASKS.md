@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~22:44 bởi Muse (ký: Muse): **Chốt đội hình 5 phiên Antigravity** (lệnh chủ dự án ~22:43 "5 phiên thôi"): thêm LUỒNG 5 (phiên Antigravity thứ 5 trên Mac, worktree riêng) nhận sửa T-16 NEEDS-FIX -> T-28; T-16/T-28 rút khỏi hàng LUỒNG 4 (LUỒNG 4 còn T-14). Không mở thêm phiên nào nữa. Đã sửa: mục LUỒNG 5 mới + hàng LUỒNG 4 + tiêu đề T-16/T-28 + hàng Antigravity trong BẢNG KÝ TÊN, không động mục khác. Ky: Muse
+
 Cập nhật 2026-10-27 ~22:42 bởi Antigravity (LUỒNG 1, ký: Antigravity): khôi phục ghi DONE T-24.3 (version 1.7.22, commit `c73ce23`); nhận tiếp T-24.4 `DOING` (ƯU TIÊN 20, LUỒNG 1) theo LUẬT ĐA LUỒNG. Ky: Antigravity
 
 Cập nhật 2026-10-27 ~22:40 bởi Muse (ký: Muse): **THU HỒI TOÀN BỘ VIỆC CỦA CÁC ACCOUNT CLAUDE PHỤ (lệnh chủ dự án 27/10 ~22:37 — "Thu hồi hết, kể cả việc đang dở")** — LUỒNG PHỤ 1/2/3 DỪNG hẳn: không nhận việc mới, không push thêm commit nào. Phân bổ lại: T-29 (Phu1 đang DOING dở) + T-26 -> LUỒNG 1 (hàng chờ sau cụm T-24); T-16 phần sửa NEEDS-FIX + T-28 -> LUỒNG 4 (sau T-14); T-22.3 phần còn lại (sửa IG báo gửi giả + DM Threads thật; spike code `d9d2a853` giữ nguyên làm nền) -> LUỒNG 3 (sau T-11). Đã sửa tương ứng: hàng chờ LUỒNG 1/3/4, mục LUỒNG PHỤ 1/2/3, tiêu đề T-16/T-22.3/T-26/T-28/T-29, BẢNG KÝ TÊN. Code các phía phụ đã lên main giữ nguyên, không revert. Ky: Muse
@@ -201,13 +203,17 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
   T-30 (nhận DOING) -> T-17 -> T-11 -> T-22.3 (phần còn lại: sửa IG báo gửi giả + DM Threads thật; spike code đã có ở `d9d2a853`). (Thu hồi từ LUỒNG PHỤ 1 theo lệnh chủ dự án 27/10 ~22:37.)
 - **LUỒNG 4 — Cổng model & còn lại**:
-  T-14 (đang DOING) -> T-16 (phần sửa NEEDS-FIX theo audit 22:36) -> T-28. (T-16 + T-28 thu hồi từ phía PHỤ về LUỒNG 4 theo lệnh chủ dự án 27/10 ~22:37; T-28 vẫn kẹt billing GitHub — cần phía Mac lấy log Actions.)
+  T-14 (đang DOING). (T-16 phần sửa + T-28 đã chuyển sang LUỒNG 5 theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên Antigravity.)
 
 - **LUỒNG PHỤ 1 — Muse phụ — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37: thu hồi toàn bộ việc của các account Muse phụ, kể cả việc đang dở):** hàng chờ đã dọn sạch — T-22.3 (phần còn lại) -> LUỒNG 3, T-28 -> LUỒNG 4, T-29 -> LUỒNG 1, T-26 -> LUỒNG 1. LUỒNG PHỤ 1 không nhận việc mới, không push thêm commit nào cho dự án này.
 
 - **LUỒNG PHỤ 2 — Muse phụ (ký: Phu2) — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37):** T-16 đã audit NEEDS-FIX (27/10 ~22:36), phần sửa thu hồi về LUỒNG 4. LUỒNG PHỤ 2 không nhận việc mới, không push thêm commit nào cho dự án này. (Phần T-16 Phu2 đã làm — cấu hình Đường A ở `ee04931` — giữ nguyên làm nền cho LUỒNG 4 sửa.)
 
 - **LUỒNG PHỤ 3 — Muse phụ (ký: Nori) — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37):** T-26 thu hồi về LUỒNG 1 trước khi bắt đầu (không mất gì). LUẬT LÀM LIÊN TỤC của LUỒNG PHỤ 3 hết hiệu lực cùng lệnh dừng này. LUỒNG PHỤ 3 không nhận việc mới, không push thêm commit nào cho dự án này.
+
+- **LUỒNG 5 — Cổng model: sửa lỗi + CI** (Antigravity, phiên thứ 5 trên máy Mac, worktree riêng; lập theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên, không mở thêm):
+  T-16 (phần sửa NEEDS-FIX theo audit 22:36 — lấy từ hàng LUỒNG 4) -> T-28 (lấy log GitHub Actions trên máy Mac, chẩn đoán CI đỏ; vẫn kẹt billing GitHub).
+  *Lưu ý:* phần sửa T-16 đụng `mulon/gateway.py` (vùng alias model) — LUỒNG 4 (T-14) tránh sửa vùng alias của gateway khi LUỒNG 5 đang làm T-16 và ngược lại; cả hai pull + rebase kỹ trước khi push. Ký commit `Ky: Antigravity` + nhãn `[L5]`.
 
 - **LUỒNG MUSE — Muse chính làm builder** (chạy trên VM của Muse, push qua GitHub connector; Muse vẫn giữ vai reviewer cho mọi luồng khác):
   T-25 (DONE ở 1.7.22, commit `8fe2e97`, chờ nghiệm thu chéo; còn 1 dòng hiển thị trong `telegram_bot.py` chờ T-24.3 lên main để nối tiếp).
@@ -229,7 +235,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–4 (máy Mac) | T-24.4, T-27, T-30, T-14 (đang DOING; T-24.3 DONE chờ Muse nghiệm thu) |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-24.4, T-27, T-30, T-14 (đang DOING; T-24.3 DONE chờ Muse nghiệm thu) |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -570,7 +576,7 @@ trong AGENTS.md mục 3.4 (sửa luật trong cùng đợt này):
   - Checklist parity liên quan: K2 (tách lớp OS), H3 (CLIProxyAPI — không đụng), M (tác vụ đời thật — bản cài tự định chủ). Không hardcode mới (không `/Users/`, `/Volumes/`, ID cá nhân trong code mới); không nới chốt bảo mật (auth bot + Mini App đều đối chiếu allowlist).
   - Trong cùng commit này Mac cũng nhận T-10.1 `DOING` (theo LUẬT HÀNG ĐỢI: T-15 DONE xong thì mục ƯU TIÊN 3 là tiếp theo — đúng thứ tự).
 
-### [T-16] Tích hợp muse2api — Giao: LUỒNG 4 (phần sửa NEEDS-FIX) — `NEEDS-FIX` — LUỒNG 4 (nền code của LUỒNG PHỤ 2 ở `ee04931`)
+### [T-16] Tích hợp muse2api — Giao: LUỒNG 5 (phần sửa NEEDS-FIX) — `NEEDS-FIX` — LUỒNG 5 (nền code của LUỒNG PHỤ 2 ở `ee04931`)
 - **Nhận việc — LUỒNG PHỤ 2 (2026-10-27 ~21:44 +07, theo lệnh chủ dự án qua chat phụ, ký: Phu2):** chuyển giao từ LUỒNG 4 sang LUỒNG PHỤ 2; làm theo Đường A đã chốt, không gọi thẳng 18610, không nới validate_proxy_base_url, không commit key thật.
 - **Kết quả — LUỒNG PHỤ 2 (2026-10-27, version 1.7.23, commit `ee0493125a44be1328d9e834bd94ddacc463424b`, ký: Phu2):**
   1. Version + commit: 1.7.23, commit `ee04931` trên main.
@@ -1276,7 +1282,7 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Thiếu/thừa từng màn: liệt kê đầy đủ ở mục 2.2 (Việc, Phê duyệt — xoá dữ liệu thử + thêm timestamp lịch sử, Lịch, Hồ sơ — bỏ ~400 nút lộ thiên + hết trùng bộ nhớ, Cài đặt — bỏ danh sách tool phẳng + chi tiết connector, Kho, Chợ — tìm kiếm/danh mục/phân trang, Feed — hết hardcode nhãn giờ).
 - Nghiệm thu (mục 2.3): render thật trước/sau từng màn + chạm thử 0 hàng chết + đo lại thời gian mở màn + đối chiếu checklist 2.1 từng dòng. Không nghiệm thu bằng lời.
 
-### [T-28] CI đỏ mọi commit — tìm chân gãy macOS/Windows — Giao: LUỒNG 4 — `TODO` (ƯU TIÊN 27; kẹt billing GitHub, cần log Actions phía Mac) — LUỒNG 4
+### [T-28] CI đỏ mọi commit — tìm chân gãy macOS/Windows — Giao: LUỒNG 5 — `TODO` (ƯU TIÊN 27; kẹt billing GitHub, cần log Actions phía Mac) — LUỒNG 5
 - **Nhận việc 2026-10-27 ~22:35 bởi LUỒNG PHỤ 1 (ký: Phu1):** khôi phục claim ở commit `8dd7914` đã bị restore ghi đè; T-22.3 vẫn DOING (kẹt ở DM thật, không ghi DONE/VERIFIED). Bước đầu: xác định job + test gãy macOS/Windows — connector GitHub của Muse không có tool đọc log Actions, sẽ thử đường trình duyệt vào tab Actions, nếu không vào được thì báo chặn rõ ràng (cần phía Mac mở tab Actions).
 - **Chuyển giao 2026-10-27 ~21:40 bởi Muse (lệnh chủ dự án):** từ LUỒNG 4 sang LUỒNG PHỤ 1; thứ tự trong LUỒNG PHỤ 1: T-22.3 -> T-28 -> T-29 -> T-26 -> T-25; chỉ LUỒNG PHỤ 1 nhận mục này.
 - Hiện tượng (chủ dự án phát hiện 27/10 03:27 qua app GitHub): gần như mọi commit gần đây đều bị đánh ✗. CI là `.github/workflows/ci.yml` (pytest trên ubuntu/macos/windows).
