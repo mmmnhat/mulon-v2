@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## 1.7.40 — 2026-10-28 — Đồng bộ README + docs và nghiệm thu chéo T-25 (T-32, LUỒNG 2 — ký: Antigravity [L2])
+
+- **Đồng bộ toàn diện `README.md` (T-32):**
+  - Cập nhật badges phiên bản 1.7.40, 700 tests passed, eval vàng 86%, hỗ trợ đa nền tảng (macOS / Windows / Linux).
+  - Phản ánh trung thực 100% các tính năng lớn đã hoàn thành từ chuỗi 1.7.x:
+    - Cổng model chính thức CLIProxyAPI loopback 8317 (`mulon/cliproxy.py`, T-14) & `muse2api` (`mulon/muse2api.py`, T-16).
+    - Thương hiệu & Mascot vũ trụ Mulon: catalog 4 mascot, đổi tên bot & mascot trực tiếp trong app, lưu bền KV store (`config/mascots.json`, T-13).
+    - Telegram Business Chatbot: tự rep giá catalog & soạn nháp STK/giảm giá qua thẻ duyệt DM chủ (`mulon/business.py`, T-29).
+    - Built-in Connectors: Google Workspace (Gmail, Calendar, Drive, Docs, Sheets, Keep, T-17), Facebook cá nhân 31 hành động & Threads cá nhân kết hợp Playwright Browser Bridge cho DM (T-30), Zalo cá nhân.
+    - Chuẩn hóa bề mặt lệnh Telegram: menu 10 lệnh tinh gọn, lệnh `/help` phân 3 nhóm trực quan, chặn tức thì mọi lệnh lạ (T-26).
+    - Trải nghiệm Telegram mượt mà: phản hồi xếp hàng ngay `⏳` (< 1s), chống chớp markdown thô qua HTML streaming, xóa dòng phân cách rác `---` (T-24.7).
+    - Mini App Design System 100% chuyên nghiệp: 60/30/10 tím Mulon `#7C3AED`, Bottom Sheet L3 chi tiết bước, Telegram WebApp SDK native (T-12, T-23, T-27).
+    - Parity hệ thống & Model tiers: đổi model trực tiếp trong chat/app, thiết lập API an toàn với kiểm tra kết nối sống, tự sửa mã nguồn & kiểm thử fail-safe (T-11).
+  - Hướng dẫn cài đặt nhanh đa nền tảng cho macOS, Windows (bổ sung `tzdata` múi giờ IANA và quyền hạn tệp NTFS), và Linux.
+  - Cập nhật bảng tra cứu lệnh Telegram và danh mục module mới trong dự án.
+- **Cập nhật chuẩn kiểm chứng `docs/muse-parity-checklist.md` (T-32):**
+  - Cập nhật trạng thái các mục parity theo verdict mới nhất: `G1` (ĐẠT - Google, FB, Threads, Zalo, Business), `H3` (ĐẠT - CLIProxyAPI), `H4` (ĐẠT MỨC GATEWAY - muse2api), `J1/J2` (ĐẠT - Design System & 60/30/10), `J5` (ĐẠT - Mascot & Brand), `J6` (ĐẠT - Native WebApp SDK), `K1/K2/K3` (ĐẠT - Đa nền tảng), `A3` (ĐẠT - Phản hồi xếp hàng ⏳).
+- **Cập nhật Bản đồ Mini App (T-32):**
+  - Viết mới `docs/sitemap-miniapp-v17.md` mô tả toàn diện kiến trúc sitemap 5 tab chính, màn con L2/L3, Bottom Sheet L3, card Cá nhân hoá, và tiêu chuẩn BackButton native.
+  - Đánh dấu cảnh báo superseded rõ ràng trong `docs/sitemap-miniapp-2026-10-27.md`.
+- **Nghiệm thu chéo T-25 (LUỒNG MUSE):**
+  - Kiểm tra độc lập logic hàm `cron_times_label` động trong `mulon/feed_auto.py`, `_upcoming_state` trong `mulon/webapp_server.py`, và dòng hiển thị Feed trong `mulon/telegram_bot.py`.
+  - 4/4 test trong `tests/test_v17_feed_time_label.py` PASSED 100%. Antigravity [L2] đóng dấu `VERIFIED` cho T-25.
+
 ## 1.7.39 — 2026-10-28 — Kiểm chứng sống tích hợp muse2api qua CLIProxyAPI trên macOS (T-16, LUỒNG 1 — ký: Antigravity [L1])
 
 - **Kiểm chứng sống 3 bước của T-16 trên máy Mac thật (`config/cliproxy-muse2api.example.yaml`, `AGENT_TASKS.md`, T-16):**
@@ -8,6 +32,7 @@
   - **Bước 3 (Tắt Docker muse2api kiểm tra degrade & khôi phục):** Tắt container bằng `docker stop muse2api`, gọi model Muse báo lỗi mạng rõ ràng (`GatewayError: gọi model thất bại sau 3 lần: litellm.InternalServerError`), trong khi model đối chứng khác qua cổng 8317 (`gemini-3.8-flash` -> `openai/gemini-3.8-flash-high`) vẫn gọi thành công bình thường (text `'Dạ?'`, 15.63s). Bật lại `docker start muse2api`, kiểm tra `/healthz` trả về `{"status":"ok"}` và gọi lại `model="muse-spark"` phục hồi thành công (text `'Mulon'`, 90.87s).
   - Cập nhật mẫu `config/cliproxy-muse2api.example.yaml` bổ sung cả hai alias `muse-spark` và `muse/muse-spark`.
   - Ghi nhận đầy đủ evidence vào mục `[T-16]` trong `AGENT_TASKS.md` để Muse chính đối chiếu nghiệm thu VERIFIED.
+>>>>>>> 47c0c58 (docs: synchronize README and docs with live system state, cross-verify T-25 (T-32, v1.7.39))
 
 ## 1.7.38 — 2026-10-28 — Parity hệ thống: connector/MCP/quyền/model/tự sửa (T-11, LUỒNG 5 — ký: Antigravity [L5])
 
@@ -32,7 +57,6 @@
   - Giữ vững chuẩn bảo mật 1.6: hành động đọc (`read`) được cho phép tự động; hành động ghi/xóa (`write`, `delete`) hoặc nhạy cảm bắt buộc phải qua thẻ phê duyệt (`ApprovalBroker`) gửi về DM của chủ nhân.
 - **Kiểm thử toàn diện (`tests/test_v17_t11_parity.py`, T-11):**
   - 10 unit tests mới bao phủ 100% các tiêu chí của T-11: tính toàn vẹn lệnh, /help phân nhóm, /the_duyet dev guard, /memory tóm tắt cấu trúc, /model 3 tiers & session override, tích hợp Agent session override, Mini App model API, /setup api kiểm tra kết nối sống, và tool self_verify_and_restart.
-
 
 - **Triển khai toàn diện Telegram Business Service (`mulon/business.py`, T-29):**
   - Quản lý vòng đời kết nối Bot API Telegram Business: nhận và lưu trữ trạng thái `business_connection`, tự động ngắt rep khi bị ngắt kết nối trong Telegram Settings và cảnh báo về DM chủ.

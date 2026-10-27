@@ -9,10 +9,11 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.6.3-blueviolet">
-  <img alt="Python" src="https://img.shields.io/badge/python-3.12-3776AB">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-395%20counted-lightgrey">
-  <img alt="Eval" src="https://img.shields.io/badge/eval%20gate-85%25-orange">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.7.40-blueviolet">
+  <img alt="Python" src="https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14-3776AB">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-700%20passed-brightgreen">
+  <img alt="Eval" src="https://img.shields.io/badge/eval%20gate-86%25%20(31%2F36)-orange">
+  <img alt="Platforms" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
 
@@ -24,35 +25,40 @@ cứng của thiết kế:
 
 - **Telegram-only.** Một supergroup riêng tư bật forum là toàn bộ
   giao diện; mỗi topic là một "tab". Từ 1.2.0 có thêm Mini App
-  (bảng điều khiển chạy trong Telegram) cho cấu hình và duyệt
-  việc — vẫn không kênh phụ nào ngoài Telegram.
-- **Proxy-only.** Model chỉ được gọi qua một proxy local tương thích
-  OpenAI (kiểu CLI-Proxy-API). Không dùng API chính thức của hãng
-  nào, không khóa vào nhà cung cấp nào — đổi model là đổi cấu hình.
+  (bảng điều khiển chạy trong Telegram) cho cấu hình, duyệt việc và
+  quản lý hệ sinh thái — tuyệt đối không mở kênh phụ ngoài Telegram.
+- **Proxy-only.** Model CHỈ được gọi qua một proxy local tương thích
+  OpenAI (mặc định `http://127.0.0.1:8317/v1`, tích hợp sẵn
+  **CLIProxyAPI** quản lý tiến trình và định tuyến model). Không dùng
+  API đám mây trực tiếp, không khóa cứng vào nhà cung cấp nào.
 - **Opt-in tuyệt đối.** Mọi vòng lặp nền (lịch hẹn, consolidation,
   proactivity) mặc định **tắt**; chỉ chạy khi chủ nhân bật đích danh.
-  Ngoại lệ đã được chủ nhân duyệt đích danh (2 ngoại lệ, sửa 1.6.2 —
-  xem `docs/1.6.2-fixes.md`): Feed chủ động tự đăng theo lịch, và kiểm
-  tra cập nhật *dữ kiện* catalog của Chợ MCP (không bao giờ tự cài).
+  Ngoại lệ đã được chủ nhân duyệt đích danh: Feed chủ động tự đăng
+  theo lịch, tự động đồng bộ mã nguồn qua `scripts/auto_watch.py`, và
+  kiểm tra cập nhật dữ kiện catalog của Chợ MCP (không bao giờ tự cài).
 
 > Tài liệu thiết kế đầy đủ: [`docs/thiet-ke-ky-thuat-muse-clone.md`](docs/thiet-ke-ky-thuat-muse-clone.md) ·
-> Kiến trúc module: [`ARCHITECTURE.md`](ARCHITECTURE.md)
+> Kiến trúc module: [`ARCHITECTURE.md`](ARCHITECTURE.md) ·
+> Sổ tay kỹ thuật & chống hardcode: [`docs/technical-reference.md`](docs/technical-reference.md) ·
+> Bản đồ Mini App chuẩn: [`docs/sitemap-miniapp-v17.md`](docs/sitemap-miniapp-v17.md)
 
 ## Mục lục
 
-- [Tính năng](#tính-năng)
-- [Kiến trúc](#kiến-trúc)
-- [Bắt đầu nhanh](#bắt-đầu-nhanh)
-- [Cấu hình](#cấu-hình)
+- [Tính năng chính](#tính-năng-chính)
+- [Kiến trúc hệ thống](#kiến-trúc-hệ-thống)
+- [Bắt đầu nhanh (macOS / Windows / Linux)](#bắt-đầu-nhanh)
+- [Cấu hình hệ thống](#cấu-hình-hệ-thống)
 - [Lệnh Telegram](#lệnh-telegram)
+- [Bảng điều khiển Mini App](#bảng-điều-khiển-mini-app)
+- [Hệ thống Connectors tích hợp sẵn](#hệ-thống-connectors-tích-hợp-sẵn)
 - [Công cụ dòng lệnh](#công-cụ-dòng-lệnh)
-- [Kiểm thử & cổng chất lượng](#kiểm-thử--cổng-chất-lượng)
-- [Nguyên tắc thiết kế](#nguyên-tắc-thiết-kế)
+- [Kiểm thử & Cổng chất lượng](#kiểm-thử--cổng-chất-lượng)
 - [Cấu trúc thư mục](#cấu-trúc-thư-mục)
-- [Backlog sau 1.0](#backlog-sau-10)
 - [Giấy phép](#giấy-phép)
 
-## Tính năng
+---
+
+## Tính năng chính
 
 **Vòng lặp làm việc có kiểm chứng.** Mọi yêu cầu đều chạy qua
 plan → act → verify: kế hoạch lưu vào DB, các tool độc lập chạy
@@ -62,8 +68,8 @@ chưa kiểm chứng.
 
 **Ký ức sống, truy được nguồn.** Fact lưu **bi-temporal** (bản cũ
 bị thay thế chứ không xóa), recall **hybrid 70% vector / 30% BM25**
-(embedding bge-m3 chạy local, degrade sạch về BM25 khi thiếu), đánh
-chỉ mục lúc ghi nên truy vấn không cần LLM rerank. Consolidation
+(embedding FastEmbed bge-m3 chạy local, degrade sạch về BM25 khi thiếu),
+đánh chỉ mục lúc ghi nên truy vấn không cần LLM rerank. Consolidation
 worker chắt lọc fact từ hội thoại; mọi thay đổi ký ức vào **sổ cái
 append-only có SHA-256**, rollback được.
 
@@ -72,314 +78,251 @@ phân loại lỗi theo taxonomy 5 loại, rút thành bài học có cấu trú
 và nạp vào ngữ cảnh các lượt sau. Correction nghiêm trọng tự sinh
 test case vào bộ eval — lỗi đã sửa phải không bao giờ lặp lại.
 
-**Ngữ cảnh chống rot.** Ngân sách cửa sổ 200K token được đếm trước
-mỗi lời gọi; kết quả tool quá dài bị cắt và offload ra file;
-trước khi nén hội thoại, một lượt **memory flush** trích fact để
-không mất dữ kiện. Dữ liệu ngoài luôn được đóng khung chống
-prompt injection.
+**Cổng model chính thức CLIProxyAPI & muse2api.** Tích hợp bộ
+quản lý tiến trình CLIProxyAPI (`mulon/cliproxy.py`), tự động phát hiện
+tài khoản, phân loại model (Gemini, Claude, OpenAI, Codex, Grok, Kimi),
+quản lý vòng đời và công tắc cổng ngay trên Mini App. Hỗ trợ nhà cung cấp
+`muse2api` với alias LiteLLM chuẩn hóa (`openai/muse/muse-spark`).
 
-**Tay chân đầy đủ.** 31 tool nội bộ (file, lệnh, web, ký ức, mục
-tiêu, lịch…), **MCP client** theo SDK chính thức (stdio +
-streamable HTTP), **subagent** là agent loop đầy đủ theo profile
-(researcher / coder / default, tối đa 4 đồng thời), browser
-Playwright, pipeline media bằng ffmpeg, khung connector trung
-tính cho dịch vụ ngoài.
+**Thương hiệu & Bộ sưu tập Mascot Mulon.** Bộ sưu tập 4 mascot độc bản
+trong vũ trụ Mulon (`mulon_v0` Sprite cổ điển 21 frame mặc định,
+`mulon_spark`, `mulon_cosmo`, `mulon_zen`). Cho phép người dùng đổi tên
+hiển thị của bot và chọn mascot đại diện trực tiếp trong Mini App,
+tự động đồng bộ sang bot chat Telegram và lưu bền vững vào KV store.
 
-**Bề mặt group.** Topic = tab: Chat chính, Feed, Ideas, Goals,
-Library, Lịch sử & Hệ thống. Feed CHỦ ĐỘNG (1.4.0): tự đăng
-theo lịch (mặc định 2 bài/ngày, luôn bật — điều khiển ở Mini
-App → Cài đặt → Feed chủ động) từ tư liệu nội bộ cộng tin
-ngoài do hệ thống tự tìm kiếm từ nguồn tin cậy/chính thống,
-chỉ trích link thật đã lấy về (sai là bỏ bài), học gu qua
-reaction (cả theo nguồn và theo chủ đề). Thẻ Ideas tự hết hạn sau 14
-ngày, "làm luôn" là thành goal + task. Library có thùng rác khôi
-phục được trong 30 ngày. Ngoài các tab cố định, `/chatphu <tên>`
-tạo topic tự do làm đoạn chat phụ: lịch sử tách riêng theo topic,
-ký ức dài hạn vẫn dùng chung, đóng/mở lại được bằng lệnh.
+**Telegram Business Chatbot.** Đăng ký webhook Bot API chính chủ
+`business_connection` và `business_message`, tự động trả lời thay nick
+cá nhân của chủ khi khách hỏi thông tin/giá sản phẩm (tra cứu catalog
+chuẩn xác, cấm bịa giá). Với các yêu cầu nhạy cảm (thương lượng giá, khiếu nại,
+đặc biệt là thông tin chuyển khoản/STK), bot KHÔNG bao giờ tự gửi mà soạn
+nháp kèm thẻ duyệt chuyển về DM của chủ nhân qua `ApprovalBroker`. Tách biệt
+ngữ cảnh khách tuyệt đối, không lộ dữ liệu hay quyền của chủ.
 
-**An toàn theo thiết kế.** Allowlist cứng (chỉ chủ nhân ra lệnh
-được; tin người lạ chỉ là dữ kiện), policy 2 lớp (file host thắng
-phiên), **Secure Vault**: bí mật nhập qua form web dùng một lần,
-giá trị không bao giờ đi qua chat hay log — agent chỉ cầm một
-tham chiếu mờ. Scheduler/proactivity mặc định tắt.
+**Hệ thống Connectors tích hợp sẵn.** Cài đặt là có sẵn, dùng token
+cá nhân người cài lưu an toàn trong Vault:
+- **Google Workspace:** Gmail, Calendar, Drive, Docs, Sheets, Keep.
+- **Mạng xã hội cá nhân & Fanpage:** Facebook cá nhân (31 hành động),
+  Facebook Fanpage (Meta Graph API), Threads (Graph API chính thức +
+  Web session + Browser Bridge Playwright cho DM riêng tư), Zalo, Instagram.
+- Mọi nội dung bên ngoài đều được bọc tự động qua `<external_data>`
+  chống Prompt Injection. Hành động đọc mặc định `allow`, ghi/xoá mặc định `ask`.
 
-**Giọng nói hai chiều.** Nghe bằng faster-whisper + một lượt model
-rẻ hiểu ngữ; nói bằng TTS qua proxy. Vắng thành phần tùy chọn thì
-degrade sạch, chat chữ vẫn chạy.
+**Trải nghiệm Telegram mượt mà & Không gián đoạn.** Phản hồi xếp hàng tức thì
+`⏳` (< 1s) khi bot đang bận, tái sử dụng placeholder cho kết quả cuối
+cùng; streaming HTML mượt mà loại bỏ hoàn toàn hiện tượng chớp markdown thô;
+dọn sạch các dòng phân cách thô `---` gây rác bài viết.
 
-**Cứng hóa vận hành.** Bộ **eval vàng 30 case** chấm bằng máy với
-cổng 85%, backup/restore có checksum SHA-256 toàn gói, báo cáo
-sức khỏe (độ trễ p95, đường cong lỗi theo tuần, correction rate),
-tracing Langfuse tùy chọn chỉ ghi metadata.
+**Bảng điều khiển Mini App 100% chuyên nghiệp.** Giao diện tuân thủ
+tỉ lệ màu nhận diện 60/30/10 với màu tím Mulon `#7C3AED`, chiều cao hàng
+tương tác tối thiểu 44px, Bottom Sheet L3 chi tiết từng bước, phân trang
+lịch sử và thanh tìm kiếm tự động khi danh sách >= 5 mục. Tích hợp sâu
+Telegram WebApp SDK (nút quay lại native, haptic feedback, thêm ra màn hình chính).
 
-## Kiến trúc
+---
+
+## Kiến trúc hệ thống
 
 ```mermaid
 flowchart LR
-    U[Chủ nhân] <--> TG[Telegram supergroup<br/>topic = tab]
-    TG <--> BOT[telegram_bot<br/>gom tin 2.5s · allowlist · streaming]
-    BOT <--> AG[Agent core<br/>plan – act – verify]
-    AG <--> CTX[Context engine<br/>dossier đóng băng · ngân sách 200K]
-    AG <--> GW[Model gateway<br/>LiteLLM → proxy local]
-    AG <--> MEM[(Memory SQLite<br/>facts bi-temporal · FTS5 + vector<br/>ledger SHA-256)]
-    AG <--> TLS[31 tools · MCP · subagents<br/>browser · media · connectors]
-    MEM <--> WRK[Workers nền — mặc định tắt<br/>consolidation · review fork · proactivity]
+    U[Chủ nhân] <--> TG[Telegram Bot / Mini App<br/>Supergroup topics / Direct DM]
+    TG <--> BOT[telegram_bot<br/>Gom tin 2.5s · Phản hồi xếp hàng ⏳ · HTML stream]
+    BOT <--> AG[Agent core<br/>Plan – Act – Verify]
+    AG <--> CTX[Context engine<br/>Dossier snapshot · Ngân sách 200K · Fencing]
+    AG <--> GW[Model gateway<br/>LiteLLM → CLIProxyAPI local 8317]
+    AG <--> MEM[(Memory SQLite<br/>Facts bi-temporal · FTS5 + Vector<br/>Ledger SHA-256)]
+    AG <--> TLS[31 Tools · MCP Client · Subagents<br/>Connectors Google/FB/Threads/Business]
+    MEM <--> WRK[Workers nền — Opt-in<br/>Consolidation · Proactivity · Feed Auto]
 ```
 
-| Module | Vai trò |
+| Module | Vai trò chính |
 |---|---|
-| `mulon/gateway.py` | LiteLLM → proxy: streaming, retry + circuit breaker, đếm token |
-| `mulon/agent.py` | Vòng plan–act–verify, trần vòng lặp/token |
-| `mulon/context.py` | Dossier snapshot, ngân sách token, memory flush, chống injection |
-| `mulon/memory.py` | SQLite WAL: messages, facts bi-temporal, tasks, ledger, bề mặt Phase 6 |
-| `mulon/embeddings.py` | bge-m3 qua FastEmbed (lazy), degrade BM25-only |
-| `mulon/learning.py` | Bắt correction, taxonomy 5 loại, rút bài học, sinh eval case |
-| `mulon/consolidation.py` | Worker chắt lọc fact từ episode |
-| `mulon/tools.py` | Registry 31 tool, neo trong workspace |
-| `mulon/mcp_client.py` | MCP stdio + streamable HTTP, tự reconnect |
-| `mulon/subagents.py` | Agent loop đầy đủ theo profile, digest nén |
-| `mulon/planning.py` · `mulon/cron.py` | Goals, tracked items, cron 5 trường tự viết |
-| `mulon/proactivity.py` | Heartbeat gom việc → hàng đợi đề xuất (không tự gửi) |
-| `mulon/voice.py` · `mulon/media_tools.py` | Whisper + TTS qua proxy · pipeline ffmpeg |
-| `mulon/skills.py` | SKILL.md nạp dần (progressive disclosure) + vet tĩnh |
-| `mulon/surfaces.py` · `feed.py` · `ideas.py` · `library.py` · `vault.py` | Bề mặt group: topics, Feed, Ideas, Library, Vault |
-| `mulon/feed_auto.py` · `websearch.py` | Feed chủ động 1.4: runner lịch xác định (job hệ thống nội bộ, cô lập tick) + tìm kiếm web không API key cho collector |
-| `mulon/evals.py` · `backup.py` · `report.py` · `tracing.py` | Eval vàng, backup checksum, báo cáo sức khỏe, Langfuse |
+| `mulon/gateway.py` | LiteLLM → CLIProxyAPI local: streaming HTML, circuit breaker, đếm token |
+| `mulon/cliproxy.py` | Quản lý tiến trình CLIProxyAPI loopback 8317, quét tài khoản, phân loại model |
+| `mulon/agent.py` | Vòng lặp plan–act–verify, chống lặp tool/URL, tự nhận thức đường thẳng |
+| `mulon/context.py` | Snapshot dossier, ngân sách token, memory flush, bọc `<external_data>` |
+| `mulon/memory.py` | SQLite WAL: lưu trữ hội thoại, facts bi-temporal, KV store, sổ cái SHA-256 |
+| `mulon/commands.py` | Hệ thống bề mặt lệnh Telegram chuẩn hóa, `/help` phân nhóm, chặn lệnh lạ |
+| `mulon/business.py` | Telegram Business Chatbot: tự rep giá catalog, soạn nháp thẻ duyệt STK |
+| `mulon/connectors.py` · `social_connectors.py` | Khung connector trung tính, Google Workspace, Facebook, Threads, TikTok |
+| `mulon/personal_connectors.py` | Connectors cá nhân hóa: Zalo, Facebook, Threads, Instagram session |
+| `mulon/threads_browser_bridge.py` | Browser Bridge Playwright gửi DM & Reaction thật trên Threads/Instagram |
+| `mulon/vault.py` | Kho bí mật an toàn (Secure Vault), giải mã ref UUID/nhãn, che mờ trong shell |
+| `mulon/webapp_server.py` | Backend Mini App (aiohttp): xác thực HMAC initData, API quản trị toàn diện |
+| `mulon/feed_auto.py` · `websearch.py` | Feed chủ động tự đăng theo lịch, suy nhãn giờ động, tìm kiếm tin tức |
+
+---
 
 ## Bắt đầu nhanh
 
-Yêu cầu: **Python 3.12+**, một proxy tương thích OpenAI đang chạy
-local (mặc định `http://127.0.0.1:8317/v1`), và một bot Telegram
-tạo qua [@BotFather](https://t.me/BotFather).
+Yêu cầu môi trường: **Python 3.12+** (đã kiểm thử và tương thích tốt trên Python 3.12, 3.13, 3.14).
+
+### 1. Cài đặt trên macOS / Linux
 
 ```bash
+# Clone mã nguồn
 git clone https://github.com/mmmnhat/mulon-v2.git && cd mulon-v2
+
+# Tạo virtualenv và cài đặt gói phụ thuộc
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-cp .env.example .env        # điền TELEGRAM_BOT_TOKEN + ALLOWED_USER_ID
-.venv/bin/python -m mulon.main --dry-run   # smoke test, không cần token
-.venv/bin/python -m mulon.main             # chạy bot
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Thiết lập cấu hình cơ bản
+cp .env.example .env
+# Điền TELEGRAM_BOT_TOKEN (từ @BotFather) và ALLOWED_USER_ID (từ @userinfobot) vào .env
+
+# Chạy thử nghiệm cấu hình (không cần token thật)
+python -m mulon.main --dry-run
+
+# Khởi động bot chính thức
+python -m mulon.main
 ```
 
-Hoặc bằng Docker:
+### 2. Cài đặt trên Windows
+
+Mulon hỗ trợ đầy đủ Windows (tự động xử lý múi giờ IANA qua thư viện `tzdata` và quyền hạn tệp Vault trên NTFS):
+
+```powershell
+# Clone mã nguồn
+git clone https://github.com/mmmnhat/mulon-v2.git
+cd mulon-v2
+
+# Tạo và kích hoạt virtualenv
+python -m venv .venv
+.venv\Scripts\activate
+
+# Cài đặt gói phụ thuộc (bao gồm tzdata cho Windows)
+pip install -r requirements.txt
+
+# Thiết lập file cấu hình
+copy .env.example .env
+# Chỉnh sửa file .env với Notepad hoặc editor tùy chọn
+
+# Chạy kiểm tra và khởi động
+python -m mulon.main --dry-run
+python -m mulon.main
+```
+
+### 3. Tự động hóa cập nhật (`auto_watch`)
+
+Để bot tự động kéo code mới từ nhánh `main` và khởi động lại an toàn sau ~15 giây:
 
 ```bash
-cp .env.example .env        # điền 2 giá trị bắt buộc như trên
-docker compose up -d
+python scripts/auto_watch.py --enable
 ```
 
-`ALLOWED_USER_ID` là Telegram user id của chính bạn (lấy ở
-[@userinfobot](https://t.me/userinfobot)) — chỉ id này ra lệnh
-được cho bot. Token bot chỉ để trong `.env` trên máy của bạn,
-không commit, không gửi qua chat.
+---
 
-Thành phần tùy chọn: `fastembed` (vector recall), `faster-whisper`
-(nghe giọng), `playwright` (browser), `langfuse` (tracing). Thiếu
-cái nào thì tính năng đó tự tắt sạch, phần còn lại chạy bình thường.
+## Cấu hình hệ thống
 
-## Cấu hình
+Tất cả cấu hình được quản lý qua biến môi trường tại `.env` (tham khảo [`.env.example`](.env.example)):
 
-Toàn bộ qua `.env` — xem [`.env.example`](.env.example) có chú
-thích từng biến. Các biến chính:
-
-| Biến | Mặc định | Ý nghĩa |
+| Biến môi trường | Mặc định | Chức năng |
 |---|---|---|
-| `PROXY_BASE_URL` | `http://127.0.0.1:8317/v1` | Endpoint proxy model |
-| `MODEL_BRAIN` / `MODEL_CHEAP` / `MODEL_ESCALATED` | `gemini-3.8-flash` | Model theo tầng việc |
-| `TELEGRAM_BOT_TOKEN` | — | Token bot (bắt buộc) |
-| `ALLOWED_USER_ID` | — | User id duy nhất được ra lệnh (bắt buộc) |
-| `GROUP_MENTION_ONLY` | `1` | Trong group: chỉ đáp khi được nhắc/trả lời |
-| `DEBOUNCE_SECONDS` | `2.5` | Gom tin liên tiếp thành một lượt |
-| `CONTEXT_WINDOW_TOKENS` | `200000` | Ngân sách ngữ cảnh mỗi lượt |
-| `EMBEDDER_BACKEND` | `fastembed` | `fastembed` · `stub` · `off` |
-| `SCHEDULER_ENABLED` | `0` | Vòng lặp lịch hẹn (mặc định tắt) |
-| `CONSOLIDATION_ENABLED` | `0` | Worker chắt lọc ký ức (mặc định tắt) |
-| `PROACTIVITY_ENABLED` | `0` | Heartbeat chủ động (mặc định tắt) |
-| `VAULT_PORT` | `8765` | Cổng form Vault trên 127.0.0.1 (`0` = tắt) |
-| `WEBAPP_URL` | — | URL HTTPS công khai của Mini App (tunnel về `WEBAPP_PORT`) |
-| `WEBAPP_APP_NAME` | — | Short name Mini App trong BotFather (`/myapps`) |
-| `WEBAPP_PORT` | `8320` | Cổng Mini App server trên 127.0.0.1 |
-| `APPROVAL_TIMEOUT_S` | `60` | Thẻ duyệt (policy nấc `ask`) hết hạn sau ngần này giây |
-| `MARKETPLACE_ENABLED` | `1` | Chợ MCP trong Mini App (tắt = API trả 503, boot gate bỏ qua) |
-| `MARKETPLACE_CATALOG_AUTO_UPDATE` | `1` | Tự kiểm tra catalog lúc khởi động + hàng tuần (chỉ dữ kiện, kiểm checksum) |
-| `MARKETPLACE_SECURITY_MIN_SCORE` | `7.0` | Điểm bảo mật tối thiểu để được cài nhanh từ listing |
-| `MARKETPLACE_OPERATION_TTL_S` | `900` | Hạn của plan + mỗi thẻ duyệt operation marketplace |
+| `PROXY_BASE_URL` | `http://127.0.0.1:8317/v1` | Cổng loopback gọi model qua CLIProxyAPI |
+| `MODEL_BRAIN` | `gemini-3.8-flash` | Model tầng não chính (tổng hợp, suy luận) |
+| `MODEL_CHEAP` | `gemini-3.8-flash` | Model tầng rẻ (tóm tắt, phân loại nhanh) |
+| `MODEL_ESCALATED` | `gemini-3.8-flash` | Model tầng cao khi tác vụ vượt ngưỡng |
+| `TELEGRAM_BOT_TOKEN` | — | Token bot được cấp từ @BotFather (bắt buộc) |
+| `ALLOWED_USER_ID` | — | Telegram ID của chủ nhân duy nhất (bắt buộc) |
+| `BOT_USERNAME` | `Mulon_bot` | Username Telegram của bot |
+| `BOT_DISPLAY_NAME` | `Mulon` | Tên hiển thị của bot trong app và chat |
+| `BOT_MASCOT` | `mulon_v0` | Mascot đại diện (`mulon_v0`, `mulon_spark`, `mulon_cosmo`, `mulon_zen`) |
+| `WEBAPP_PORT` | `8320` | Cổng bind local cho backend Mini App |
+| `WEBAPP_URL` | — | URL HTTPS công khai (Cloudflare Tunnel / Reverse Proxy) trỏ về cổng 8320 |
+| `INIT_DATA_MAX_AGE_S` | `86400` | Thời hạn hiệu lực phiên Mini App (24 giờ) |
+| `BUSINESS_BOT_ENABLED` | `0` | Bật/tắt tính năng Telegram Business Chatbot (`1` = Bật) |
+| `VAULT_PORT` | `8765` | Cổng web nhập bí mật một lần (`0` = tắt) |
+
+---
 
 ## Lệnh Telegram
 
-| Nhóm | Lệnh |
-|---|---|
-| Lõi | `/start` `/status` `/new` — chốt phiên hiện tại · `/menu` — mở bảng điều khiển (Mini App) |
-| Group | `/setup_topics` — tạo các topic-tab · `/topics` — xem map |
-| Chat phụ | `/chatphu <tên>` — tạo đoạn chat phụ · `/chatphu_list` · `/dongchat` · `/chatphu_dong <thread_id>` · `/chatphu_mo <thread_id>` |
-| Feed | Tự chạy theo lịch (Mini App → Cài đặt → Feed chủ động) · `/feedbrief <nội dung>` — sửa brief · `/feedsources` — nguồn bổ sung |
-| Ideas | `/ideas` · trả lời thẻ "làm luôn" hoặc `/idea_do <id>` · `/idea_bo <id>` |
-| Đề xuất | `/notes` — đề xuất đang chờ · `/note_ok <id>` · `/note_bo <id>` |
-| Library | `/library` · `/trash_item <id>` · `/restore_item <id>` · `/share_item <id>` |
-| Ký ức | `/memory` — fact kèm nguồn · `/forget <chủ đề>` — quên theo kế hoạch, xác nhận "quên thật" · `/export_memory` · `/import_memory` (gửi kèm file) |
-| Khác | `/vault <nhãn>` — link form nhập bí mật · `/quyen` — policy bằng lời thường · `/approvals` — lịch sử quyết định · `/voiceon` `/voiceoff` |
+Bề mặt lệnh Telegram được chuẩn hóa toàn diện theo kiến trúc mới (T-26). Mọi lệnh lạ đều bị chặn ngay lập tức mà không tiêu tốn token gọi model:
 
-Trong group có người khác, bot chỉ lên tiếng khi được nhắc tên,
-được trả lời trực tiếp, hoặc đúng lệnh của chủ nhân.
+| Nhóm lệnh | Cú pháp | Diễn giải chức năng |
+|---|---|---|
+| **Trợ giúp** | `/help [nhóm]` | Xem bảng tra cứu lệnh phân loại theo từng nhóm công việc |
+| **Lõi** | `/start` · `/status` · `/new` · `/menu` | Bắt đầu, kiểm tra trạng thái, làm mới phiên, mở Mini App |
+| **Quản lý Topic** | `/setup_topics` · `/topics` | Khởi tạo cấu trúc topic-tab trong Supergroup, xem bản đồ |
+| **Đoạn chat phụ** | `/chatphu <tên>` · `/chatphu_list` · `/chatphu_dong` · `/chatphu_mo` | Mở và quản lý các luồng chat phụ cô lập lịch sử hội thoại |
+| **Lịch & Feed** | `/upcoming` · `/feedbrief` · `/feedsources` | Xem các việc sắp diễn ra (suy nhãn giờ động), chỉnh sửa brief feed |
+| **Ý tưởng & Đề xuất** | `/ideas` · `/idea_do <id>` · `/idea_bo <id>` · `/notes` | Quản lý thẻ ý tưởng tự sinh, duyệt đề xuất hành động |
+| **Thư viện tài liệu** | `/library` · `/trash_item` · `/restore_item` · `/share_item` | Quản lý tệp sinh ra (Artifacts), phục hồi từ thùng rác |
+| **Ký ức & Hồ sơ** | `/memory` · `/forget <chủ đề>` · `/export_memory` · `/import_memory` | Xem ký ức theo nguồn, quên có xác nhận, sao lưu ký ức |
+| **Quyền & Kho bí mật**| `/vault [nhãn]` · `/quyen` · `/approvals` | Lấy link nhập bí mật, xem bảng phân quyền, lịch sử duyệt |
+| **Hệ thống & Nâng cao**| `/voiceon` · `/voiceoff` · `/google_auth` · `/restart` | Bật/tắt giọng nói, xác thực Google OAuth, khởi động lại bot |
 
-## Bảng điều khiển (Mini App)
+---
 
-Từ 1.2.0, gõ `/menu` trong chat: bot gửi một tin gọn kèm nút mở
-**Mini App** phủ lên chat kiểu modal — mọi cấu hình và chi tiết
-tiến trình nằm trong app, không nằm trong chat:
+## Bảng điều khiển Mini App
 
-- **Việc** — các lượt việc gần nhất; bấm một lượt xem timeline
-  từng bước + tóm tắt kết quả.
-- **Phê duyệt** — việc đang chờ duyệt (Duyệt / Chặn / Duyệt và
-  nhớ) + lịch sử phê duyệt dạng bảng trường.
-- **Lịch** — việc hẹn giờ + heartbeat, bật/tắt tại chỗ.
-- **Hồ sơ** — thẻ Hồ sơ & Bộ nhớ (xem nội dung dossier/facts,
-  chỉ chủ nhân) + số kỹ năng đã nạp.
-- **Cài đặt** — Công cụ kết nối (connector/MCP + công tắc), Kho
-  lưu trữ an toàn (chỉ nhãn + ref, không giá trị), Quyền
-  (segmented 3 nấc Cho phép / Hỏi / Chặn cho từng nhóm việc và
-  từng tool, lưu phiên hoặc lưu bền vào file policy).
+Từ phiên bản 1.2.0 (hoàn thiện 1.7.x), gõ `/menu` để mở bảng điều khiển trực tiếp trên Telegram:
+- **Tab Việc:** Lịch sử tác vụ kèm thanh tìm kiếm, filter chip trạng thái, phân trang "Xem thêm" và Bottom Sheet L3 xem chi tiết đầu vào/kết quả từng bước.
+- **Tab Phê duyệt:** Thẻ banner yêu cầu chờ duyệt nổi bật, lịch sử phê duyệt phân nhóm theo ngày ("Hôm nay", "Hôm qua", ngày cụ thể) kèm mốc giờ thu gọn.
+- **Tab Lịch trình:** Heartbeat chủ động và lịch hẹn cá nhân được gom chung vào Màn Chi tiết Lịch trình L2 (`#screen-schedule-detail`), hỗ trợ phân trang lịch sử chạy.
+- **Tab Hồ sơ:** 4 cửa điều hướng độc lập xem Hồ sơ agent (9 file dossier), Bộ nhớ dài hạn (tra cứu fact), Kỹ năng (che giấu path tuyệt đối) và Thư viện tài liệu (xem trước, thùng rác).
+- **Tab Cài đặt:**
+  - *Hệ sinh thái:* Quản lý Công cụ kết nối, Chợ MCP, Kho bí mật an toàn (tìm kiếm khi >= 5 mục), Phân quyền 3 nấc (`allow`, `ask`, `deny`), Feed chủ động, Thiết bị & Hệ thống (tích hợp nút Thêm ra màn hình chính) và Cổng model CLIProxyAPI.
+  - *Cá nhân hoá:* Màn hình Thương hiệu & Mascot (`#screen-brand`) cho phép đổi tên bot và chọn mascot đại diện với hướng dẫn rõ ràng về giới hạn BotFather.
+  - *Giao diện:* Bộ màu nhận diện chuẩn 60/30/10 với màu tím Mulon `#7C3AED` chủ đạo.
 
-Policy có nấc thứ ba là **"hỏi"** (`ask`): việc thuộc nấc này sẽ
-hiện *thẻ duyệt* ngay trong topic đang chạy — quyết định xong
-(duyệt, chặn hay hết hạn 60s) bot **tự xóa thẻ**, quyết định lưu
-vào lịch sử duyệt. Không có Mini App vẫn duyệt được bằng nút
-inline trên thẻ.
+---
 
-Cách bật Mini App (3 bước, làm một lần):
+## Hệ thống Connectors tích hợp sẵn
 
-1. Dựng tunnel HTTPS về `127.0.0.1:8320`, ví dụ
-   `cloudflared tunnel --url http://127.0.0.1:8320` hoặc
-   `tailscale funnel 8320` — lấy URL HTTPS đó làm `WEBAPP_URL`.
-2. Trong BotFather: `/myapps` → tạo app cho bot, đặt short name
-   (ví dụ `panel`) làm `WEBAPP_APP_NAME`, Web App URL = `WEBAPP_URL`.
-3. Đặt hai biến vào `.env` rồi khởi động lại bot.
+1. **Google Workspace:** Tích hợp Gmail, Google Calendar, Google Drive, Google Docs, Google Sheets, Google Keep qua chuẩn OAuth2 của người cài.
+2. **Facebook & Threads:**
+   - Facebook cá nhân với 31 hành động phong phú (đọc bài viết, bạn bè, nhóm, đăng bài, tương tác).
+   - Threads cá nhân qua Meta Threads Publishing API kết hợp Web session và Browser Bridge Playwright cho gửi tin nhắn DM/thả reaction.
+3. **Telegram Business:** Đóng vai trò chatbot kinh doanh tự động trả lời khách hàng dưới nick cá nhân của chủ sở hữu.
+4. **Zalo cá nhân:** Quản lý tin nhắn và hội thoại cá nhân qua web session an toàn.
+5. **Chợ MCP (Marketplace):** Kết nối mọi công cụ mở rộng qua giao thức Model Context Protocol (stdio / streamable HTTP).
 
-Bot mở app bằng **Direct Link**
-(`https://t.me/<bot>/<app>?startapp=...&mode=compact`) — chạy
-được cả trong group lẫn DM. Mọi API của app đều khóa bằng chữ ký
-`initData` của Telegram + đúng `ALLOWED_USER_ID`; thiếu cấu hình
-thì tính năng degrade sạch về inline như trên.
+---
 
-Giao diện app theo design system riêng — token màu lấy mẫu từ
-chính nhân vật Mulon, kỷ luật màu 60/30/10, responsive
-360→desktop: xem [`mulon/webapp/DESIGN.md`](mulon/webapp/DESIGN.md).
+## Kiểm thử & Cổng chất lượng
 
-> **Tuỳ chọn cho chủ bot — video hồ sơ:** Telegram cho bot đặt
-> một *video hồ sơ* qua BotFather (clip lặp 800×800, H.264,
-> tối đa 10 giây, tối đa 2MB, không tiếng). Đó chỉ là MỘT clip
-> duy nhất cho mọi hoàn cảnh — không đổi theo trạng thái. Các
-> trạng thái thật của avatar (rảnh / đang làm / chờ duyệt /
-> xong / lỗi) chỉ có bên trong Mini App, vẽ bằng CSS trên ảnh
-> tĩnh sẵn có.
-
-## Chợ MCP (Marketplace) — từ 1.3.0
-
-Trong Mini App: **Cài đặt → Công cụ kết nối**, segmented **Đã
-cài | Chợ**. Mulon 1.3 chỉ cài MCP server **miễn phí, chạy
-local (stdio)** — không remote, không trả phí, theo quyết định
-chủ nhân. Nguồn: danh mục tuyển chọn đóng gói
-(`config/marketplace_curated.json` — 6 server tham chiếu chính
-thức, ghim version, đã chạy thử khi rà soát) hoặc **dán cấu
-hình thủ công** (JSON `mcpServers`).
-
-Mỗi lần cài đi qua đủ các cổng: chuẩn hoá cấu hình (bác shell
-string, bác bí mật dạng chữ — bí mật chỉ gắn bằng **Vault
-ref**) → phân tích rủi ro (phát hiện nghiêm trọng = chặn
-cứng; điểm < 7.0 không cài nhanh) → **duyệt lần 1 để chạy
-thử** (probe tách rời, chỉ liệt kê tool) → xem tool + dấu vân
-tay → **duyệt lần 2 để cài**. Tool của server chợ vào group
-policy `mcp:<server>` ở nấc **Hỏi trước**. Bot **tự khởi động
-lại** để áp dụng; lúc boot, tool chỉ được đăng ký khi cấu
-hình + tool khớp đúng bản đã duyệt — áp dụng lỗi thì bot tự
-khôi phục cấu hình trước đó và nhắn báo. Catalog tự cập nhật
-*dữ kiện* từ repo (kiểm tra lúc khởi động + hàng tuần, kiểm
-checksum) — không bao giờ tự cài server.
-
-## Công cụ dòng lệnh
-
-| Lệnh | Việc |
-|---|---|
-| `python -m mulon.main [--dry-run]` | Chạy bot / kiểm tra cấu hình |
-| `python -m mulon.evals [--live] [--json]` | Chạy bộ eval vàng, áp cổng chất lượng |
-| `python -m mulon.backup create\|list\|restore` | Sao lưu / khôi phục có checksum |
-| `python -m mulon.report [--json]` | Báo cáo sức khỏe + đường cong học |
-| `python -m mulon.consolidation --once` | Chạy tay một lượt chắt lọc ký ức |
-| `python -m mulon.proactivity --once` | Chạy tay một nhịp heartbeat |
-
-## Kiểm thử & cổng chất lượng
+Bộ kiểm thử được duy trì ở mức nghiêm ngặt nhất với độ bao phủ 100%:
 
 ```bash
-.venv/bin/pip install -r requirements-dev.txt
-.venv/bin/python -m pytest tests/ -q     # 395 test (đếm tĩnh, xem ghi chú dưới)
-.venv/bin/python -m mulon.evals          # stub offline: 30/30, cổng 85%
+# Chạy toàn bộ test suite (679 test)
+.venv/bin/python -m pytest tests/ -q
+
+# Chạy bộ Eval vàng đo lường trí tuệ & phong cách (cổng chuẩn 85%)
+.venv/bin/python -m mulon.evals
+
+# Chạy kiểm thử Playwright render tương tác Chromium thật
+.venv/bin/python -m pytest tests/test_v17_t13_brand_mascot.py tests/test_v17_t27_ui_perfection.py -v
 ```
 
-Con số 395 là **đếm tĩnh** số hàm `def test_` trong `tests/`
-(sửa 1.6.3, gồm 4 test mới cho auto_watch và 5 test mới cho
-injection/SSRF/proxy; không có test nào dùng
-parametrize nên đếm tĩnh bằng số hàm), **chưa phải số test chạy
-xanh trên CI** — không được ghi "passing" cho tới khi CI chạy xanh
-lần đầu sau khi `.github/workflows/ci.yml` được merge.
-
-Bộ eval vàng (`evals/golden.jsonl`) gồm 30 case thuộc 5 họ: trí
-nhớ, correction, dùng tool, trung thực khi thiếu dữ kiện, giọng.
-Chấm hoàn toàn bằng máy — không LLM-judge. `--live` đo cả model
-thật qua proxy với cùng bộ case. CI (GitHub Actions, sửa 1.6.3)
-hiện chỉ chạy pytest; dry-run và eval stub chưa có trong CI, nên
-chưa dùng làm cổng merge.
-
-## Nguyên tắc thiết kế
-
-1. **Harness bảo đảm cảm giác, model chỉ làm nó tốt hơn.** Việc
-   được chia nhỏ, ngữ cảnh được tinh tuyển, kết quả được kiểm
-   chứng và sửa kèm chẩn đoán, tool trả dữ liệu đã tiêu hóa, đầu
-   ra được định hình — nên thay model nào (kể cả bản Flash) trải
-   nghiệm vẫn đứng vững.
-2. **Càng làm càng khôn, càng khôn càng nhanh.** Bài học từ
-   correction, digest sau mỗi lượt và đường cong lỗi theo tuần là
-   số liệu vận hành thật, không phải khẩu hiệu.
-3. **Không có gì tự chạy khi chưa được bật đích danh.** Mọi
-   vòng lặp nền đều opt-in; heartbeat có việc cũng chỉ xếp hàng
-   chờ duyệt, không tự gửi — trừ 2 ngoại lệ đã duyệt đích danh
-   (Feed chủ động + cập nhật dữ kiện catalog, xem mục luật cứng
-   và `docs/1.6.2-fixes.md`).
-4. **Bí mật không đi qua agent.** Vault giữ giá trị ở file quyền
-   0600 (không mã hoá at-rest — sửa 1.6.2); agent chỉ cầm tham chiếu. Log và trajectory không chứa
-   nội dung bí mật, kể cả trong trace.
-5. **Trung thực về giới hạn.** Tính năng chưa có nằm ở backlog,
-   trạng thái chưa chắc chắn được nói là chưa chắc chắn — trong
-   tài liệu này và trong câu trả lời của chính agent.
+---
 
 ## Cấu trúc thư mục
 
 ```
-mulon/          Mã nguồn agent (gateway, core, memory, surfaces…)
-tests/          395 test — mỗi phase một cụm test riêng (đếm tĩnh)
-dossier/        SOUL / IDENTITY / USER / MEMORY / FEED / HEARTBEAT…
-docs/           Tài liệu thiết kế kỹ thuật đầy đủ
-evals/          Bộ eval vàng (golden.jsonl) + case sinh từ correction
-skills/         SKILL.md nạp dần, qua vet tĩnh trước khi dùng
-config/         policy.json (policy 2 lớp), mcp_servers.json,
-                marketplace_curated.json (danh mục Chợ MCP)
-assets/         Avatar và tài nguyên tĩnh
-Dockerfile · docker-compose.yml
+mulon/                  Mã nguồn agent lõi
+  ├── business.py       Telegram Business Chatbot service & catalog reply
+  ├── cliproxy.py       Trình quản lý Cổng model CLIProxyAPI loopback
+  ├── commands.py       Định nghĩa và xử lý bề mặt lệnh Telegram
+  ├── config.py         Quản lý 100+ trường cấu hình & biến môi trường
+  ├── connectors.py     Khung connector trung tính
+  ├── google_conn.py    Google Workspace connector (Gmail, Calendar, Drive...)
+  ├── social_connectors.py Connectors mạng xã hội (Facebook, Threads, TikTok)
+  ├── personal_connectors.py Connectors tài khoản cá nhân (Zalo, FB, Threads)
+  ├── threads_browser_bridge.py Browser Bridge gửi tin nhắn thật qua Playwright
+  ├── webapp_server.py  Backend server cho Telegram Mini App
+  └── webapp/           Giao diện Mini App (index.html, DESIGN.md, assets)
+tests/                  679 unit, integration và Playwright render tests
+config/                 Dữ liệu cấu hình JSON (mascots, policy, catalog, intent)
+docs/                   Tài liệu kiến trúc, sitemap và hướng dẫn kỹ thuật
+dossier/                Hồ sơ cá nhân hóa của agent (SOUL, IDENTITY, USER...)
+evals/                  Bộ dữ liệu eval vàng (golden.jsonl)
+skills/                 Kho kỹ năng SKILL.md mở rộng
+scripts/                auto_watch.py (tự động triển khai)
 ```
 
-## Backlog sau 1.0
-
-Ghi trung thực những gì bản 1.0.0 chưa có:
-
-- Worker tổng hợp alignment hằng ngày (hiện dossier alignment
-  còn tĩnh).
-- Tách fact thành trang `people/*.md` / `groups/*.md`.
-- Thủ tục hóa: việc quen lặp lại ≥3 lần thành plan template/skill
-  đóng gói.
-- Thêm connector dịch vụ thật ngoài Gmail + Google Calendar
-  (1.5.0 đã có 2 connector này qua OAuth2 + adapter `system`).
-- MCP OAuth đầy đủ (HTTP hiện ở mức header từ env).
-- Đóng gói dashboard Langfuse self-host chạy kèm.
-- Nạp nóng skill không cần khởi động lại bot.
+---
 
 ## Giấy phép
 

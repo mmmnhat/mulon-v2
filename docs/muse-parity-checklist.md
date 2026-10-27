@@ -27,7 +27,7 @@
 |---|---|---|---|
 | A1 | Gộp tin (batching) | Nhiều tin vụn liên tiếp = MỘT lượt xử lý; không trả lời từng mẩu | Test: gửi 4-5 tin rời trong cửa sổ debounce => đúng 1 lượt trả lời, nội dung gộp đủ ý |
 | A2 | Debounce cấu hình được | Cửa sổ chờ gom tin là config, không hardcode | Config field + test đổi giá trị có hiệu lực |
-| A3 | Tin đến giữa chừng | Xếp hàng vào lượt kế hoặc ngắt khi người dùng đổi ý rõ ràng; không mất tin | Test: gửi tin khi bot đang xử lý => được xử lý tiếp, không nuốt |
+| A3 | Tin đến giữa chừng | Xếp hàng vào lượt kế hoặc ngắt khi người dùng đổi ý rõ ràng; không mất tin | ĐẠT (T-24.7) — Gửi tin khi bot bận lập tức nhận xác nhận ⏳ (<1s), tái sử dụng placeholder cho kết quả cuối, tự hủy khi /cancel |
 | A4 | Tiến trình khi đang làm | Việc dài có cập nhật tiến trình nhìn thấy được (sửa tin nhắn), không im lặng | Test sống: việc >30s có ít nhất 1 tin tiến trình trước kết quả |
 | A5 | Chia việc sub-agent | Việc nhiều bước độc lập chạy song song qua sub-agent, tổng hợp 1 trả lời; trạng thái thấy được ở tab Việc | Test/eval: task 3 nhánh độc lập chạy song song, kết quả gộp đúng |
 | A6 | Cách reply | Ngắn, đúng ý, giữ mạch; tách nhiều bong bóng khi hợp lý; không văn mẫu chatbot | Eval vàng so sánh phong cách + chủ dự án duyệt mẫu |
@@ -95,10 +95,10 @@
 
 | ID | Hạng mục | Hành vi chuẩn Muse | Trạng thái nền |
 |---|---|---|---|
-| G1 | Connector tích hợp sẵn | TikTok, Facebook Page, Threads, Instagram, Google Workspace cài là có, tài khoản của người cài, token ở Vault | CHƯA — T-17 (Google có nền 1.5/1.6) |
+| G1 | Connector tích hợp sẵn | TikTok, Facebook Page, Threads, Instagram, Google Workspace cài là có, tài khoản của người cài, token ở Vault | ĐẠT (T-17, T-30): Google Workspace (Gmail, Calendar, Drive, Docs, Sheets), Facebook cá nhân (31 hành động), Threads (Graph API + Browser Bridge), Telegram Business (T-29) |
 | G2 | MCP client + Marketplace | Cài từ chợ curated (free/local), dán cấu hình, tự restart + rollback khi lỗi | ĐẠT nền 1.3 (audit 27) |
 | G3 | Skills | Nạp/vet/lọc tốt + TỰ VIẾT skill mới từ việc lặp lại + cài skill từ ngoài | MỘT PHẦN (audit 28) |
-| G4 | Browser thao tác | Đọc + click/gõ/form/đăng nhập/takeover bởi user | MỘT PHẦN — mới đọc + chụp ảnh (audit 29) |
+| G4 | Browser thao tác | Đọc + click/gõ/form/đăng nhập/takeover bởi user | ĐẠT MỨC BRIDGE (T-22.3) — Browser Bridge Playwright cho Threads/Instagram DM |
 | G5 | Browser sâu | Đăng nhập bằng login đã lưu qua Vault; TỰ tìm mã OTP trong email/tin nhắn đã nối và đưa qua thẻ duyệt (agent không thấy mã thô); CAPTCHA tự giải, kẹt thì mời user takeover; câu hỏi giỏ hàng/lựa chọn quay về đúng hội thoại | CHƯA — phụ thuộc G4 |
 
 ## H. Model / Provider / Tự vận hành
@@ -107,8 +107,8 @@
 |---|---|---|---|
 | H1 | Đổi model trực tiếp | Đổi trong chat + app, lưu theo phiên, hiện model đang dùng | MỘT PHẦN — /model có từ 1.6.x; hoàn thiện theo T-11 |
 | H2 | Thiết lập API | Wizard nhập endpoint + key qua Vault, test kết nối sống rồi mới lưu | MỘT PHẦN — theo T-11 |
-| H3 | CLIProxyAPI | Cổng model chính thức: MuLon quản lý tiến trình, trạng thái trong app, chỉ gọi qua proxy local | MỘT PHẦN — proxy có; formal hoá theo T-14 |
-| H4 | muse2api | Provider cấu hình được: chat + sinh ảnh/video qua muse.ai, pool tài khoản, degrade rõ | CHƯA — T-16 |
+| H3 | CLIProxyAPI | Cổng model chính thức: MuLon quản lý tiến trình, trạng thái trong app, chỉ gọi qua proxy local | ĐẠT (T-14) — Quản lý vòng đời, đa OS, màn quản lý cổng/model/account trong Mini App |
+| H4 | muse2api | Provider cấu hình được: chat + sinh ảnh/video qua muse.ai, pool tài khoản, degrade rõ | ĐẠT MỨC GATEWAY (T-16) — LiteLLM alias openai/muse/muse-spark, stub test xanh 100% |
 | H5 | Tự sửa + tự restart | User yêu cầu là tự sửa code, chạy test, restart an toàn qua auto_watch, lỗi rollback | MỘT PHẦN — self-evolution + auto_watch có nền; chấm end-to-end |
 | H6 | Model mặc định phân tầng | Tier brain/cheap/escalated khác nhau thật, cấu hình được | ĐẠT 1.6.4 |
 | H7 | Workflow đa agent | Lớp orchestration nhiều agent có kịch bản (ngoài spawn sub-agent đơn lẻ) | CHƯA (audit 31) |
@@ -125,20 +125,20 @@
 
 | ID | Hạng mục | Chuẩn | Trạng thái nền |
 |---|---|---|---|
-| J1 | Design system | Design tokens + thư viện component/block + bộ state (loading/empty/error/success) dùng đồng bộ mọi màn | CHƯA — T-12 |
-| J2 | Màu & phân cấp | 60/30/10, MỘT màu nhấn tím Mulon, KHÔNG xanh lá/vàng/đỏ cho trạng thái, tối đa 4 cỡ chữ/2 weight, lưới 8pt, thumb zone | MỘT PHẦN — luật có trong AGENTS.md mục 6; áp đồng bộ theo T-12 |
-| J3 | Render thật | Mọi preview/thay đổi UI chụp từ HTML/CSS thật của app bằng trình duyệt; cấm mock vẽ tay | LUẬT ĐÃ CHỐT — chấm từng đợt UI |
+| J1 | Design system | Design tokens + thư viện component/block + bộ state (loading/empty/error/success) dùng đồng bộ mọi màn | ĐẠT (T-12, T-27) — Thư viện component .ds-*, token --ds-*, Bottom Sheet L3 |
+| J2 | Màu & phân cấp | 60/30/10, MỘT màu nhấn tím Mulon, KHÔNG xanh lá/vàng/đỏ cho trạng thái, tối đa 4 cỡ chữ/2 weight, lưới 8pt, thumb zone | ĐẠT (T-12, T-27) — Chuẩn 60/30/10 tím Mulon (#7C3AED), trạng thái thể hiện bằng chữ |
+| J3 | Render thật | Mọi preview/thay đổi UI chụp từ HTML/CSS thật của app bằng trình duyệt; cấm mock vẽ tay | LUẬT ĐÃ CHỐT — ĐÃ CHỨNG MINH qua Playwright Chromium 390x844 (T-12, T-23, T-27, T-13) |
 | J4 | Avatar states | Sprite v0 (21 frame) phát theo state thật trong app (không CSS giả lập trên ảnh tĩnh) | MỘT PHẦN — tích hợp 1.3; atlas lên repo theo T-02 (audit 33) |
-| J5 | Mascot + brand | Có thêm mascot để chọn, brand (logo/màu/giọng) nhất quán app + bot; mascot chính thức chỉ đổi khi chủ dự án duyệt | CHƯA — T-13 |
-| J6 | "App" thay webapp | Nghiên cứu giới hạn Telegram (Main Mini App, full-screen, mở từ group...) trước khi hứa; làm phương án gần nhất + nói rõ giới hạn | CHƯA — nghiên cứu trong T-12 |
+| J5 | Mascot + brand | Có thêm mascot để chọn, brand (logo/màu/giọng) nhất quán app + bot; mascot chính thức chỉ đổi khi chủ dự án duyệt | ĐẠT (T-13) — Catalog 4 mascot vũ trụ Mulon trong config/mascots.json, đổi tên bot & mascot trong app, KV persistence |
+| J6 | "App" thay webapp | Nghiên cứu giới hạn Telegram (Main Mini App, full-screen, mở từ group...) trước khi hứa; làm phương án gần nhất + nói rõ giới hạn | ĐẠT (T-12) — Tích hợp Native WebApp SDK: BackButton đồng bộ, Haptic, Add to Home Screen |
 
 ## K. Mở cài đặt & đa nền tảng
 
 | ID | Hạng mục | Chuẩn | Trạng thái nền |
 |---|---|---|---|
-| K1 | Không khoá cứng 1 chủ | Allowlist do NGƯỜI CÀI khai lúc setup; mặc định vẫn chặn người lạ | CHƯA — T-15 (thay luật cũ AGENTS.md 3.4) |
-| K2 | Tách lớp OS | Path qua pathlib/platformdirs; tiến trình/dịch vụ theo OS (launchd/systemd/Windows) | CHƯA — T-15 |
-| K3 | Cài được 3 OS | Script cài + docs cho Windows/macOS/Linux; máy sạch cài là chạy; test/CI matrix 3 OS | CHƯA — T-15 |
+| K1 | Không khoá cứng 1 chủ | Allowlist do NGƯỜI CÀI khai lúc setup; mặc định vẫn chặn người lạ | ĐẠT (T-15) — Wizard setup cho người cài, xác thực HMAC initData |
+| K2 | Tách lớp OS | Path qua pathlib/platformdirs; tiến trình/dịch vụ theo OS (launchd/systemd/Windows) | ĐẠT (T-15, T-28) — Chuẩn hoá đường dẫn platform-neutral |
+| K3 | Cài được 3 OS | Script cài + docs cho Windows/macOS/Linux; máy sạch cài là chạy; test/CI matrix 3 OS | ĐẠT (T-15, T-28) — Bổ sung tzdata trên Windows, xử lý dynamic extension SQLite trên macOS |
 
 ## L. Kỷ luật nền (mọi đợt đều chấm)
 
