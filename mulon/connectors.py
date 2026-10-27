@@ -185,17 +185,32 @@ class SystemConnector(Connector):
 def build_default_connectors(cfg, google_auth=None, vault_store=None) -> ConnectorRegistry:
     registry = ConnectorRegistry()
     registry.register(SystemConnector())
+
+    if google_auth is None and vault_store is not None:
+        try:
+            from .google_conn import build_google_auth
+
+            google_auth = build_google_auth(cfg, vault_store)
+        except Exception:
+            google_auth = None
+
     if google_auth is not None:
-        # 1.5.0: connector thật Gmail + Google Calendar, dùng
-        # chung 1 GoogleAuth do main dựng (webapp dùng cùng
-        # instance cho luồng OAuth). Không truyền -> không
-        # đăng ký (các bề mặt test tối thiểu không đổi).
-        from .google_conn import GCalendarConnector, GmailConnector
+        # 1.5.0 + 1.7.28 (T-17): Google Workspace built-in connectors
+        from .google_conn import (
+            GCalendarConnector,
+            GDocsConnector,
+            GDriveConnector,
+            GmailConnector,
+            GSheetsConnector,
+        )
 
         registry.register(GmailConnector(google_auth))
         registry.register(GCalendarConnector(
             google_auth,
             default_tz=getattr(cfg, "default_timezone", "UTC")))
+        registry.register(GDriveConnector(google_auth))
+        registry.register(GDocsConnector(google_auth))
+        registry.register(GSheetsConnector(google_auth))
 
     # 1.7.8 (T-22.1 / T-22.2 / T-22.3 / T-30): Connector tài khoản cá nhân (Zalo, Telegram MTProto, Facebook, Instagram DM, Threads DM, Threads Content)
     from .personal_connectors import (
@@ -225,6 +240,18 @@ def build_default_connectors(cfg, google_auth=None, vault_store=None) -> Connect
                        "threads_messages chạy không bridge", exc)
     registry.register(ThreadsMessagesConnector(
         cfg=cfg, vault_store=vault_store, browser_bridge=threads_bridge))
+
+    # 1.7.28 (T-17): Connector tích hợp sẵn chính thức (Facebook Page, Instagram Business, Threads Official, TikTok)
+    from .social_connectors import (
+        FacebookPageConnector,
+        InstagramBusinessConnector,
+        ThreadsOfficialConnector,
+        TikTokConnector,
+    )
+    registry.register(FacebookPageConnector(cfg=cfg, vault_store=vault_store))
+    registry.register(InstagramBusinessConnector(cfg=cfg, vault_store=vault_store))
+    registry.register(ThreadsOfficialConnector(cfg=cfg, vault_store=vault_store))
+    registry.register(TikTokConnector(cfg=cfg, vault_store=vault_store))
     return registry
 
 

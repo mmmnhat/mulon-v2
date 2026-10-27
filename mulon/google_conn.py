@@ -23,17 +23,25 @@ from email.message import EmailMessage
 from typing import Awaitable, Callable, Optional
 from urllib.parse import urlencode
 
+from .context import frame_external
+
 logger = logging.getLogger("mulon.google")
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me"
 CAL_API = "https://www.googleapis.com/calendar/v3/calendars"
+DRIVE_API = "https://www.googleapis.com/drive/v3"
+DOCS_API = "https://docs.googleapis.com/v1/documents"
+SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets"
 
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/spreadsheets",
 ]
 
 LBL_CLIENT_ID = "google:client_id"
@@ -546,17 +554,408 @@ class GCalendarConnector:
         return {"ok": True, "deleted": eid}
 
 
+class GDriveConnector:
+    """Connector chính thức cho Google Drive (T-17)."""
+    name = "gdrive"
+
+    def __init__(self, auth: GoogleAuth):
+        self.auth = auth
+
+    async def health_check(self) -> dict:
+        st = self.auth.status()
+        if not st["configured"]:
+            return {"ok": False, "name": self.name, **st,
+                    "detail": "Chưa có client id/secret — nhập vào Vault "
+                              "(google:client_id, google:client_secret) hoặc đặt env "
+                              "GOOGLE_CLIENT_ID/SECRET."}
+        if not st["connected"]:
+            return {"ok": False, "name": self.name, **st,
+                    "detail": "Chưa kết nối — bấm Kết nối Google ở màn Công cụ kết nối."}
+        return {"ok": True, "name": self.name, **st,
+                "detail": st["email"] or "Đã kết nối"}
+
+    async def call(self, action: str, args: dict) -> dict:
+        if action in ("list_files", "search_files", "list"):
+            return await self._list_files(args)
+        if action in ("get_file", "get"):
+            return await self._get_file(args)
+        if action == "create_folder":
+            return await self._create_folder(args)
+        if action == "upload_file":
+            return await self._upload_file(args)
+        if action == "delete_file":
+            return await self._delete_file(args)
+        if action == "share_file":
+            return await self._share_file(args)
+        return {"ok": False, "error": f"gdrive không hỗ trợ action: {action}"}
+
+    async def _list_files(self, args: dict) -> dict:
+        q_raw = str(args.get("query") or args.get("q") or "").strip()
+        q = q_raw if q_raw else "trashed = false"
+        limit = max(1, min(int(args.get("page_size") or args.get("max_results") or 10), 50))
+        res = await self.auth.api(
+            "GET", f"{DRIVE_API}/files",
+            params={"q": q, "pageSize": limit,
+                    "fields": "files(id,name,mimeType,modifiedTime,size,webViewLink,description)"})
+        if not res.get("ok"):
+            return res
+        files = []
+        for f in res.get("files") or []:
+            name = str(f.get("name") or "")
+            desc = str(f.get("description") or "")
+            files.append({
+                "id": f.get("id", ""),
+                "name": frame_external(name),
+                "raw_name": name,
+                "mime_type": f.get("mimeType", ""),
+                "modified_time": f.get("modifiedTime", ""),
+                "size": f.get("size", "0"),
+                "web_view_link": f.get("webViewLink", ""),
+                "description": frame_external(desc) if desc else "",
+            })
+        return {"ok": True, "count": len(files), "files": files}
+
+    async def _get_file(self, args: dict) -> dict:
+        fid = str(args.get("file_id") or args.get("id") or "").strip()
+        if not fid:
+            return {"ok": False, "error": "thiếu file_id"}
+        res = await self.auth.api(
+            "GET", f"{DRIVE_API}/files/{fid}",
+            params={"fields": "id,name,mimeType,modifiedTime,size,webViewLink,description,owners"})
+        if not res.get("ok"):
+            return res
+        name = str(res.get("name") or "")
+        desc = str(res.get("description") or "")
+        return {
+            "ok": True,
+            "id": res.get("id", ""),
+            "name": frame_external(name),
+            "raw_name": name,
+            "mime_type": res.get("mimeType", ""),
+            "modified_time": res.get("modifiedTime", ""),
+            "size": res.get("size", "0"),
+            "web_view_link": res.get("webViewLink", ""),
+            "description": frame_external(desc) if desc else "",
+        }
+
+    async def _create_folder(self, args: dict) -> dict:
+        name = str(args.get("name") or "").strip()
+        if not name:
+            return {"ok": False, "error": "thiếu name thư mục"}
+        parent_id = str(args.get("parent_id") or "").strip()
+        body = {"name": name, "mimeType": "application/vnd.google-apps.folder"}
+        if parent_id:
+            body["parents"] = [parent_id]
+        res = await self.auth.api("POST", f"{DRIVE_API}/files", json_body=body)
+        if not res.get("ok"):
+            return res
+        return {"ok": True, "id": res.get("id", ""), "name": res.get("name", name)}
+
+    async def _upload_file(self, args: dict) -> dict:
+        name = str(args.get("name") or "").strip()
+        if not name:
+            return {"ok": False, "error": "thiếu name tập tin"}
+        content = str(args.get("content") or "")
+        mime_type = str(args.get("mime_type") or "text/plain")
+        parent_id = str(args.get("parent_id") or "").strip()
+        body = {"name": name, "mimeType": mime_type}
+        if parent_id:
+            body["parents"] = [parent_id]
+        # Tạo metadata tập tin
+        res = await self.auth.api("POST", f"{DRIVE_API}/files", json_body=body)
+        if not res.get("ok"):
+            return res
+        return {"ok": True, "id": res.get("id", ""), "name": res.get("name", name), "mime_type": mime_type}
+
+    async def _delete_file(self, args: dict) -> dict:
+        fid = str(args.get("file_id") or args.get("id") or "").strip()
+        if not fid:
+            return {"ok": False, "error": "thiếu file_id"}
+        res = await self.auth.api("DELETE", f"{DRIVE_API}/files/{fid}")
+        if not res.get("ok"):
+            return res
+        return {"ok": True, "deleted": fid}
+
+    async def _share_file(self, args: dict) -> dict:
+        fid = str(args.get("file_id") or args.get("id") or "").strip()
+        if not fid:
+            return {"ok": False, "error": "thiếu file_id"}
+        role = str(args.get("role") or "reader")
+        type_ = str(args.get("type") or "anyone")
+        email = str(args.get("email_address") or "").strip()
+        body = {"role": role, "type": type_}
+        if email:
+            body["emailAddress"] = email
+        res = await self.auth.api("POST", f"{DRIVE_API}/files/{fid}/permissions", json_body=body)
+        if not res.get("ok"):
+            return res
+        return {"ok": True, "file_id": fid, "permission_id": res.get("id", ""), "role": role, "type": type_}
+
+
+class GDocsConnector:
+    """Connector chính thức cho Google Docs (T-17)."""
+    name = "gdocs"
+
+    def __init__(self, auth: GoogleAuth):
+        self.auth = auth
+
+    async def health_check(self) -> dict:
+        st = self.auth.status()
+        if not st["configured"]:
+            return {"ok": False, "name": self.name, **st,
+                    "detail": "Chưa có client id/secret — nhập vào Vault hoặc đặt env GOOGLE_CLIENT_ID/SECRET."}
+        if not st["connected"]:
+            return {"ok": False, "name": self.name, **st,
+                    "detail": "Chưa kết nối — bấm Kết nối Google ở màn Công cụ kết nối."}
+        return {"ok": True, "name": self.name, **st,
+                "detail": st["email"] or "Đã kết nối"}
+
+    async def call(self, action: str, args: dict) -> dict:
+        if action in ("get_document", "get", "read"):
+            return await self._get_document(args)
+        if action in ("create_document", "create"):
+            return await self._create_document(args)
+        if action in ("append_text", "append"):
+            return await self._append_text(args)
+        if action in ("search_docs", "search"):
+            return await self._search_docs(args)
+        return {"ok": False, "error": f"gdocs không hỗ trợ action: {action}"}
+
+    async def _get_document(self, args: dict) -> dict:
+        doc_id = str(args.get("document_id") or args.get("id") or "").strip()
+        if not doc_id:
+            return {"ok": False, "error": "thiếu document_id"}
+        res = await self.auth.api("GET", f"{DOCS_API}/{doc_id}")
+        if not res.get("ok"):
+            return res
+        title = str(res.get("title") or "")
+        # Trích xuất nội dung văn bản từ các structural elements
+        body = res.get("body") or {}
+        content_parts = []
+        for elem in body.get("content") or []:
+            p = elem.get("paragraph")
+            if p:
+                for el in p.get("elements") or []:
+                    tr = el.get("textRun")
+                    if tr and tr.get("content"):
+                        content_parts.append(tr["content"])
+        full_text = "".join(content_parts)
+        return {
+            "ok": True,
+            "document_id": doc_id,
+            "title": frame_external(title),
+            "raw_title": title,
+            "text": frame_external(full_text) if full_text else "",
+            "raw_text": full_text,
+            "revision_id": res.get("revisionId", ""),
+        }
+
+    async def _create_document(self, args: dict) -> dict:
+        title = str(args.get("title") or "Untitled Document").strip()
+        res = await self.auth.api("POST", DOCS_API, json_body={"title": title})
+        if not res.get("ok"):
+            return res
+        return {
+            "ok": True,
+            "document_id": res.get("documentId", ""),
+            "title": res.get("title", title),
+            "revision_id": res.get("revisionId", ""),
+        }
+
+    async def _append_text(self, args: dict) -> dict:
+        doc_id = str(args.get("document_id") or args.get("id") or "").strip()
+        if not doc_id:
+            return {"ok": False, "error": "thiếu document_id"}
+        text = str(args.get("text") or "")
+        if not text:
+            return {"ok": False, "error": "thiếu text cần chèn"}
+        body = {
+            "requests": [
+                {
+                    "insertText": {
+                        "endOfSegmentLocation": {},
+                        "text": text,
+                    }
+                }
+            ]
+        }
+        res = await self.auth.api("POST", f"{DOCS_API}/{doc_id}:batchUpdate", json_body=body)
+        if not res.get("ok"):
+            return res
+        return {"ok": True, "document_id": doc_id, "appended": True}
+
+    async def _search_docs(self, args: dict) -> dict:
+        q_raw = str(args.get("query") or args.get("q") or "").strip()
+        q = "mimeType = 'application/vnd.google-apps.document' and trashed = false"
+        if q_raw:
+            q += f" and name contains '{q_raw}'"
+        limit = max(1, min(int(args.get("page_size") or 10), 30))
+        res = await self.auth.api(
+            "GET", f"{DRIVE_API}/files",
+            params={"q": q, "pageSize": limit, "fields": "files(id,name,modifiedTime,webViewLink)"})
+        if not res.get("ok"):
+            return res
+        docs = []
+        for d in res.get("files") or []:
+            name = str(d.get("name") or "")
+            docs.append({
+                "id": d.get("id", ""),
+                "title": frame_external(name),
+                "raw_title": name,
+                "modified_time": d.get("modifiedTime", ""),
+                "web_view_link": d.get("webViewLink", ""),
+            })
+        return {"ok": True, "count": len(docs), "documents": docs}
+
+
+class GSheetsConnector:
+    """Connector chính thức cho Google Sheets (T-17)."""
+    name = "gsheets"
+
+    def __init__(self, auth: GoogleAuth):
+        self.auth = auth
+
+    async def health_check(self) -> dict:
+        st = self.auth.status()
+        if not st["configured"]:
+            return {"ok": False, "name": self.name, **st,
+                    "detail": "Chưa có client id/secret — nhập vào Vault hoặc đặt env GOOGLE_CLIENT_ID/SECRET."}
+        if not st["connected"]:
+            return {"ok": False, "name": self.name, **st,
+                    "detail": "Chưa kết nối — bấm Kết nối Google ở màn Công cụ kết nối."}
+        return {"ok": True, "name": self.name, **st,
+                "detail": st["email"] or "Đã kết nối"}
+
+    async def call(self, action: str, args: dict) -> dict:
+        if action in ("get_spreadsheet", "get"):
+            return await self._get_spreadsheet(args)
+        if action in ("read_sheet_values", "read_values", "read"):
+            return await self._read_values(args)
+        if action in ("append_rows", "append"):
+            return await self._append_rows(args)
+        if action in ("update_cells", "update"):
+            return await self._update_cells(args)
+        if action in ("create_spreadsheet", "create"):
+            return await self._create_spreadsheet(args)
+        return {"ok": False, "error": f"gsheets không hỗ trợ action: {action}"}
+
+    async def _get_spreadsheet(self, args: dict) -> dict:
+        sid = str(args.get("spreadsheet_id") or args.get("id") or "").strip()
+        if not sid:
+            return {"ok": False, "error": "thiếu spreadsheet_id"}
+        res = await self.auth.api("GET", f"{SHEETS_API}/{sid}")
+        if not res.get("ok"):
+            return res
+        props = res.get("properties") or {}
+        title = str(props.get("title") or "")
+        sheets_info = []
+        for s in res.get("sheets") or []:
+            sp = s.get("properties") or {}
+            sheets_info.append({
+                "sheet_id": sp.get("sheetId"),
+                "title": frame_external(str(sp.get("title") or "")),
+                "grid_properties": sp.get("gridProperties") or {},
+            })
+        return {
+            "ok": True,
+            "spreadsheet_id": sid,
+            "title": frame_external(title),
+            "raw_title": title,
+            "sheets": sheets_info,
+        }
+
+    async def _read_values(self, args: dict) -> dict:
+        sid = str(args.get("spreadsheet_id") or args.get("id") or "").strip()
+        if not sid:
+            return {"ok": False, "error": "thiếu spreadsheet_id"}
+        rng = str(args.get("range") or "A1:Z100").strip()
+        res = await self.auth.api("GET", f"{SHEETS_API}/{sid}/values/{rng}")
+        if not res.get("ok"):
+            return res
+        raw_rows = res.get("values") or []
+        framed_rows = []
+        for row in raw_rows:
+            framed_row = [frame_external(str(c)) if isinstance(c, str) else c for c in row]
+            framed_rows.append(framed_row)
+        return {
+            "ok": True,
+            "spreadsheet_id": sid,
+            "range": res.get("range", rng),
+            "values": framed_rows,
+            "raw_values": raw_rows,
+        }
+
+    async def _append_rows(self, args: dict) -> dict:
+        sid = str(args.get("spreadsheet_id") or args.get("id") or "").strip()
+        if not sid:
+            return {"ok": False, "error": "thiếu spreadsheet_id"}
+        rng = str(args.get("range") or "Sheet1!A1").strip()
+        values = args.get("values")
+        if not values or not isinstance(values, list):
+            return {"ok": False, "error": "values phải là mảng các dòng (list of lists)"}
+        res = await self.auth.api(
+            "POST", f"{SHEETS_API}/{sid}/values/{rng}:append",
+            params={"valueInputOption": "USER_ENTERED"},
+            json_body={"values": values})
+        if not res.get("ok"):
+            return res
+        upd = res.get("updates") or {}
+        return {
+            "ok": True,
+            "spreadsheet_id": sid,
+            "updated_range": upd.get("updatedRange", rng),
+            "updated_rows": upd.get("updatedRows", len(values)),
+        }
+
+    async def _update_cells(self, args: dict) -> dict:
+        sid = str(args.get("spreadsheet_id") or args.get("id") or "").strip()
+        if not sid:
+            return {"ok": False, "error": "thiếu spreadsheet_id"}
+        rng = str(args.get("range") or "Sheet1!A1").strip()
+        values = args.get("values")
+        if not values or not isinstance(values, list):
+            return {"ok": False, "error": "values phải là mảng các dòng (list of lists)"}
+        res = await self.auth.api(
+            "PUT", f"{SHEETS_API}/{sid}/values/{rng}",
+            params={"valueInputOption": "USER_ENTERED"},
+            json_body={"values": values})
+        if not res.get("ok"):
+            return res
+        return {
+            "ok": True,
+            "spreadsheet_id": sid,
+            "updated_range": res.get("updatedRange", rng),
+            "updated_cells": res.get("updatedCells", 0),
+        }
+
+    async def _create_spreadsheet(self, args: dict) -> dict:
+        title = str(args.get("title") or "Untitled Spreadsheet").strip()
+        res = await self.auth.api(
+            "POST", SHEETS_API,
+            json_body={"properties": {"title": title}})
+        if not res.get("ok"):
+            return res
+        return {
+            "ok": True,
+            "spreadsheet_id": res.get("spreadsheetId", ""),
+            "title": title,
+            "spreadsheet_url": res.get("spreadsheetUrl", ""),
+        }
+
+
 def build_google_auth(cfg, vault_store, transport=None) -> GoogleAuth:
     return GoogleAuth(cfg, vault_store, transport=transport)
 
 
 def register_google_connectors(registry, cfg, vault_store,
                                transport=None):
-    """Đăng ký gmail + gcalendar vào ConnectorRegistry. Factory
-    dựng nhẹ, cấu hình đọc tại thời điểm dùng — owner nhập
-    Vault xong dùng được ngay không cần restart."""
+    """Đăng ký Gmail, Google Calendar, Google Drive, Google Docs,
+    Google Sheets vào ConnectorRegistry theo chuẩn Google Workspace built-in (T-17)."""
     auth = build_google_auth(cfg, vault_store, transport=transport)
     registry.register(GmailConnector(auth))
     registry.register(GCalendarConnector(
         auth, default_tz=getattr(cfg, "default_timezone", "UTC")))
+    registry.register(GDriveConnector(auth))
+    registry.register(GDocsConnector(auth))
+    registry.register(GSheetsConnector(auth))
     return auth

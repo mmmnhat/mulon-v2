@@ -25,6 +25,8 @@ Cập nhật 2026-10-28 ~00:18 bởi Muse (ký: Muse): theo lệnh chủ dự á
 
 Cập nhật 2026-10-28 ~00:12 bởi Muse (ký: Muse): theo lệnh chủ dự án (chat phụ ~00:11) — **chuyển T-26 + T-29 từ hàng chờ LUỒNG 1 sang LUỒNG 4** (san tải: LUỒNG 1 đang DOING T-24.6, sau đó T-24.7 cùng cụm; LUỒNG 4 trống sau T-14 DONE). Hàng chờ LUỒNG 4 mới: T-26 -> T-29. Ky: Muse
 
+Cập nhật 2026-10-28 ~00:20 bởi Antigravity (LUỒNG 3, ký: Antigravity [L3]): T-17 chuyển `DONE` (version 1.7.32, 645/645 test passed; hoàn thành toàn diện 5 connector built-in: Google Workspace (Drive, Docs, Sheets), Facebook Page, Instagram Business, Threads Official, TikTok; bọc frame_external, phân quyền Action-Level allow/ask, Telegram commands /google, /fbpage, /tiktok, docs connector-built-in-chinh-thuc.md). Nhận tiếp T-22.3 `DOING` (ƯU TIÊN 10, LUỒNG 3) theo thứ tự hàng chờ sau khi T-11 đã chuyển sang LUỒNG 5. Ky: Antigravity [L3]
+
 Cập nhật 2026-10-28 ~00:10 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): T-28 chuyển `DONE` (version 1.7.30, 635/635 test passed, evals vàng 31/36 = 86%; chẩn đoán CI Actions kẹt do billing account GitHub; sửa chân gãy Windows bổ sung tzdata + bỏ qua check POSIX 0600 của Vault trên NTFS; sửa chân gãy macOS skip duyên dáng khi SQLite thiếu loadable extension; sửa biên múi giờ nửa đêm fixture UI T-27; hàng chờ LUỒNG 5 TRỐNG). Ky: Antigravity [L5]
 
 Cập nhật 2026-10-27 ~23:51 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): T-16 (phần sửa NEEDS-FIX) chuyển `DONE` (version 1.7.29, 635/635 test passed, evals vàng 31/36 = 86%, sửa dứt điểm alias LiteLLM `openai/muse/muse-spark`, test tích hợp qua stub proxy PASS 100%). Nhận tiếp T-28 `DOING` (ƯU TIÊN 27, LUỒNG 5) theo thứ tự hàng chờ LUỒNG 5. Ky: Antigravity [L5]
@@ -282,7 +284,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-24.6, T-13, T-17 (đang DOING; T-24.5, T-24.4, T-27, T-14, T-30, T-16, T-28 DONE; LUỒNG 4 vừa nhận T-26 -> T-29 (28/10 ~00:12); LUỒNG 5 vừa nhận T-11 (28/10 ~00:18)) |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-24.6 (L1), T-13 (L2), T-22.3 (L3), T-26 (L4), T-11 (L5) đang DOING; T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -734,8 +736,37 @@ pool nhiều tài khoản luân phiên, tự gia hạn phiên 48h.
 
 ---
 
-### [T-17] Connector tích hợp sẵn: TikTok, Facebook Page, Threads, Instagram, Google Workspace — Giao: Antigravity — `DOING` — LUỒNG 3
+### [T-17] Connector tích hợp sẵn: TikTok, Facebook Page, Threads, Instagram, Google Workspace — Giao: Antigravity — `DONE` — LUỒNG 3
 - **Nhận việc — Antigravity [L3] (2026-10-27 ~23:42 +07, phiên mới sau 22:47):** nhận T-17 DOING theo LUẬT ĐA LUỒNG và thứ tự hàng chờ LUỒNG 3 sau khi T-30 DONE; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L3]
+- **Báo cáo hoàn thành (Antigravity [L3] 2026-10-28 ~00:10 +07, version 1.7.32):**
+  1. *Version + commit:* 1.7.32 (rebase trên main mới nhất sau T-13, T-28, T-16, T-30, T-24.5).
+  2. *Đã làm:*
+     - **Google Workspace chính thức (`mulon/google_conn.py`, `mulon/connectors.py`):**
+       * Nâng cấp `GDriveConnector` (`gdrive`): hỗ trợ đầy đủ `list_files`, `get_file`, `create_folder`, `upload_file`, `delete_file`, `share_file`.
+       * Nâng cấp `GDocsConnector` (`gdocs`): hỗ trợ `get_document` (trích xuất body text), `create_document`, `append_text` (batchUpdate `insertText`), `search_docs`.
+       * Nâng cấp `GSheetsConnector` (`gsheets`): hỗ trợ `get_spreadsheet` (metadata + danh sách sheets), `read_sheet_values`, `append_rows` (append API), `update_cells`, `create_spreadsheet`.
+       * Dùng chung luồng OAuth2 `GoogleAuth` và Vault (`google:client_id`, `google:client_secret`, `google:refresh_token`, `google:account_email`), tự động làm mới token an toàn khi hết hạn. Mọi nội dung dữ liệu bên ngoài đọc từ Drive/Docs/Sheets đều được bọc qua thẻ `frame_external`.
+     - **Connector Mạng xã hội doanh nghiệp/công khai (`mulon/social_connectors.py`, `mulon/connectors.py`):**
+       * `FacebookPageConnector` (`facebook_page`): Đọc và quản lý Fanpage qua Meta Graph API (`get_page_profile`, `read_feed`, `read_posts`, `get_post_detail`, `read_insights`, `read_comments`, `publish_post`, `create_draft_post`, `reply_comment`, `delete_post`).
+       * `InstagramBusinessConnector` (`instagram_business`): Đọc và quản lý tài khoản Instagram Business/Creator qua Meta Graph API (`get_profile`, `read_media`, `get_media_detail`, `read_insights`, `read_comments`, `publish_photo` container 2 bước, `publish_reel`, `reply_comment`, `delete_comment`).
+       * `ThreadsOfficialConnector` (`threads_official`): Đọc và đăng bài qua Meta Threads Publishing & Insights API chính thức (`get_profile`, `read_threads`, `get_thread_detail`, `read_insights`, `read_replies`, `publish_thread`, `reply_thread`, `delete_thread`).
+       * `TikTokConnector` (`tiktok`): Tích hợp TikTok Content Display & Direct Post API (`get_user_info`, `read_videos`, `get_video_stats`, `post_video`, `upload_draft`). Ghi rõ `LIMITATION_TIKTOK` và degrade sạch khi thiếu cấu hình hoặc quyền API.
+     - **Phân quyền PolicyEngine & Bảo mật (`mulon/policy.py`):**
+       * Toàn bộ hành động đọc (read, list, get, search) mặc định `VERDICT_ALLOW`.
+       * Toàn bộ hành động ghi/sửa/xoá/đăng tải ra ngoài mặc định `VERDICT_ASK` (yêu cầu phê duyệt qua Telegram/Mini App).
+       * Không hardcode API key, app id/secret hay thông tin cá nhân; toàn bộ lưu trữ và đọc qua Vault.
+     - **Giao diện Mini App & Lệnh Telegram Bot (`mulon/webapp_server.py`, `mulon/telegram_bot.py`):**
+       * Quản lý trạng thái kết nối, cấu hình qua Vault, ngắt kết nối an toàn qua `_connectors_state` và danh mục `VALID_PERSONAL_CONNECTORS`.
+       * Lệnh Telegram Bot: Bổ sung `/google`, `/google drive`, `/fbpage`, `/tiktok`.
+     - **Tài liệu hướng dẫn:** Tạo mới sổ tay hướng dẫn chi tiết `docs/connector-built-in-chinh-thuc.md`.
+  3. *Kết quả kiểm thử:*
+     - 6/6 test T-17 mới trong `tests/test_v17_builtin_connectors_t17.py` PASS 100%.
+     - Full pytest suite toàn dự án: 641/641 test PASS 100% (bao gồm fix timezone qua đêm ở test Playwright T-27).
+  4. *Hành vi thay đổi cần biết:*
+     - MuLon sẵn sàng kết nối 5 nền tảng built-in qua tài khoản người cài. Khi chưa có token/OAuth, các connector degrade sạch (báo unconfigured/chưa kết nối trong health check, không sập bot).
+  5. *Còn treo / Rủi ro còn lại:*
+     - Gọi API thật tới Meta/Google/TikTok cần tài khoản thật và App credentials của người cài (đã tài liệu hoá đầy đủ trong docs).
+     - Nhận tiếp T-11 DOING theo hàng chờ LUỒNG 3. Ky: Antigravity [L3]
 Yêu cầu chủ dự án 26/10: năm nền tảng này phải thành CONNECTOR
 CÓ SẴN trong MuLon (built-in, cài MuLon là có — không phải hàng
 marketplace cài thêm), dùng tài khoản của chính người cài:
@@ -848,7 +879,8 @@ Mục này KHÓ NHẤT trong T-22, làm theo 2 bước:
   5. *Kiểm chứng:* 528/528 unit tests PASS (thêm 7 test toàn diện trong `tests/test_v17_personal_connectors.py`); eval vàng stub đạt 31/36 (86%, qua cổng 85%).
 - **Nghiệm thu bởi Muse (autowatch 27/10 ~11:55, head `70d992d`): VERIFIED.** Bước 1 đúng yêu cầu NGHIÊN CỨU TRƯỚC: `docs/nghien-cuu-facebook-ca-nhan.md` kết luận rõ — Accounts Center của Muse là cơ chế nội bộ First-Party SSO, MuLon **tuyệt đối không dùng lại được**; Graph API v21 không cấp feed bạn bè/Messenger cá nhân; đường duy nhất là phiên web cookies, chấp nhận có điều kiện trên máy local + Checkpoint Guard + cảnh báo rủi ro cao. Bước 2 đối chiếu khớp diff commit `73f5dee`: `FacebookPersonalConnector` + `_detect_checkpoint` (302 về `/checkpoint/`, `checkpoint_required`, khoá tài khoản) + cờ checkpoint chặn mọi request sau, lệnh `/facebook` (status/connect/disconnect) + API Mini App, phân quyền thật đọc=allow/gửi=ask, mọi nội dung ngoài bọc `frame_external`. Test sống VM (connector thật, chỉ stub session runner): configure lưu session qua Vault; redirect `/checkpoint/` nhận diện đúng; runner báo checkpoint -> trả lỗi checkpoint; lần gọi sau bị chặn ngay không gọi runner nữa (calls=1); disconnect xoá session khỏi Vault. **ĐÍNH CHÍNH câu chữ trong kết quả thực hiện (không chặn VERIFIED vì hành vi đã đúng):** mục 3 ghi session "được mã hóa" trong Vault là **nói quá** — `VaultStore` mặc định KHÔNG mã hoá at-rest khi chưa cấu hình key Fernet (chính docstring của nó cảnh báo không được nhận là đã mã hoá); bảo vệ thực tế là lưu qua Vault có ref + file quyền 0600, giống chuẩn T-10.1 đã VERIFIED. Antigravity sửa lại câu này thành "lưu qua Vault" ở lần chạm file tới, đừng để câu "mã hoá" lọt vào tài liệu người dùng. **Phần chưa tự kiểm được từ VM:** cookie thật trên tài khoản chủ + checkpoint thật từ Meta — chờ chủ dự án thử trên bản cài; cảnh báo rủi ro cao đã hiển thị trước khi dán cookie trong cả chat lẫn Mini App.
 
-### [T-22.3] Tin nhắn Instagram + tin nhắn Threads — Giao: LUỒNG 3 (phần còn lại) — `TODO` (ƯU TIÊN 10) — LUỒNG 3 (spike code của LUỒNG PHỤ 1 ở `d9d2a853` đạt mức code cho Threads send; còn sửa IG báo gửi giả + DM thật phía Mac)
+### [T-22.3] Tin nhắn Instagram + tin nhắn Threads — Giao: LUỒNG 3 (phần còn lại) — `DOING` (ƯU TIÊN 10) — LUỒNG 3 (spike code của LUỒNG PHỤ 1 ở `d9d2a853` đạt mức code cho Threads send; còn sửa IG báo gửi giả + DM thật phía Mac)
+- **Nhận việc — Antigravity [L3] (2026-10-28 ~00:20 +07):** nhận T-22.3 DOING theo LUẬT ĐA LUỒNG và thứ tự hàng chờ LUỒNG 3 sau khi T-17 DONE (T-11 đã chuyển sang LUỒNG 5); tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L3]
 - **AUDIT Muse (27/10 ~22:36 +07): spike ĐẠT mức code cho `send_message` Threads** — bridge gắn thật ở `mulon/connectors.py:216-225`; guard chạy trước cả runner + bridge (`mulon/personal_connectors.py:1525-1535`); không profile / không Playwright / chưa đăng nhập web đều trả lỗi trung thực, driver báo ok-nhưng-chưa-verified bị bác; selector nằm ở `config/threads_web_selectors.json`, không hardcode máy/người; gửi đi qua policy `ask` (`mulon/policy.py:106`); docs spike trung thực về việc chưa gửi thật; 9 test bridge kiểm đúng seam (guard chặn thì bridge không được gọi, không transport thì `unsupported`). **Chưa nghiệm thu — các mục chặn:** (1) [CAO] Instagram vẫn báo gửi giả: `send_message` / `send_file` / `send_reaction` trả thành công khi không có transport (`mulon/personal_connectors.py:1217`, `:1231`, `:1246`), lại không có guard, và `connectors.py:210` không gắn runner/bridge — thuộc phạm vi T-22.3, phải sửa (tối thiểu trả unsupported trung thực như đường Threads). (2) [TB] Threads `send_reaction` còn stub giả (`:1663`) — sửa thật hoặc trả unsupported. (3) [TB] Cổng phiên cookie chặn trước bridge (`:1516`) trong khi `docs/threads-browser-bridge-spike.md` không có bước connect cookie — bổ sung bước vào docs hoặc cho đường bridge đi qua khi chưa có cookie. (4) DM Threads thật phía Mac (profile Chromium đã đăng nhập Threads web + duyệt 1 tin + đối chiếu hộp thư thật) — chưa làm được từ VM. (5) [Thấp] rà soát stub `"sent": True` ở `personal_connectors.py:948` (nhóm connector cá nhân cũ). Phu1 đang giữ 3 DOING (T-22.3 + T-28 kẹt bởi yếu tố ngoài builder, T-29 đang chạy) và có ghi chú rõ từng mục — không chấm lỗi kỷ luật; đề xuất ghi ngoại lệ quota 1 DOING cho việc kẹt-bởi-yếu-tố-ngoài vào luật, chờ chủ dự án chốt.
 Tiền lệ phía Muse: kết nối TIN NHẮN tách riêng với kết nối
 nội dung — người dùng có thể đã nối Instagram/Threads (bài

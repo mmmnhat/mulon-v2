@@ -1424,11 +1424,9 @@ class WebAppServer:
                 "toggleable": False,
                 "detail": str(h.get("error") or h.get("detail") or ""),
             }
-            if name in ("gmail", "gcalendar") \
+            if name in ("gmail", "gcalendar", "gdrive", "gdocs", "gsheets") \
                     and self.google_auth is not None:
-                # 1.5.0: frontend vẽ nút Kết nối/Ngắt kết nối
-                # theo trạng thái này (cả 2 connector dùng
-                # chung 1 ủy quyền Google).
+                # 1.5.0 + 1.7.28 (T-17): Google Workspace built-in
                 item["google"] = self.google_auth.status()
             elif name == "zalo_personal":
                 # 1.7.8 (T-22.1): Zalo cá nhân
@@ -1485,6 +1483,39 @@ class WebAppServer:
                     "mode": h.get("mode", "unconfigured"),
                     "user": h.get("user"),
                     "warning": h.get("warning", ""),
+                    "limitations": h.get("limitations", ""),
+                }
+            elif name == "facebook_page":
+                # 1.7.28 (T-17): Facebook Fanpage
+                item["facebook_page"] = {
+                    "configured": bool(h.get("configured")),
+                    "connected": bool(h.get("connected")),
+                    "page_id": h.get("page_id", ""),
+                    "page_name": h.get("page_name", ""),
+                }
+            elif name == "instagram_business":
+                # 1.7.28 (T-17): Instagram Creator/Business
+                item["instagram_business"] = {
+                    "configured": bool(h.get("configured")),
+                    "connected": bool(h.get("connected")),
+                    "account_id": h.get("account_id", ""),
+                    "username": h.get("username", ""),
+                }
+            elif name == "threads_official":
+                # 1.7.28 (T-17): Threads Official API
+                item["threads_official"] = {
+                    "configured": bool(h.get("configured")),
+                    "connected": bool(h.get("connected")),
+                    "user_id": h.get("user_id", ""),
+                    "username": h.get("username", ""),
+                }
+            elif name == "tiktok":
+                # 1.7.28 (T-17): TikTok Official API
+                item["tiktok"] = {
+                    "configured": bool(h.get("configured")),
+                    "connected": bool(h.get("connected")),
+                    "open_id": h.get("open_id", ""),
+                    "display_name": h.get("display_name", ""),
                     "limitations": h.get("limitations", ""),
                 }
             out.append(item)
@@ -3647,7 +3678,7 @@ class WebAppServer:
             "webapp", "google_disconnected", {"revoked": revoked})
         return web.json_response({"ok": True})
 
-    # ---------- Personal Connectors (T-22.1 / T-22.2 / T-22.3 / T-30) ----------
+    # ---------- Managed Built-in Connectors (T-22.1 / T-22.2 / T-22.3 / T-30 / T-17) ----------
     VALID_PERSONAL_CONNECTORS = (
         "zalo_personal",
         "telegram_personal",
@@ -3655,6 +3686,10 @@ class WebAppServer:
         "instagram_messages",
         "threads_messages",
         "threads_personal",
+        "facebook_page",
+        "instagram_business",
+        "threads_official",
+        "tiktok",
     )
 
     async def _handle_personal_connector_status(self, request):

@@ -3901,6 +3901,145 @@ class TelegramSurface:
                     parse_mode="HTML"
                 )
 
+        @dp.message(F.text.startswith("/google") & ~F.text.startswith("/google_auth"))
+        async def cmd_google(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            arg = _arg_text(message).strip().lower()
+            connectors = self.surfaces.get("connectors") if self.surfaces else None
+            gdrive = await connectors.get("gdrive") if connectors else None
+            gmail = await connectors.get("gmail") if connectors else None
+            gcal = await connectors.get("gcalendar") if connectors else None
+
+            if arg in ("drive", "files") and gdrive:
+                res = await gdrive.call("list_files", {"page_size": 5})
+                if not res.get("ok"):
+                    await message.answer(f"⚠️ Không đọc được Google Drive: {res.get('error')}")
+                    return
+                files = res.get("files") or []
+                if not files:
+                    await message.answer("📁 Google Drive của ní chưa có tập tin nào.")
+                    return
+                lines = [f"📁 <b>TẬP TIN GOOGLE DRIVE ({len(files)} tệp gần nhất):</b>\n"]
+                for f in files:
+                    fid = f.get("id", "")
+                    name = f.get("raw_name") or f.get("name") or fid
+                    mime = f.get("mime_type", "")
+                    lines.append(f"• <b>{html.escape(name)}</b> (<code>{fid}</code>) <i>[{mime.split('.')[-1]}]</i>")
+                await message.answer("\n".join(lines), parse_mode="HTML")
+                return
+
+            # Default status
+            health_drive = await gdrive.health_check() if gdrive else {"ok": False, "detail": "Chưa nạp"}
+            health_mail = await gmail.health_check() if gmail else {"ok": False, "detail": "Chưa nạp"}
+            health_cal = await gcal.health_check() if gcal else {"ok": False, "detail": "Chưa nạp"}
+            email = health_drive.get("email") or health_mail.get("email") or "Chưa kết nối"
+            await message.answer(
+                f"🌐 <b>TRẠNG THÁI GOOGLE WORKSPACE</b>\n\n"
+                f"• Tài khoản: <b>{email}</b>\n"
+                f"• Gmail: {'✅ Sẵn sàng' if health_mail.get('ok') else '⚠️ ' + health_mail.get('detail', '')}\n"
+                f"• Google Calendar: {'✅ Sẵn sàng' if health_cal.get('ok') else '⚠️ ' + health_cal.get('detail', '')}\n"
+                f"• Google Drive: {'✅ Sẵn sàng' if health_drive.get('ok') else '⚠️ ' + health_drive.get('detail', '')}\n"
+                f"• Google Docs & Sheets: {'✅ Sẵn sàng' if health_drive.get('ok') else '⚠️ Chưa kết nối'}\n\n"
+                f"👉 Để xác thực/kết nối lại: <code>/google_auth</code>\n"
+                f"👉 Xem file Drive: <code>/google drive</code>",
+                parse_mode="HTML"
+            )
+
+        @dp.message(F.text.startswith("/fbpage"))
+        async def cmd_fbpage(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            arg = _arg_text(message).strip().lower()
+            connectors = self.surfaces.get("connectors") if self.surfaces else None
+            conn = await connectors.get("facebook_page") if connectors else None
+            if not conn:
+                await message.answer("⚠️ Connector Facebook Page chưa sẵn sàng.")
+                return
+
+            if arg in ("feed", "posts"):
+                res = await conn.call("read_page_feed", {"limit": 5})
+                if not res.get("ok"):
+                    await message.answer(f"⚠️ Không đọc được Bảng tin Fanpage: {res.get('error')}")
+                    return
+                posts = res.get("posts") or []
+                if not posts:
+                    await message.answer("📄 Fanpage chưa có bài đăng nào gần đây.")
+                    return
+                lines = [f"📄 <b>BÀI ĐĂNG GẦN NHẤT TRÊN FANPAGE:</b>\n"]
+                for p in posts[:5]:
+                    pid = p.get("id", "")
+                    msg = p.get("raw_message") or p.get("message") or "(Bài đăng kèm ảnh/video)"
+                    snippet = (msg[:120] + "...") if len(msg) > 120 else msg
+                    lines.append(f"• <code>{pid}</code>: {html.escape(snippet)}")
+                await message.answer("\n".join(lines), parse_mode="HTML")
+                return
+
+            health = await conn.health_check()
+            if health.get("connected"):
+                await message.answer(
+                    f"✅ <b>FACEBOOK FANPAGE ĐÃ KẾT NỐI</b>\n\n"
+                    f"• Fanpage: <b>{health.get('page_name', '')}</b> (<code>{health.get('page_id', '')}</code>)\n"
+                    f"• Trạng thái: Sẵn sàng đọc bảng tin, insights và đăng bài/trả lời bình luận.\n\n"
+                    f"👉 Xem bài đăng: <code>/fbpage feed</code>",
+                    parse_mode="HTML"
+                )
+            else:
+                await message.answer(
+                    f"⚠️ <b>FACEBOOK FANPAGE CHƯA CẤU HÌNH</b>\n\n"
+                    f"• Chi tiết: {health.get('detail')}\n\n"
+                    f"👉 Nhập Page Token & Page ID vào Mini App hoặc Vault để kích hoạt.",
+                    parse_mode="HTML"
+                )
+
+        @dp.message(F.text.startswith("/tiktok"))
+        async def cmd_tiktok(message: Message) -> None:
+            if not self._is_allowed(message):
+                return
+            arg = _arg_text(message).strip().lower()
+            connectors = self.surfaces.get("connectors") if self.surfaces else None
+            conn = await connectors.get("tiktok") if connectors else None
+            if not conn:
+                await message.answer("⚠️ Connector TikTok chưa sẵn sàng.")
+                return
+
+            if arg in ("videos", "list"):
+                res = await conn.call("list_videos", {"max_count": 5})
+                if not res.get("ok"):
+                    await message.answer(f"⚠️ Không đọc được danh sách video TikTok: {res.get('error')}")
+                    return
+                videos = res.get("videos") or []
+                if not videos:
+                    await message.answer("🎵 Tài khoản TikTok chưa có video nào.")
+                    return
+                lines = [f"🎵 <b>DANH SÁCH VIDEO TIKTOK ({len(videos)} video gần nhất):</b>\n"]
+                for v in videos:
+                    vid = v.get("id", "")
+                    title = v.get("raw_title") or v.get("title") or "Video TikTok"
+                    views = v.get("view_count", 0)
+                    likes = v.get("like_count", 0)
+                    lines.append(f"• <b>{html.escape(title)}</b> (<code>{vid}</code>) - <i>👁️ {views} | ❤️ {likes}</i>")
+                await message.answer("\n".join(lines), parse_mode="HTML")
+                return
+
+            health = await conn.health_check()
+            if health.get("connected"):
+                await message.answer(
+                    f"✅ <b>TIKTOK ĐÃ KẾT NỐI</b>\n\n"
+                    f"• Nhà sáng tạo: <b>{health.get('display_name', '')}</b> (<code>{health.get('open_id', '')}</code>)\n"
+                    f"• Trạng thái: Sẵn sàng xem thông tin, video và xuất bản nội dung.\n\n"
+                    f"⚠️ <i>Lưu ý: {health.get('limitations', '')}</i>\n\n"
+                    f"👉 Xem video: <code>/tiktok videos</code>",
+                    parse_mode="HTML"
+                )
+            else:
+                await message.answer(
+                    f"⚠️ <b>TIKTOK CHƯA CẤU HÌNH</b>\n\n"
+                    f"• Chi tiết: {health.get('detail')}\n\n"
+                    f"👉 Nhập Access Token & Open ID vào Mini App hoặc Vault để kích hoạt.",
+                    parse_mode="HTML"
+                )
+
         @dp.message(F.text.startswith("/forget"))
         async def cmd_forget(message: Message) -> None:
             if not self._is_allowed(message):

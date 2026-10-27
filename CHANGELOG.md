@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## 1.7.32 — 2026-10-28 — Connector tích hợp sẵn: TikTok, Facebook Page, Threads, Instagram, Google Workspace (T-17, LUỒNG 3 — ký: Antigravity [L3])
+
+- **Nâng cấp toàn diện bộ Google Workspace built-in (`mulon/google_conn.py`, `mulon/connectors.py`, T-17):**
+  - Mở rộng Google Drive (`gdrive`): hỗ trợ các hành động `list_files`, `get_file`, `create_folder`, `upload_file`, `delete_file`, `share_file`.
+  - Mở rộng Google Docs (`gdocs`): hỗ trợ `get_document` (trích xuất body text), `create_document`, `append_text` (batchUpdate insertText), `search_docs`.
+  - Mở rộng Google Sheets (`gsheets`): hỗ trợ `get_spreadsheet` (metadata + danh sách sheets), `read_sheet_values`, `append_rows` (append API), `update_cells`, `create_spreadsheet`.
+  - Sử dụng chung một luồng xác thực `GoogleAuth` và Vault (`google:client_id`, `google:client_secret`, `google:refresh_token`, `google:account_email`) đã kiểm chứng ở Gmail/GCalendar.
+  - Mọi nội dung dữ liệu bên ngoài đọc từ Google Drive/Docs/Sheets đều được bọc qua thẻ `frame_external`.
+- **Bổ sung các Connector Mạng xã hội doanh nghiệp/công khai (`mulon/social_connectors.py`, `mulon/connectors.py`, T-17):**
+  - `FacebookPageConnector` (`facebook_page`): Đọc và quản lý Fanpage qua Meta Graph API (`get_page_profile`, `read_feed`, `read_posts`, `get_post_detail`, `read_insights`, `read_comments`, `publish_post`, `create_draft_post`, `reply_comment`, `delete_post`).
+  - `InstagramBusinessConnector` (`instagram_business`): Đọc và quản lý tài khoản Instagram Business/Creator qua Meta Graph API (`get_profile`, `read_media`, `get_media_detail`, `read_insights`, `read_comments`, `publish_photo` container 2 bước, `publish_reel`, `reply_comment`, `delete_comment`).
+  - `ThreadsOfficialConnector` (`threads_official`): Đọc và đăng bài qua Meta Threads Publishing & Insights API chính thức (`get_profile`, `read_threads`, `get_thread_detail`, `read_insights`, `read_replies`, `publish_thread`, `reply_thread`, `delete_thread`).
+  - `TikTokConnector` (`tiktok`): Tích hợp TikTok Content Display & Direct Post API (`get_user_info`, `read_videos`, `get_video_stats`, `post_video`, `upload_draft`). Ghi rõ `LIMITATION_TIKTOK` và degrade sạch khi thiếu cấu hình hoặc quyền API.
+- **Tích hợp PolicyEngine, WebApp & Telegram Commands (`mulon/policy.py`, `mulon/webapp_server.py`, `mulon/telegram_bot.py`, T-17):**
+  - Phân quyền Action-Level: Mọi hành động đọc (read, list, get, search) là `VERDICT_ALLOW`; mọi hành động ghi, đăng bài, sửa, xoá ra ngoài là `VERDICT_ASK` (yêu cầu phê duyệt).
+  - Mini App: Quản lý trạng thái kết nối, cấu hình qua Vault, ngắt kết nối an toàn qua `_connectors_state` và danh mục `VALID_PERSONAL_CONNECTORS`.
+  - Lệnh Telegram Bot: Bổ sung `/google`, `/google drive`, `/fbpage`, `/tiktok`.
+  - Tài liệu kỹ thuật: Tạo mới sổ tay hướng dẫn chi tiết `docs/connector-built-in-chinh-thuc.md`.
+  - Kiểm thử: 6/6 test T-17 mới trong `tests/test_v17_builtin_connectors_t17.py`, 641/641 test toàn dự án PASS 100%.
+
 ## 1.7.31 — 2026-10-28 — Brand, mascot và đổi tên hiển thị bot (T-13, LUỒNG 2 — ký: Antigravity [L2])
 
 - **Bộ sưu tập Mascot vũ trụ Mulon (`config/mascots.json`, T-13):**
