@@ -19,6 +19,7 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~13:15 bởi Antigravity (LÀN 1): nhận T-23.1 `DOING` (ƯU TIÊN 11, LÀN 1) theo LUẬT 2 LÀN.
 Cập nhật 2026-10-27 ~13:10 bởi Muse: chủ dự án duyệt chia việc thành 2 làn cho 2 Antigravity chạy song song — LUẬT HÀNG ĐỢI cũ được thay bằng LUẬT 2 LÀN (xem mục Đợt PARITY + MỞ RỘNG), mọi mục đang mở đã gắn nhãn LÀN 1/LÀN 2 ở tiêu đề.
 Cập nhật 2026-10-27 ~12:28 bởi Antigravity: nhận T-22.3 `DOING` (ƯU TIÊN 10) theo LUẬT HÀNG ĐỢI (khắc phục Threads guard khi có session runner và cập nhật câu chữ Vault theo yêu cầu nghiệm thu của Muse).
 Cập nhật 2026-10-27 ~12:17 bởi Muse (autowatch): head `76ac940` chỉ là commit nhận việc (chỉ đổi `AGENT_TASKS.md`, không đổi code) — claim T-22.3 `DOING` lại sau NEEDS-FIX là HỢP LỆ theo LUẬT HÀNG ĐỢI, đúng thứ tự (sửa T-22.3 + T-23.1 trước khi nhận T-23.2). Suite tại head này: **545 passed, 0 failed** (venv local đã có `beautifulsoup4` cài tay từ lượt trước). Chưa có gì để VERIFIED thêm: NEEDS-FIX T-22.3 (guard Threads bị bypass ở nhánh session runner + câu chữ Vault "được mã hóa") và NEEDS-FIX T-23.1 (thiếu khai báo `beautifulsoup4` trong requirements) vẫn MỞ, chờ commit code sửa; nghiệm thu lại khi có code mới.
@@ -713,7 +714,7 @@ thu (luật AGENTS.md mục 6).
 
 - **Bổ sung đợt sitemap (Muse, 27/10/2026):** bản đồ đầy đủ + số liệu ở `docs/sitemap-miniapp-2026-10-27.md`; cây IA đích ở `docs/miniapp-ia-redesign-2026-10-27.md`. Số mới cần biết: 127 hàng chết (7 lịch hẹn + 100 tài liệu + 3 connector + 17 bí mật), cả 10 màn con không có nút quay lại, tìm kiếm chỉ có ở Kỹ năng. Lỗi tải initData ở Chi tiết việc + Chợ tách sang T-24.5.
 
-### [T-23.1] Sửa điều hướng Mini App — Giao: Antigravity — `NEEDS-FIX` (ƯU TIÊN 11) — LÀN 1
+### [T-23.1] Sửa điều hướng Mini App — Giao: Antigravity — `DOING` (ƯU TIÊN 11) — LÀN 1
 QA Q-01 (nghiêm trọng nhất): nhấn hàng trong Cài đặt mở
 lại màn con TRƯỚC ĐÓ (stale navigation), phải nhấn lần
 hai; chỉ chevron mới mở chắc, thân hàng lúc được lúc
