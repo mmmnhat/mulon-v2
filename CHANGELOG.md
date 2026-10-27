@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 1.7.42 — 2026-10-28 — Sửa lỗi eval vàng T-33 & hoàn tất phần còn lại T-25 (LUỒNG 5 — ký: Antigravity [L5])
+
+- **Chẩn đoán & sửa dứt điểm lỗi code trong eval vàng (`mulon/tools.py`, T-33):**
+  - **Sửa ca `tool-list-dir`:** Trong `_resolve_for_file_tool`, khi `raw` là `.` hoặc chuỗi rỗng, điều kiện kiểm tra codebase vô tình khớp `project_root / "."` khiến `list_dir(".")` duyệt thư mục gốc repo thay vì workspace. Đã sửa để `raw in {".", "", "./"}` luôn neo tuyệt đối vào `workspace_dir`, bảo đảm liệt kê đúng các file trong workspace.
+  - **Sửa ca `self-read-own-source`:** Trong `_resolve_for_file_tool`, kiểm tra sự tồn tại trong workspace `(base / p).exists()` trước khi neo vào `project_root`. Nhờ đó, các file mock do test/eval thiết lập trong workspace được ưu tiên đọc chính xác thay vì đọc file thật của repo; khi không có file trong workspace, hệ thống vẫn tự động fallback về codebase của repo để bot tự đọc/sửa chính mình.
+  - Sau bản vá, số ca đạt trong eval vàng tăng từ **31/36 (86%) lên 33/36 (92%)**, 100% ca họ `tool` (7/7) và `trung_thuc` (8/8) đều PASS.
+- **Tự nhận thức về Chợ MCP & Công cụ kết nối (`mulon/agent.py`, T-33):**
+  - Bổ sung khối chỉ dẫn về MCP & Marketplace vào `build_self_knowledge`: bot hiểu rõ giới hạn an toàn của mình là không có tool tự cài/gỡ MCP server trực tiếp trong chat; khi chủ nhân yêu cầu, bot hướng dẫn mở Mini App > Cài đặt > Công cụ kết nối (hoặc Chợ MCP) hoặc qua thẻ duyệt 2 lần; nắm vững quy tắc hệ thống chỉ hỗ trợ MCP server local (stdio) và miễn phí, không hỗ trợ remote hoặc trả phí.
+- **Phân loại & bằng chứng 3 ca `cho_mcp` còn lại (T-33):**
+  - Cả 3 ca `marketplace-install-guides-to-app`, `marketplace-no-agent-install-tool`, `marketplace-remote-paid-not-supported` thuộc loại (b): kỳ vọng của ca chạy ở chế độ offline `StubGateway` nhưng thiếu định nghĩa `stub.answer` trong `evals/golden.jsonl` (khác với `self-approval-card-real` và `self-can-read-file` cùng đợt 1.3.0 có định nghĩa `stub.answer`). Giữ nguyên ca theo đúng nguyên tắc không tự nới lỏng ca, ghi nhận đầy đủ bằng chứng vào `AGENT_TASKS.md` cho Muse và chủ dự án quyết định.
+- **Hoàn tất phần còn lại của T-25 trong Telegram Bot (`mulon/telegram_bot.py`, T-25):**
+  - Xóa bỏ hoàn toàn giờ feed hardcode trong handler `/upcoming`. Nhãn giờ Feed chủ động được suy động từ `cron_times_label(feed_cron)` thông qua `FeedAutoRunner.settings()` hoặc `DEFAULT_CRON`. Khi cron là mẫu không cố định, hiển thị trực tiếp biểu thức cron thay vì nhãn giờ cố định sai lệch.
+- **Kiểm thử bổ sung (`tests/test_v17_eval_fixes.py`, `tests/test_v17_feed_time_label.py`):**
+  - Bổ sung 4 unit tests trong `tests/test_v17_eval_fixes.py` kiểm chứng `list_dir(".")` trong workspace, quyền ưu tiên workspace cho file mock, và nội dung tự nhận thức MCP.
+  - Bổ sung 2 unit tests trong `tests/test_v17_feed_time_label.py` kiểm chứng lệnh `/upcoming` hiển thị đúng giờ feed suy từ cron và fallback đúng `DEFAULT_CRON`.
+
 ## 1.7.41 — 2026-10-28 — Kiểm chứng Live Test DM Threads và Instagram Anti-Fake Send (T-22.3, LUỒNG 3 — ký: Antigravity [L3])
 
 - **Kiểm chứng gửi DM Threads thật qua Browser Bridge (`mulon/threads_browser_bridge.py`, T-22.3):**
@@ -46,7 +62,6 @@
   - **Bước 3 (Tắt Docker muse2api kiểm tra degrade & khôi phục):** Tắt container bằng `docker stop muse2api`, gọi model Muse báo lỗi mạng rõ ràng (`GatewayError: gọi model thất bại sau 3 lần: litellm.InternalServerError`), trong khi model đối chứng khác qua cổng 8317 (`gemini-3.8-flash` -> `openai/gemini-3.8-flash-high`) vẫn gọi thành công bình thường (text `'Dạ?'`, 15.63s). Bật lại `docker start muse2api`, kiểm tra `/healthz` trả về `{"status":"ok"}` và gọi lại `model="muse-spark"` phục hồi thành công (text `'Mulon'`, 90.87s).
   - Cập nhật mẫu `config/cliproxy-muse2api.example.yaml` bổ sung cả hai alias `muse-spark` và `muse/muse-spark`.
   - Ghi nhận đầy đủ evidence vào mục `[T-16]` trong `AGENT_TASKS.md` để Muse chính đối chiếu nghiệm thu VERIFIED.
->>>>>>> 47c0c58 (docs: synchronize README and docs with live system state, cross-verify T-25 (T-32, v1.7.39))
 
 ## 1.7.38 — 2026-10-28 — Parity hệ thống: connector/MCP/quyền/model/tự sửa (T-11, LUỒNG 5 — ký: Antigravity [L5])
 

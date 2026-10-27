@@ -4505,11 +4505,18 @@ class TelegramSurface:
             try:
                 from .feed_auto import cron_times_label, DEFAULT_CRON
                 feed_svc = self._svc("feed_auto")
-                feed_cron = getattr(feed_svc, "cron", None) or DEFAULT_CRON
-                feed_lbl = cron_times_label(feed_cron) or "08:00 & 20:00"
+                feed_cron = DEFAULT_CRON
+                if feed_svc is not None and hasattr(feed_svc, "settings"):
+                    st = await feed_svc.settings()
+                    feed_cron = st.get("cron") or DEFAULT_CRON
+                elif hasattr(self.cfg, "feed_auto_cron") and self.cfg.feed_auto_cron:
+                    feed_cron = self.cfg.feed_auto_cron
+                feed_lbl = cron_times_label(feed_cron) or feed_cron
                 lines.append(f"📰 <b>Feed chủ động:</b> {feed_lbl} (2 bài/ngày) · <i>Chỉ xem</i>")
             except Exception:
-                lines.append("📰 <b>Feed chủ động:</b> 08:00 & 20:00 (2 bài/ngày) · <i>Chỉ xem</i>")
+                from .feed_auto import cron_times_label, DEFAULT_CRON
+                feed_lbl = cron_times_label(DEFAULT_CRON) or DEFAULT_CRON
+                lines.append(f"📰 <b>Feed chủ động:</b> {feed_lbl} (2 bài/ngày) · <i>Chỉ xem</i>")
 
             # Tracked items
             try:
@@ -4861,6 +4868,7 @@ class TelegramSurface:
         self._handle_model_command = cmd_model
         self._handle_the_duyet_command = cmd_the_duyet
         self._handle_memory_command = cmd_memory
+        self._handle_upcoming_command = cmd_upcoming
         self._handle_text_message = on_text
 
     async def _consolidate_closed(self, key: str) -> None:

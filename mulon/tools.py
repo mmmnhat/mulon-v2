@@ -145,7 +145,9 @@ def _resolve_for_file_tool(cfg, raw: str) -> Path:
         resolved = p.resolve()
     else:
         first = p.parts[0] if p.parts else ""
-        if first in {"mulon", "tests", "scripts", "docs", "config"} or (first != ".." and (project_root / p).exists()):
+        if raw in {".", "", "./"} or (first != ".." and (base / p).exists()):
+            resolved = (base / p).resolve()
+        elif first in {"mulon", "tests", "scripts", "docs", "config"} or (first != ".." and (project_root / p).exists()):
             resolved = (project_root / p).resolve()
         elif first == "dossier" or (first != ".." and (dossier_base / p).exists()):
             resolved = (dossier_base / p).resolve()

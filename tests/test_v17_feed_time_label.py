@@ -88,3 +88,70 @@ async def test_upcoming_feed_fallback_la_default_cron(tmp_path, cfg):
     finally:
         await server.stop()
         await mem.close()
+
+
+@pytest.mark.asyncio
+async def test_telegram_upcoming_feed_label_derived_from_feed_settings(tmp_path, cfg):
+    """T-25: Lệnh /upcoming trong TelegramSurface phải hiển thị nhãn giờ feed suy từ cron thật."""
+    import dataclasses
+    from unittest.mock import AsyncMock
+    from aiogram.types import Chat, User
+    from mulon.context import Dossier
+    from mulon.telegram_bot import TelegramSurface
+
+    bot_cfg = dataclasses.replace(cfg, allowed_user_id=123)
+    mem = await Memory.open(tmp_path / "t25_bot_feed.db")
+    dossier = Dossier.load(bot_cfg.dossier_dir)
+    try:
+        class _MockFeedRunner:
+            async def settings(self):
+                return {"cron": "0 6,18 * * *"}
+
+        surface = TelegramSurface(bot_cfg, None, mem, dossier, surfaces={"feed_auto": _MockFeedRunner()})
+
+        mock_msg = AsyncMock()
+        mock_msg.chat = Chat(id=123, type="private")
+        mock_msg.from_user = User(id=123, is_bot=False, first_name="Owner")
+        mock_msg.answer = AsyncMock()
+
+        await surface._handle_upcoming_command(mock_msg)
+        mock_msg.answer.assert_called_once()
+        text = mock_msg.answer.call_args[0][0]
+
+        assert "Feed chủ động:" in text
+        assert "06:00 & 18:00" in text
+        assert "08:00 & 17:00" not in text
+    finally:
+        await mem.close()
+
+
+@pytest.mark.asyncio
+async def test_telegram_upcoming_feed_label_fallback_default_cron(tmp_path, cfg):
+    """T-25: Lệnh /upcoming khi không có feed_auto service vẫn fallback DEFAULT_CRON (08:00 & 20:00)."""
+    import dataclasses
+    from unittest.mock import AsyncMock
+    from aiogram.types import Chat, User
+    from mulon.context import Dossier
+    from mulon.telegram_bot import TelegramSurface
+
+    bot_cfg = dataclasses.replace(cfg, allowed_user_id=123)
+    mem = await Memory.open(tmp_path / "t25_bot_feed_default.db")
+    dossier = Dossier.load(bot_cfg.dossier_dir)
+    try:
+        surface = TelegramSurface(bot_cfg, None, mem, dossier)
+
+        mock_msg = AsyncMock()
+        mock_msg.chat = Chat(id=123, type="private")
+        mock_msg.from_user = User(id=123, is_bot=False, first_name="Owner")
+        mock_msg.answer = AsyncMock()
+
+        await surface._handle_upcoming_command(mock_msg)
+        mock_msg.answer.assert_called_once()
+        text = mock_msg.answer.call_args[0][0]
+
+        assert "Feed chủ động:" in text
+        assert "08:00 & 20:00" in text
+        assert "17:00" not in text
+    finally:
+        await mem.close()
+

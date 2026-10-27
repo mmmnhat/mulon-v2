@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~02:05 bởi Antigravity (LUỒNG 5, ký: Antigravity [L5]): T-33 chuyển `DONE` & hoàn tất phần còn lại của T-25 (version 1.7.42, 706/706 test passed, evals vàng 33/36 = 92% qua cổng 85%; sửa lỗi _resolve_for_file_tool neo nhầm list_dir(".") ra repo root và bỏ qua mock workspace; bổ sung tự nhận thức MCP & Marketplace vào build_self_knowledge; phân loại chi tiết 5 ca eval vàng; xóa bỏ hardcode giờ feed trong /upcoming của telegram_bot.py). Hàng chờ LUỒNG 5 ĐÃ HOÀN THÀNH 100% (T-16, T-28, T-11, T-33, T-25 đều DONE), sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L5]
+
 Cập nhật 2026-10-28 ~01:50 bởi Antigravity (LUỒNG 3, ký: Antigravity [L3]): hoàn tất kiểm chứng live test T-22.3 trên máy Mac (version 1.7.41, 700+ tests passed 100%): (1) Gửi thành công DM Threads thật qua Browser Bridge trên phiên Chromium persistent (~/.mulon-browser-profile, tài khoản Meta @mmmnhat.1810) vào hội thoại có sẵn (thread 1843103926844931, @nghialuthe) và đã xác thực tin nhắn xuất hiện trong DOM (verified: True); chốt chặn Parity Guard chặn đúng người lạ @stranger_never_met_999; (2) Kiểm tra Instagram send 4 kịch bản không có transport đều trả ok: False, unsupported: True, triệt tiêu 100% việc báo gửi/reaction giả; InstagramBrowserBridge sẵn sàng và trả lỗi trung thực khi thread không tồn tại; (3) Tối ưu URL navigation target_href và Enter send fallback trên cả Threads và Instagram browser bridge; ghi đầy đủ evidence vào mục T-22.3, chờ Muse nghiệm thu VERIFIED. Ky: Antigravity [L3]
 
 Cập nhật 2026-10-28 ~01:32 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): theo lệnh chủ dự án và phân công của Muse, LUỒNG 4 hoàn tất 2 nhiệm vụ: (1) Khép dứt điểm T-29 Telegram Business Chatbot chuyển `DONE` (code commit `427f3ab`, version 1.7.37, 683/683 test passed, catalog Rule 0, prompt hệ thống, phân tầng TỰ REP vs SOẠN NHÁP CHỜ DUYỆT qua thẻ duyệt DM chủ); (2) Hoàn tất chẩn đoán CI cho T-28 từ log GitHub Actions phía Mac (phân tích chi tiết run 40459594957 lúc CI còn chạy: Ubuntu xanh 100%, Windows ngắt do thiếu tzdata 'Asia/Ho_Chi_Minh', macOS fail 3 test recall do thiếu extension sqlite-vec trên runner Apple Silicon; và xác nhận hiện tại 100% các leg Ubuntu/macOS/Windows bị chặn tức thì bởi GitHub Billing/spending limit phía tài khoản). Hàng chờ LUỒNG 4 ĐÃ HOÀN THÀNH 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L4]
@@ -298,7 +300,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG PHỤ 3 — Muse phụ (ký: Nori) — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37):** T-26 thu hồi về LUỒNG 1 trước khi bắt đầu (không mất gì). LUẬT LÀM LIÊN TỤC của LUỒNG PHỤ 3 hết hiệu lực cùng lệnh dừng này. LUỒNG PHỤ 3 không nhận việc mới, không push thêm commit nào cho dự án này.
 
 - **LUỒNG 5 — Cổng model: sửa lỗi + CI** (Antigravity, phiên thứ 5 trên máy Mac, worktree riêng; lập theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên, không mở thêm):
-  T-16 (phần sửa NEEDS-FIX — đã DONE) -> T-28 (đã DONE) -> T-11 (đã DONE) -> T-33 (đang DOING) -> T-25 (phần còn lại).
+  T-16 (đã DONE) -> T-28 (đã DONE) -> T-11 (đã DONE) -> T-33 (đã DONE) -> T-25 (phần còn lại — đã hoàn tất). (Hàng chờ LUỒNG 5 ĐÃ HOÀN THÀNH 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.)
   *Lưu ý:* phần sửa T-16 đụng `mulon/gateway.py` (vùng alias model) — LUỒNG 4 (T-14) tránh sửa vùng alias của gateway khi LUỒNG 5 đang làm T-16 và ngược lại; cả hai pull + rebase kỹ trước khi push. Ký commit `Ky: Antigravity` + nhãn `[L5]`.
 
 - **LUỒNG MUSE — Muse chính làm builder** (chạy trên VM của Muse, push qua GitHub connector; Muse vẫn giữ vai reviewer cho mọi luồng khác):
@@ -322,7 +324,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-13 + T-32 (L2), khép T-29 + chẩn đoán CI T-28 (L4), T-33 eval vàng (L5) đang DOING; test live T-16 giao L1, test live T-22.3 giao L3 (lệnh chủ dự án 28/10); T-11 (L5), T-26, T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-13 + T-32 (L2), khép T-29 + chẩn đoán CI T-28 (L4) đang DOING; test live T-16 giao L1, test live T-22.3 giao L3 (lệnh chủ dự án 28/10); T-33 + T-25 (L5), T-11 (L5), T-26, T-24.6, T-13, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-28 DONE; hàng chờ LUỒNG 5 hoàn thành 100% |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -1526,6 +1528,7 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 
 ### [T-25] Nhãn giờ Feed trong Sắp tới sai + hardcode — Giao: Muse — `VERIFIED` (ƯU TIÊN 23) — LUỒNG MUSE (ký: Muse)
 - **Giao phần còn lại — Muse theo lệnh chủ dự án (28/10 ~01:16):** dòng hardcode giờ Feed ở handler /upcoming (`mulon/telegram_bot.py`, đã ghi trong mục này) giao **LUỒNG 5** sửa sau T-33: thay bằng `cron_times_label(<effective cron>)`, ghi kết quả vào mục này. Ky: Muse
+- **Hoàn thành phần còn lại — Antigravity [L5] (2026-10-28 ~02:00, v1.7.41):** Đã sửa dứt điểm dòng hiển thị Feed trong `cmd_upcoming` của `mulon/telegram_bot.py`. Nhãn giờ Feed chủ động nay được suy động từ `cron_times_label(feed_cron)` với `feed_cron` lấy từ `FeedAutoRunner.settings()` hoặc `self.cfg.feed_auto_cron` hoặc `DEFAULT_CRON`. Trường hợp cron không cố định, hiển thị trực tiếp biểu thức cron thay vì nhãn giờ cố định sai lệch. Không còn bất kỳ chuỗi giờ hardcode nào. Bổ sung 2 test mới trong `tests/test_v17_feed_time_label.py` (tổng suite 6/6 passed). Ky: Antigravity [L5]
 - **Nghiệm thu chéo bởi Antigravity [L2] (2026-10-28 ~01:25 +07): `VERIFIED`.**
   - **Đối chiếu mã nguồn:**
     1. `mulon/feed_auto.py`: Hàm `cron_times_label(cron_expr)` phân tích chuẩn xác cron 5 trường, chuyển đổi linh hoạt biểu thức cố định hàng ngày sang chuỗi giờ người đọc được (`"08:00 & 20:00"`), trả về rỗng nếu là mẫu không cố định để nơi gọi dùng diễn giải cron đầy đủ.
@@ -1764,9 +1767,35 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
   3. Mục này CHỈ sửa tài liệu, không sửa code. Gặp chỗ code lệch docs thì ghi báo vào mục này cho Muse xử lý, không tự sửa code.
 - Nghiệm thu: Muse đối chiếu README/docs với AGENT_TASKS và kiểm chứng sống các khẳng định trong README (lệnh, cổng, tính năng phải chạy được thật).
 
-### [T-33] Chẩn đoán + sửa 5 ca eval vàng đang fail (eval đứng ở 31/36) — Giao: LUỒNG 5 — `DOING` (ƯU TIÊN 31) — LUỒNG 5
+### [T-33] Chẩn đoán + sửa 5 ca eval vàng đang fail (eval đứng ở 31/36) — Giao: LUỒNG 5 — `DONE` (ƯU TIÊN 31) — LUỒNG 5
 - **Nhận việc — Antigravity [L5] (2026-10-28 ~01:25 +07):** nhận T-33 DOING theo lệnh của chủ dự án và điều phối của Muse; tiếp tục từ trạng thái code trên `main`. Ky: Antigravity [L5]
 - **Mở việc 2026-10-28 ~01:16 bởi Muse (lệnh chủ dự án):** eval vàng đứng ở 31/36 (86%) qua nhiều lượt autowatch mà 5 ca fail chưa ai chẩn đoán — giao LUỒNG 5 khép nốt. Ky: Muse
+- **Báo cáo hoàn thành & Chẩn đoán 5 ca (Antigravity [L5] 2026-10-28 ~01:54, version 1.7.39):**
+  1. *Version & Commit:* 1.7.39.
+  2. *Chẩn đoán & Phân loại chi tiết đúng 5 ca fail:*
+     - **Ca 1 (`tool-list-dir`): [LOẠI (a) - Lỗi code thật — ĐÃ SỬA]**
+       - *Hiện tượng:* `list_dir(path=".")` trượt `contains_any: ["a.txt", "b.txt"]`.
+       - *Nguyên nhân:* Trong `mulon/tools.py: _resolve_for_file_tool`, khi `raw` là `.` hoặc `""`, `p` là `Path(".")`, `first` là `""`. Biểu thức `(first != ".." and (project_root / p).exists())` đánh giá `True` vì `(project_root / ".").exists()` luôn đúng! Hậu quả là `list_dir(".")` resolve nhầm ra `project_root` (repo root) thay vì `workspace_dir`.
+       - *Khắc phục:* Sửa `_resolve_for_file_tool` để `raw in {".", "", "./"}` luôn neo vào `base` (`workspace_dir`). Đã thêm test hồi quy trong `tests/test_v17_eval_fixes.py`. Ca này nay **ĐÃ PASS 100%**.
+     - **Ca 5 (`self-read-own-source`): [LOẠI (a) - Lỗi code thật — ĐÃ SỬA]**
+       - *Hiện tượng:* `read_file(path="mulon/tools.py")` trượt `contains_all: ["read_file"]`.
+       - *Nguyên nhân:* Trong `mulon/tools.py: _resolve_for_file_tool`, nhánh `first in {"mulon", ...}` kiểm tra và neo vào `project_root` trước mà không kiểm tra xem file có tồn tại trong `workspace_dir` hay không. Khi harness seed file mock `mulon/tools.py` vào workspace (chỉ 2 dòng chứa `# read_file...`), resolver bỏ qua workspace và đọc file thật `mulon/tools.py` của repo (gần 800 dòng). Output JSON bị `_tool_snippet` cắt ở 600 ký tự đầu nên chuỗi `read_file` trong thân file bị mất.
+       - *Khắc phục:* Sửa `_resolve_for_file_tool` để ưu tiên `(base / p).exists()` — nếu file mock tồn tại trong workspace thì đọc file workspace; nếu không có trong workspace mới fallback về codebase repo. Đã thêm test hồi quy. Ca này nay **ĐÃ PASS 100%**.
+     - **Ca 2, 3, 4 (`marketplace-install-guides-to-app`, `marketplace-no-agent-install-tool`, `marketplace-remote-paid-not-supported`): [LOẠI (b) - Kỳ vọng ca offline thiếu stub.answer — GIỮ NGUYÊN CA, ĐÃ BỔ SUNG SELF-KNOWLEDGE]**
+       - *Hiện tượng:* Cả 3 ca họ `cho_mcp` đều trượt `contains_any` và trả về `"Tui chưa có dữ kiện này nên chưa trả lời chắc được ní."`.
+       - *Bằng chứng kỹ thuật:*
+         1. Cả 3 ca được thêm ở commit `4dfc463` (bản 1.3.0). Trong cùng commit đó, các ca hội thoại không gọi tool như `tone-short-math`, `tone-informal`, `self-approval-card-real`, và `self-can-read-file` đều được tác giả định nghĩa tường minh trường `"stub": {"answer": "..."}` để `StubGateway` trả về trong chế độ offline. Riêng 3 ca `marketplace-*` bị bỏ sót trường `stub.answer`.
+         2. Trong chế độ offline `StubGateway`, gateway không có LLM. Khi không có tool call, không có fact recall trong DB, và không có `stub.answer`, `StubGateway` tất định rơi vào fallback "Tui chưa có dữ kiện...".
+         3. Về phía agent: `build_self_knowledge` trong `mulon/agent.py` trước đó chưa có khối kiến thức về Chợ MCP & Công cụ kết nối.
+       - *Xử lý chuẩn theo chỉ đạo:*
+         - Tầng code (a): Đã bổ sung khối Tự nhận thức về Chợ MCP & Công cụ kết nối vào `build_self_knowledge` (`mulon/agent.py`) để ở chế độ live, bot Telegram có đầy đủ chỉ dẫn rằng bot không có tool tự cài/gỡ MCP qua chat, hướng dẫn người dùng vào Mini App (Công cụ kết nối / Chợ MCP), và chỉ hỗ trợ server local/miễn phí.
+         - Tầng ca kiểm thử (b): Tuân thủ nghiêm ngặt nguyên tắc **KHÔNG TỰ NỚI LỎNG / KHÔNG SỬA CA**, giữ nguyên 3 ca trong `evals/golden.jsonl` và chuyển bằng chứng trên cho Muse và chủ dự án xem xét quyết định (bổ sung `stub.answer` cho 3 ca trong `golden.jsonl` tương tự như `self-approval-card-real` hoặc cập nhật harness).
+  3. *Kết quả sau đợt vá:*
+     - Eval vàng: tăng từ **31/36 (86%) lên 33/36 (92%)** -> ĐẠT CỔNG 85% (100% ca `tool` và `trung_thuc` đều PASS).
+     - Full test suite: **706 passed, 0 failed** (thêm 4 test hồi quy trong `tests/test_v17_eval_fixes.py` và 2 test trong `tests/test_v17_feed_time_label.py`).
+     - Hoàn thành dứt điểm phần còn lại của T-25 (dòng hardcode feed trong /upcoming).
+  4. *Trạng thái hàng chờ LUỒNG 5:*
+     - Hàng chờ LUỒNG 5 đã hoàn thành 100% (T-16 DONE, T-28 DONE, T-11 DONE, T-33 DONE, T-25 phần còn lại DONE), sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L5]
 - Yêu cầu: chạy `mulon.evals`, xác định đúng 5 ca fail; với mỗi ca phân loại rõ: (a) lỗi code thật -> sửa code + thêm test hồi quy; (b) kỳ vọng của ca đã cũ/lệch hành vi chuẩn Muse hiện tại -> KHÔNG tự sửa ca, ghi bằng chứng vào mục này cho Muse + chủ dự án quyết. Mục tiêu là eval xanh THẬT, không nới lỏng ca để lấy số.
 - Sau T-33: sửa phần còn lại của T-25 đã ghi chú trong mục T-25 (dòng hardcode /upcoming).
 - Nghiệm thu: Muse chạy lại eval + suite độc lập.
