@@ -276,11 +276,16 @@ section{animation:tab-in var(--t2) var(--ease)}
   display:flex; align-items:center; justify-content:center;
 }
 .r-main{flex:1; min-width:0}
-/* Nhãn hàng 500 (PH-1): 600 chỉ còn cho tiêu đề/nút/điểm neo. */
+/* Nhãn hàng 500 (PH-1): 600 chỉ còn cho tiêu đề/nút/điểm neo.
+   T-23.4: Cho phép xuống dòng tối đa 2 dòng theo ranh giới từ, không cắt ngang thân chữ. */
 .r-title{font-size:var(--fs-body); font-weight:var(--fw-m);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.r-sub{font-size:var(--fs-cap); color:var(--ink2); white-space:nowrap;
-  overflow:hidden; text-overflow:ellipsis}
+  white-space:normal; overflow-wrap:break-word; word-break:normal;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  overflow:hidden; line-height:1.38}
+.r-sub{font-size:var(--fs-cap); color:var(--ink2);
+  white-space:normal; overflow-wrap:break-word; word-break:normal;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  overflow:hidden; line-height:1.35; margin-top:2px}
 .r-time{font-size:var(--fs-cap); color:var(--ink3); flex:0 0 auto}
 /* Chevron hàng = SVG 16 stroke 2 thống nhất (TQ-4), không
    còn ký tự chữ › lệch baseline. */
@@ -821,10 +826,12 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <!-- chi tiết 1 việc -->
 <section id="screen-task" class="hidden">
   <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-    <h2 class="screen-title" id="task-detail-title" style="margin-bottom:0;">Chi tiết việc</h2>
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:6px;">
+    <h2 class="screen-title" id="task-detail-title" style="margin-bottom:0; flex:1;">Chi tiết việc</h2>
+    <span id="task-detail-status" class="r-state" style="font-size:13px; font-weight:600; color:var(--ink2); white-space:nowrap; padding-top:4px;"></span>
     <button id="btn-stop-task-detail" class="btn btn-danger btn-sm hidden" style="height:32px; padding:0 12px; font-size:12px; border-radius:8px; cursor:pointer;">Dừng việc</button>
   </div>
+  <div id="task-detail-sub" style="font-size:12px; color:var(--ink2); margin-bottom:12px;"></div>
   <div class="card">
     <div class="card-title">Dòng thời gian</div>
     <div class="timeline" id="task-timeline"></div>
@@ -855,12 +862,12 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
   <div class="card-title" style="margin:8px 0 8px 4px; font-size:15px; font-weight:600; color:var(--ink2);">Hàng ngày &amp; Hệ thống</div>
   <div class="card" id="card-heartbeat-item" style="cursor:pointer; display:flex; align-items:center; gap:14px; padding:16px; border-radius:18px; margin-bottom:18px;">
-    <div style="width:44px; height:44px; border-radius:50%; background:var(--surface2); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="var(--err)" stroke="var(--err)" stroke-width="1.5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    <div style="width:44px; height:44px; border-radius:50%; background:var(--tint-lav); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--lav-deep)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
     </div>
     <div style="flex:1;">
       <div style="font-size:16px; font-weight:600; color:var(--ink); margin-bottom:2px;">Heartbeat</div>
-      <div style="font-size:13px; color:var(--ink2);">30 phút một lần</div>
+      <div style="font-size:13px; color:var(--ink2);">Mỗi 30 phút (*/30 * * * *)</div>
     </div>
     <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
   </div>
@@ -868,6 +875,70 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <div class="card-title" style="margin:16px 0 8px 4px; font-size:15px; font-weight:600; color:var(--ink2);">Lịch hẹn &amp; Nhắc việc cá nhân</div>
   <div class="card">
     <div id="schedule-list"></div>
+  </div>
+</section>
+
+<!-- Màn con: Chi tiết 1 lịch trình (T-23.4) -->
+<section id="screen-schedule-detail" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Lịch</div>
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:6px;">
+    <h2 class="screen-title" id="sched-detail-title" style="margin-bottom:0; flex:1;">Chi tiết lịch trình</h2>
+    <label class="tgl" id="sched-detail-tgl-wrap"><input type="checkbox" id="sched-detail-tgl"><span class="tr"></span></label>
+  </div>
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+    <span class="badge-scheduled" id="sched-detail-badge">Đã lên lịch</span>
+    <span id="sched-detail-cron-sub" style="font-size:13px; color:var(--ink2);"></span>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Thông tin &amp; Nội dung lời nhắc</div>
+    <table class="meta-table">
+      <tr><td class="k">Phân loại</td><td id="sched-detail-kind">—</td></tr>
+      <tr><td class="k">Chu kỳ chạy</td><td id="sched-detail-cron">—</td></tr>
+      <tr><td class="k">Lần chạy tới</td><td id="sched-detail-next">—</td></tr>
+      <tr><td class="k">Lần chạy gần nhất</td><td id="sched-detail-last">—</td></tr>
+    </table>
+    <div class="preview-box" id="sched-detail-prompt" style="border-top:1px solid var(--line);"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Lịch sử chạy</div>
+    <div id="sched-detail-runs" style="padding:4px var(--s4) 10px;"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Quyền của lịch trình</div>
+    <div id="sched-detail-perms" style="padding:8px var(--s4) 14px; font-size:13px; color:var(--ink2); line-height:1.5;"></div>
+  </div>
+
+  <div class="card" id="sched-detail-actions-card">
+    <div class="card-title">Quản lý lịch trình</div>
+    <div class="btn-row" id="sched-detail-action-row">
+      <button class="btn btn-soft btn-sm" id="btn-sched-edit" type="button">Sửa lịch</button>
+      <button class="btn btn-ghost btn-sm" id="btn-sched-delete" type="button">Xoá lịch</button>
+    </div>
+
+    <div id="sched-edit-box" class="hidden" style="padding:8px var(--s4) 14px; border-top:1px solid var(--line);">
+      <div style="font-size:12px; color:var(--ink2); margin-bottom:4px; font-weight:500;">Tên hiển thị (tuỳ chọn)</div>
+      <input id="sched-edit-title" class="field-input" type="text" placeholder="Tên ngắn gọn cho lịch hẹn" style="margin-bottom:10px;">
+      <div style="font-size:12px; color:var(--ink2); margin-bottom:4px; font-weight:500;">Biểu thức Cron (5 trường: phút giờ ngày tháng thứ)</div>
+      <input id="sched-edit-cron" class="field-input" type="text" placeholder="Ví dụ: 0 8 * * *" style="margin-bottom:4px;">
+      <div id="sched-edit-cron-preview" style="font-size:12px; color:var(--lav-deep); margin-bottom:10px;"></div>
+      <div style="font-size:12px; color:var(--ink2); margin-bottom:4px; font-weight:500;">Nội dung lời nhắc / việc cần làm</div>
+      <textarea id="sched-edit-prompt" class="field-input" rows="3" style="height:auto; padding:10px 12px; margin-bottom:10px;"></textarea>
+      <div class="btn-row" style="padding:0;">
+        <button class="btn btn-ghost btn-sm" id="btn-sched-edit-cancel" type="button">Huỷ</button>
+        <button class="btn btn-accent btn-sm" id="btn-sched-edit-save" type="button">Lưu thay đổi</button>
+      </div>
+    </div>
+
+    <div id="sched-delete-confirm-box" class="hidden" style="padding:12px var(--s4) 14px; border-top:1px solid var(--line); background:var(--surface2);">
+      <div style="font-size:13px; color:var(--ink); font-weight:500; margin-bottom:10px;">Anh có chắc chắn muốn xoá vĩnh viễn lịch trình này không? Hành động này không thể hoàn tác.</div>
+      <div class="btn-row" style="padding:0;">
+        <button class="btn btn-ghost btn-sm" id="btn-sched-delete-cancel" type="button">Huỷ</button>
+        <button class="btn btn-accent btn-sm" id="btn-sched-delete-confirm" type="button">Xác nhận xoá</button>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -880,7 +951,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       <button class="modal-close-btn" id="btn-close-heartbeat">✕</button>
     </div>
     <div class="modal-title">Heartbeat</div>
-    <div class="modal-sub">30 phút một lần</div>
+    <div class="modal-sub">Mỗi 30 phút (*/30 * * * *)</div>
 
     <div class="modal-section-title" id="heartbeat-history-toggle" style="cursor:pointer; user-select:none;">
       <span>Lịch sử chạy</span>
@@ -922,28 +993,28 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
     <div style="display:flex; flex-direction:column; gap:10px; margin:16px 0 20px; font-size:13px; line-height:1.45;">
       <div style="display:flex; gap:10px; align-items:flex-start;">
-        <span style="color:var(--ok); font-size:14px; flex-shrink:0;">🟢</span>
+        <span style="color:var(--ink); font-weight:600; font-size:14px; flex-shrink:0;">✓</span>
         <div><strong style="color:var(--ink);">Đọc Checklist &amp; Sở thích:</strong> <span style="color:var(--ink2);">Nạp mục tiêu từ HEARTBEAT.md và bộ lọc chủ đề PROACTIVE_PREFERENCES.md.</span></div>
       </div>
       <div style="display:flex; gap:10px; align-items:flex-start;">
-        <span style="color:var(--ok); font-size:14px; flex-shrink:0;">🟢</span>
+        <span style="color:var(--ink); font-weight:600; font-size:14px; flex-shrink:0;">✓</span>
         <div><strong style="color:var(--ink);">Đọc Ngữ cảnh nhẹ:</strong> <span style="color:var(--ink2);">Ký ức gần (facts), cam kết đang mở, lịch cá nhân đang bật (lightContext).</span></div>
       </div>
       <div style="display:flex; gap:10px; align-items:flex-start;">
-        <span style="color:var(--ok); font-size:14px; flex-shrink:0;">🟢</span>
+        <span style="color:var(--ink); font-weight:600; font-size:14px; flex-shrink:0;">✓</span>
         <div><strong style="color:var(--ink);">Mô hình nhẹ (Cheap Model):</strong> <span style="color:var(--ink2);">Chạy qua gemini-3.5-flash-lite tiết kiệm token, khung giờ 07:00–23:00.</span></div>
       </div>
       <div style="display:flex; gap:10px; align-items:flex-start;">
-        <span style="color:var(--ok); font-size:14px; flex-shrink:0;">🟢</span>
+        <span style="color:var(--ink); font-weight:600; font-size:14px; flex-shrink:0;">✓</span>
         <div><strong style="color:var(--ink);">Tạo Đề xuất im lặng:</strong> <span style="color:var(--ink2);">Xếp hàng việc cần làm vào proactive_notes, không tự tiện làm phiền.</span></div>
       </div>
       <div style="display:flex; gap:10px; align-items:flex-start;">
-        <span style="color:var(--err); font-size:14px; flex-shrink:0;">🔴</span>
-        <div><strong style="color:var(--ink);">Tự ý nhắn tin vào Chat:</strong> <span style="color:var(--err); font-weight:500;">Bị chặn.</span> <span style="color:var(--ink2);">Chỉ gửi tin khi có việc khẩn cấp thật sự hoặc khi ní hỏi.</span></div>
+        <span style="color:var(--ink2); font-weight:600; font-size:14px; flex-shrink:0;">✕</span>
+        <div><strong style="color:var(--ink);">Tự ý nhắn tin vào Chat:</strong> <span style="color:var(--ink); font-weight:600;">Bị chặn.</span> <span style="color:var(--ink2);">Chỉ gửi tin khi có việc khẩn cấp thật sự hoặc khi ní hỏi.</span></div>
       </div>
       <div style="display:flex; gap:10px; align-items:flex-start;">
-        <span style="color:var(--err); font-size:14px; flex-shrink:0;">🔴</span>
-        <div><strong style="color:var(--ink);">Can thiệp tệp tin / Shell:</strong> <span style="color:var(--err); font-weight:500;">Bị chặn.</span> <span style="color:var(--ink2);">Không có quyền chạy bash hay sửa đổi file hệ thống.</span></div>
+        <span style="color:var(--ink2); font-weight:600; font-size:14px; flex-shrink:0;">✕</span>
+        <div><strong style="color:var(--ink);">Can thiệp tệp tin / Shell:</strong> <span style="color:var(--ink); font-weight:600;">Bị chặn.</span> <span style="color:var(--ink2);">Không có quyền chạy bash hay sửa đổi file hệ thống.</span></div>
       </div>
     </div>
 
@@ -1595,24 +1666,67 @@ async function api(path, method, body){
   if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
   return data;
 }
-function hhmm(iso){
+function formatTimeUnified(iso){
   if (!iso) return "";
-  const d = new Date(iso);
-  return isNaN(d) ? "" : d.toLocaleTimeString("vi-VN",
-    {hour:"2-digit", minute:"2-digit"});
+  const s = String(iso).trim();
+  if (/^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}$/.test(s)) return s;
+  const d = new Date(s);
+  if (isNaN(d)) return s;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return dd + "/" + mm + "/" + yyyy + " " + hh + ":" + mi;
+}
+function hhmm(iso){
+  return formatTimeUnified(iso);
 }
 function todayLabel(iso){
-  if (!iso) return "";
-  const d = new Date(iso), now = new Date();
-  const hm = hhmm(iso);
-  return d.toDateString() === now.toDateString() ? hm
-    : d.toLocaleDateString("vi-VN") + " " + hm;
+  return formatTimeUnified(iso);
+}
+function truncateWords(text, maxLen){
+  const clean = String(text ?? "").replace(/\s+/g, " ").trim();
+  const limit = maxLen || 80;
+  if (clean.length <= limit) return clean;
+  const cut = clean.slice(0, limit).trimEnd();
+  const sp = cut.lastIndexOf(" ");
+  if (sp >= Math.floor(limit * 0.55)) return cut.slice(0, sp).replace(/[.,;:\-–—]+$/, "") + "…";
+  return cut + "…";
+}
+function describeCronVi(expr){
+  const raw = String(expr || "").trim();
+  const parts = raw.split(/\s+/);
+  if (parts.length !== 5) return raw || "Định kỳ";
+  const [m, h, dom, mon, dow] = parts;
+  const dowNames = {"0":"Chủ nhật","7":"Chủ nhật","1":"Thứ hai","2":"Thứ ba","3":"Thứ tư","4":"Thứ năm","5":"Thứ sáu","6":"Thứ bảy","1-5":"Thứ 2–Thứ 6"};
+  if (dom === "*" && mon === "*" && dow === "*") {
+    if (m.startsWith("*/") && h === "*") return "Mỗi " + m.slice(2) + " phút";
+    if (m === "0" && h.startsWith("*/")) return "Mỗi " + h.slice(2) + " giờ";
+    if (/^\d+$/.test(m) && h.startsWith("*/")) return "Mỗi " + h.slice(2) + " giờ (phút " + m.padStart(2, "0") + ")";
+    if (/^\d+$/.test(m) && /^\d+$/.test(h)) return "Mỗi ngày lúc " + h.padStart(2, "0") + ":" + m.padStart(2, "0");
+    if (/^\d+$/.test(m) && /^\d+(,\d+)+$/.test(h)) {
+      return "Mỗi ngày lúc " + h.split(",").map(x => x.padStart(2, "0") + ":" + m.padStart(2, "0")).join(", ");
+    }
+  }
+  if (dom === "*" && mon === "*" && dow !== "*" && /^\d+$/.test(m) && /^\d+$/.test(h)) {
+    return "Hàng tuần (" + (dowNames[dow] || ("thứ " + dow)) + ") lúc " + h.padStart(2, "0") + ":" + m.padStart(2, "0");
+  }
+  if (/^\d+$/.test(dom) && mon === "*" && dow === "*" && /^\d+$/.test(m) && /^\d+$/.test(h)) {
+    return "Ngày " + dom + " hàng tháng lúc " + h.padStart(2, "0") + ":" + m.padStart(2, "0");
+  }
+  return "Lịch cron";
+}
+function formatCronDisplay(expr){
+  const raw = String(expr || "").trim();
+  if (!raw) return "";
+  return describeCronVi(raw) + " (" + raw + ")";
 }
 
 /* ---------------- điều hướng ---------------- */
 const MAIN_TABS = ["viec","pheduyet","lich","hoso","caidat"];
 const TAB_TITLES = {"viec":"Việc","pheduyet":"Phê duyệt","lich":"Lịch","hoso":"Hồ sơ","caidat":"Cài đặt"};
-const TAB_OF_SCREEN = {"screen-task":"viec","screen-profile":"hoso",
+const TAB_OF_SCREEN = {"screen-task":"viec","screen-schedule-detail":"lich","screen-profile":"hoso",
   "screen-skill":"hoso",
   "screen-sub-dossier":"hoso","screen-sub-memory":"hoso",
   "screen-fact-detail":"hoso","screen-sub-skills":"hoso",
@@ -1627,7 +1741,7 @@ const TAB_OF_SCREEN = {"screen-task":"viec","screen-profile":"hoso",
   "screen-connector-policy":"caidat",
   "screen-google-config":"caidat"};
 const SCREEN_TITLES = {
-  "screen-task":"Chi tiết việc","screen-profile":"Hồ sơ","screen-skill":"Kỹ năng",
+  "screen-task":"Chi tiết việc","screen-schedule-detail":"Chi tiết lịch trình","screen-profile":"Hồ sơ","screen-skill":"Kỹ năng",
   "screen-sub-dossier":"Hồ sơ của agent","screen-sub-memory":"Bộ nhớ dài hạn",
   "screen-fact-detail":"Chi tiết ký ức","screen-sub-skills":"Kỹ năng",
   "screen-sub-library":"Thư viện tài liệu","screen-library-preview":"Xem trước tài liệu",
@@ -1756,6 +1870,21 @@ document.addEventListener("click", (e) => {
     e.preventDefault();
     haptic("select");
     openHeartbeatModal();
+    return;
+  }
+  const schedOpenEl = e.target.closest("[data-sched-open]");
+  if (schedOpenEl && schedOpenEl.dataset.schedOpen) {
+    if (e.target.closest("button, label, input, select")) return;
+    e.preventDefault();
+    haptic("select");
+    openScheduleDetail(schedOpenEl.dataset.schedOpen);
+    return;
+  }
+  const schedRunEl = e.target.closest("[data-sched-run]");
+  if (schedRunEl && schedRunEl.dataset.schedRun !== undefined) {
+    e.preventDefault();
+    haptic("select");
+    toggleScheduleRunDetail(schedRunEl.dataset.schedRun);
     return;
   }
   const taskEl = e.target.closest("[data-task]");
@@ -2277,19 +2406,42 @@ function renderStatus(){
 
 /* ---------------- Việc ---------------- */
 function taskStateText(t){
-  /* Trạng thái = chữ ở cuối hàng như pattern .r-state của
-     lịch sử duyệt (KT-3) — không còn glyph ✓/◌/✕ trong ô be. */
-  if (t.status === "done") return "✓ Đã xong";
-  if (t.status === "running") return "◌ Đang chạy";
-  if (t.status === "cancelled") return "⊘ Đã dừng";
+  /* T-23.4: Một nguồn sự thật duy nhất giữa danh sách và chi tiết.
+     Nếu chưa đủ bước (steps_done < steps_total) thì không ghi "✓ Đã xong". */
+  if (!t) return "· Đang chờ";
+  if (t.status_label) return t.status_label;
+  const done = Number(t.steps_done || 0);
+  const total = Number(t.steps_total || 0);
   if (t.status === "failed") return "✕ Đã lỗi";
+  if (t.status === "cancelled") return "⊘ Đã dừng";
+  if (t.status === "running") return "◌ Đang chạy";
+  if (t.status === "partial" || (t.status === "done" && total > 0 && done < total)) {
+    return "· Xong " + done + "/" + total + " bước";
+  }
+  if (t.status === "done") return "✓ Đã xong";
   return "· Đang chờ";
 }
 function taskSub(t){
-  /* Sub chỉ khi thật cần: chi tiết lỗi dưới tiêu đề. */
-  if (t.status === "failed") return "Lỗi: " + (t.error || "không rõ");
-  if (t.status === "cancelled") return "Đã dừng: " + (t.error || "theo yêu cầu");
-  return "";
+  /* T-23.4: Đồng bộ dòng phụ giữa danh sách và màn chi tiết. */
+  if (!t) return "";
+  if (t.status_sub) return truncateWords(t.status_sub, 110);
+  const done = Number(t.steps_done || 0);
+  const total = Number(t.steps_total || 0);
+  const stepRatio = total > 0 ? (done + "/" + total + " bước") : "";
+  if (t.status === "failed") {
+    const err = truncateWords(maskPaths(fixGluedWords(t.error || "Tác vụ không đạt kiểm chứng")), 90);
+    return (stepRatio ? stepRatio + " · " : "") + "Lỗi: " + err;
+  }
+  if (t.status === "cancelled") {
+    return (stepRatio ? stepRatio + " · " : "") + "Đã dừng: " + truncateWords(t.error || "theo yêu cầu", 80);
+  }
+  if (t.status === "running" && t.current_step) {
+    return "Đang chạy: " + truncateWords(t.current_step, 80) + (stepRatio ? " (" + stepRatio + ")" : "");
+  }
+  if (t.status === "partial" || (t.status === "done" && total > 0 && done < total)) {
+    return "Hoàn tất một phần (" + stepRatio + ") — có bước chưa đạt";
+  }
+  return stepRatio;
 }
 function cleanTaskTitle(s){
   if (!s) return "Chi tiết việc";
@@ -2297,7 +2449,7 @@ function cleanTaskTitle(s){
   t = maskPaths(t);
   t = fixGluedWords(t);
   t = t.replace(/\s+/g, " ");
-  return t || "Chi tiết việc";
+  return truncateWords(t, 110) || "Chi tiết việc";
 }
 function renderTasks(){
   const box = $("task-list");
@@ -2310,12 +2462,7 @@ function renderTasks(){
     return;
   }
   box.innerHTML = tasks.map(t => {
-    let sub = taskSub(t);
-    if (t.status === "running" && t.current_step) {
-      sub = "Đang chạy: " + t.current_step;
-    } else if (!sub && t.steps_total) {
-      sub = t.steps_done + "/" + t.steps_total + " bước";
-    }
+    const sub = taskSub(t);
     const stopBtn = (t.status === "running")
       ? '<button class="btn btn-danger btn-xs" data-stop-id="' + esc(t.id) + '" style="margin-left:8px; padding:2px 8px; font-size:11px; border-radius:6px; cursor:pointer;" title="Dừng việc này">Dừng</button>'
       : '';
@@ -2323,7 +2470,7 @@ function renderTasks(){
       '<div class="r-main"><div class="r-title">' + esc(cleanTaskTitle(t.title)) +
       '</div>' + (sub ? '<div class="r-sub">' + esc(sub) +
       '</div>' : "") + '</div>' +
-      '<span class="r-state">' + taskStateText(t) + '</span>' +
+      '<span class="r-state">' + esc(taskStateText(t)) + '</span>' +
       stopBtn +
       '<div class="r-time">' + esc(todayLabel(t.created_at)) +
       '</div></div>';
@@ -2609,14 +2756,18 @@ function renderMd(text){
 async function openTask(id){
   showSub("screen-task");
   document.body.classList.remove("split");
-  // Xóa stale heading ngay lập tức (Q-03 / T-23.2)
+  // Xóa stale heading ngay lập tức (Q-03 / T-23.2 / T-23.4)
   $("task-detail-title").textContent = "Chi tiết việc";
+  if ($("task-detail-status")) $("task-detail-status").textContent = "";
+  if ($("task-detail-sub")) $("task-detail-sub").textContent = "";
   $("task-timeline").innerHTML = '<div class="skel"><div class="bar w70"></div><div class="bar w40"></div></div>';
   $("task-summary").innerHTML = '<div class="skel"><div class="bar w90"></div><div class="bar w60"></div></div>';
   try {
     const data = await api("/api/task?id=" + encodeURIComponent(id));
     const t = data.task;
     $("task-detail-title").textContent = cleanTaskTitle(t.title);
+    if ($("task-detail-status")) $("task-detail-status").textContent = taskStateText(t);
+    if ($("task-detail-sub")) $("task-detail-sub").textContent = taskSub(t);
     const stopDetailBtn = $("btn-stop-task-detail");
     if (stopDetailBtn) {
       if (t.status === "running") {
@@ -2652,6 +2803,9 @@ async function openTask(id){
     steps.forEach((st, idx) => {
       let stepName = st.title || "Bước thực thi";
       if (idx > 0 && stepName === "Đã bắt đầu") return;
+      if (t.status === "failed" && stepName.startsWith("Kiểm chứng: Đạt")) {
+        stepName = "Kiểm chứng: Không đạt (tác vụ lỗi)";
+      }
 
       if (stepName.startsWith("Chạy lệnh: python3 -c") || stepName.startsWith("Chạy lệnh: python -c")){
         stepName = "Chạy script Python";
@@ -2669,7 +2823,6 @@ async function openTask(id){
         try { parsed = JSON.parse(st.detail); } catch(e){}
       }
       if (parsed && typeof parsed === "object"){
-        // Trích xuất lời thường tinh gọn, TUYỆT ĐỐI không in raw JSON và không lặp lại lệnh dài lê thê
         if (parsed.tool === "run_command" || parsed.command || (st.title && st.title.startsWith("Chạy lệnh"))){
           meta = (parsed.ok !== false && (!parsed.exit_code || parsed.exit_code === 0)) ? "Đã thực thi thành công" : ("Lỗi thực thi" + (parsed.exit_code ? " (mã " + parsed.exit_code + ")" : ""));
         } else if (parsed.summary){
@@ -2688,13 +2841,12 @@ async function openTask(id){
         meta = st.detail;
       }
 
-      // Làm sạch meta: loại bỏ tag đính kèm và rút gọn đường dẫn file dài
       if (meta){
         meta = meta.replace(/\[(?:Người dùng gửi (?:kèm ảnh|một tấm ảnh|ảnh)|Đang trả lời tin)[^\]]*\]/gi, "").trim();
         meta = maskPaths(meta);
         meta = fixGluedWords(meta);
       }
-      if (st.updated_at) meta = (meta ? meta + " · " : "") + hhmm(st.updated_at);
+      if (st.updated_at) meta = (meta ? meta + " · " : "") + todayLabel(st.updated_at);
 
       let imgHtml = "";
       if (parsed){
@@ -2715,10 +2867,13 @@ async function openTask(id){
         }
       }
 
+      const stepCls = (t.status === "failed" && stepName.startsWith("Kiểm chứng: Không đạt"))
+        ? "err"
+        : (st.status === "done" ? "done" : st.status === "doing" ? "doing" : st.status === "failed" ? "err" : "");
       items.push({
         name: stepName,
         meta: meta,
-        cls: st.status === "done" ? "done" : st.status === "doing" ? "doing" : st.status === "failed" ? "err" : "",
+        cls: stepCls,
         imgHtml: imgHtml
       });
     });
@@ -2727,21 +2882,58 @@ async function openTask(id){
       const tool = ev.payload.tool || "";
       if (ev.kind === "tool_call")
         items.push({name: stepActionLabel(tool, ev.payload.group),
-          meta: (tool ? tool + " · " : "") + (ev.payload.ok ? "thành công" : "lỗi") + " · " + hhmm(ev.at),
+          meta: (tool ? tool + " · " : "") + (ev.payload.ok ? "thành công" : "lỗi") + " · " + todayLabel(ev.at),
           cls: ev.payload.ok ? "done" : "err"});
       else if (ev.kind === "approval_requested")
         items.push({name: "Đã xin duyệt — " + stepActionLabel(tool, ev.payload.group),
-          meta: (tool ? tool + " · " : "") + hhmm(ev.at), cls: "doing"});
+          meta: (tool ? tool + " · " : "") + todayLabel(ev.at), cls: "doing"});
       else if (ev.kind === "approval_decision")
         items.push({name: "Kết quả duyệt: " + outcomeLabel({outcome: ev.payload.outcome || ""}),
-          meta: hhmm(ev.at), cls: ev.payload.approved ? "done" : "err"});
+          meta: todayLabel(ev.at), cls: ev.payload.approved ? "done" : "err"});
     });
 
-    items.push({
-      name: t.status === "running" ? "Đang hoàn tất…" : "Hoàn tất",
-      meta: todayLabel(t.updated_at),
-      cls: t.status === "failed" ? "err" : "done"
-    });
+    // Bước chốt cuối timeline đồng nhất 100% với trạng thái việc (T-23.4)
+    const fin = t.final_step || null;
+    if (fin) {
+      let finMeta = fin.detail ? truncateWords(maskPaths(fixGluedWords(fin.detail)), 120) : "";
+      if (t.updated_at) finMeta = (finMeta ? finMeta + " · " : "") + todayLabel(t.updated_at);
+      items.push({
+        name: fin.title || taskStateText(t),
+        meta: finMeta,
+        cls: fin.status === "failed" ? "err" : (fin.status === "doing" ? "doing" : "done"),
+      });
+    } else if (t.status === "failed") {
+      const errMeta = truncateWords(maskPaths(fixGluedWords(t.error || "")), 120);
+      items.push({
+        name: "✕ Đã lỗi",
+        meta: (errMeta ? errMeta + " · " : "") + todayLabel(t.updated_at),
+        cls: "err",
+      });
+    } else if (t.status === "cancelled") {
+      items.push({
+        name: "⊘ Đã dừng việc",
+        meta: todayLabel(t.updated_at),
+        cls: "err",
+      });
+    } else if (t.status === "partial" || (t.steps_total > 0 && t.steps_done < t.steps_total && t.status !== "running")) {
+      items.push({
+        name: "· Hoàn tất một phần (" + t.steps_done + "/" + t.steps_total + " bước)",
+        meta: todayLabel(t.updated_at),
+        cls: "doing",
+      });
+    } else if (t.status === "running") {
+      items.push({
+        name: "◌ Đang thực hiện…",
+        meta: todayLabel(t.updated_at),
+        cls: "doing",
+      });
+    } else {
+      items.push({
+        name: "✓ Hoàn tất",
+        meta: todayLabel(t.updated_at),
+        cls: "done",
+      });
+    }
 
     $("task-timeline").innerHTML = items.map(i =>
       '<div class="tl-item"><div class="tl-dot ' + i.cls + '"></div>' +
@@ -2750,7 +2942,7 @@ async function openTask(id){
       (i.imgHtml || "") +
       '</div></div>').join("");
 
-    $("task-summary").innerHTML = renderMd(t.result || t.error || "(chưa có tóm tắt)");
+    $("task-summary").innerHTML = renderMd(t.summary_markdown || t.result || t.error || "(chưa có tóm tắt)");
   } catch (e) {
     $("task-timeline").innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
     $("task-summary").innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
@@ -2871,6 +3063,10 @@ function renderApprovals(){
 }
 
 /* ---------------- Lịch ---------------- */
+const CHEV_SVG = '<span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>';
+let currentScheduleDetail = null;
+let scheduleExpandedRuns = {};
+
 function renderSchedule(){
   const sch = (S && S.schedule) || {available:false, items:[]};
   const banner = $("schedule-banner");
@@ -2884,9 +3080,8 @@ function renderSchedule(){
   else banner.innerHTML = "";
 
   const userItems = sch.items.filter(it => it.kind === "schedule");
-  const sysItems = sch.items.filter(it => it.kind !== "schedule");
 
-  // Danh sách Sắp tới (Upcoming) hợp nhất từ dữ liệu thật
+  // Danh sách Sắp tới (Upcoming) hợp nhất từ dữ liệu thật — mọi hàng bấm mở chi tiết
   const upBox = $("upcoming-list");
   if (upBox) {
     const upcoming = (S && S.upcoming) || [];
@@ -2895,36 +3090,41 @@ function renderSchedule(){
         'Lịch hẹn, Heartbeat, lịch Feed và cam kết đang theo dõi sẽ xuất hiện tại đây.</div>';
     } else {
       upBox.innerHTML = upcoming.map(it => {
-        const badgeCls = it.read_only ? 'r-state' : 'r-state';
-        const badgeTxt = it.read_only ? 'Chỉ xem' : 'Sửa/huỷ qua chat';
-        const sub = (it.time_label ? it.time_label + ' · ' : '') + esc(it.chat_instruction || '');
-        return '<div class="row static">' +
+        const cronLabel = it.cron_display || (it.cron ? formatCronDisplay(it.cron) : (it.time_label || ""));
+        const nextLabel = it.next_run_at ? ("tới: " + todayLabel(it.next_run_at)) : "";
+        const sub = [cronLabel, nextLabel].filter(Boolean).join(" · ");
+        const openId = it.schedule_id || it.id || "";
+        return '<div class="row" data-sched-open="' + esc(openId) + '">' +
           '<div class="r-main"><div class="r-title">' + esc(it.title) +
-          '</div><div class="r-sub">' + sub + '</div></div>' +
-          '<span class="' + badgeCls + '">' + badgeTxt + '</span>' +
+          '</div><div class="r-sub">' + esc(sub) + '</div></div>' +
+          '<span class="r-state">Chi tiết</span>' +
+          CHEV_SVG +
           '</div>';
       }).join("");
     }
   }
 
-  // Danh sách lịch hẹn người dùng
+  // Danh sách lịch hẹn người dùng — diễn giải cron tiếng Việt + mở màn chi tiết
   const boxUser = $("schedule-list");
   if (!userItems.length){
     boxUser.innerHTML = '<div class="empty">Chưa có lịch hẹn cá nhân nào.<br>' +
       'Nhờ Mulon đặt lịch trong chat (ví dụ: “nhắc tui 9h sáng mai…”).</div>';
   } else {
-    boxUser.innerHTML = userItems.map(it =>
-      '<div class="row static">' +
-      '<div class="r-main"><div class="r-title">' + esc(it.name) +
-      '</div><div class="r-sub">' + esc(it.cron) +
-      (it.next_run_at ? " · tới: " + esc(todayLabel(it.next_run_at)) : "") +
-      '</div></div>' +
-      (it.toggleable
-        ? '<label class="tgl"><input type="checkbox" data-sched="' +
-          esc(it.id) + '"' + (it.enabled ? " checked" : "") +
-          '><span class="tr"></span></label>'
-        : '<span class="r-state">' + (it.enabled ? "Đang bật" : "Đang tắt") + '</span>') +
-      '</div>').join("");
+    boxUser.innerHTML = userItems.map(it => {
+      const cronDisp = it.cron_display || formatCronDisplay(it.cron);
+      const subText = cronDisp + (it.next_run_at ? " · tới: " + todayLabel(it.next_run_at) : "");
+      return '<div class="row" data-sched-open="' + esc(it.id) + '">' +
+        '<div class="r-main"><div class="r-title">' + esc(it.name) +
+        '</div><div class="r-sub">' + esc(subText) +
+        '</div></div>' +
+        (it.toggleable
+          ? '<label class="tgl"><input type="checkbox" data-sched="' +
+            esc(it.id) + '"' + (it.enabled ? " checked" : "") +
+            '><span class="tr"></span></label>'
+          : '<span class="r-state">' + (it.enabled ? "Đang bật" : "Đang tắt") + '</span>') +
+        CHEV_SVG +
+        '</div>';
+    }).join("");
   }
 
   // Gắn event listener cho toggle lịch cá nhân
@@ -2937,6 +3137,192 @@ function renderSchedule(){
         toast(inp.checked ? "Đã bật tiến trình." : "Đã tạm dừng tiến trình.");
       } catch (e) { toast(e.message); inp.checked = !inp.checked; }
     }));
+}
+
+function renderScheduleRuns() {
+  const runsBox = $("sched-detail-runs");
+  if (!runsBox) return;
+  const runs = (currentScheduleDetail && currentScheduleDetail.runs) || [];
+  if (!runs.length) {
+    runsBox.innerHTML = '<div class="empty">Chưa có lượt chạy nào được ghi nhận cho lịch trình này.</div>';
+    return;
+  }
+  runsBox.innerHTML = runs.map((r, idx) => {
+    const isExp = Boolean(scheduleExpandedRuns[idx]);
+    const stText = r.status_label || (r.status === "failed" ? "✕ Đã lỗi" : "✓ Hoàn tất");
+    const timeText = todayLabel(r.started_at || r.time_str || "");
+    const durText = r.duration_label || "Tức thời";
+    const outText = r.output || r.summary || "Không có đầu ra chi tiết.";
+    const errText = r.error || "";
+    return '<div class="sched-run-wrap" style="border-bottom:1px solid var(--tint-gray); padding:4px 0;">' +
+      '<div class="row" data-sched-run="' + idx + '" style="padding:10px 4px; min-height:44px;">' +
+        '<div class="r-main">' +
+          '<div class="r-title" style="font-size:14px;">' + esc(stText) + ' · ' + esc(truncateWords(r.summary || "Chạy định kỳ", 72)) + '</div>' +
+          '<div class="r-sub">' + esc(timeText) + (durText ? ' · Thời lượng: ' + esc(durText) : '') + '</div>' +
+        '</div>' +
+        '<span class="chev" style="transform:' + (isExp ? 'rotate(90deg)' : 'none') + '; transition:transform 180ms;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
+      '</div>' +
+      (isExp ? '<div class="sched-run-detail" style="padding:10px 12px; margin:2px 0 8px; border-radius:12px; background:var(--surface2); font-size:12px; line-height:1.55; color:var(--ink2);">' +
+        '<div><strong style="color:var(--ink);">Thời điểm:</strong> ' + esc(timeText || "—") + '</div>' +
+        '<div><strong style="color:var(--ink);">Thời lượng:</strong> ' + esc(durText) + '</div>' +
+        '<div><strong style="color:var(--ink);">Trạng thái:</strong> ' + esc(stText) + '</div>' +
+        '<div style="margin-top:4px;"><strong style="color:var(--ink);">Đầu ra:</strong> <div style="margin-top:2px; color:var(--ink);">' + renderMd(outText) + '</div></div>' +
+        (errText ? '<div style="margin-top:4px;"><strong style="color:var(--ink);">Lỗi / Chẩn đoán:</strong> <span style="color:var(--ink);">' + esc(errText) + '</span></div>' : '') +
+      '</div>' : '') +
+    '</div>';
+  }).join("");
+}
+
+function toggleScheduleRunDetail(idx) {
+  scheduleExpandedRuns[idx] = !scheduleExpandedRuns[idx];
+  renderScheduleRuns();
+}
+
+async function openScheduleDetail(rawId) {
+  if (!rawId) return;
+  let sid = String(rawId).trim();
+  if (sid.startsWith("sched_")) sid = sid.slice(6);
+  showSub("screen-schedule-detail");
+  scheduleExpandedRuns = {0: true}; // Mặc định mở lượt chạy gần nhất để dễ đối chiếu
+  $("sched-detail-title").textContent = "Chi tiết lịch trình";
+  $("sched-detail-badge").textContent = "Đang tải…";
+  $("sched-detail-cron-sub").textContent = "";
+  $("sched-detail-kind").textContent = "—";
+  $("sched-detail-cron").textContent = "—";
+  $("sched-detail-next").textContent = "—";
+  $("sched-detail-last").textContent = "—";
+  $("sched-detail-prompt").innerHTML = '<div class="skel"><div class="bar w70"></div><div class="bar w40"></div></div>';
+  $("sched-detail-runs").innerHTML = '<div class="skel"><div class="bar w70"></div><div class="bar w40"></div></div>';
+  $("sched-detail-perms").innerHTML = "";
+  $("sched-edit-box").classList.add("hidden");
+  $("sched-delete-confirm-box").classList.add("hidden");
+
+  try {
+    const data = await api("/api/schedules/" + encodeURIComponent(sid));
+    const d = data.schedule || data;
+    currentScheduleDetail = d;
+    $("sched-detail-title").textContent = d.name || d.title || "Chi tiết lịch trình";
+    $("sched-detail-badge").textContent = d.status_label || (d.enabled ? "Đã lên lịch" : "Đã tạm dừng");
+    const cronDisp = d.cron_display || formatCronDisplay(d.cron);
+    $("sched-detail-cron-sub").textContent = cronDisp;
+    $("sched-detail-kind").textContent = d.kind_label || "Lịch hẹn cá nhân";
+    $("sched-detail-cron").textContent = cronDisp + (d.timezone ? " · " + d.timezone : "");
+    $("sched-detail-next").textContent = d.next_run_at ? todayLabel(d.next_run_at) : "—";
+    $("sched-detail-last").textContent = d.last_run_at ? todayLabel(d.last_run_at) : "Chưa chạy lần nào";
+    $("sched-detail-prompt").innerHTML = renderMd(d.prompt || d.payload || "(không có nội dung)");
+
+    const tgl = $("sched-detail-tgl");
+    const tglWrap = $("sched-detail-tgl-wrap");
+    if (tgl && tglWrap) {
+      if (d.kind === "tracked") {
+        tglWrap.classList.add("hidden");
+      } else {
+        tglWrap.classList.remove("hidden");
+        tgl.checked = Boolean(d.enabled);
+        tgl.onchange = async () => {
+          try {
+            const res = await api("/api/schedule", "POST", {id: d.id, enabled: tgl.checked});
+            if (!res.ok) throw new Error(res.error || "Không đổi được trạng thái");
+            d.enabled = tgl.checked;
+            $("sched-detail-badge").textContent = d.enabled ? "Đã lên lịch" : "Đã tạm dừng";
+            toast(d.enabled ? "Đã bật lịch trình." : "Đã tạm dừng lịch trình.");
+            await load();
+          } catch (err) {
+            toast(err.message);
+            tgl.checked = !tgl.checked;
+          }
+        };
+      }
+    }
+
+    renderScheduleRuns();
+
+    const perms = d.permissions || [];
+    $("sched-detail-perms").innerHTML = perms.map(p =>
+      '<div style="display:flex; gap:8px; align-items:flex-start; margin-bottom:6px;">' +
+        '<span style="color:var(--ink); font-weight:600; flex-shrink:0;">✓</span>' +
+        '<span>' + esc(p) + '</span>' +
+      '</div>'
+    ).join("") || '<div class="empty">Không có thông tin quyền.</div>';
+
+    const actCard = $("sched-detail-actions-card");
+    const editBtn = $("btn-sched-edit");
+    const delBtn = $("btn-sched-delete");
+    if (actCard && editBtn && delBtn) {
+      if (!d.editable && !d.deletable) {
+        actCard.classList.add("hidden");
+      } else {
+        actCard.classList.remove("hidden");
+        editBtn.classList.toggle("hidden", !d.editable);
+        delBtn.classList.toggle("hidden", !d.deletable);
+
+        editBtn.onclick = () => {
+          $("sched-delete-confirm-box").classList.add("hidden");
+          const box = $("sched-edit-box");
+          box.classList.toggle("hidden");
+          if (!box.classList.contains("hidden")) {
+            $("sched-edit-title").value = d.raw_title || d.title || "";
+            $("sched-edit-cron").value = d.cron || "";
+            $("sched-edit-prompt").value = d.payload || d.prompt || "";
+            $("sched-edit-cron-preview").textContent = "Diễn giải: " + formatCronDisplay(d.cron || "");
+          }
+        };
+
+        $("sched-edit-cron").oninput = (ev) => {
+          $("sched-edit-cron-preview").textContent = "Diễn giải: " + formatCronDisplay(ev.target.value);
+        };
+        $("btn-sched-edit-cancel").onclick = () => {
+          $("sched-edit-box").classList.add("hidden");
+        };
+        $("btn-sched-edit-save").onclick = async () => {
+          const btn = $("btn-sched-edit-save");
+          try {
+            btn.disabled = true;
+            const res = await api("/api/schedules/" + encodeURIComponent(d.id) + "/update", "POST", {
+              id: d.id,
+              title: $("sched-edit-title").value.trim(),
+              cron: $("sched-edit-cron").value.trim(),
+              payload: $("sched-edit-prompt").value.trim(),
+            });
+            if (!res.ok) throw new Error(res.error || "Không thể lưu lịch trình");
+            toast("Đã lưu thay đổi lịch trình.");
+            await load();
+            await openScheduleDetail(d.id);
+          } catch (err) {
+            toast(err.message);
+          } finally {
+            btn.disabled = false;
+          }
+        };
+
+        delBtn.onclick = () => {
+          $("sched-edit-box").classList.add("hidden");
+          $("sched-delete-confirm-box").classList.toggle("hidden");
+        };
+        $("btn-sched-delete-cancel").onclick = () => {
+          $("sched-delete-confirm-box").classList.add("hidden");
+        };
+        $("btn-sched-delete-confirm").onclick = async () => {
+          const btn = $("btn-sched-delete-confirm");
+          try {
+            btn.disabled = true;
+            const res = await api("/api/schedules/" + encodeURIComponent(d.id) + "/delete", "POST", {id: d.id});
+            if (!res.ok) throw new Error(res.error || "Không thể xoá lịch trình");
+            toast("Đã xoá lịch trình.");
+            await load();
+            showMain("lich");
+          } catch (err) {
+            toast(err.message);
+          } finally {
+            btn.disabled = false;
+          }
+        };
+      }
+    }
+  } catch (e) {
+    $("sched-detail-prompt").innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+    $("sched-detail-runs").innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+  }
 }
 
 /* ---------------- Modal Heartbeat chuẩn Muse (Ảnh 4) ---------------- */
@@ -2952,25 +3338,26 @@ function renderHeartbeatRunList(hist) {
     return;
   }
   historyBox.innerHTML = hist.map((h, idx) => {
-    const timeStr = h.time || (h.created_at ? hhmm(h.created_at) : "");
-    const fullTimeStr = h.full_time || (h.created_at ? todayLabel(h.created_at) : timeStr);
+    const fullTimeStr = h.created_at ? todayLabel(h.created_at) : (h.full_time || h.time_str || h.time || "");
     const trig = (h.trigger === "scheduled" || !h.trigger) ? "định kỳ" : h.trigger;
     const isExp = Boolean(heartbeatExpandedRuns[idx]);
     const p = h.payload || {};
-    const res = p.result || "HEARTBEAT_OK";
+    const isErr = h.status === "error" || h.status === "failed";
+    const res = p.result || (isErr ? "HEARTBEAT_ERROR" : "HEARTBEAT_OK");
     const cand = p.candidates !== undefined ? p.candidates : 0;
     const supp = p.suppressed !== undefined ? p.suppressed : 0;
+    const outDetail = h.detail || (`${cand} đề xuất được phân tích, ${supp} đề xuất bị dập. Giữ im lặng chuẩn Muse.`);
 
     return `<div class="heartbeat-run-wrapper" style="border-bottom:1px solid color-mix(in srgb, var(--line) 40%, transparent); padding:4px 0;">` +
       `<div class="run-item" data-hb-run="${idx}" style="cursor:pointer; padding:6px 4px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; user-select:none;">` +
-        `<span><span class="dot-green">🟢</span> Đã thành công · ${esc(trig)}</span> ` +
-        `<span class="run-time" style="display:flex; align-items:center; gap:4px; color:var(--ink2);">${esc(timeStr)}</span>` +
+        `<span><span style="font-weight:600; margin-right:6px;">${isErr ? "✕" : "✓"}</span> ${isErr ? "Đã lỗi" : "Đã thành công"} · ${esc(trig)}</span> ` +
+        `<span class="run-time" style="display:flex; align-items:center; gap:4px; color:var(--ink2);">${esc(fullTimeStr)}</span>` +
       `</div>` +
       (isExp ? `<div style="padding:10px 12px; margin:4px 0 6px; border-radius:12px; background:var(--surface2); font-size:12px; line-height:1.55; color:var(--ink2); animation:modalPop 0.15s ease-out;">` +
         `<div><strong style="color:var(--ink);">Thời điểm:</strong> ${esc(fullTimeStr)}</div>` +
-        `<div><strong style="color:var(--ink);">Kết quả:</strong> <span style="color:var(--ok); font-weight:600;">${esc(res)}</span></div>` +
-        `<div><strong style="color:var(--ink);">Mục tiêu:</strong> Quét checklist HEARTBEAT.md định kỳ</div>` +
-        `<div><strong style="color:var(--ink);">Chi tiết:</strong> ${cand} đề xuất được phân tích, ${supp} đề xuất bị dập. Giữ im lặng chuẩn Muse.</div>` +
+        `<div><strong style="color:var(--ink);">Thời lượng:</strong> &lt; 1 giây</div>` +
+        `<div><strong style="color:var(--ink);">Kết quả:</strong> <span style="color:var(--ink); font-weight:600;">${esc(res)}</span></div>` +
+        `<div><strong style="color:var(--ink);">Đầu ra:</strong> ${esc(outDetail)}</div>` +
       `</div>` : "") +
     `</div>`;
   }).join("");

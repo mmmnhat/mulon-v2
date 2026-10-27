@@ -34,7 +34,7 @@ from urllib.parse import parse_qsl
 from . import __version__ as MULON_VERSION
 from .approvals import GROUP_SCOPE_LABELS
 from .memory import redact_trajectory_payload
-from .cron import parse_cron
+from .cron import next_run_iso, parse_cron
 from .feed_auto import SCHEDULE_ID as FEED_SCHEDULE_ID, valid_quiet_hours
 from .planning import internal_kind
 from .paths import sanitize_path_display, fix_glued_words
@@ -251,48 +251,347 @@ def policy_group_label(group: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Chuẩn hoá tiêu đề lịch, phân loại Hồ sơ / Bộ nhớ / Kỹ năng / Thư viện (T-23.2, T-23.3)
+# Chuẩn hoá tiêu đề lịch, diễn giải cron tiếng Việt & trạng thái việc (T-23.2..T-23.4)
 # ---------------------------------------------------------------------------
 
 def _truncate_words(text: str, max_len: int = 80) -> str:
-    """Cắt chuỗi theo ranh giới từ (không cắt đứt giữa từ, QA Q-07)."""
+    """Cắt chuỗi theo ranh giới từ (không cắt đứt giữa từ, QA Q-07 / T-23.4)."""
     s = re.sub(r"\s+", " ", (text or "").strip())
     if len(s) <= max_len:
         return s
     cut = s[:max_len]
     last_space = cut.rfind(" ")
-    if last_space >= max_len // 2:
+    if last_space > 0:
         cut = cut[:last_space]
     return cut.rstrip(" ,;:-") + "…"
 
 
+_DOW_VI_NAMES = {
+    "0": "Chủ nhật",
+    "7": "Chủ nhật",
+    "1": "Thứ 2",
+    "2": "Thứ 3",
+    "3": "Thứ 4",
+    "4": "Thứ 5",
+    "5": "Thứ 6",
+    "6": "Thứ 7",
+}
+
+
+def _describe_cron_vi(cron_expr: str) -> str:
+    """Diễn giải biểu thức cron sang tiếng Việt thân thiện dễ hiểu (T-23.4)."""
+    raw = re.sub(r"\s+", " ", (cron_expr or "").strip())
+    if not raw:
+        return "Theo lịch định kỳ"
+    fields = raw.split(" ")
+    # Nếu chuỗi đã là tiếng Việt hoặc không phải cron 5/6 trường
+    if len(fields) not in (5, 6) or any(
+        w in raw.lower() for w in ("phút", "giờ", "ngày", "lần", "vòng", "hằng")
+    ):
+        return raw
+    # Nếu 6 trường (có giây ở đầu), bỏ trường giây để diễn giải 5 trường chuẩn
+    if len(fields) == 6:
+        fields = fields[1:]
+    minute, hour, dom, month, dow = fields
+
+    if minute == "*" and hour == "*" and dom == "*" and month == "*" and dow == "*":
+        return "Mỗi phút"
+    if minute.startswith("*/") and hour == "*" and dom == "*" and month == "*" and dow == "*":
+        step = minute[2:]
+        return f"Mỗi {step} phút"
+    if minute.isdigit() and hour == "*" and dom == "*" and month == "*" and dow == "*":
+        m = int(minute)
+        return "Mỗi giờ" if m == 0 else f"Mỗi giờ (phút {m:02d})"
+    if minute.isdigit() and hour.startswith("*/") and dom == "*" and month == "*" and dow == "*":
+        step = hour[2:]
+        m = int(minute)
+        return f"Mỗi {step} giờ" if m == 0 else f"Mỗi {step} giờ (phút {m:02d})"
+
+    # Chuẩn hoá phần giờ:phút
+    time_desc = ""
+    m_val = int(minute) if minute.isdigit() else None
+    if m_val is not None:
+        h_parts = [p.strip() for p in hour.split(",") if p.strip()]
+        if all(p.isdigit() for p in h_parts):
+            times = [f"{int(h):02d}:{m_val:02d}" for h in h_parts]
+            time_desc = "lúc " + ", ".join(times)
+        elif "-" in hour and "/" not in hour:
+            a, b = hour.split("-", 1)
+            if a.isdigit() and b.isdigit():
+                time_desc = f"mỗi giờ từ {int(a):02d}:{m_val:02d} đến {int(b):02d}:{m_val:02d}"
+    elif minute.startswith("*/") and "-" in hour:
+        step = minute[2:]
+        a, b = hour.split("-", 1)
+        if a.isdigit() and b.isdigit():
+            time_desc = f"mỗi {step} phút (khung {int(a):02d}:00–{int(b):02d}:59)"
+
+    # Chuẩn hoá phần ngày/thứ
+    day_desc = "Hằng ngày"
+    if dom == "*" and dow != "*":
+        if dow in ("1-5", "1,2,3,4,5"):
+            day_desc = "Thứ 2 – Thứ 6"
+        elif dow in ("0,6", "6,0", "6-7", "6,7"):
+            day_desc = "Cuối tuần (Thứ 7, CN)"
+        else:
+            d_parts = [_DOW_VI_NAMES.get(d.strip(), f"Thứ ({d.strip()})") for d in dow.split(",")]
+            day_desc = ", ".join(d_parts) + " hằng tuần"
+    elif dom != "*" and dow == "*":
+        if dom.startswith("*/"):
+            day_desc = f"Mỗi {dom[2:]} ngày"
+        else:
+            day_desc = f"Ngày {dom} hằng tháng"
+
+    if month != "*":
+        day_desc += f" (tháng {month})"
+
+    if time_desc:
+        return f"{day_desc} {time_desc}"
+    return f"{day_desc} ({minute} {hour})"
+
+
+def _format_cron_display(cron_expr: str) -> tuple[str, str]:
+    """Trả (cron_human, cron_display) kết hợp tiếng Việt + cron gốc (T-23.4)."""
+    raw = re.sub(r"\s+", " ", (cron_expr or "").strip())
+    human = _describe_cron_vi(raw)
+    if not raw or human == raw:
+        return human, human
+    return human, f"{human} ({raw})"
+
+
+def _clean_schedule_title(raw_title: str, raw_payload: str) -> str:
+    """Làm sạch tiêu đề lịch, bỏ tiền tố kỹ thuật và giữ nguyên nghĩa (T-23.4)."""
+    base = (raw_title or "").strip() or (raw_payload or "").strip()
+    base = re.sub(
+        r"^\[(?:Nhắc việc(?:\s+tự động)?|Lịch hẹn|Schedule|Auto|Job)[^\]]*\]\s*[:\-–]?\s*",
+        "",
+        base,
+        flags=re.IGNORECASE,
+    )
+    base = sanitize_path_display(base)
+    base = fix_glued_words(base)
+    base = re.sub(r"\s+", " ", base).strip()
+    return base
+
+
 def _disambiguate_schedule_items(raw_items: list[dict], title_key: str = "name",
-                                 full_key: str = "prompt", max_len: int = 80) -> None:
-    """Nếu nhiều mục lịch có cùng phần đầu sau khi cắt (vd 3 lịch 'Quét TẤT CẢ…'),
-    tự động nối thêm phần phân biệt ở phía sau để người dùng phân biệt được (Q-07)."""
+                                 full_key: str = "prompt", max_len: int = 72) -> None:
+    """Nếu nhiều mục lịch có cùng phần đầu (vd 3 lịch 'Quét TẤT CẢ…'),
+    tự động nối thêm phần phân biệt ở phía sau và không cắt giữa từ (Q-07 / T-23.4)."""
     counts: dict[str, list[dict]] = {}
     for it in raw_items:
-        t = str(it.get(title_key) or "")
-        counts.setdefault(t, []).append(it)
-    for t, group in counts.items():
+        t = str(it.get(title_key) or "").strip()
+        # Gom nhóm theo 24 ký tự đầu không dấu để bắt cả các lịch chỉ khác nhau ở cuối câu
+        prefix_key = fold_vi(_truncate_words(t, 24).rstrip("…").strip())
+        if not prefix_key:
+            prefix_key = t
+        counts.setdefault(prefix_key, []).append(it)
+    for _, group in counts.items():
         if len(group) <= 1:
             continue
-        full_texts = [re.sub(r"\s+", " ", str(g.get(full_key) or g.get(title_key) or "").strip()) for g in group]
+        full_texts = [
+            re.sub(r"\s+", " ", str(g.get(full_key) or g.get(title_key) or "").strip())
+            for g in group
+        ]
         prefix_len = 0
         if full_texts and all(full_texts):
             min_l = min(len(x) for x in full_texts)
             while prefix_len < min_l and len({x[prefix_len] for x in full_texts}) == 1:
                 prefix_len += 1
+        # Lùi prefix_len về ranh giới khoảng trắng để không cắt ngang từ
+        if prefix_len > 0 and full_texts[0]:
+            space_back = full_texts[0][:prefix_len].rfind(" ")
+            if space_back > 0:
+                prefix_len = space_back
         for idx, g in enumerate(group):
             full = full_texts[idx]
             diff_part = full[prefix_len:].strip(" ,;:-")
-            if diff_part:
-                head = _truncate_words(full[:prefix_len].strip(), 34)
-                tail = _truncate_words(diff_part, 42)
-                g[title_key] = f"{head} ({tail})" if head else tail
+            if diff_part and len({full_texts[i] for i in range(len(group))}) > 1:
+                head = _truncate_words(full[:prefix_len].strip(), 32)
+                tail = _truncate_words(diff_part, 38)
+                g[title_key] = f"{head} · {tail}" if head else tail
             else:
-                cron_str = str(g.get("cron") or g.get("time_label") or f"#{idx + 1}")
-                g[title_key] = f"{t} ({cron_str})"
+                cron_str = str(g.get("cron_human") or g.get("cron") or g.get("time_label") or f"#{idx + 1}")
+                base_t = _truncate_words(str(g.get(title_key) or ""), 44)
+                g[title_key] = f"{base_t} ({cron_str})"
+
+
+def _normalize_task_view(t: dict, live_step: str = "") -> dict:
+    """MỘT nguồn sự thật duy nhất chuẩn hoá trạng thái, bước và tóm tắt của task (T-23.4).
+    Dùng chung cho cả /api/state (danh sách Việc) và /api/task (chi tiết Việc)."""
+    raw_status = str(t.get("status") or "pending").strip().lower()
+    clean_title = _clean_schedule_title("", str(t.get("title") or "")) or "Chi tiết việc"
+    clean_error = fix_glued_words(sanitize_path_display(str(t.get("error") or "").strip()))
+    clean_result = fix_glued_words(sanitize_path_display(str(t.get("result") or "").strip()))
+
+    raw_steps = list(t.get("steps") or [])
+    # Loại bỏ bước placeholder chung chung khi đã có các bước thực thi thật
+    has_non_placeholder = any(
+        str(s.get("title") or "").strip() not in ("", "Hoàn thành yêu cầu của user")
+        for s in raw_steps
+    )
+    norm_steps: list[dict] = []
+    seen_started = False
+    for s in raw_steps:
+        st_title = fix_glued_words(sanitize_path_display(str(s.get("title") or "").strip()))
+        if has_non_placeholder and st_title == "Hoàn thành yêu cầu của user":
+            continue
+        if st_title == "Đã bắt đầu":
+            if seen_started:
+                continue
+            seen_started = True
+        st_status = str(s.get("status") or "pending").strip().lower()
+        st_detail = str(s.get("detail") or "")
+        # Đồng bộ trạng thái bước con với trạng thái cuối của task
+        if raw_status == "failed":
+            if st_status in ("doing", "pending"):
+                st_status = "failed"
+            if st_title.startswith("Kiểm chứng: Đạt yêu cầu"):
+                st_title = "Kiểm chứng: Không đạt (tác vụ lỗi)"
+                st_status = "failed"
+        elif raw_status == "cancelled":
+            if st_status in ("doing", "pending"):
+                st_status = "cancelled"
+        norm_steps.append({
+            "idx": s.get("idx", len(norm_steps)),
+            "title": st_title or "Bước thực thi",
+            "status": st_status,
+            "detail": st_detail,
+            "updated_at": str(s.get("updated_at") or t.get("updated_at") or ""),
+        })
+
+    if norm_steps:
+        steps_total = len(norm_steps)
+        steps_done = sum(1 for s in norm_steps if s.get("status") == "done")
+        steps_failed = sum(1 for s in norm_steps if s.get("status") in ("failed", "cancelled"))
+    else:
+        steps_total = int(t.get("steps_total") or 0)
+        steps_done = int(t.get("steps_done") or 0)
+        steps_failed = max(0, steps_total - steps_done) if raw_status in ("failed", "cancelled") else 0
+
+    c_step = live_step or str(t.get("current_step") or "").strip()
+    if not c_step and norm_steps:
+        for s in reversed(norm_steps):
+            if s.get("status") == "doing":
+                c_step = s["title"]
+                break
+        if not c_step:
+            c_step = norm_steps[-1]["title"]
+    c_step = fix_glued_words(sanitize_path_display(c_step))
+
+    step_ratio = f"{steps_done}/{steps_total} bước" if steps_total > 0 else ""
+
+    if raw_status == "running":
+        status = "running"
+        status_label = "◌ Đang chạy"
+        status_sub = " · ".join(
+            x for x in [f"Đang chạy: {c_step}" if c_step else "Đang thực hiện", step_ratio] if x
+        )
+        final_step = {
+            "title": "◌ Đang thực hiện…",
+            "status": "doing",
+            "cls": "doing",
+            "detail": c_step,
+        }
+        summary_md = clean_result or "*Tác vụ đang được thực thi…*"
+    elif raw_status == "cancelled":
+        status = "cancelled"
+        status_label = "⊘ Đã dừng"
+        err_txt = clean_error or "Tác vụ đã bị người dùng dừng."
+        status_sub = f"Đã dừng ({step_ratio}): {err_txt}" if step_ratio else f"Đã dừng: {err_txt}"
+        final_step = {
+            "title": "⊘ Đã dừng việc",
+            "status": "cancelled",
+            "cls": "err",
+            "detail": err_txt,
+        }
+        summary_md = (
+            f"**Trạng thái: ⊘ Đã dừng" + (f" ({step_ratio})" if step_ratio else "") + "**\n\n"
+            f"- **Lý do dừng:** {err_txt}"
+            + (f"\n\n---\n\n**Ghi nhận trước khi dừng:**\n\n{clean_result}" if clean_result else "")
+        )
+    elif raw_status == "failed":
+        status = "failed"
+        status_label = "✕ Đã lỗi"
+        err_txt = clean_error or "Tác vụ gặp lỗi hoặc chưa đạt yêu cầu kiểm chứng."
+        status_sub = f"Lỗi ({step_ratio}): {err_txt}" if step_ratio else f"Lỗi: {err_txt}"
+        final_step = {
+            "title": "✕ Đã lỗi",
+            "status": "failed",
+            "cls": "err",
+            "detail": err_txt,
+        }
+        summary_md = (
+            f"**Trạng thái: ✕ Đã lỗi" + (f" ({step_ratio})" if step_ratio else "") + "**\n\n"
+            f"- **Chi tiết lỗi / Chẩn đoán:** {err_txt}"
+            + (
+                f"\n\n---\n\n**Kết quả nháp trước khi lỗi (chưa đạt yêu cầu):**\n\n{clean_result}"
+                if clean_result
+                else ""
+            )
+        )
+    elif steps_total > 0 and steps_done < steps_total:
+        # Chưa đủ bước (vd 5/6 bước, 17/19 bước): tuyệt đối KHÔNG ghi "✓ Đã xong" (T-23.4)
+        status = "partial"
+        status_label = f"· Xong {steps_done}/{steps_total} bước"
+        reason_part = (
+            f"{steps_failed} bước lỗi"
+            if steps_failed > 0
+            else f"{steps_total - steps_done} bước chưa hoàn tất"
+        )
+        status_sub = f"Hoàn tất {steps_done}/{steps_total} bước ({reason_part})"
+        final_step = {
+            "title": f"· Hoàn tất một phần ({steps_done}/{steps_total} bước)",
+            "status": "partial",
+            "cls": "doing",
+            "detail": reason_part,
+        }
+        summary_md = (
+            f"**Trạng thái: · Hoàn tất {steps_done}/{steps_total} bước ({reason_part})**\n\n"
+            + (clean_result or clean_error or "(chưa có tóm tắt)")
+        )
+    elif raw_status == "unverified":
+        status = "unverified"
+        status_label = "· Chưa kiểm chứng"
+        status_sub = f"{step_ratio} · Chưa kiểm chứng" if step_ratio else "Chưa kiểm chứng"
+        final_step = {
+            "title": "· Hoàn tất (chưa kiểm chứng)",
+            "status": "unverified",
+            "cls": "doing",
+            "detail": "",
+        }
+        summary_md = "**Trạng thái: · Chưa kiểm chứng**\n\n" + (clean_result or "(chưa có tóm tắt)")
+    else:
+        status = "done"
+        status_label = "✓ Đã xong"
+        status_sub = f"Hoàn tất {steps_done}/{steps_total} bước" if steps_total > 0 else "Hoàn tất"
+        final_step = {
+            "title": "✓ Hoàn tất",
+            "status": "done",
+            "cls": "done",
+            "detail": "",
+        }
+        summary_md = clean_result or "Đã hoàn tất công việc."
+
+    return {
+        "id": t.get("id") or "",
+        "kind": "task",
+        "title": clean_title,
+        "status": status,
+        "raw_status": raw_status,
+        "status_label": status_label,
+        "status_sub": status_sub,
+        "result": clean_result[:4000],
+        "summary_markdown": summary_md[:4500],
+        "error": clean_error,
+        "steps_total": steps_total,
+        "steps_done": steps_done,
+        "steps_failed": steps_failed,
+        "current_step": c_step,
+        "created_at": str(t.get("created_at") or ""),
+        "updated_at": str(t.get("updated_at") or t.get("created_at") or ""),
+        "steps": norm_steps,
+        "final_step": final_step,
+    }
 
 
 DOSSIER_FILE_DESCRIPTIONS: dict[str, str] = {
@@ -820,6 +1119,11 @@ class WebAppServer:
         app.router.add_post("/api/connector", self._handle_connector)
         app.router.add_post("/api/approve", self._handle_approve)
         app.router.add_post("/api/schedule", self._handle_schedule)
+        app.router.add_get("/api/schedules/{id}", self._handle_schedule_detail)
+        app.router.add_post("/api/schedules/{id}/update", self._handle_schedule_update)
+        app.router.add_post("/api/schedules/{id}/delete", self._handle_schedule_delete)
+        app.router.add_post("/api/schedule/update", self._handle_schedule_update)
+        app.router.add_post("/api/schedule/delete", self._handle_schedule_delete)
         # 1.4.0: điều khiển Feed chủ động (không có action tắt).
         app.router.add_post("/api/feed", self._handle_feed)
         # Thẻ ý tưởng chủ động (Ideas) theo chuẩn Muse (T-10.3)
@@ -1245,74 +1549,90 @@ class WebAppServer:
         else:
             available = True
         for r in rows:
-            # Schema thật của schedules: payload (không có
-            # title/prompt) — NC-3: tên lịch lấy từ payload.
             payload = str(r.get("payload") or "")
+            raw_title = str(r.get("title") or "")
+            cron_raw = str(r.get("cron") or "")
+            cron_human, cron_display = _format_cron_display(cron_raw)
             internal = internal_kind(payload)
             if internal is not None:
-                # Job hệ thống nội bộ: hiển thị minh bạch
-                # và toggle được tại chỗ ở tab Lịch hoặc Cài đặt.
                 items.append({
                     "id": str(r.get("id")),
                     "name": "Feed chủ động (tự động)",
-                    "cron": r.get("cron", ""),
-                    "prompt": "Job hệ thống: tự viết bài Feed "
-                              "theo lịch.",
+                    "cron": cron_raw,
+                    "cron_human": cron_human,
+                    "cron_display": cron_display,
+                    "prompt": "Job hệ thống: tự viết bài Feed theo lịch.",
                     "enabled": bool(r.get("enabled", 1)),
                     "next_run_at": r.get("next_run_at") or "",
                     "last_run_at": r.get("last_run_at") or "",
-                    "toggleable": True, "kind": "feed_auto",
+                    "toggleable": True,
+                    "kind": "feed_auto",
                 })
                 continue
+            clean_t = _clean_schedule_title(raw_title, payload)
             items.append({
                 "id": str(r.get("id")),
-                "name": _truncate_words(payload, 80) or str(r.get("id")),
-                "cron": r.get("cron", ""),
-                "prompt": payload[:240],
+                "name": _truncate_words(clean_t, 72) or str(r.get("id")),
+                "cron": cron_raw,
+                "cron_human": cron_human,
+                "cron_display": cron_display,
+                "prompt": _clean_schedule_title("", payload)[:400],
+                "full_payload": payload,
                 "enabled": bool(r.get("enabled")),
                 "next_run_at": r.get("next_run_at") or "",
                 "last_run_at": r.get("last_run_at") or "",
-                "toggleable": True, "kind": "schedule",
+                "toggleable": True,
+                "kind": "schedule",
             })
         _disambiguate_schedule_items(
             [it for it in items if it.get("kind") == "schedule"],
-            title_key="name", full_key="prompt", max_len=80,
+            title_key="name", full_key="prompt", max_len=72,
         )
-        # Sửa UI: công tắc Ideas tự sinh phải có mặt trong danh sách
-        # thì frontend mới vẽ được nút gạt; trước đây backend chỉ
-        # nhận id "ideas_auto" ở _handle_schedule nhưng _schedule_state
-        # không trả mục này nên không bật/tắt được từ Mini App.
         items.append({
-            "id": "ideas_auto", "name": "Ideas tự sinh (chờ duyệt)",
+            "id": "ideas_auto",
+            "name": "Ideas tự sinh (chờ duyệt)",
             "cron": "theo vòng nền",
-            "prompt": "Chỉ sinh thẻ chờ duyệt, không tự nhắn, "
-                      "không tự chạy, không tự tạo goal.",
-            "enabled": await effective_auto_enabled(self.memory,
-                                                    self.cfg),
-            "next_run_at": "", "last_run_at": "",
-            "toggleable": True, "kind": "ideas_auto",
+            "cron_human": "Theo vòng nền",
+            "cron_display": "Theo vòng nền",
+            "prompt": "Chỉ sinh thẻ chờ duyệt, không tự nhắn, không tự chạy, không tự tạo goal.",
+            "enabled": await effective_auto_enabled(self.memory, self.cfg),
+            "next_run_at": "",
+            "last_run_at": "",
+            "toggleable": True,
+            "kind": "ideas_auto",
         })
         items.append({
-            "id": "heartbeat", "name": "Heartbeat",
-            "cron": "30 phút một lần",
+            "id": "heartbeat",
+            "name": "Heartbeat",
+            "cron": "*/30 * * * *",
+            "cron_human": "Mỗi 30 phút",
+            "cron_display": "Mỗi 30 phút (*/30 * * * *)",
             "prompt": "Quét checklist HEARTBEAT.md định kỳ.",
             "enabled": await effective_enabled(self.memory, self.cfg),
-            "next_run_at": "", "last_run_at": "",
-            "toggleable": True, "kind": "heartbeat",
+            "next_run_at": "",
+            "last_run_at": "",
+            "toggleable": True,
+            "kind": "heartbeat",
         })
         scheduler_on = bool(self.cfg.scheduler_enabled)
+        hb_en = await effective_enabled(self.memory, self.cfg)
         heartbeat_info = {
             "id": "heartbeat",
             "name": "Heartbeat",
-            "interval": "30 phút một lần",
-            "status": "scheduled",
-            "status_label": "Đã lên lịch",
-            "enabled": await effective_enabled(self.memory, self.cfg),
+            "interval": "Mỗi 30 phút (*/30 * * * *)",
+            "cron": "*/30 * * * *",
+            "cron_human": "Mỗi 30 phút",
+            "status": "scheduled" if hb_en else "paused",
+            "status_label": "Đã lên lịch" if hb_en else "Đã tạm dừng",
+            "enabled": hb_en,
         }
-        return {"available": available, "scheduler_enabled": scheduler_on,
-                "feed_auto": self.feed_auto is not None,
-                "heartbeat": heartbeat_info,
-                "items": items}
+        return {
+            "available": available,
+            "scheduler_enabled": scheduler_on,
+            "feed_auto": self.feed_auto is not None,
+            "heartbeat": heartbeat_info,
+            "items": items,
+        }
 
     async def _upcoming_state(self) -> list[dict]:
         """Danh sách Sắp tới (Upcoming) hợp nhất từ 100% dữ liệu thật:
@@ -1329,26 +1649,32 @@ class WebAppServer:
             rows = []
         for r in rows:
             payload = str(r.get("payload") or "")
+            raw_title = str(r.get("title") or "")
             internal = internal_kind(payload)
             if internal is not None:
                 continue
             if bool(r.get("enabled", 1)):
+                cron_raw = str(r.get("cron") or "")
+                cron_human, cron_display = _format_cron_display(cron_raw)
+                clean_t = _clean_schedule_title(raw_title, payload)
                 upcoming.append({
                     "id": f"sched_{r.get('id')}",
                     "raw_id": str(r.get("id")),
                     "kind": "schedule",
                     "kind_label": "Lịch hẹn cá nhân",
-                    "title": _truncate_words(payload, 80) or f"Lịch #{r.get('id')}",
-                    "full_title": payload[:240],
-                    "time_label": r.get("cron") or "",
+                    "title": _truncate_words(clean_t, 72) or f"Lịch #{r.get('id')}",
+                    "full_title": _clean_schedule_title("", payload)[:400],
+                    "cron": cron_raw,
+                    "cron_human": cron_human,
+                    "time_label": cron_display,
                     "next_run_at": r.get("next_run_at") or "",
                     "can_modify_via_chat": True,
-                    "chat_instruction": f"Huỷ bằng chat: 'huỷ lịch {r.get('id')}' hoặc bảo bot huỷ lịch",
+                    "chat_instruction": f"Huỷ bằng chat: 'huỷ lịch {r.get('id')}' hoặc nhấn mở để sửa/xoá",
                     "read_only": False,
                 })
         _disambiguate_schedule_items(
             [it for it in upcoming if it.get("kind") == "schedule"],
-            title_key="title", full_key="full_title", max_len=80,
+            title_key="title", full_key="full_title", max_len=72,
         )
 
         # 2. Heartbeat định kỳ
@@ -1363,10 +1689,12 @@ class WebAppServer:
                 "kind": "heartbeat",
                 "kind_label": "Hệ thống định kỳ",
                 "title": "Heartbeat (quét chủ động checklist & cam kết)",
-                "time_label": "30 phút một lần",
+                "cron": "*/30 * * * *",
+                "cron_human": "Mỗi 30 phút",
+                "time_label": "Mỗi 30 phút (*/30 * * * *)",
                 "next_run_at": "",
                 "can_modify_via_chat": False,
-                "chat_instruction": "Chỉ xem (tiến trình nền hệ thống, bật/tắt trong Cài đặt)",
+                "chat_instruction": "Chỉ xem (tiến trình nền hệ thống, bật/tắt trong Lịch)",
                 "read_only": True,
             })
 
@@ -1377,14 +1705,18 @@ class WebAppServer:
             except Exception:
                 feed_st = {}
             if feed_st and feed_st.get("enabled", True):
+                f_cron = str(feed_st.get("cron") or "0 8,17 * * *")
+                f_human, f_disp = _format_cron_display(f_cron)
                 upcoming.append({
                     "id": "feed_auto",
-                    "raw_id": "feed_auto",
+                    "raw_id": FEED_SCHEDULE_ID,
                     "kind": "feed_auto",
                     "kind_label": "Hệ thống định kỳ",
-                    "title": "Feed chủ động (tự động 2 bài/ngày)",
-                    "time_label": "Hằng ngày (08:00 & 17:00)",
-                    "next_run_at": "",
+                    "title": "Feed chủ động (tự động điểm tin)",
+                    "cron": f_cron,
+                    "cron_human": f_human,
+                    "time_label": f_disp,
+                    "next_run_at": str(feed_st.get("next_run_at") or ""),
                     "can_modify_via_chat": False,
                     "chat_instruction": "Chỉ xem (tiến trình nền hệ thống)",
                     "read_only": True,
@@ -1400,15 +1732,15 @@ class WebAppServer:
             time_str = f"Hạn: {due}" if due else "Đang theo dõi"
             upcoming.append({
                 "id": f"tracked_{t['id']}",
-                "raw_id": str(t["id"]),
+                "raw_id": f"tracked_{t['id']}",
                 "kind": "tracked_item",
                 "kind_label": "Cam kết đang theo dõi",
-                "title": t.get("title") or "Cam kết",
+                "title": _truncate_words(_clean_schedule_title(t.get("title") or "", t.get("detail") or ""), 72) or "Cam kết",
                 "time_label": time_str,
                 "next_run_at": due,
                 "detail": t.get("detail") or "",
                 "can_modify_via_chat": True,
-                "chat_instruction": f"Cập nhật/đóng bằng chat: 'đóng cam kết #{t['id']}' hoặc thông báo kết quả trong chat",
+                "chat_instruction": f"Cập nhật/đóng bằng chat: 'đóng cam kết #{t['id']}'",
                 "read_only": False,
             })
 
@@ -1536,17 +1868,8 @@ class WebAppServer:
                     live_info = self.activity.get_running_task_info(t["id"])
                     if live_info and live_info.get("current_step"):
                         c_step = live_info["current_step"]
-                tasks.append({
-                    "id": t["id"], "kind": "task",
-                    "title": t.get("title") or "",
-                    "status": t.get("status") or "",
-                    "error": t.get("error") or "",
-                    "steps_total": t.get("steps_total") or 0,
-                    "steps_done": t.get("steps_done") or 0,
-                    "current_step": c_step,
-                    "created_at": t.get("created_at") or "",
-                    "updated_at": t.get("updated_at") or "",
-                })
+                norm_t = _normalize_task_view(t, live_step=c_step)
+                tasks.append(norm_t)
         except Exception:
             pass
         history = []
@@ -1637,16 +1960,18 @@ class WebAppServer:
         if task is None:
             return web.json_response(
                 {"ok": False, "error": "không thấy task"}, status=404)
+        c_step = task.get("current_step") or ""
+        if task.get("status") == "running" and self.activity:
+            live_info = self.activity.get_running_task_info(task_id)
+            if live_info and live_info.get("current_step"):
+                c_step = live_info["current_step"]
+        norm_task = _normalize_task_view(task, live_step=c_step)
         events = []
         try:
             rows = await self.memory.recent_trajectory(limit=300)
             for r in rows:
                 p = r.get("payload") or {}
                 if p.get("task_id") == task_id:
-                    # Sửa 1.6.3: chỉ trả payload đã redact (cùng hàm
-                    # với log_trajectory) — hàng trajectory cũ ghi
-                    # trước 1.6.3 còn nguyên văn trong DB, nhưng
-                    # đường API này không bao giờ trả nguyên văn.
                     events.append({"kind": r.get("kind"),
                                    "payload": redact_trajectory_payload(p),
                                    "at": r.get("created_at", "")})
@@ -1655,15 +1980,7 @@ class WebAppServer:
         events.reverse()
         return web.json_response({
             "ok": True,
-            "task": {
-                "id": task["id"], "title": task.get("title") or "",
-                "status": task.get("status") or "",
-                "result": (task.get("result") or "")[:4000],
-                "error": task.get("error") or "",
-                "created_at": task.get("created_at") or "",
-                "updated_at": task.get("updated_at") or "",
-                "steps": task.get("steps") or [],
-            },
+            "task": norm_task,
             "events": events,
         })
 
@@ -2077,6 +2394,488 @@ class WebAppServer:
         ok = await self.memory.set_schedule_enabled(schedule_id,
                                                     enabled)
         return web.json_response({"ok": ok})
+
+    async def _build_schedule_detail(self, raw_id: str) -> Optional[dict]:
+        """Xây dựng đối tượng chi tiết lịch trình đầy đủ (thông tin, diễn giải
+        cron tiếng Việt, quyền hạn, lịch sử chạy kèm thời lượng/đầu ra/lỗi).
+        """
+        from datetime import datetime as _dt, timezone as _tz
+        sid = (raw_id or "").strip()
+        if sid.startswith("sched_"):
+            sid = sid[6:]
+        if not sid or self.memory is None:
+            return None
+
+        def _calc_duration_label(start_iso: str, end_iso: str) -> str:
+            if not start_iso or not end_iso:
+                return "Tức thời"
+            try:
+                t0 = _dt.fromisoformat(start_iso.replace("Z", "+00:00"))
+                t1 = _dt.fromisoformat(end_iso.replace("Z", "+00:00"))
+                sec = max(0, int((t1 - t0).total_seconds()))
+                if sec <= 1:
+                    return "< 1 giây"
+                if sec < 60:
+                    return f"{sec} giây"
+                mins, rem = divmod(sec, 60)
+                return f"{mins} phút {rem:02d} giây" if rem else f"{mins} phút"
+            except Exception:
+                return "Tức thời"
+
+        # 1. Nhịp kiểm tra chủ động (Heartbeat)
+        if sid == "heartbeat":
+            hb = await self._heartbeat_state()
+            hb_history = await self.memory.get_heartbeat_history(limit=25)
+            interval_s = int(getattr(self.cfg, "proactivity_interval_s", 300) or 300)
+            mins = max(1, interval_s // 60)
+            cron_expr = f"*/{mins} * * * *" if mins < 60 else f"0 */{max(1, mins // 60)} * * *"
+            enabled = bool(hb.get("enabled"))
+            runs = []
+            for idx, r in enumerate(hb_history):
+                st_raw = str(r.get("status") or "ok")
+                is_err = st_raw in ("error", "failed")
+                runs.append({
+                    "id": f"hb_{idx}",
+                    "started_at": r.get("created_at") or r.get("time_str") or "",
+                    "time_str": r.get("time_str") or "",
+                    "duration_label": "< 1 giây",
+                    "status": "failed" if is_err else "done",
+                    "status_label": "✕ Đã lỗi" if is_err else "✓ Hoàn tất",
+                    "summary": r.get("summary") or "Kiểm tra chủ động định kỳ",
+                    "output": r.get("detail") or r.get("summary") or "Không có cảnh báo phát sinh.",
+                    "error": r.get("detail") if is_err else "",
+                })
+            return {
+                "id": "heartbeat",
+                "kind": "heartbeat",
+                "kind_label": "Nhịp kiểm tra chủ động",
+                "name": "Kiểm tra chủ động (Heartbeat)",
+                "title": "Kiểm tra chủ động (Heartbeat)",
+                "prompt": "Quét các việc đang mở, lịch trình sắp tới hạn và tín hiệu hệ thống để chủ động nhắc nhở khi cần thiết.",
+                "payload": "Quét các việc đang mở, lịch trình sắp tới hạn và tín hiệu hệ thống để chủ động nhắc nhở khi cần thiết.",
+                "cron": cron_expr,
+                "cron_human": _describe_cron_vi(cron_expr),
+                "cron_display": _format_cron_display(cron_expr)[1],
+                "timezone": getattr(self.cfg, "default_timezone", "Asia/Ho_Chi_Minh"),
+                "enabled": enabled,
+                "status_label": "Đã lên lịch" if enabled else "Đã tạm dừng",
+                "next_run_at": "",
+                "last_run_at": runs[0]["started_at"] if runs else "",
+                "editable": False,
+                "deletable": False,
+                "permissions": [
+                    "Đọc danh sách việc đang mở và lịch trình tới hạn",
+                    "Quét tín hiệu chủ động theo chu kỳ nền",
+                    "Tôn trọng chống làm phiền: tối đa 1 thông báo / 24 giờ cho mỗi việc",
+                ],
+                "runs": runs,
+            }
+
+        # 2. Ý tưởng tự sinh (ideas_auto)
+        if sid == "ideas_auto":
+            ideas_st = await self._ideas_state()
+            enabled = bool(ideas_st.get("auto_enabled"))
+            interval_s = int(getattr(self.cfg, "ideas_interval_s", 21600) or 21600)
+            hrs = max(1, interval_s // 3600)
+            cron_expr = f"0 */{hrs} * * *"
+            runs = []
+            try:
+                cur = await self.memory.db.execute(
+                    "SELECT id, kind, payload, created_at FROM trajectory "
+                    "WHERE kind IN ('ideas_generated', 'ideas_auto_toggled', 'ideas_error') "
+                    "ORDER BY id DESC LIMIT 20"
+                )
+                for r in await cur.fetchall():
+                    d = dict(r)
+                    try:
+                        pl = json.loads(d.get("payload") or "{}")
+                    except Exception:
+                        pl = {}
+                    is_err = d["kind"] == "ideas_error"
+                    cnt = pl.get("count", 0)
+                    summ = (
+                        f"Lỗi sinh ý tưởng: {pl.get('error', '')}" if is_err
+                        else (f"Đã sinh {cnt} thẻ ý tưởng mới" if d["kind"] == "ideas_generated"
+                              else ("Đã bật tự sinh ý tưởng" if pl.get("enabled") else "Đã tạm dừng tự sinh ý tưởng"))
+                    )
+                    runs.append({
+                        "id": f"idea_run_{d['id']}",
+                        "started_at": d.get("created_at") or "",
+                        "duration_label": "< 1 giây",
+                        "status": "failed" if is_err else "done",
+                        "status_label": "✕ Đã lỗi" if is_err else "✓ Hoàn tất",
+                        "summary": summ,
+                        "output": summ,
+                        "error": str(pl.get("error") or "") if is_err else "",
+                    })
+            except Exception:
+                pass
+            return {
+                "id": "ideas_auto",
+                "kind": "ideas_auto",
+                "kind_label": "Khám phá ý tưởng nền",
+                "name": "Ý tưởng tự sinh",
+                "title": "Ý tưởng tự sinh",
+                "prompt": "Tự động tổng hợp thẻ ý tưởng mới dựa trên mối quan tâm và công việc gần đây của chủ sở hữu (chỉ tạo thẻ chờ duyệt, không tự thực thi).",
+                "payload": "Tự động tổng hợp thẻ ý tưởng mới dựa trên mối quan tâm và công việc gần đây của chủ sở hữu.",
+                "cron": cron_expr,
+                "cron_human": _describe_cron_vi(cron_expr),
+                "cron_display": _format_cron_display(cron_expr)[1],
+                "timezone": getattr(self.cfg, "default_timezone", "Asia/Ho_Chi_Minh"),
+                "enabled": enabled,
+                "status_label": "Đã lên lịch" if enabled else "Đã tạm dừng",
+                "next_run_at": "",
+                "last_run_at": runs[0]["started_at"] if runs else "",
+                "editable": False,
+                "deletable": False,
+                "permissions": [
+                    "Đọc sở thích, ghi nhớ và chủ đề quan tâm của chủ sở hữu",
+                    "Tạo thẻ ý tưởng ở trạng thái chờ duyệt (không tự chạy tác vụ)",
+                ],
+                "runs": runs,
+            }
+
+        # 3. Mục theo dõi định kỳ (tracked_<id>)
+        if sid.startswith("tracked_"):
+            try:
+                tid = int(sid.split("_", 1)[1])
+                cur = await self.memory.db.execute(
+                    "SELECT * FROM tracked_items WHERE id=?", (tid,)
+                )
+                trow = await cur.fetchone()
+            except Exception:
+                trow = None
+            if not trow:
+                return None
+            td = dict(trow)
+            cron_expr = str(td.get("schedule_cron") or "0 9 * * *")
+            name = _clean_schedule_title(str(td.get("name") or ""), str(td.get("query") or ""))
+            return {
+                "id": f"tracked_{td['id']}",
+                "kind": "tracked",
+                "kind_label": "Theo dõi chỉ số mục tiêu",
+                "name": name,
+                "title": name,
+                "prompt": str(td.get("query") or td.get("name") or ""),
+                "payload": str(td.get("query") or td.get("name") or ""),
+                "cron": cron_expr,
+                "cron_human": _describe_cron_vi(cron_expr),
+                "cron_display": _format_cron_display(cron_expr)[1],
+                "timezone": getattr(self.cfg, "default_timezone", "Asia/Ho_Chi_Minh"),
+                "enabled": True,
+                "status_label": "Đã lên lịch",
+                "next_run_at": "",
+                "last_run_at": str(td.get("last_checked_at") or td.get("updated_at") or ""),
+                "editable": False,
+                "deletable": False,
+                "permissions": [
+                    "Truy vấn chỉ số theo dõi định kỳ cho mục tiêu",
+                    "Ghi nhật ký tiến độ vào mục tiêu liên kết",
+                ],
+                "runs": [],
+            }
+
+        # 4. Lịch trong bảng schedules (lịch cá nhân hoặc feed_auto)
+        row = await self.memory.get_schedule(sid)
+        if row is None and sid == "feed_auto":
+            row = await self.memory.get_schedule(FEED_SCHEDULE_ID)
+        if row is None:
+            return None
+
+        sched_id = str(row.get("id") or sid)
+        payload = str(row.get("payload") or "")
+        ikind = internal_kind(payload)
+        is_feed = (sched_id == FEED_SCHEDULE_ID or ikind == "feed_auto")
+        cron_expr = str(row.get("cron") or "")
+        tz_name = str(row.get("timezone") or getattr(self.cfg, "default_timezone", "Asia/Ho_Chi_Minh"))
+        enabled = bool(row.get("enabled"))
+        if is_feed:
+            title = "Feed chủ động"
+            prompt_text = "Tự động thu thập tin tức từ nguồn RSS/Atom và trang web đã đăng ký, lọc trùng và tóm tắt vào kênh Feed."
+            kind_str = "feed_auto"
+            kind_label = "Hệ thống · Feed chủ động"
+            editable = True
+            deletable = False
+            permissions = [
+                "Đọc nguồn RSS/Atom và trang web trong danh sách theo dõi",
+                "Tóm tắt và đăng bài vào kênh Feed theo hạn mức ngày",
+                "Tự động tạm ngưng trong khung giờ yên lặng",
+            ]
+        else:
+            title = _clean_schedule_title(str(row.get("title") or ""), payload)
+            prompt_text = sanitize_path_display(fix_glued_words(payload))
+            kind_str = "custom"
+            kind_label = "Lịch hẹn cá nhân"
+            editable = (ikind is None)
+            deletable = (ikind is None)
+            permissions = [
+                "Tự động giao việc cho agent đúng chu kỳ cron đã hẹn",
+                "Đọc hồ sơ, bộ nhớ và kỹ năng phục vụ nội dung lời nhắc",
+                "Mọi thao tác gửi tin/ghi ngoài hệ thống vẫn qua chốt quyền công cụ",
+            ]
+
+        # Thu thập lịch sử chạy từ trajectory + đối chiếu bảng tasks
+        runs: list[dict] = []
+        try:
+            cur = await self.memory.db.execute(
+                "SELECT id, session_key, kind, payload, created_at FROM trajectory "
+                "WHERE kind IN ('schedule_fired', 'schedule_error') "
+                "ORDER BY id DESC LIMIT 80"
+            )
+            traj_rows = [dict(r) for r in await cur.fetchall()]
+        except Exception:
+            traj_rows = []
+
+        # Lấy các tasks gần đây để ghép kết quả chạy thật (thời lượng / đầu ra / lỗi)
+        all_tasks = await self.memory.list_tasks(limit=60)
+        norm_tasks = [_normalize_task_view(t) for t in all_tasks]
+        payload_prefix = fold_vi(payload.strip())[:32] if payload.strip() else ""
+
+        matched_task_ids: set[str] = set()
+        for tr in traj_rows:
+            try:
+                pl = json.loads(tr.get("payload") or "{}")
+            except Exception:
+                pl = {}
+            if str(pl.get("schedule_id") or "") != sched_id:
+                continue
+            tr_time = str(tr.get("created_at") or "")
+            if tr.get("kind") == "schedule_error":
+                err_msg = sanitize_path_display(str(pl.get("error") or "Lỗi thực thi lịch trình"))
+                runs.append({
+                    "id": f"sched_err_{tr['id']}",
+                    "started_at": tr_time,
+                    "finished_at": tr_time,
+                    "duration_label": "< 1 giây",
+                    "status": "failed",
+                    "status_label": "✕ Đã lỗi",
+                    "summary": err_msg,
+                    "output": "",
+                    "error": err_msg,
+                })
+                continue
+
+            # Ghép với task được sinh ra ngay thời điểm schedule_fired
+            matched_task = None
+            for nt in norm_tasks:
+                if nt["id"] in matched_task_ids:
+                    continue
+                nt_title_fold = fold_vi(str(nt.get("title") or ""))
+                if payload_prefix and payload_prefix[:20] in nt_title_fold:
+                    matched_task = nt
+                    matched_task_ids.add(nt["id"])
+                    break
+            if matched_task:
+                st = matched_task["status"]
+                dur = _calc_duration_label(
+                    str(matched_task.get("created_at") or tr_time),
+                    str(matched_task.get("updated_at") or tr_time),
+                )
+                out_text = str(matched_task.get("result") or matched_task.get("summary_markdown") or "")
+                err_text = str(matched_task.get("error") or "")
+                runs.append({
+                    "id": f"sched_run_{tr['id']}",
+                    "task_id": matched_task["id"],
+                    "started_at": str(matched_task.get("created_at") or tr_time),
+                    "finished_at": str(matched_task.get("updated_at") or tr_time),
+                    "duration_label": dur,
+                    "status": st,
+                    "status_label": matched_task.get("status_label") or "✓ Hoàn tất",
+                    "summary": matched_task.get("status_sub") or matched_task.get("title") or "Đã chạy lịch hẹn",
+                    "output": out_text or "Đã thực thi xong yêu cầu định kỳ.",
+                    "error": err_text,
+                })
+            else:
+                runs.append({
+                    "id": f"sched_run_{tr['id']}",
+                    "started_at": tr_time,
+                    "finished_at": tr_time,
+                    "duration_label": "Tức thời",
+                    "status": "done",
+                    "status_label": "✓ Đã kích hoạt",
+                    "summary": "Đã giao việc định kỳ cho agent",
+                    "output": prompt_text,
+                    "error": "",
+                })
+
+        # Bổ sung các tasks khớp nội dung lời nhắc nếu chưa có trong trajectory
+        if payload_prefix and not is_feed:
+            for nt in norm_tasks:
+                if nt["id"] in matched_task_ids:
+                    continue
+                nt_title_fold = fold_vi(str(nt.get("title") or ""))
+                if payload_prefix[:24] and payload_prefix[:24] in nt_title_fold:
+                    matched_task_ids.add(nt["id"])
+                    dur = _calc_duration_label(
+                        str(nt.get("created_at") or ""),
+                        str(nt.get("updated_at") or ""),
+                    )
+                    runs.append({
+                        "id": f"task_{nt['id']}",
+                        "task_id": nt["id"],
+                        "started_at": str(nt.get("created_at") or ""),
+                        "finished_at": str(nt.get("updated_at") or ""),
+                        "duration_label": dur,
+                        "status": nt["status"],
+                        "status_label": nt.get("status_label") or "✓ Hoàn tất",
+                        "summary": nt.get("status_sub") or nt.get("title") or "",
+                        "output": str(nt.get("result") or nt.get("summary_markdown") or ""),
+                        "error": str(nt.get("error") or ""),
+                    })
+
+        # Nếu có last_run_at trên dòng lịch mà chưa có bản ghi runs nào, tạo 1 bản ghi tổng hợp
+        last_run_at = str(row.get("last_run_at") or "")
+        if last_run_at and not runs:
+            runs.append({
+                "id": f"last_{sched_id}",
+                "started_at": last_run_at,
+                "finished_at": last_run_at,
+                "duration_label": "Tức thời",
+                "status": "done",
+                "status_label": "✓ Hoàn tất",
+                "summary": "Lần chạy gần nhất theo lịch hẹn",
+                "output": prompt_text,
+                "error": "",
+            })
+
+        return {
+            "id": sched_id,
+            "kind": kind_str,
+            "kind_label": kind_label,
+            "name": title,
+            "title": title,
+            "raw_title": str(row.get("title") or ""),
+            "prompt": prompt_text,
+            "payload": payload,
+            "cron": cron_expr,
+            "cron_human": _describe_cron_vi(cron_expr),
+            "cron_display": _format_cron_display(cron_expr)[1],
+            "timezone": tz_name,
+            "enabled": enabled,
+            "status_label": "Đã lên lịch" if enabled else "Đã tạm dừng",
+            "next_run_at": str(row.get("next_run_at") or ""),
+            "last_run_at": last_run_at or (runs[0]["started_at"] if runs else ""),
+            "created_at": str(row.get("created_at") or ""),
+            "updated_at": str(row.get("updated_at") or ""),
+            "editable": editable,
+            "deletable": deletable,
+            "permissions": permissions,
+            "runs": runs[:25],
+        }
+
+    async def _handle_schedule_detail(self, request):
+        raw_id = request.match_info.get("id", "") or request.query.get("id", "")
+        detail = await self._build_schedule_detail(raw_id)
+        if detail is None:
+            return web.json_response(
+                {"ok": False, "error": "Không tìm thấy lịch trình."},
+                status=404,
+            )
+        return web.json_response({"ok": True, "schedule": detail, **detail})
+
+    async def _handle_schedule_update(self, request):
+        from datetime import datetime as _dt, timezone as _tz
+        body = await self._json_body(request)
+        raw_id = (
+            request.match_info.get("id", "")
+            or str(body.get("id") or "")
+        ).strip()
+        if raw_id.startswith("sched_"):
+            raw_id = raw_id[6:]
+        if not raw_id:
+            return web.json_response(
+                {"ok": False, "error": "Thiếu id lịch trình."}, status=400
+            )
+        row = await self.memory.get_schedule(raw_id)
+        if row is None:
+            return web.json_response(
+                {"ok": False, "error": "Không tìm thấy lịch trình để sửa."},
+                status=404,
+            )
+        new_cron = str(body.get("cron") if body.get("cron") is not None else row.get("cron") or "").strip()
+        if not new_cron:
+            return web.json_response(
+                {"ok": False, "error": "Biểu thức cron không được để trống."},
+                status=400,
+            )
+        tz_name = str(body.get("timezone") or row.get("timezone") or getattr(self.cfg, "default_timezone", "Asia/Ho_Chi_Minh"))
+        try:
+            parse_cron(new_cron)
+            nxt = next_run_iso(new_cron, _dt.now(_tz.utc), tz_name)
+        except Exception as exc:
+            return web.json_response(
+                {"ok": False, "error": f"Biểu thức cron không hợp lệ: {exc}"},
+                status=400,
+            )
+
+        ikind = internal_kind(str(row.get("payload") or ""))
+        if ikind is not None:
+            # Với job hệ thống như feed_auto, chỉ cho phép đổi cron
+            new_payload = str(row.get("payload") or "")
+            new_title = str(row.get("title") or "")
+        else:
+            raw_prompt = body.get("payload") if body.get("payload") is not None else body.get("prompt")
+            new_payload = str(raw_prompt if raw_prompt is not None else row.get("payload") or "").strip()
+            if not new_payload:
+                return web.json_response(
+                    {"ok": False, "error": "Nội dung lời nhắc không được để trống."},
+                    status=400,
+                )
+            new_title = str(
+                body.get("title") if body.get("title") is not None else row.get("title") or ""
+            ).strip()
+
+        new_enabled = (
+            1 if bool(body.get("enabled")) else 0
+        ) if body.get("enabled") is not None else int(row.get("enabled") or 0)
+        ts = now_iso()
+        await self.memory.db.execute(
+            "UPDATE schedules SET cron=?, timezone=?, payload=?, title=?, "
+            "enabled=?, next_run_at=?, updated_at=? WHERE id=?",
+            (new_cron, tz_name, new_payload, new_title, new_enabled, nxt, ts, raw_id),
+        )
+        await self.memory.db.commit()
+        await self.memory.log_trajectory(
+            "webapp", "schedule_updated",
+            {"schedule_id": raw_id, "cron": new_cron, "enabled": bool(new_enabled)},
+        )
+        detail = await self._build_schedule_detail(raw_id)
+        return web.json_response({"ok": True, "schedule": detail})
+
+    async def _handle_schedule_delete(self, request):
+        body = await self._json_body(request)
+        raw_id = (
+            request.match_info.get("id", "")
+            or str(body.get("id") or "")
+        ).strip()
+        if raw_id.startswith("sched_"):
+            raw_id = raw_id[6:]
+        if not raw_id:
+            return web.json_response(
+                {"ok": False, "error": "Thiếu id lịch trình."}, status=400
+            )
+        if raw_id in ("heartbeat", "ideas_auto", "feed_auto", FEED_SCHEDULE_ID):
+            return web.json_response(
+                {"ok": False, "error": "Lịch hệ thống chỉ hỗ trợ tạm dừng, không xóa vĩnh viễn."},
+                status=400,
+            )
+        row = await self.memory.get_schedule(raw_id)
+        if row is None:
+            return web.json_response(
+                {"ok": False, "error": "Không tìm thấy lịch trình."},
+                status=404,
+            )
+        if internal_kind(str(row.get("payload") or "")) is not None:
+            return web.json_response(
+                {"ok": False, "error": "Job hệ thống nội bộ — không hỗ trợ xóa."},
+                status=400,
+            )
+        ok = await self.memory.delete_schedule(raw_id)
+        if ok:
+            await self.memory.log_trajectory(
+                "webapp", "schedule_deleted", {"schedule_id": raw_id}
+            )
+        return web.json_response({"ok": ok, "deleted_id": raw_id})
 
     # ---------- 1.4.0: Feed chủ động ----------
     async def _handle_feed(self, request):

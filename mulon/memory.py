@@ -1184,9 +1184,17 @@ class Memory:
     async def finish_task(
         self, task_id: str, status: str, result: str = "", error: str = ""
     ) -> None:
+        ts = now_iso()
+        if status in ("failed", "cancelled"):
+            step_st = "cancelled" if status == "cancelled" else "failed"
+            await self.db.execute(
+                "UPDATE task_steps SET status=?, updated_at=?"
+                " WHERE task_id=? AND status='doing'",
+                (step_st, ts, task_id),
+            )
         await self.db.execute(
             "UPDATE tasks SET status=?, result=?, error=?, updated_at=? WHERE id=?",
-            (status, result, error, now_iso(), task_id),
+            (status, result, error, ts, task_id),
         )
         await self.db.commit()
 
@@ -1198,9 +1206,16 @@ class Memory:
 
     async def reconcile_orphan_tasks(self) -> int:
         """Thu dọn các task bị kẹt 'running' từ phiên trước (do bot crash/restart)."""
+        ts = now_iso()
+        await self.db.execute(
+            "UPDATE task_steps SET status='failed', updated_at=?"
+            " WHERE status IN ('doing', 'pending')"
+            " AND task_id IN (SELECT id FROM tasks WHERE status='running')",
+            (ts,),
+        )
         cur = await self.db.execute(
             "UPDATE tasks SET status='failed', error='Tiến trình bị ngắt khi bot khởi động lại', updated_at=? WHERE status='running'",
-            (now_iso(),),
+            (ts,),
         )
         await self.db.commit()
         return cur.rowcount
@@ -1235,7 +1250,7 @@ class Memory:
         task THẬT (đường plan-act-verify, job, agent con) mới có bản
         ghi ở đây — lượt chat thường không tạo task (vá sau 1.4)."""
         cur = await self.db.execute(
-            "SELECT t.id, t.session_key, t.title, t.status, t.error,"
+            "SELECT t.id, t.session_key, t.title, t.status, t.result, t.error,"
             " t.created_at, t.updated_at,"
             " (SELECT COUNT(*) FROM task_steps s"
             "   WHERE s.task_id = t.id) AS steps_total,"
@@ -1250,7 +1265,23 @@ class Memory:
             " FROM tasks t ORDER BY t.created_at DESC LIMIT ?",
             (limit,),
         )
-        return [dict(r) for r in await cur.fetchall()]
+        tasks = [dict(r) for r in await cur.fetchall()]
+        if tasks:
+            placeholders = ",".join("?" for _ in tasks)
+            tids = [t["id"] for t in tasks]
+            scur = await self.db.execute(
+                f"SELECT task_id, idx, title, status, detail, updated_at"
+                f" FROM task_steps WHERE task_id IN ({placeholders}) ORDER BY task_id, idx",
+                tids,
+            )
+            steps_by_tid: dict[str, list[dict]] = {}
+            for sr in await scur.fetchall():
+                sd = dict(sr)
+                tid = sd.pop("task_id")
+                steps_by_tid.setdefault(tid, []).append(sd)
+            for t in tasks:
+                t["steps"] = steps_by_tid.get(t["id"], [])
+        return tasks
 
     # ---------- trajectory & ledger ----------
     async def log_trajectory(
@@ -1499,10 +1530,10 @@ class Memory:
                 dt = datetime.fromisoformat(iso_ts)
                 if dt.tzinfo is not None:
                     dt = dt.astimezone(vn_tz)
-                t_str = dt.strftime("%H:%M")
-                full_str = dt.strftime("%H:%M:%S · %d/%m/%Y")
+                t_str = dt.strftime("%d/%m/%Y %H:%M")
+                full_str = dt.strftime("%d/%m/%Y %H:%M")
             except Exception:
-                t_str = iso_ts[-8:-3] if len(iso_ts) >= 8 else iso_ts
+                t_str = iso_ts
                 full_str = iso_ts
             history.append({
                 "status": "succeeded",
@@ -1521,6 +1552,14 @@ class Memory:
         )
         row = await cur.fetchone()
         return dict(row) if row else None
+
+    async def delete_schedule(self, schedule_id: str) -> bool:
+        """Xoá hẳn 1 lịch hẹn khỏi bảng schedules (T-23.4)."""
+        cur = await self.db.execute(
+            "DELETE FROM schedules WHERE id=?", (schedule_id,)
+        )
+        await self.db.commit()
+        return (cur.rowcount or 0) > 0
 
     async def list_schedules(self, enabled_only: bool = False) -> list[dict]:
         if enabled_only:

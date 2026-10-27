@@ -34,6 +34,7 @@ def test_all_subscreens_have_backrow():
     
     expected_subscreens = [
         "screen-task",
+        "screen-schedule-detail",
         "screen-profile",
         "screen-skill",
         "screen-system",
@@ -86,12 +87,25 @@ def test_browser_navigation_flow_with_playwright():
         pytest.skip("Playwright không được cài đặt trong môi trường này")
         
     with sync_playwright() as p:
-        try:
-            browser = p.chromium.launch(headless=True)
-        except Exception as e:
-            pytest.skip(f"Chromium không khởi động được: {e}")
+        browser = None
+        last_err = None
+        for channel in (None, "msedge", "chrome"):
+            try:
+                kwargs = {"headless": True}
+                if channel:
+                    kwargs["channel"] = channel
+                browser = p.chromium.launch(**kwargs)
+                break
+            except Exception as e:
+                last_err = e
+        if browser is None:
+            pytest.skip(f"Chromium không khởi động được: {last_err}")
             
         page = browser.new_page(viewport={"width": 390, "height": 844})
+        page.route(
+            "**/telegram-web-app.js*",
+            lambda route: route.fulfill(status=200, content_type="application/javascript", body=""),
+        )
         
         # Giả lập môi trường Telegram WebApp
         init_script = """

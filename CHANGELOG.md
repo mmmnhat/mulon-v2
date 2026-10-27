@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 1.7.16 — 2026-10-27 — Thống nhất trạng thái Việc một nguồn sự thật, định dạng thời gian duy nhất & màn chi tiết Lịch trình (T-23.4, Làn 1)
+
+- **Một nguồn sự thật duy nhất cho trạng thái Việc giữa Danh sách, Chi tiết, Dòng thời gian và Tóm tắt (`mulon/webapp_server.py`, `mulon/memory.py`, `mulon/webapp/index.html`, QA Q-03 / T-23.4):**
+  - Bổ sung hàm chuẩn hoá `_normalize_task_view` trong `mulon/webapp_server.py` dùng chung cho cả `/api/state` (danh sách Việc) và `/api/task` (chi tiết Việc); `list_tasks` trong `mulon/memory.py` batch-load toàn bộ `steps` và `result` trong 1 truy vấn SQL để hai bề mặt dùng chung đúng 1 bộ dữ liệu đầu vào.
+  - Khi việc ở trạng thái `failed`: tự động đóng các bước `doing`/`pending` còn treo sang `failed`, đổi bước `"Kiểm chứng: Đạt yêu cầu"` (nếu có từ lượt thử trước) thành `"Kiểm chứng: Không đạt (tác vụ lỗi)"`, đặt bước cuối timeline là `"✕ Đã lỗi"`, và hiển thị rõ `"**Trạng thái: ✕ Đã lỗi (x/y bước)** — Chi tiết lỗi / Chẩn đoán: ..."` ở đầu hộp Tóm tắt (kể cả khi `result` nháp khác rỗng).
+  - Khi việc đã kết thúc nhưng chưa đủ bước (`steps_done < steps_total`, ví dụ `5/6 bước`, `17/19 bước`): chuẩn hoá thành trạng thái `partial` với nhãn `"· Xong x/y bước"` và bước cuối `"· Hoàn tất một phần (x/y bước)"`, tuyệt đối không ghi `"✓ Đã xong"`.
+- **Một định dạng thời gian duy nhất toàn ứng dụng & chống cắt chữ giữa từ (`mulon/webapp/index.html`, `mulon/webapp_server.py`, QA Q-03 / Q-07):**
+  - Hợp nhất `todayLabel` và `hhmm` qua `formatTimeUnified(iso)` trả định dạng duy nhất `DD/MM/YYYY HH:MM` xuyên suốt danh sách Việc, dòng thời gian, Phê duyệt, Lịch và Hồ sơ.
+  - Chuyển `.r-title` và `.r-sub` sang hiển thị tối đa 2 dòng theo ranh giới từ (`-webkit-line-clamp: 2`, `overflow-wrap: break-word`) kết hợp `_truncate_words` / `truncateWords` và `_disambiguate_schedule_items` (tự nối phần đuôi phân biệt cho các lịch trùng phần mở đầu như `"Quét TẤT CẢ…"`).
+- **Màn con Chi tiết lịch trình `#screen-schedule-detail` & diễn giải Cron tiếng Việt (`mulon/webapp_server.py`, `mulon/webapp/index.html`, QA Q-10 / T-23.4):**
+  - Bổ sung `_describe_cron_vi` và `_format_cron_display` hiển thị lời thường tiếng Việt ngay cạnh biểu thức cron (ví dụ: `"Hằng ngày lúc 08:00 (0 8 * * *)"`, `"Mỗi 5 phút (*/5 * * * *)"`).
+  - Bổ sung các API `GET /api/schedules/{id}`, `POST /api/schedules/{id}/update`, `POST /api/schedules/{id}/delete` và `Memory.delete_schedule`.
+  - Mọi hàng lịch trong `#upcoming-list` và `#schedule-list` đều mở màn con `#screen-schedule-detail` gồm: thông tin chu kỳ & nội dung lời nhắc, **Lịch sử chạy** (bấm mở từng lượt để xem Thời điểm, Thời lượng, Trạng thái, Đầu ra, Lỗi), **Quyền của lịch trình**, biểu mẫu **Sửa lịch** (kèm xem trước diễn giải cron tiếng Việt) và nút **Xoá lịch** có hộp xác nhận.
+- **Kiểm thử hồi quy & Render thật Chromium (`tests/test_v17_miniapp_tasks_schedule.py`, `tests/test_v17_miniapp_navigation.py`):**
+  - Viết mới bộ test `tests/test_v17_miniapp_tasks_schedule.py` kiểm chứng `_normalize_task_view`, diễn giải cron tiếng Việt, phân biệt lịch trùng đầu, API chi tiết/sửa/xoá lịch và Playwright Chromium E2E (390×844) đối chiếu 3 việc + 2 lịch hẹn.
+
 ## 1.7.15 — 2026-10-27 — Tách tab Hồ sơ thành 4 màn con, chuẩn hoá mô tả Kỹ năng tiếng Việt & Xem trước Thư viện (T-23.3, Làn 1)
 
 - **Kiến trúc thông tin tab Hồ sơ gọn thành 4 hàng điều hướng (`mulon/webapp/index.html`, QA Q-05 / T-23.3):**
