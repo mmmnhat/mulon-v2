@@ -1475,6 +1475,19 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <div class="card-title">Phiên này</div>
     <div id="system-viewer"></div>
   </div>
+  <div class="card" id="card-cliproxy-link">
+    <div class="card-title">Cổng model (CLIProxyAPI)</div>
+    <div class="row" data-open="screen-cliproxy" style="cursor:pointer;">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </div>
+      <div class="r-main">
+        <div class="r-title">Quản lý cổng model &amp; tài khoản CLI</div>
+        <div class="r-sub">Trạng thái cổng 8317, model sẵn sàng, tài khoản CLI</div>
+      </div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div>
+  </div>
   <div class="card" id="card-homescreen-shortcut">
     <div class="card-title">Lối tắt màn hình chính (Homescreen)</div>
     <div class="row" id="row-add-homescreen" style="cursor:pointer;">
@@ -1491,6 +1504,26 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <div class="note">Mulon chạy trên một máy duy nhất,
     không ghép nối thiết bị nào. Đây là tình trạng thật của
     máy đó và của phiên đang xem.</div>
+</section>
+
+<!-- Cài đặt con: Cổng model CLIProxyAPI (T-14) -->
+<section id="screen-cliproxy" class="hidden">
+  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Thiết bị &amp; hệ thống</div>
+  <h2 class="screen-title">Cổng model (CLIProxyAPI)</h2>
+  <div class="card">
+    <div class="card-title">Trạng thái cổng 127.0.0.1:8317</div>
+    <div id="cliproxy-status-content"><div class="empty-state" style="padding:16px;">Đang tải trạng thái cổng model...</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Tài khoản CLI đã đăng nhập</div>
+    <div id="cliproxy-accounts-content"><div class="empty-state" style="padding:16px;">Đang tải danh sách tài khoản...</div></div>
+    <div class="note" style="padding:6px 16px 12px; margin:0; font-size:12px;">Định danh được che bảo mật. Token và API key được lưu cục bộ trên máy chủ, không lưu trong repo.</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Danh sách model sẵn sàng</div>
+    <div id="cliproxy-models-content"><div class="empty-state" style="padding:16px;">Đang tải danh sách model...</div></div>
+  </div>
+  <div class="note">Toàn bộ lời gọi model đều đi qua cổng proxy cục bộ 127.0.0.1:8317 (Proxy-only). Nếu proxy dừng hoạt động, bot chuyển sang chế độ suy giảm (degrade) an toàn mà không bị sập.</div>
 </section>
 
 <!-- Cài đặt con: Feed chủ động (1.4) -->
@@ -2109,6 +2142,7 @@ const TAB_OF_SCREEN = {"screen-task":"viec","screen-schedule-detail":"lich","scr
   "screen-policy":"caidat","screen-all-tools-policy":"caidat",
   "screen-system":"caidat",
   "screen-feed":"caidat",
+  "screen-cliproxy":"caidat",
   "screen-listing":"caidat","screen-install":"caidat",
   "screen-mktcat":"caidat",
   "screen-import":"caidat",
@@ -2121,6 +2155,7 @@ const SCREEN_TITLES = {
   "screen-sub-library":"Thư viện tài liệu","screen-library-preview":"Xem trước tài liệu",
   "screen-library-trash":"Thùng rác tài liệu",
   "screen-system":"Thiết bị & hệ thống","screen-feed":"Feed chủ động",
+  "screen-cliproxy":"Cổng model (CLIProxyAPI)",
   "screen-connectors":"Công cụ kết nối","screen-google-config":"Cấu hình Google",
   "screen-mktcat":"Chợ MCP","screen-listing":"Chi tiết connector",
   "screen-install":"Cài đặt MCP","screen-import":"Nhập thủ công",
@@ -2189,6 +2224,8 @@ function showSub(id){
     loadLibraryTrash();
   } else if (id === "screen-all-tools-policy") {
     renderAllToolsPolicy();
+  } else if (id === "screen-cliproxy") {
+    renderCLIProxy();
   }
 }
 function handleNativeBack(){
@@ -2214,6 +2251,8 @@ function handleNativeBack(){
     showSub("screen-sub-skills");
   } else if (subScreen === "screen-library-preview" || subScreen === "screen-library-trash") {
     showSub("screen-sub-library");
+  } else if (subScreen === "screen-cliproxy") {
+    showSub("screen-system");
   } else {
     showMain(TAB_OF_SCREEN[subScreen] || "viec");
   }
@@ -5667,6 +5706,66 @@ function renderSystem(){
     '</td></tr>' +
     '<tr><td class="k">ID</td><td>' + fv(v.id) + '</td></tr>' +
     '</table>';
+}
+
+async function renderCLIProxy(){
+  const statusEl = $("cliproxy-status-content");
+  const accountsEl = $("cliproxy-accounts-content");
+  const modelsEl = $("cliproxy-models-content");
+  if (!statusEl) return;
+
+  statusEl.innerHTML = '<div class="empty-state" style="padding:16px;">Đang tải trạng thái cổng model...</div>';
+  accountsEl.innerHTML = '<div class="empty-state" style="padding:16px;">Đang tải danh sách tài khoản...</div>';
+  modelsEl.innerHTML = '<div class="empty-state" style="padding:16px;">Đang tải danh sách model...</div>';
+
+  try {
+    const res = await apiFetch("/api/cliproxy/status");
+    if (!res || !res.ok) {
+      statusEl.innerHTML = '<div class="empty-state" style="padding:16px;">Không thể kết nối API: ' + esc((res && res.error) || "Lỗi mạng") + '</div>';
+      return;
+    }
+
+    const isOk = res.status === "ok";
+    const isDown = res.status === "down";
+    const statusText = isOk ? "Đang hoạt động" : (isDown ? "Cổng đang đóng" : "Suy giảm");
+
+    statusEl.innerHTML = '<table class="fields">' +
+      '<tr><td class="k">Trạng thái</td><td><strong>' + esc(statusText) + '</strong></td></tr>' +
+      '<tr><td class="k">Địa chỉ</td><td><code>' + esc(res.base_url || "http://127.0.0.1:8317/v1") + '</code></td></tr>' +
+      '<tr><td class="k">Chi tiết</td><td>' + esc(res.detail || "—") + '</td></tr>' +
+      '<tr><td class="k">Độ trễ</td><td>' + (res.latency_ms ? res.latency_ms + " ms" : "—") + '</td></tr>' +
+      '<tr><td class="k">Tiến trình</td><td>' + (res.managed_pid ? "Đang chạy (PID " + res.managed_pid + ")" : (res.executable_found ? "Có file thực thi" : "Chưa tìm thấy file thực thi")) + '</td></tr>' +
+      '<tr><td class="k">Tự khởi chạy</td><td>' + (res.auto_start_configured ? "Đang bật" : "Đang tắt") + '</td></tr>' +
+      '</table>';
+
+    // Accounts
+    const accounts = res.accounts || [];
+    if (!accounts.length) {
+      accountsEl.innerHTML = '<div class="empty-state" style="padding:16px;">Chưa phát hiện tài khoản CLI nào trong file cấu hình. Bạn có thể cấu hình tài khoản CLI tại config/cliproxy.yaml.</div>';
+    } else {
+      let accHtml = '<table class="fields">';
+      accounts.forEach(a => {
+        accHtml += '<tr><td class="k">' + esc(a.provider || "CLI") + '</td><td>' + esc(a.account_id || "—") + ' <span class="dim">(' + esc(a.status || "ready") + ')</span></td></tr>';
+      });
+      accHtml += '</table>';
+      accountsEl.innerHTML = accHtml;
+    }
+
+    // Models
+    const models = res.models || [];
+    if (!models.length) {
+      modelsEl.innerHTML = '<div class="empty-state" style="padding:16px;">' + (isDown ? "Cổng 8317 đang đóng — không lấy được danh sách model." : "Chưa có model nào sẵn sàng từ proxy.") + '</div>';
+    } else {
+      let mHtml = '<div style="padding:12px 16px;"><div style="font-size:13px;margin-bottom:8px;color:var(--text-sub);">Có ' + models.length + ' model sẵn sàng qua cổng 127.0.0.1:8317:</div><div style="display:flex;flex-wrap:wrap;gap:6px;">';
+      models.forEach(m => {
+        mHtml += '<span class="chip" style="font-size:12px;">' + esc(m) + '</span>';
+      });
+      mHtml += '</div></div>';
+      modelsEl.innerHTML = mHtml;
+    }
+  } catch (err) {
+    statusEl.innerHTML = '<div class="empty-state" style="padding:16px;">Lỗi kiểm tra cổng: ' + esc(String(err)) + '</div>';
+  }
 }
 
 /* ---------------- Chợ MCP (1.3) ---------------- */

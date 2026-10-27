@@ -1105,6 +1105,8 @@ class WebAppServer:
         # + cache kiểm tra proxy 8317 (tránh probe mỗi lần poll).
         self._started_at = time.time()
         self._proxy_cache: Optional[tuple] = None
+        from .cliproxy import CLIProxyManager
+        self.cliproxy = CLIProxyManager(self.cfg)
 
     # ---------- vòng đời ----------
     def set_vault_notifier(self, fn) -> None:
@@ -1282,6 +1284,12 @@ class WebAppServer:
         app.router.add_post(
             "/api/marketplace/operations/{id}/install-now",
             self._mkt_install_now)
+        # T-14: CLIProxyAPI Management API
+        app.router.add_get("/api/cliproxy/status", self._handle_cliproxy_status)
+        app.router.add_get("/api/cliproxy/models", self._handle_cliproxy_models)
+        app.router.add_get("/api/cliproxy/accounts", self._handle_cliproxy_accounts)
+        app.router.add_post("/api/cliproxy/start", self._handle_cliproxy_start)
+        app.router.add_post("/api/cliproxy/stop", self._handle_cliproxy_stop)
         return app
 
     async def start(self) -> bool:
@@ -1865,35 +1873,28 @@ class WebAppServer:
                 "skills": skills_info, "theme": theme}
 
     async def _probe_proxy(self) -> dict:
-        """Kiểm tra proxy model 127.0.0.1:8317 bằng TCP connect
-        (timeout ngắn, cache vài giây). Kết quả trung thực:
-        nối được -> ok; bị từ chối (cổng đóng) -> down; còn lại
-        (timeout/lỗi lạ) -> unknown "không kiểm được", không đoán."""
-        now = time.time()
-        if self._proxy_cache is not None:
-            ts, cached = self._proxy_cache
-            if now - ts < PROXY_CACHE_TTL_S:
-                return cached
-        result = {"status": "unknown",
-                  "detail": "không kiểm được"}
-        try:
-            _reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(PROXY_HOST, PROXY_PORT),
-                timeout=0.6)
-            writer.close()
-            try:
-                await writer.wait_closed()
-            except Exception:
-                pass
-            result = {"status": "ok",
-                      "detail": f"đang nghe ở {PROXY_HOST}:{PROXY_PORT}"}
-        except ConnectionRefusedError:
-            result = {"status": "down",
-                      "detail": f"cổng {PROXY_PORT} đang đóng"}
-        except Exception:
-            pass  # giữ unknown — không đoán
-        self._proxy_cache = (now, result)
-        return result
+        """Kiểm tra proxy model 127.0.0.1:8317 qua CLIProxyManager (T-14)."""
+        return await self.cliproxy.get_status()
+
+    async def _handle_cliproxy_status(self, request):
+        st = await self.cliproxy.get_status()
+        return web.json_response({"ok": True, **st})
+
+    async def _handle_cliproxy_models(self, request):
+        models = await self.cliproxy.fetch_models()
+        return web.json_response({"ok": True, "models": models})
+
+    async def _handle_cliproxy_accounts(self, request):
+        accounts = self.cliproxy.get_accounts()
+        return web.json_response({"ok": True, "accounts": accounts})
+
+    async def _handle_cliproxy_start(self, request):
+        res = await self.cliproxy.start_process()
+        return web.json_response(res)
+
+    async def _handle_cliproxy_stop(self, request):
+        res = await self.cliproxy.stop_process()
+        return web.json_response(res)
 
     async def _system_state(self, user: Optional[dict]) -> dict:
         """Thẻ "Thiết bị & hệ thống": chỉ dữ kiện THẬT của máy

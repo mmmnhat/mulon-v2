@@ -231,6 +231,7 @@ async def build_system(cfg: Config):
         "activity": activity,
         "marketplace": marketplace,
         "feed_auto": feed_auto,
+        "cliproxy": getattr(webapp, "cliproxy", None),
     }
     return agent, memory, dossier, registry, worker, services
 
@@ -404,6 +405,17 @@ async def _run(cfg: Config) -> int:
     if await services["webapp"].start():
         logger.info("Mini App server BẬT (chỉ localhost, port %d)",
                     services["webapp"].port)
+    # T-14: CLIProxyAPI tự khởi chạy nếu được cấu hình (degrade, không sập)
+    cliproxy_mgr = services.get("cliproxy")
+    if cliproxy_mgr and getattr(cfg, "cliproxy_auto_start", False):
+        try:
+            start_res = await cliproxy_mgr.start_process()
+            if start_res.get("ok"):
+                logger.info("CLIProxyAPI: %s", start_res.get("detail"))
+            else:
+                logger.warning("CLIProxyAPI tự khởi chạy không thành công: %s", start_res.get("error"))
+        except Exception as exc:
+            logger.warning("CLIProxyAPI tự khởi chạy lỗi (degrade, bot không sập): %s", exc)
     if cfg.consolidation_enabled:
         asyncio.create_task(
             _consolidation_loop(worker, cfg.consolidation_interval_s)

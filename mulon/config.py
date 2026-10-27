@@ -132,6 +132,12 @@ class Config:
     model_cheap: str = "gemini-3.5-flash-lite"
     model_escalated: str = "gemini-3.8-flash-high"
 
+    # --- Cổng CLIProxyAPI (T-14) ---
+    cliproxy_auto_start: bool = False
+    cliproxy_binary_path: Optional[Path] = None
+    cliproxy_config_path: Optional[Path] = None
+    cliproxy_dir: Optional[Path] = None
+
     # --- Telegram & Xác thực quyền (T-15 mở khoá cài đặt) ---
     telegram_bot_token: str = ""
     allowed_user_id: int = 0
@@ -426,6 +432,10 @@ class Config:
             model_brain=_env("MODEL_BRAIN", "gemini-3.8-flash"),
             model_cheap=_env("MODEL_CHEAP", "gemini-3.5-flash-lite"),
             model_escalated=_env("MODEL_ESCALATED", "gemini-3.8-flash-high"),
+            cliproxy_auto_start=_env_bool("CLIPROXY_AUTO_START", False),
+            cliproxy_binary_path=_resolve(_env("CLIPROXY_BINARY_PATH", "")) if _env("CLIPROXY_BINARY_PATH", "") else None,
+            cliproxy_config_path=_resolve(_env("CLIPROXY_CONFIG_PATH", "")) if _env("CLIPROXY_CONFIG_PATH", "") else None,
+            cliproxy_dir=_resolve(_env("CLIPROXY_DIR", "")) if _env("CLIPROXY_DIR", "") else None,
             telegram_bot_token=_env("TELEGRAM_BOT_TOKEN", ""),
             allowed_user_id=final_owner_id,
             allowed_user_ids=tuple(allowed_list),

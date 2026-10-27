@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 1.7.25 — 2026-10-27 — Tích hợp CLIProxyAPI làm cổng model chính thức (T-14, LUỒNG 4 — ký: Antigravity [L4])
+
+- **Formal hoá CLIProxyAPI làm cổng model chính thức (`mulon/cliproxy.py`, T-14):**
+  - Bổ sung module `mulon/cliproxy.py` với `CLIProxyManager`: quản lý toàn bộ vòng đời, kiểm tra sống/chết (TCP + GET `/v1/models`), phát hiện file thực thi trên đa nền tảng (`cliproxyapi`, `CLIProxyAPI`, `EasyCLIProxyAPI` cho macOS, Linux, Windows), tự động khởi chạy khi bản cài bật cấu hình.
+  - Phân loại model theo nhà cung cấp (`categorize_model_provider`): Google Gemini, Anthropic Claude, OpenAI, Muse (muse2api), Codex, Grok, Kimi, DeepSeek, Qwen.
+  - Quản lý danh sách tài khoản CLI đã đăng nhập (`detect_cliproxy_accounts`): tự động phát hiện các tài khoản từ file cấu hình CLIProxyAPI (`config/cliproxy.yaml`, `~/.cliproxy/config.yaml`), tuân thủ nghiêm ngặt Luật bảo mật số 5: che mờ định danh (`mask_secret_identifier`), tuyệt đối không để lộ token, API key hay bí mật vào giao diện hay mã nguồn.
+- **Tuân thủ nguyên tắc Proxy-only (127.0.0.1:8317) & cơ chế Degrade không sập (`mulon/gateway.py`, `mulon/cliproxy.py`):**
+  - Mọi lời gọi model đều đi qua cổng proxy local `127.0.0.1:8317`, không gọi thẳng API bên ngoài.
+  - Khi proxy chưa chạy hoặc bị tắt: hệ thống chuyển sang chế độ suy giảm (degrade) với thông báo tiếng Việt rõ ràng, bot không sập, tiếp tục phục vụ các tác vụ cục bộ.
+- **API & giao diện quản lý trên Mini App (`mulon/webapp_server.py`, `mulon/webapp/index.html`):**
+  - Bổ sung 5 endpoint quản lý: `GET /api/cliproxy/status`, `GET /api/cliproxy/models`, `GET /api/cliproxy/accounts`, `POST /api/cliproxy/start`, `POST /api/cliproxy/stop`.
+  - Màn hình Cài đặt Mini App có hàng và màn con riêng `#screen-cliproxy`: hiển thị thẻ trạng thái cổng & độ trễ, thẻ danh sách tài khoản CLI, thẻ danh sách model sẵn sàng theo provider.
+- **Cấu hình bản cài (`mulon/config.py`, `.env.example`):**
+  - Bổ sung các trường `cliproxy_auto_start`, `cliproxy_binary_path`, `cliproxy_config_path`, `cliproxy_dir` trong `Config` và tài liệu `.env.example`.
+- **Kiểm thử (`tests/test_v17_cliproxy.py`, T-14):**
+  - 13 unit test mới kiểm chứng toàn diện: phát hiện file thực thi đa OS, che mờ định danh, phân loại model, phát hiện tài khoản không lộ bí mật, kiểm tra sống/chết qua TCP stub và cổng đóng, quản lý tiến trình start/stop, thông báo degrade, nguyên tắc proxy-only khoá cứng 8317, và các endpoint Mini App API.
+
 ## 1.7.24 — 2026-10-27 — Triệt tiêu nhân đôi tin nhắn, thẻ duyệt và thẻ Vault (T-24.4, LUỒNG 1 — ký: Antigravity [L1])
 
 - **Chống nhân đôi câu trả lời chat/group (`mulon/telegram_bot.py`, T-24.4):**

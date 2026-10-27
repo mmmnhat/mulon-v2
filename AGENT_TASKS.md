@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~23:38 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): T-14 chuyển `DONE` (version 1.7.25, 622/622 test passed; formal hoá CLIProxyAPI quản lý vòng đời, đa OS, màn quản lý cổng/tài khoản/model trong Mini App, bảo đảm Proxy-only 8317 và degrade an toàn; hàng chờ LUỒNG 4 trống). Ky: Antigravity [L4]
+
 Cập nhật 2026-10-27 ~23:25 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): nhận T-24.5 DOING (ƯU TIÊN 21, LUỒNG 1) theo thứ tự hàng chờ. Ky: Antigravity [L1]
 
 Cập nhật 2026-10-27 ~23:24 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): T-24.4 chuyển `DONE` (version 1.7.24, 609/609 test passed, triệt tiêu nhân đôi tin nhắn/thẻ duyệt/thẻ Vault). Ky: Antigravity [L1]
@@ -225,7 +227,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
   T-30 (nhận DOING) -> T-17 -> T-11 -> T-22.3 (phần còn lại: sửa IG báo gửi giả + DM Threads thật; spike code đã có ở `d9d2a853`). (Thu hồi từ LUỒNG PHỤ 1 theo lệnh chủ dự án 27/10 ~22:37.)
 - **LUỒNG 4 — Cổng model & còn lại**:
-  T-14 (đang DOING). (T-16 phần sửa + T-28 đã chuyển sang LUỒNG 5 theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên Antigravity.)
+  T-14 (đã DONE). (T-16 phần sửa + T-28 đã chuyển sang LUỒNG 5 theo lệnh chủ dự án 27/10 ~22:43 — đội hình chốt 5 phiên Antigravity; hàng chờ LUỒNG 4 đã trống, chờ lệnh mới).
 
 - **LUỒNG PHỤ 1 — Muse phụ — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37: thu hồi toàn bộ việc của các account Muse phụ, kể cả việc đang dở):** hàng chờ đã dọn sạch — T-22.3 (phần còn lại) -> LUỒNG 3, T-28 -> LUỒNG 4, T-29 -> LUỒNG 1, T-26 -> LUỒNG 1. LUỒNG PHỤ 1 không nhận việc mới, không push thêm commit nào cho dự án này.
 
@@ -539,8 +541,20 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
   đổi được ngay, phần nào cần BotFather.
 - Chuẩn hoá brand: logo, màu, giọng văn trong app + bot.
 
-### [T-14] Tích hợp CLIProxyAPI làm cổng model chính thức — Giao: Antigravity — `DOING` — LUỒNG 4
+### [T-14] Tích hợp CLIProxyAPI làm cổng model chính thức — Giao: Antigravity — `DONE` — LUỒNG 4
 - **Nhận tiếp — Antigravity [L4] (2026-10-27 ~23:08 +07, phiên mới sau 22:47):** nhận tiếp T-14 DOING theo LUẬT ĐA LUỒNG, làm tiếp từ trạng thái code trên `main`. Ky: Antigravity [L4]
+- **Báo cáo hoàn thành (Antigravity [L4] 2026-10-27 ~23:38 +07, version 1.7.25):**
+  1. *Version:* 1.7.25.
+  2. *Đã làm:*
+     - Formal hoá CLIProxyAPI thành bộ phận chính thức (`mulon/cliproxy.py`, `CLIProxyManager`): quản lý vòng đời tiến trình, kiểm tra TCP và truy vấn `GET /v1/models` qua loopback; phát hiện file thực thi đa OS (macOS, Linux, Windows) qua env `CLIPROXY_BINARY_PATH`, thư mục `bin/` và PATH.
+     - Phát hiện và quản lý danh sách tài khoản CLI (`detect_cliproxy_accounts`): tự động phát hiện tài khoản từ `config/cliproxy.yaml` và `~/.cliproxy/config.yaml`; che mờ bảo mật định danh (`mask_secret_identifier`), không để lộ token hay API key (tuân thủ Rule 5).
+     - Phân loại model theo nhà cung cấp (`categorize_model_provider`): Gemini, Claude, OpenAI, Muse (muse2api), Codex, Grok, Kimi, v.v.
+     - Giữ nguyên triệt để nguyên tắc Proxy-only (`127.0.0.1:8317`); cơ chế Degrade an toàn và minh bạch không sập khi proxy dừng hoạt động.
+     - Màn hình quản lý Cổng model trong Mini App (`#screen-cliproxy`) với 5 API endpoint (`/api/cliproxy/status`, `/api/cliproxy/models`, `/api/cliproxy/accounts`, `/api/cliproxy/start`, `/api/cliproxy/stop`).
+     - Tự động khởi chạy CLIProxyAPI lúc boot nếu cấu hình bật (`cliproxy_auto_start=true`).
+  3. *Kết quả kiểm thử:* 622/622 unit tests passed (thêm 13 test mới trong `tests/test_v17_cliproxy.py`, 0 fail).
+  4. *Hành vi thay đổi:* Thêm cấu hình `CLIPROXY_AUTO_START`, `CLIPROXY_BINARY_PATH`, `CLIPROXY_CONFIG_PATH`, `CLIPROXY_DIR` trong `mulon/config.py` và `.env.example`; Mini App bổ sung màn quản lý Cổng model (CLIProxyAPI) bên trong Thiết bị & hệ thống.
+  5. *Việc còn lại / hàng chờ:* Hàng chờ LUỒNG 4 đã hoàn tất (T-14 DONE); T-16 và T-28 đã chuyển sang LUỒNG 5 theo quyết định chốt đội hình 5 phiên của chủ dự án; LUỒNG 4 chờ lệnh mới.
 Chủ dự án xác nhận 26/10: "ProxyAPI" = **CLIProxyAPI**
 (`github.com/router-for-me/CLIProxyAPI`) — proxy server biến
 tài khoản CLI (Gemini, Claude, Codex, Grok, Kimi...) thành API
