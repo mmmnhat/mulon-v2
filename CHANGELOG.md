@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 1.7.27 — 2026-10-27 — Sửa lỗi tải initData ở Chi tiết việc + Chợ MCP, cô lập banner lỗi (T-24.5, LUỒNG 1 — ký: Antigravity [L1])
+
+- **Phân biệt nguyên nhân và khắc phục tuổi phiên Mini App (`mulon/config.py`, `mulon/webapp_server.py`, T-24.5):**
+  - Xác nhận hai endpoint `/api/task` và `/api/marketplace/*` KHÔNG validate sai logic: cả hai đều đi qua `_auth_middleware` dùng chung và trả về 200 OK dữ liệu thật khi `initData` còn hạn.
+  - Hiện tượng "các màn khác tải bình thường" là do giao diện SPA đã cache state `S` ở lượt tải đầu và render sẵn DOM, việc chuyển tab chính chỉ ẩn/hiện CSS không gọi mạng. Chỉ khi mở Chi tiết việc hoặc bấm Làm mới Chợ MCP, request mạng thật mới được gửi và bị chặn 403 do trần tuổi phiên cũ đặt quá ngắn (3600s / 1 giờ).
+  - Nâng thời hạn hiệu lực phiên Mini App trên server lên 86400s (24 giờ — chuẩn phiên Telegram Mini App, có thể cấu hình qua `INIT_DATA_MAX_AGE_S`), chống hết hạn đột ngột khi người dùng mở app lâu.
+- **Khắc phục lấy initData động ở Frontend (`mulon/webapp/index.html`, T-24.5):**
+  - Thay thế biến `INIT` tĩnh (gán 1 lần lúc nạp file) bằng hàm `getInitData()` đọc động từ `window.Telegram.WebApp.initData`, hỗ trợ fallback đọc tham số `tgWebAppData` từ URL hash và query search, chống đóng băng chuỗi rỗng khi SDK nạp trễ.
+- **Cô lập lỗi và chống dính banner sang tab khác (`mulon/webapp/index.html`, T-24.5):**
+  - Khi chuyển tab chính (`showMain`) và chuyển màn con (`showSub`), hệ thống tự động xoá sạch nội dung `global-error`, triệt tiêu tình trạng banner lỗi dính sang đầu các tab khác.
+  - Đóng gói lỗi trong màn Chi tiết việc (`screen-task`): khi `openTask` gặp lỗi mạng, giao diện hiển thị khung lỗi nội bộ kèm nút "Thử lại" gọi lại trực tiếp `openTask(id)`, không rò rỉ lỗi ra banner toàn cục.
+- **Kiểm thử (`tests/test_v17_miniapp_initdata_task_mkt.py`, T-24.5):**
+  - 3 test mới xác nhận: phiên mới mở Chi tiết việc + Chợ tải được dữ liệu thật 200 OK; phiên 2 giờ (7200s) được chấp nhận thành công; phiên quá 24 giờ (90000s) bị từ chối 403; kiểm tra cô lập lỗi giao diện và `getInitData()` động.
+
 ## 1.7.26 — 2026-10-27 — Giao diện Mini App đạt chuẩn chuyên nghiệp 100% (T-27, LUỒNG 2 — ký: Antigravity [L2])
 
 - **Tab Phê duyệt đạt chuẩn chuyên nghiệp (`mulon/webapp/index.html`, T-27):**

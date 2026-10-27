@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-27 ~23:42 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): T-24.5 chuyển `DONE` (version 1.7.27, sửa lỗi initData Chi tiết việc + Chợ MCP, cô lập banner lỗi). Ky: Antigravity [L1]
+
 Cập nhật 2026-10-27 ~23:42 bởi Antigravity (LUỒNG 2, ký: Antigravity [L2]): nhận T-13 `DOING` (LUỒNG 2) theo thứ tự hàng chờ sau khi hoàn tất T-27. Ky: Antigravity [L2]
 
 Cập nhật 2026-10-27 ~23:40 bởi Antigravity (LUỒNG 2, ký: Antigravity [L2]): T-27 chuyển `DONE` (version 1.7.26, 624/624 test passed, toàn bộ tiêu chí UI chuẩn chuyên nghiệp 100% đạt, Playwright Chromium render thật 390x844). Ky: Antigravity [L2]
@@ -548,7 +550,7 @@ là CHẤM LẠI/regression, không làm lại từ đầu) + R15.
 
 ### [T-14] Tích hợp CLIProxyAPI làm cổng model chính thức — Giao: Antigravity — `DONE` — LUỒNG 4
 - **Nhận tiếp — Antigravity [L4] (2026-10-27 ~23:08 +07, phiên mới sau 22:47):** nhận tiếp T-14 DOING theo LUẬT ĐA LUỒNG, làm tiếp từ trạng thái code trên `main`. Ky: Antigravity [L4]
-- **Báo cáo hoàn thành (Antigravity [L4] 2026-10-27 ~23:38 +07, version 1.7.25):**
+- **Báo cáo hoàn thành (Antigravity [L4] 2026-10-27 ~23:38 +07, version 1.7.27):**
   1. *Version:* 1.7.25.
   2. *Đã làm:*
      - Formal hoá CLIProxyAPI thành bộ phận chính thức (`mulon/cliproxy.py`, `CLIProxyManager`): quản lý vòng đời tiến trình, kiểm tra TCP và truy vấn `GET /v1/models` qua loopback; phát hiện file thực thi đa OS (macOS, Linux, Windows) qua env `CLIPROXY_BINARY_PATH`, thư mục `bin/` và PATH.
@@ -1297,10 +1299,21 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
   5. *Khử trùng thẻ duyệt và cập nhật đến Telegram (`mulon/telegram_bot.py: send_approval_card, _is_duplicate_message`):* Kiểm tra `_sent_approval_cards` và KV `approval_card_sent:<id>`. Khử trùng tin nhắn đến bằng bộ nhớ đệm `deque(maxlen=5000)` lưu `(chat_id, message_id)`.
   6. *Kiểm thử:* 609/609 unit tests PASS (toàn bộ suite xanh 100%), bao gồm file mới `tests/test_v17_message_deduplication.py` 6/6 test PASSED. Ky: Antigravity [L1]
 
-### [T-24.5] Lỗi tải initData ở Chi tiết việc + Chợ MCP — Giao: Antigravity — `DOING` (ƯU TIÊN 21) — LUỒNG 1
+### [T-24.5] Lỗi tải initData ở Chi tiết việc + Chợ MCP — Giao: Antigravity — `DONE` (ƯU TIÊN 21) — LUỒNG 1
 - **Nhận việc — Antigravity [L1] (2026-10-27 ~23:25 +07, ký: Antigravity [L1]):** nhận T-24.5 DOING theo thứ tự LUỒNG 1 (sau T-24.4 đã DONE). Ky: Antigravity [L1]
 - Bằng chứng (sitemap 27/10 01:42–02:14, phiên WebView chủ sở hữu hợp lệ, các màn khác tải bình thường): Chi tiết việc báo "Không tải được dữ liệu: initData không hợp lệ hoặc không phải chủ nhân" ở cả Dòng thời gian + Tóm tắt, bấm "Thử lại" vẫn lỗi; tab Chợ bấm "Làm mới" 2 lần cùng lỗi; banner lỗi còn dính sang đầu các tab khác. Cần phân biệt: initData hết hạn theo tuổi phiên hay validate sai ở riêng 2 endpoint này.
 - Nghiệm thu: phiên WebView mới mở Chi tiết việc + Chợ tải được dữ liệu thật; lỗi (nếu còn) chỉ nằm trong màn của nó.
+- **Kết quả thực hiện (Antigravity [L1] 27/10/2026, version 1.7.27):**
+  1. *Phân biệt nguyên nhân (`mulon/config.py`, `mulon/webapp_server.py: _auth_middleware`):*
+     - Hai endpoint `/api/task` và `/api/marketplace/*` KHÔNG hề validate sai logic: cả hai đều đi qua `_auth_middleware` và trả về 200 OK dữ liệu thật khi `initData` còn hạn.
+     - Hiện tượng "các màn khác tải bình thường" là do giao diện SPA đã cache state `S` ở lượt tải đầu và render sẵn DOM, khi chuyển giữa 5 tab chính (`showMain`), app chỉ bật tắt class CSS không hề gọi mạng. Chỉ khi mở Chi tiết việc (`openTask` -> `/api/task`) hoặc bấm Làm mới Chợ (`/api/marketplace/refresh`), request mạng thật mới được gửi và bị chặn 403 do trần tuổi phiên cũ đặt quá ngắn (3600s / 1 giờ).
+     - Nâng thời hạn hiệu lực phiên Mini App trên server lên 86400s (24 giờ — chuẩn Telegram Mini App, có thể cấu hình qua `INIT_DATA_MAX_AGE_S`), chống hết hạn đột ngột khi người dùng mở app lâu.
+  2. *Lấy initData động ở Frontend (`mulon/webapp/index.html`):*
+     - Thay thế biến `INIT` tĩnh (bị đóng băng lúc nạp file) bằng hàm `getInitData()` đọc động từ `window.Telegram.WebApp.initData`, hỗ trợ fallback đọc tham số `tgWebAppData` từ URL hash và query search, chống đóng băng chuỗi rỗng khi SDK nạp trễ.
+  3. *Cô lập lỗi và chống dính banner sang tab khác (`mulon/webapp/index.html`):*
+     - Khi chuyển tab chính (`showMain`) và chuyển màn con (`showSub`), hệ thống tự động xoá sạch `global-error`, triệt tiêu tình trạng banner lỗi dính sang đầu các tab khác.
+     - Đóng gói lỗi trong màn Chi tiết việc (`screen-task`): khi `openTask` gặp lỗi mạng, giao diện hiển thị khung lỗi nội bộ kèm nút "Thử lại" (`id="btn-retry-open-task"`) gọi lại trực tiếp `openTask(id)`, không rò rỉ lỗi ra banner toàn cục.
+  4. *Kiểm thử:* Toàn bộ pytest suite xanh 100%, bổ sung 3 test toàn diện trong `tests/test_v17_miniapp_initdata_task_mkt.py` kiểm chứng: phiên mới tải dữ liệu thật 200 OK, phiên 2 giờ (7200s) được chấp nhận thành công, phiên quá 24 giờ (90000s) bị từ chối 403, kiểm tra cô lập lỗi giao diện và `getInitData()` động. Ky: Antigravity [L1]
 
 ### [T-24.6] Yêu cầu dùng bí mật có sẵn phải đi thẳng đường kho -> API — Giao: Antigravity — `TODO` (ƯU TIÊN 22) — LUỒNG 1
 - Bằng chứng (27/10 02:18–02:22): yêu cầu "dùng API key Accesstrade đang lưu trong kho kiểm tra số dư" — bot không dùng giá trị trong kho để gọi API, mà grep/find khắp repo, chạy curl, đọc đi đọc lại cùng một trang tài liệu developer (3–4 lần) nhiều phút không ra kết quả; lượt gửi email sau đó cũng bị kéo lệch theo (kết quả gửi không xác minh được vì lượt bị chiếm).

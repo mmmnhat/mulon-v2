@@ -325,6 +325,7 @@ class Config:
     webapp_url: str = ""
     webapp_app_name: str = ""
     webapp_port: int = 8320
+    init_data_max_age_s: int = 86400  # 24 giờ — chuẩn phiên Telegram Mini App
     # --- 1.5.0: Google connectors (Gmail + Calendar) ---
     # Client ID/Secret của OAuth client do owner tạo ở Google
     # Cloud. Có thể để trống ở đây và nhập vào Vault với label
@@ -533,6 +534,7 @@ class Config:
             webapp_url=_env("WEBAPP_URL", ""),
             webapp_app_name=_env("WEBAPP_APP_NAME", ""),
             webapp_port=_env_int("WEBAPP_PORT", 8320),
+            init_data_max_age_s=_env_int("INIT_DATA_MAX_AGE_S", 86400),
             google_client_id=_env("GOOGLE_CLIENT_ID", ""),
             google_user_email=_env("GOOGLE_USER_EMAIL", ""),
             bot_username=_env("BOT_USERNAME", "Mulon_bot"),
@@ -637,6 +639,7 @@ class Config:
             "webapp_configured": bool(self.webapp_url
                                       and self.webapp_app_name),
             "webapp_port": self.webapp_port,
+            "init_data_max_age_s": self.init_data_max_age_s,
             "approval_timeout_s": self.approval_timeout_s,
             "approval_card_action": self.approval_card_action,
             "marketplace_enabled": self.marketplace_enabled,

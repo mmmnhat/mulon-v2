@@ -1320,9 +1320,11 @@ class WebAppServer:
             allowed_ids = set(getattr(self.cfg, "allowed_user_ids", ()))
             if self.cfg.allowed_user_id:
                 allowed_ids.add(self.cfg.allowed_user_id)
+            max_age = getattr(self.cfg, "init_data_max_age_s", 86400)
             user = validate_init_data(
                 init_data, self.cfg.telegram_bot_token,
-                allowed_ids or self.cfg.allowed_user_id)
+                allowed_ids or self.cfg.allowed_user_id,
+                max_age_s=max_age)
             if user is None:
                 return web.json_response(
                     {"ok": False, "error": "initData không hợp lệ "

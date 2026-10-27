@@ -1989,7 +1989,27 @@ if (tg) {
     document.body.classList.add("has-tg-back");
   }
 }
-const INIT = tg ? tg.initData : "";
+function getInitData() {
+  if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+    return window.Telegram.WebApp.initData;
+  }
+  try {
+    const hash = window.location.hash ? window.location.hash.slice(1) : "";
+    if (hash) {
+      const p = new URLSearchParams(hash);
+      const val = p.get("tgWebAppData");
+      if (val) return val;
+    }
+    const s = window.location.search;
+    if (s) {
+      const p = new URLSearchParams(s);
+      const val = p.get("tgWebAppData");
+      if (val) return val;
+    }
+  } catch (e) {}
+  return (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) || "";
+}
+const INIT = getInitData();
 const START_PARAM = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || "";
 let S = null;           // state gần nhất từ /api/state
 let mainTab = "viec";
@@ -2066,7 +2086,7 @@ function haptic(kind){
 }
 async function api(path, method, body){
   const opt = {method: method || "GET",
-    headers: {"X-Telegram-Init-Data": INIT,
+    headers: {"X-Telegram-Init-Data": getInitData(),
               "Content-Type": "application/json"}};
   if (body) opt.body = JSON.stringify(body);
   const res = await fetch(path, opt);
@@ -2205,6 +2225,8 @@ function showMain(tab){
   if (tg && tg.BackButton) tg.BackButton.hide();
   document.title = (TAB_TITLES[tab] || "Mulon") + " — Mulon";
   window.scrollTo(0, 0);
+  const ge = $("global-error");
+  if (ge) ge.innerHTML = "";
 }
 function showSub(id){
   if (id !== "screen-install") stopOpPoll();
@@ -2222,6 +2244,8 @@ function showSub(id){
   if (tg && tg.BackButton) tg.BackButton.show();
   document.title = (SCREEN_TITLES[id] || "Mulon") + " — Mulon";
   window.scrollTo(0, 0);
+  const ge = $("global-error");
+  if (ge) ge.innerHTML = "";
 
   // Kích hoạt render dữ liệu màn con tương ứng để luôn mới
   if (id === "screen-connectors") {
@@ -3630,8 +3654,16 @@ async function openTask(id){
 
     $("task-summary").innerHTML = renderMd(t.summary_markdown || t.result || t.error || "(chưa có tóm tắt)");
   } catch (e) {
-    $("task-timeline").innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+    $("task-timeline").innerHTML = '<div class="ds-error-state" style="padding:16px 0;">' +
+      '<div class="ds-error-title">Không tải được dòng thời gian</div>' +
+      '<div class="ds-error-desc">' + esc(e.message) + '</div>' +
+      '<button class="ds-btn ds-btn-secondary" style="margin-top:8px;" id="btn-retry-open-task">Thử lại</button>' +
+      '</div>';
     $("task-summary").innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+    const retryBtn = $("btn-retry-open-task");
+    if (retryBtn) {
+      retryBtn.onclick = () => openTask(id);
+    }
   }
 }
 
@@ -6855,7 +6887,7 @@ $("import-parse").addEventListener("click", async () => {
   try {
     const res = await fetch("/api/marketplace/import/parse", {
       method: "POST",
-      headers: {"X-Telegram-Init-Data": INIT,
+      headers: {"X-Telegram-Init-Data": getInitData(),
                 "Content-Type": "application/json"},
       body: JSON.stringify({text: text}),
     });
