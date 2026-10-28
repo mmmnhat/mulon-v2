@@ -1839,12 +1839,34 @@ class TelegramSurface:
             return False, "Chỉ chủ nhân duyệt được."
         if self.broker is None:
             return False, "Kênh duyệt chưa được nối."
-        code, approval_id = parts[1], parts[2]
+
+        # Chuẩn hoá định dạng callback data (T-37):
+        # Dạng chuẩn hệ thống: appr:<code>:<approval_id> (code: 1=duyệt, 0=chặn, 2=duyệt+nhớ)
+        # Dạng legacy business: appr:<approval_id>:<yes|no>
+        if parts[1].startswith("biz_") and parts[2] in ("yes", "no"):
+            approval_id = parts[1]
+            code = "1" if parts[2] == "yes" else "0"
+        else:
+            code, approval_id = parts[1], parts[2]
+
         approved = code in ("1", "2")
+
+        # Chống chồng thẻ duyệt & hết hạn cho Telegram Business (T-37 C2)
+        if approval_id.startswith("biz_") and hasattr(self, "business_service") and self.business_service is not None:
+            if not self.business_service.is_draft_active(approval_id):
+                return False, "Thẻ duyệt này đã hết hạn hoặc bị thay thế bởi tin nhắn mới từ khách!"
+
         ok = self.broker.resolve(approval_id, approved,
                                  remember=(code == "2"))
         if not ok:
             return False, "Thẻ này đã được xử lý hoặc đã hết hạn."
+
+        # Cập nhật trạng thái card của business service nếu có
+        if approval_id.startswith("biz_") and hasattr(self, "business_service") and self.business_service is not None:
+            card = getattr(self.business_service, "_draft_cards", {}).get(approval_id)
+            if card and card.get("status") == "pending":
+                card["status"] = "settled"
+
         return True, "Đã duyệt." if approved else "Đã chặn."
 
     def format_decided_approval_card(self, record: dict) -> str:

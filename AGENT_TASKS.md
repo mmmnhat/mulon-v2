@@ -19,6 +19,7 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~21:05 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): T-37 chuyển `DONE` (version 1.7.46, full suite 722 passed 0 failed, evals vàng 33/36 = 92% vượt ngưỡng 85%; (C1) bản thảo soạn theo ngữ cảnh và chuẩn giọng chủ shop Nam bộ, nhận diện tin chào kết/cảm ơn với đề xuất không cần rep hoặc nút Gửi câu kết, triệt tiêu hoàn toàn mẫu cứng máy móc; (C2) duy nhất 1 thẻ duyệt hiện hành cho cùng hội thoại, tự động vô hiệu hóa và gỡ nút inline trên thẻ cũ khi có tin mới, chặn gửi tin từ thẻ superseded/expired, rút TTL thẻ nháp business xuống 15 phút = 900s). Hàng chờ LUỒNG 4 ĐÃ HOÀN THÀNH 100%, chờ nghiệm thu test sống trên kết nối Business thật từ chủ dự án/Muse. Ky: Antigravity [L4]
 Cập nhật 2026-10-28 ~20:02 bởi Muse (ký: Muse): **ĐÍNH CHÍNH + KHÔI PHỤC:** bản ghi nhận việc/DONE của T-34 (LUỒNG 4, 15:32) và T-35 (LUỒNG 1, 16:20) đã bị các lượt autowatch chiều 28/10 đẩy đè mất khỏi AGENT_TASKS.md — autowatch soi head đúng lúc commit builder vừa hạ cánh (race giữa lúc kiểm head và lúc đẩy file) rồi đẩy bản cũ chồng lên; code v1.7.44/v1.7.45 trên main KHÔNG hề mất, chỉ mất bản ghi trong file việc. Đã khôi phục nguyên văn hai mục + 2 dòng log từ commit `4c32f20c`/`b99d7588`, và Muse đã kiểm chứng độc lập cả hai trên cây v1.7.45 (suite VM: 704 passed, 11 deselected, 0 failed; render thật Mini App + W3C chạy lại) → T-34 **VERIFIED**, T-35 **VERIFIED**. Ky: Muse
 Cập nhật 2026-10-28 ~19:45 bởi Muse (ký: Muse): chấm T-29 **VERIFIED** bằng bằng chứng sống trên kết nối Business thật do chủ dự án gửi (ảnh 19:18–19:25: khách Freddy, 3/3 tin vào đúng diện soạn nháp + thẻ duyệt theo mức B, không tự gửi tin nào); mở [T-37] cho 2 lỗi chất lượng lộ trong chính ảnh đó — bản thảo một mẫu cứng cho mọi tin (kể cả tin "Tks em") và thẻ duyệt chồng 3 lớp không hết hạn cho cùng một hội thoại. Ky: Muse
 Cập nhật 2026-10-28 ~13:21 bởi Muse (ký: Muse): (1) KHÔI PHỤC bằng chứng Windows của Antigravity [WIN] (commit `4e6202c9`) bị autowatch `309ebaee` ghi đè mất vì dựng trên base cũ `8b304788` — Muse nhận lỗi ghi đè, đã khôi phục nguyên văn vào T-28 kèm dòng log 13:06 của [WIN]; (2) chấm T-28 **VERIFIED** theo Cách 2 của chủ dự án: đủ 3 chân local thật (Linux VM 693/0, Mac LUỒNG 5 635/0, Windows thật 687/19 với lỗi tzdata collection đã chết hẳn); (3) mở [T-36] cho 19 fail Windows còn lại (nặng nhất: marketplace chặn exe path có khoảng trắng); (4) ĐÍNH CHÍNH (D0) ở T-35: Cloudflare chặn traffic phía reviewer (403 "Your request was blocked", tên miền tunnel vẫn sống ở biên Cloudflare) — rút kết luận "user thật không mở được app", trạng thái đúng là reviewer chưa kiểm chứng được bản live, chờ chủ dự án xác nhận trên điện thoại. Ky: Muse
@@ -2202,8 +2203,33 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
   auto_watch, lỗi thì rollback.
 
 
-### [T-37] Business chatbot: bản thảo theo ngữ cảnh + chống chồng thẻ duyệt — Giao: LUỒNG 4 — `TODO` (ƯU TIÊN 35) — LUỒNG 4
+### [T-37] Business chatbot: bản thảo theo ngữ cảnh + chống chồng thẻ duyệt — Giao: LUỒNG 4 — `DONE` (ƯU TIÊN 35) — LUỒNG 4
 - Nguồn: ảnh bằng chứng sống của T-29 do chủ dự án gửi (28/10/2026 ~19:18–19:25, goal mulon-muse-ai-clone `hidden_files/t29-live-evidence-20261028.png`): khách Freddy gửi 3 tin liên tiếp qua Business, bot dựng 3 thẻ duyệt — soi kỹ lộ 2 lỗi:
   - (C1) **Bản thảo là MỘT mẫu cứng cho mọi tin:** cả 3 thẻ đều nháp nguyên văn "Dạ em chào Freddy, em xin phép ghi nhận thông tin này và sẽ kiểm tra phản hồi lại cho mình ngay nha ạ!" bất kể nội dung — kể cả tin kết thúc "Tks em" (gửi câu này cho khách vừa cảm ơn là vô nghĩa); văn phong cũng cứng/khách sáo, không phải giọng chủ shop (ngắn, thân, Nam bộ). Cần: soạn nháp theo NGỮ CẢNH hội thoại và giọng chủ shop; với tin chào kết/cảm ơn thuần tuý thì nháp một câu kết ngắn, hoặc đề xuất KHÔNG trả lời thay vì dựng thẻ nháp mẫu.
   - (C2) **Thẻ duyệt chồng lớp, không hết hạn:** 3 thẻ của cùng một hội thoại đứng song song, thẻ cũ vẫn bấm "Gửi tin này" được dù ngữ cảnh đã trôi (khách đã "Được rồi e" + "Tks em" — vụ việc đã xong); bấm nhầm thẻ cũ là gửi tin lệch ngữ cảnh cho khách thật. Cần: mỗi hội thoại chỉ MỘT thẻ duyệt hiện hành — tin mới vào thì thay/cập nhật nháp trên thẻ đang chờ (hoặc vô hiệu thẻ cũ, ghi rõ đã thay thế); thẻ chờ quá hạn tự hết hiệu lực, không gửi được nữa.
 - Nghiệm thu: test sống lại trên một hội thoại Business thật có nhiều tin nối tiếp gồm một tin kết — chỉ còn 1 thẻ hiện hành, nháp khớp tin mới nhất và đúng giọng chủ shop, thẻ cũ bấm Gửi không còn tác dụng; suite VM không tụt, test T-29 cũ (11/11) vẫn qua. Ky: Muse (mở mục từ bằng chứng sống T-29)
+
+- **Báo cáo hoàn tất — Antigravity [L4] (2026-10-28 ~21:05 +07): chuyển `DONE`**
+  1. *Version & Commit:* v1.7.46 (commit trên branch luong-4 trước khi push lên main).
+  2. *Đã làm gì:*
+     - **(C1) Soạn nháp theo ngữ cảnh + Giọng chủ shop Nam bộ (`mulon/business.py`):**
+       + Thêm bộ từ khóa `CLOSING_KEYWORDS` nhận diện các tin chào kết / cảm ơn ("Tks em", "Cảm ơn shop nha", "Ok em", "okie shop", "bye em", "thế nhé em", "vậy nha em") -> phân loại thành diện duyệt với đề xuất: *"Đề xuất: KHÔNG CẦN TRẢ LỜI hoặc gửi câu kết ngắn"*. Nút bấm trên thẻ chuyển thành `[Gửi câu kết]` | `[Bỏ qua (Không cần rep)]`.
+       + Bổ sung nhận diện hỏi ship/địa chỉ (`shipping_inquiry`) và hỏi kho/màu/size (`stock_inquiry`).
+       + Xóa sạch 100% mẫu cứng máy móc cũ ("em xin phép ghi nhận thông tin này..."). Đổi toàn bộ các mẫu nháp sang giọng chủ shop Nam bộ ngắn, thân, tự nhiên, xưng em - gọi tên khách hoặc anh/chị, đệm "nè", "nghen", "nha", "liền" ("Dạ hông có chi nè {c_name} ơi!", "Dạ em nghe nè {c_name} ơi! Để em coi kỹ lại phần này rồi nhắn lại liền cho mình nghen, {c_name} đợi em xíu nha!").
+     - **(C2) Chống chồng thẻ duyệt & TTL 15 phút (`mulon/business.py`, `mulon/telegram_bot.py`):**
+       + Duy nhất 1 thẻ duyệt hiện hành cho mỗi hội thoại khách qua `_active_drafts` và `_draft_cards`.
+       + Khi khách gửi tin mới trong khi thẻ cũ đang chờ: thẻ cũ lập tức bị đánh dấu `superseded`, broker resolve `approved=False`, bot tự động gọi `edit_message_text` và `edit_message_reply_markup` gỡ sạch nút bấm inline trên DM của chủ và hiển thị cảnh báo `⚠️ [THẺ ĐÃ BỊ VÔ HIỆU HÓA] Bản thảo này không còn hiệu lực do có tin nhắn mới hơn từ khách`.
+       + Guard kép ở cả `handle_approval_callback` lẫn `_settle_draft_approval`: kiểm tra `is_draft_active()`. Nếu thẻ đã bị thay thế hoặc quá hạn -> chặn gửi tin tuyệt đối và thông báo alert rõ ràng cho chủ.
+       + Rút ngắn TTL thẻ nháp business từ 1 giờ xuống 15 phút (900 giây).
+     - **Test hồi quy (`tests/test_v17_telegram_business.py`):**
+       + Thêm 5 bài test mới kiểm tra toàn diện cả 2 lỗi C1 và C2.
+  3. *Kết quả test:*
+     - Test business: **16/16 passed 100%** (11 test cũ + 5 test hồi quy mới).
+     - Full test suite: **722 passed, 0 failed (100% xanh)** trong 63.42s.
+     - Evals vàng: **33/36 = 92% qua cổng 85%**.
+  4. *Hành vi thay đổi:*
+     - Khách gửi tin kết thúc "Tks em", chủ nhận thẻ duyệt với đề xuất không cần trả lời hoặc bấm [Gửi câu kết].
+     - Khách gửi nhiều tin liên tiếp chỉ còn 1 thẻ duyệt mới nhất có hiệu lực, thẻ cũ tự động mất nút và bị vô hiệu hóa.
+     - Thẻ nháp sau 15 phút không duyệt tự động hết hạn, bấm gửi không còn tác dụng.
+  5. *Trạng thái hàng chờ LUỒNG 4:*
+     - Hàng chờ LUỒNG 4 ĐÃ HOÀN THÀNH 100%. Phần nghiệm thu cuối chờ chủ dự án/Muse test sống trên kết nối Business thật của shop. Ky: Antigravity [L4]

@@ -410,3 +410,198 @@ async def test_cmd_business_handler():
     assert "BÁO CÁO TELEGRAM BUSINESS CHATBOT" in answered_text
     assert "Cấu hình hệ thống:" in answered_text
 
+
+# ==============================================================================
+# HỒI QUY T-37: Ngữ cảnh bản thảo + Chống chồng thẻ duyệt
+# ==============================================================================
+
+
+def test_closing_thanks_classification_and_tone(business_service: TelegramBusinessService):
+    """(C1) Nhận diện tin chào kết / cảm ơn, không dùng mẫu cứng, soạn nháp giọng Nam bộ."""
+    classifier = business_service.classifier
+
+    # Nhận diện các biến thể chào kết
+    variants = ["Tks em", "Cảm ơn shop nha", "Ok em", "okie shop", "bye em", "thế nhé em", "vậy nha em"]
+    for text in variants:
+        action, reason, data = classifier.classify(text)
+        assert action == BusinessActionKind.DRAFT_APPROVAL, f"Thất bại với tin: {text}"
+        assert data["type"] == "closing_thanks", f"Thất bại với tin: {text}"
+        assert "KHÔNG CẦN TRẢ LỜI" in reason
+
+    # Soạn nháp với tên khách
+    draft = business_service.build_draft_reply("closing_thanks", {"type": "closing_thanks"}, "Tks em", "Freddy")
+    assert "Dạ hông có chi nè Freddy ơi!" in draft
+    assert "chúc Freddy một ngày vui vẻ nha!" in draft
+    # Khẳng định không còn mẫu cứng máy móc cũ
+    assert "em xin phép ghi nhận thông tin này" not in draft
+
+
+def test_contextual_draft_reply_no_hardcoded_template(business_service: TelegramBusinessService):
+    """(C1) Đa dạng hoá bản thảo theo ngữ cảnh, xoá sạch mẫu cứng cũ."""
+    classifier = business_service.classifier
+
+    # 1. Hỏi địa chỉ / thời gian giao hàng (không khớp FAQ cứng) -> SOẠN NHÁP
+    action, reason, data = classifier.classify("Địa chỉ shop ở đâu và mấy ngày tới vậy?")
+    assert action == BusinessActionKind.DRAFT_APPROVAL
+    assert data["type"] == "shipping_inquiry"
+    draft_ship = business_service.build_draft_reply(reason, data, "Địa chỉ shop ở đâu", "Lan")
+    assert "ship COD" in draft_ship
+    assert "Lan ở khu vực nào" in draft_ship
+
+    # 2. Hỏi tình trạng kho / màu sắc
+    action, reason, data = classifier.classify("Mẫu này còn màu trắng không shop?")
+    assert action == BusinessActionKind.DRAFT_APPROVAL
+    assert data["type"] == "stock_inquiry"
+    draft_stock = business_service.build_draft_reply(reason, data, "còn màu trắng ko", "Tuấn")
+    assert "kiểm tra nhanh lại bên kho" in draft_stock
+    assert "Tuấn đợi em xíu nha!" in draft_stock
+
+    # 3. Mặc định / không chắc
+    action, reason, data = classifier.classify("Hôm nay shop có mở cửa muộn không?")
+    assert action == BusinessActionKind.DRAFT_APPROVAL
+    assert data["type"] == "uncertain_inquiry"
+    draft_unc = business_service.build_draft_reply(reason, data, "shop mở cửa muộn ko", "Freddy")
+    assert "Dạ em nghe nè Freddy ơi!" in draft_unc
+    assert "em xin phép ghi nhận thông tin này" not in draft_unc
+
+
+@pytest.mark.asyncio
+async def test_anti_stacking_approval_cards(business_service: TelegramBusinessService):
+    """(C2) Chống chồng thẻ duyệt: tin mới vô hiệu thẻ cũ, chỉ 1 thẻ active cho cùng hội thoại."""
+    await business_service.memory.kv_set(
+        "business:connection:conn_123",
+        json.dumps({"connection_id": "conn_123", "is_enabled": True, "can_reply": True}),
+    )
+    await business_service.memory.kv_set("business:active_connection", "conn_123")
+
+    customer_chat_id = 12345
+
+    # Tin 1 từ khách Freddy: Hỏi STK
+    msg1 = MagicMock(spec=Message)
+    msg1.business_connection_id = "conn_123"
+    msg1.from_user = MagicMock(id=customer_chat_id, first_name="Freddy", last_name="")
+    msg1.chat = MagicMock(id=customer_chat_id)
+    msg1.text = "Cho mình xin STK ngân hàng nhé shop"
+
+    # Giả lập bot send_message trả về message_id 101 cho thẻ 1
+    business_service.bot.send_message = AsyncMock(return_value=MagicMock(message_id=101))
+    business_service.bot.edit_message_text = AsyncMock()
+    business_service.bot.edit_message_reply_markup = AsyncMock()
+
+    res1 = await business_service.process_business_message(msg1)
+    approval_id_1 = res1["approval_id"]
+    assert business_service.is_draft_active(approval_id_1) is True
+
+    # Tin 2 từ cùng khách Freddy: "Tks em"
+    msg2 = MagicMock(spec=Message)
+    msg2.business_connection_id = "conn_123"
+    msg2.from_user = MagicMock(id=customer_chat_id, first_name="Freddy", last_name="")
+    msg2.chat = MagicMock(id=customer_chat_id)
+    msg2.text = "Tks em"
+
+    # Giả lập bot send_message trả về message_id 102 cho thẻ 2
+    business_service.bot.send_message.return_value = MagicMock(message_id=102)
+
+    res2 = await business_service.process_business_message(msg2)
+    approval_id_2 = res2["approval_id"]
+
+    # THẺ 1 PHẢI BỊ VÔ HIỆU HOÁ
+    assert business_service.is_draft_active(approval_id_1) is False
+    card1 = business_service._draft_cards[approval_id_1]
+    assert card1["status"] == "superseded"
+
+    # Đã gọi edit_message_text và edit_message_reply_markup để vô hiệu hoá thẻ 1 ở DM chủ
+    business_service.bot.edit_message_text.assert_called()
+    business_service.bot.edit_message_reply_markup.assert_called_with(
+        chat_id=123456789,
+        message_id=101,
+        reply_markup=None,
+    )
+
+    # THẺ 2 ĐANG ACTIVE
+    assert business_service.is_draft_active(approval_id_2) is True
+    assert business_service._active_drafts[customer_chat_id] == approval_id_2
+
+    # Thẻ 2 cho tin "Tks em" có nút kết ngắn
+    owner_call_args = business_service.bot.send_message.call_args_list[-1]
+    assert "[Telegram Business] Khách chào kết / cảm ơn" in owner_call_args.kwargs["text"]
+    assert "Đề xuất: KHÔNG CẦN TRẢ LỜI" in owner_call_args.kwargs["text"]
+    markup = owner_call_args.kwargs["reply_markup"]
+    btn_texts = [b.text for row in markup.inline_keyboard for b in row]
+    assert "Gửi câu kết" in btn_texts
+    assert "Bỏ qua (Không cần rep)" in btn_texts
+
+    # Giả lập cố tình bấm duyệt thẻ 1 đã bị superseded: TIN NHẮN 1 TUYỆT ĐỐI KHÔNG ĐƯỢC GỬI
+    business_service.broker.resolve(approval_id_1, approved=True)
+    await asyncio.sleep(0.05)
+
+    calls_to_customer = [
+        c for c in business_service.bot.send_message.call_args_list
+        if c.kwargs.get("chat_id") == customer_chat_id
+    ]
+    assert len(calls_to_customer) == 0  # Không có tin nào được gửi từ thẻ 1
+
+    # Duyệt thẻ 2: câu kết ĐƯỢC gửi cho khách
+    business_service.broker.resolve(approval_id_2, approved=True)
+    await asyncio.sleep(0.05)
+
+    calls_to_customer_after = [
+        c for c in business_service.bot.send_message.call_args_list
+        if c.kwargs.get("chat_id") == customer_chat_id
+    ]
+    assert len(calls_to_customer_after) == 1
+    assert "Dạ hông có chi nè Freddy ơi!" in calls_to_customer_after[0].kwargs.get("text")
+
+
+@pytest.mark.asyncio
+async def test_handle_approval_callback_superseded_block():
+    """(C2) handle_approval_callback chặn nút bấm của thẻ cũ đã bị thay thế hoặc quá hạn."""
+    from mulon.telegram_bot import TelegramSurface
+
+    cfg = Config(
+        telegram_business_enabled=True,
+        allowed_user_id=123456789,
+    )
+    broker = ApprovalBroker()
+    surface = TelegramSurface(
+        cfg=cfg,
+        agent=MagicMock(),
+        memory=MagicMock(),
+        dossier=MagicMock(),
+        activity=MagicMock(),
+        broker=broker,
+    )
+
+    # Đăng ký 1 thẻ business và đánh dấu superseded
+    surface.business_service._active_drafts[999] = "biz_new123"
+    surface.business_service._draft_cards["biz_old456"] = {
+        "status": "superseded",
+        "created_at": time.time(),
+        "customer_chat_id": 999,
+    }
+    broker.open("biz_old456", {})
+
+    # Chủ bấm vào thẻ cũ (cả 2 định dạng callback)
+    ok, note = await surface.handle_approval_callback("appr:1:biz_old456", user_id=123456789)
+    assert ok is False
+    assert "hết hạn hoặc bị thay thế" in note
+
+    ok_leg, note_leg = await surface.handle_approval_callback("appr:biz_old456:yes", user_id=123456789)
+    assert ok_leg is False
+    assert "hết hạn hoặc bị thay thế" in note_leg
+
+
+def test_draft_ttl_expiration(business_service: TelegramBusinessService):
+    """(C2) Thẻ chờ quá hạn (TTL 15 phút = 900s) tự hết hiệu lực."""
+    approval_id = "biz_ttl_test"
+    business_service._active_drafts[111] = approval_id
+    business_service._draft_cards[approval_id] = {
+        "status": "pending",
+        "created_at": time.time() - 901.0,  # Đã quá 900 giây
+        "customer_chat_id": 111,
+    }
+
+    assert business_service.is_draft_active(approval_id) is False
+    assert business_service._draft_cards[approval_id]["status"] == "expired"
+
+

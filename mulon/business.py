@@ -68,6 +68,17 @@ class TelegramBusinessClassifier:
         "tai khoan ngan hang", "thong tin chuyen khoan",
     ]
 
+    # Từ khoá chào kết / cảm ơn / hoàn tất trao đổi (T-37 C1)
+    CLOSING_KEYWORDS = [
+        "tks", "thanks", "thank", "thank you", "cam on", "cam on nha",
+        "cam on e", "cam on em", "cam on shop", "ok em", "okie em",
+        "okie shop", "ok nha", "ok shop", "da cam on", "the nhe",
+        "vay nhe", "vay nha", "vay nha em", "bye", "bye shop",
+        "tam biet", "duoc roi em", "duoc roi shop", "roi em nha",
+        "the thoi em", "vay thoi e", "vay thoi em", "xong roi e",
+        "minh biet roi", "minh hieu roi", "da duoc roi", "ok ban",
+    ]
+
     # Từ khoá thương lượng / giảm giá
     DISCOUNT_KEYWORDS = [
         "giam gia", "bot", "bot khong", "bot ko", "chiet khau",
@@ -85,6 +96,21 @@ class TelegramBusinessClassifier:
     HUMAN_KEYWORDS = [
         "gap chu", "gap nguoi", "gap tu van", "nhan vien", "hotline",
         "goi dien", "so dien thoai", "sdt", "alo", "noi chuyen truc tiep",
+    ]
+
+    # Từ khoá hỏi phí ship / thời gian giao hàng / địa chỉ (T-37 C1)
+    SHIPPING_KEYWORDS = [
+        "phi ship", "tien ship", "giao ve", "ship ve", "ship den",
+        "ship o dau", "dia chi shop", "dia chi o dau", "co ship cod khong",
+        "ship cod", "bao lau nhan duoc", "may ngay toi", "khi nao nhan duoc",
+        "giao tinh", "ship hcm", "ship ha noi", "phi van chuyen",
+    ]
+
+    # Từ khoá hỏi tình trạng hàng / màu / size (T-37 C1)
+    STOCK_KEYWORDS = [
+        "con hang khong", "con hang ko", "con khong shop", "con mau gi",
+        "con mau", "mau trang", "mau den", "co size", "size gi", "co san khong",
+        "co san ko", "con hang k", "mau nao", "ban mau nao", "con hang san",
     ]
 
     # Từ khoá chào hỏi
@@ -119,7 +145,15 @@ class TelegramBusinessClassifier:
             # Từ chối an toàn bằng cách tự rep câu từ chối chuẩn
             return BusinessActionKind.AUTO_REPLY, "security_refusal", None
 
-        # 2. STK / Ngân hàng -> SOẠN NHÁP CHỜ DUYỆT
+        # 2. Chào kết / cảm ơn hoàn tất hội thoại -> SOẠN NHÁP CHỜ DUYỆT (T-37 C1)
+        if any(re.search(r"\b" + re.escape(kw) + r"\b", norm) for kw in self.CLOSING_KEYWORDS):
+            return (
+                BusinessActionKind.DRAFT_APPROVAL,
+                "Khách chào kết / cảm ơn (Đề xuất: KHÔNG CẦN TRẢ LỜI hoặc gửi câu kết ngắn)",
+                {"type": "closing_thanks"},
+            )
+
+        # 3. STK / Ngân hàng -> SOẠN NHÁP CHỜ DUYỆT
         if any(re.search(r"\b" + re.escape(kw) + r"\b", norm) for kw in self.BANK_KEYWORDS):
             return (
                 BusinessActionKind.DRAFT_APPROVAL,
@@ -127,7 +161,7 @@ class TelegramBusinessClassifier:
                 {"type": "bank_transfer", "bank_info": self.bank_info},
             )
 
-        # 3. Thương lượng / giảm giá -> SOẠN NHÁP CHỜ DUYỆT
+        # 4. Thương lượng / giảm giá -> SOẠN NHÁP CHỜ DUYỆT
         if any(re.search(r"\b" + re.escape(kw) + r"\b", norm) for kw in self.DISCOUNT_KEYWORDS):
             return (
                 BusinessActionKind.DRAFT_APPROVAL,
@@ -135,7 +169,7 @@ class TelegramBusinessClassifier:
                 {"type": "discount_negotiation"},
             )
 
-        # 4. Khiếu nại / sự cố -> SOẠN NHÁP CHỜ DUYỆT
+        # 5. Khiếu nại / sự cố -> SOẠN NHÁP CHỜ DUYỆT
         if any(re.search(r"\b" + re.escape(kw) + r"\b", norm) for kw in self.COMPLAINT_KEYWORDS):
             return (
                 BusinessActionKind.DRAFT_APPROVAL,
@@ -143,7 +177,7 @@ class TelegramBusinessClassifier:
                 {"type": "complaint"},
             )
 
-        # 5. Yêu cầu gặp người thật / chủ -> SOẠN NHÁP CHỜ DUYỆT
+        # 6. Yêu cầu gặp người thật / chủ -> SOẠN NHÁP CHỜ DUYỆT
         if any(re.search(r"\b" + re.escape(kw) + r"\b", norm) for kw in self.HUMAN_KEYWORDS):
             return (
                 BusinessActionKind.DRAFT_APPROVAL,
@@ -151,7 +185,7 @@ class TelegramBusinessClassifier:
                 {"type": "human_handoff"},
             )
 
-        # 6. Tìm kiếm sản phẩm trong catalog
+        # 7. Tìm kiếm sản phẩm trong catalog
         matched_prod = self._match_product(norm)
         if matched_prod:
             return (
@@ -160,7 +194,7 @@ class TelegramBusinessClassifier:
                 {"type": "product_inquiry", "product": matched_prod},
             )
 
-        # 7. FAQ (giao hàng, bảo hành)
+        # 8. FAQ (giao hàng, bảo hành)
         matched_faq = self._match_faq(norm)
         if matched_faq:
             return (
@@ -169,7 +203,23 @@ class TelegramBusinessClassifier:
                 {"type": "faq", "faq": matched_faq},
             )
 
-        # 8. Chào hỏi
+        # 9. Hỏi phí ship / vận chuyển / địa chỉ (nếu chưa khớp FAQ) -> SOẠN NHÁP CHỜ DUYỆT
+        if any(re.search(r"\b" + re.escape(kw) + r"\b", norm) for kw in self.SHIPPING_KEYWORDS):
+            return (
+                BusinessActionKind.DRAFT_APPROVAL,
+                "Khách hỏi thông tin phí ship hoặc phương thức giao hàng",
+                {"type": "shipping_inquiry"},
+            )
+
+        # 10. Hỏi còn hàng / màu / size (nếu chưa khớp sản phẩm cụ thể) -> SOẠN NHÁP CHỜ DUYỆT
+        if any(re.search(r"\b" + re.escape(kw) + r"\b", norm) for kw in self.STOCK_KEYWORDS):
+            return (
+                BusinessActionKind.DRAFT_APPROVAL,
+                "Khách hỏi tình trạng tồn kho, màu sắc hoặc mẫu mã",
+                {"type": "stock_inquiry"},
+            )
+
+        # 11. Chào hỏi
         if any(re.search(r"\b" + re.escape(kw) + r"\b", norm) for kw in self.GREETING_KEYWORDS):
             return (
                 BusinessActionKind.AUTO_REPLY,
@@ -177,7 +227,7 @@ class TelegramBusinessClassifier:
                 {"type": "greeting"},
             )
 
-        # 9. Mọi trường hợp không chắc chắn -> SOẠN NHÁP CHỜ DUYỆT
+        # 12. Mọi trường hợp không chắc chắn -> SOẠN NHÁP CHỜ DUYỆT
         return (
             BusinessActionKind.DRAFT_APPROVAL,
             "Nội dung cần chủ shop xác nhận trước khi trả lời",
@@ -224,6 +274,13 @@ class TelegramBusinessService:
 
         # Bộ nhớ tạm rate-limit: {chat_id: [timestamp]}
         self._rate_limits: dict[int, list[float]] = {}
+        # Quản lý thẻ duyệt hiện hành theo hội thoại (T-37 C2)
+        # customer_chat_id -> approval_id
+        self._active_drafts: dict[int, str] = {}
+        # approval_id -> dict chi tiết thẻ
+        self._draft_cards: dict[str, dict] = {}
+        # TTL của thẻ nháp (15 phút = 900 giây theo T-37)
+        self.draft_ttl_s: float = float(getattr(cfg, "telegram_business_draft_ttl_s", 900.0))
         # Đếm thống kê
         self._stats = {
             "auto_replies": 0,
@@ -231,6 +288,28 @@ class TelegramBusinessService:
             "drafts_approved": 0,
             "drafts_denied": 0,
         }
+
+    def is_draft_active(self, approval_id: str) -> bool:
+        """Kiểm tra xem thẻ duyệt business có còn hiệu lực không (T-37 C2).
+        
+        Trả về True nếu còn hiệu lực (chưa bị superseded, chưa settled, chưa hết hạn).
+        """
+        card = self._draft_cards.get(approval_id)
+        if not card:
+            return False
+        if card.get("status") != "pending":
+            return False
+        # Kiểm tra TTL 15 phút
+        created_at = card.get("created_at", 0)
+        if time.time() - created_at > self.draft_ttl_s:
+            card["status"] = "expired"
+            return False
+        # Kiểm tra xem có còn là active draft duy nhất của chat không
+        c_chat_id = card.get("customer_chat_id")
+        if self._active_drafts.get(c_chat_id) != approval_id:
+            card["status"] = "superseded"
+            return False
+        return True
 
     def _load_catalog(self) -> dict:
         """Nạp dữ liệu catalog sản phẩm & cấu hình bán hàng."""
@@ -404,9 +483,15 @@ class TelegramBusinessService:
         return "Dạ em chào anh/chị, em có thể hỗ trợ gì cho mình ạ?"
 
     def build_draft_reply(self, reason: str, match_data: Optional[dict], raw_text: str, customer_name: str) -> str:
-        """Tạo câu trả lời nháp trình chủ duyệt."""
-        c_name = customer_name or "anh/chị"
+        """Tạo câu trả lời nháp theo ngữ cảnh và giọng chủ shop Nam bộ (T-37 C1)."""
+        c_name = customer_name or "mình"
         m_type = (match_data or {}).get("type", "")
+
+        if m_type == "closing_thanks":
+            return (
+                f"Dạ hông có chi nè {c_name} ơi! Cần hỗ trợ thêm gì cứ nhắn shop nghen, "
+                f"chúc {c_name} một ngày vui vẻ nha!"
+            )
 
         if m_type == "bank_transfer":
             b_info = self.catalog.get("bank_info", {})
@@ -414,36 +499,51 @@ class TelegramBusinessService:
             stk = b_info.get("account_number", "")
             holder = b_info.get("account_holder", "")
             return (
-                f"Dạ để thanh toán đơn hàng, {c_name} có thể chuyển khoản giúp shop qua thông tin này nha ạ:\n"
+                f"Dạ {c_name} chuyển khoản giúp em qua thông tin này nha:\n"
                 f"• Ngân hàng: {bank_name}\n"
-                f"• Số tài khoản: {stk}\n"
+                f"• STK: {stk}\n"
                 f"• Chủ tài khoản: {holder}\n"
-                f"Nội dung chuyển khoản: [Tên KH] + [Sản phẩm]\n\n"
-                f"Sau khi chuyển xong, {c_name} chụp màn hình gửi em để em kiểm tra và ship hàng ngay nhé ạ!"
+                f"• Nội dung chuyển khoản: [Tên KH] + [Sản phẩm]\n\n"
+                f"Chuyển xong {c_name} chụp màn hình nhắn em gửi hàng liền nghen!"
             )
 
         if m_type == "discount_negotiation":
             return (
-                f"Dạ về mức giá ưu đãi thêm cho sản phẩm, shop em luôn để giá niêm yết tốt nhất rồi ạ. "
-                f"Tuy nhiên nếu mình chốt đơn ngay hôm nay, shop xin phép hỗ trợ tặng thêm quà tặng "
-                f"hoặc freeship cho {c_name} nha ạ!"
+                f"Dạ giá này bên em để sát sàn cho mình rồi nè {c_name} ơi. "
+                f"Nếu {c_name} chốt luôn hôm nay em xin phép tặng thêm quà "
+                f"hoặc hỗ trợ freeship cho mình nghen!"
             )
 
         if m_type == "complaint":
             return (
-                f"Dạ em thật sự xin lỗi {c_name} vì sự cố không mong muốn này ạ! "
-                f"Anh/chị chụp giúp em hình ảnh hoặc video tình trạng sản phẩm để shop kiểm tra "
-                f"và hỗ trợ đổi mới ngay cho mình nhé ạ."
+                f"Dạ em xin lỗi {c_name} nhiều vì sự cố này nghen! "
+                f"{c_name} chụp giúp em cái hình hoặc clip tình trạng máy/hàng gửi qua đây "
+                f"để em kiểm tra đổi ngay cái mới cho mình nha ạ."
             )
 
         if m_type == "human_handoff":
             return (
-                f"Dạ em đã báo cho anh chủ shop rồi ạ. "
-                f"Anh ấy sẽ kiểm tra và nhắn lại cho {c_name} trong ít phút nữa nha, anh/chị đợi xíu nhé ạ!"
+                f"Dạ em nhắn anh chủ shop rồi nè, "
+                f"ảnh đang coi tin nhắn sẽ phản hồi liền cho {c_name} trong vài phút nghen!"
             )
 
+        if m_type == "shipping_inquiry":
+            return (
+                f"Dạ bên em có ship COD toàn quốc nha {c_name}. "
+                f"Nội thành thì nhận trong ngày hoặc mai, tỉnh thì tầm 2-3 ngày là tới nè. "
+                f"{c_name} ở khu vực nào để em báo phí ship cụ thể nghen!"
+            )
+
+        if m_type == "stock_inquiry":
+            return (
+                f"Dạ mẫu này để em kiểm tra nhanh lại bên kho xem còn sẵn hàng không "
+                f"rồi báo liền cho {c_name} nghen, {c_name} đợi em xíu nha!"
+            )
+
+        # Mặc định theo ngữ cảnh thân thiện Nam bộ (thay thế hoàn toàn mẫu cứng trước đây)
         return (
-            f"Dạ em chào {c_name}, em xin phép ghi nhận thông tin này và sẽ kiểm tra phản hồi lại cho mình ngay nha ạ!"
+            f"Dạ em nghe nè {c_name} ơi! Để em coi kỹ lại phần này rồi nhắn lại liền cho mình nghen, "
+            f"{c_name} đợi em xíu nha!"
         )
 
     # ---------- Xử lý tin nhắn khách hàng ----------
@@ -533,6 +633,7 @@ class TelegramBusinessService:
                 customer_text=raw_text,
                 draft_text=draft_text,
                 reason=reason,
+                match_data=match_data,
             )
             self._stats["drafts_created"] += 1
             await self._log_interaction(
@@ -564,10 +665,66 @@ class TelegramBusinessService:
         customer_text: str,
         draft_text: str,
         reason: str,
+        match_data: Optional[dict] = None,
     ) -> str:
-        """Mở yêu cầu phê duyệt nháp trả lời khách hàng."""
+        """Mở yêu cầu phê duyệt nháp trả lời khách hàng (T-37: chống chồng thẻ duyệt)."""
         import uuid
+
+        # 1. Chống chồng thẻ duyệt: vô hiệu hoá thẻ cũ nếu cùng chat_id đang có thẻ pending (C2)
+        old_approval_id = self._active_drafts.get(customer_chat_id)
+        if old_approval_id:
+            old_card = self._draft_cards.get(old_approval_id)
+            if old_card and old_card.get("status") == "pending":
+                old_card["status"] = "superseded"
+                logger.info(
+                    "Vô hiệu hóa thẻ duyệt cũ %s của chat %s do khách gửi tin mới",
+                    old_approval_id, customer_chat_id,
+                )
+                if self.broker is not None:
+                    self.broker.resolve(old_approval_id, approved=False)
+                if self.bot is not None and old_card.get("card_message_id"):
+                    old_mid = old_card["card_message_id"]
+                    old_cid = old_card.get("card_chat_id") or self.cfg.allowed_user_id
+                    try:
+                        superseded_text = (
+                            f"<b>[Telegram Business] THẺ ĐÃ BỊ VÔ HIỆU HÓA ⚠️</b>\n\n"
+                            f"• <b>Khách hàng:</b> {_html.escape(old_card.get('customer_name') or 'Khách')} (<code>{customer_chat_id}</code>)\n"
+                            f"• <b>Khách từng hỏi:</b> <i>{_html.escape(old_card.get('customer_text', ''))}</i>\n\n"
+                            f"<blockquote>{_html.escape(old_card.get('draft_text', ''))}</blockquote>\n\n"
+                            f"⚠️ <i>Bản thảo này đã hết hiệu lực do có tin nhắn mới hơn từ khách. Vui lòng xem thẻ duyệt mới nhất.</i>"
+                        )
+                        await self.bot.edit_message_text(
+                            chat_id=old_cid,
+                            message_id=old_mid,
+                            text=superseded_text,
+                            parse_mode="HTML",
+                        )
+                        await self.bot.edit_message_reply_markup(
+                            chat_id=old_cid,
+                            message_id=old_mid,
+                            reply_markup=None,
+                        )
+                    except Exception as exc:
+                        logger.debug("Không thể cập nhật tin nhắn thẻ cũ %s: %s", old_approval_id, exc)
+
         approval_id = f"biz_{uuid.uuid4().hex[:10]}"
+
+        # Đăng ký thẻ mới vào bảng theo dõi
+        self._active_drafts[customer_chat_id] = approval_id
+        self._draft_cards[approval_id] = {
+            "approval_id": approval_id,
+            "customer_chat_id": customer_chat_id,
+            "customer_name": customer_name,
+            "customer_text": customer_text,
+            "draft_text": draft_text,
+            "reason": reason,
+            "card_chat_id": self.cfg.allowed_user_id,
+            "card_message_id": None,
+            "created_at": time.time(),
+            "status": "pending",
+            "business_connection_id": conn_id,
+            "match_type": (match_data or {}).get("type", ""),
+        }
 
         payload = {
             "approval_id": approval_id,
@@ -584,29 +741,42 @@ class TelegramBusinessService:
             "kind": "business_draft",
         }
 
+        # TTL 15 phút (900s) theo T-37
         if self.broker is not None:
-            self.broker.open(approval_id, payload, ttl_s=3600.0)
+            self.broker.open(approval_id, payload, ttl_s=self.draft_ttl_s)
 
         # Gửi thẻ duyệt đến DM chủ
         owner_id = self.cfg.allowed_user_id
         if self.bot is not None and owner_id:
             try:
+                is_closing = (match_data or {}).get("type") == "closing_thanks"
+                if is_closing:
+                    header_title = "[Telegram Business] Khách chào kết / cảm ơn"
+                    instruction = "<i>Đề xuất: KHÔNG CẦN TRẢ LỜI (bấm Bỏ qua) hoặc gửi câu kết ngắn.</i>"
+                    btn_approve_text = "Gửi câu kết"
+                    btn_deny_text = "Bỏ qua (Không cần rep)"
+                else:
+                    header_title = "[Telegram Business] Cần duyệt tin nhắn trả lời khách hàng"
+                    instruction = "<i>Bấm Cho phép để bot gửi thay nick của bạn, hoặc Từ chối để im lặng.</i>"
+                    btn_approve_text = "Gửi tin này"
+                    btn_deny_text = "Từ chối"
+
                 card_text = (
-                    f"<b>[Telegram Business] Cần duyệt tin nhắn trả lời khách hàng</b>\n\n"
+                    f"<b>{header_title}</b>\n\n"
                     f"• <b>Khách hàng:</b> {_html.escape(customer_name or 'Khách')} (<code>{customer_chat_id}</code>)\n"
-                    f"• <b>Khách hỏi:</b> <i>{_html.escape(customer_text)}</i>\n"
+                    f"• <b>Khách gửi:</b> <i>{_html.escape(customer_text)}</i>\n"
                     f"• <b>Lý do cần duyệt:</b> {reason}\n\n"
                     f"• <b>Bản thảo trả lời:</b>\n"
                     f"<blockquote>{_html.escape(draft_text)}</blockquote>\n\n"
-                    f"<i>Bấm Cho phép để bot gửi thay nick của bạn, hoặc Từ chối để im lặng.</i>"
+                    f"{instruction}"
                 )
                 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
                 keyboard = InlineKeyboardMarkup(
                     inline_keyboard=[
                         [
-                            InlineKeyboardButton(text="Gửi tin này", callback_data=f"appr:{approval_id}:yes"),
-                            InlineKeyboardButton(text="Từ chối", callback_data=f"appr:{approval_id}:no"),
+                            InlineKeyboardButton(text=btn_approve_text, callback_data=f"appr:1:{approval_id}"),
+                            InlineKeyboardButton(text=btn_deny_text, callback_data=f"appr:0:{approval_id}"),
                         ]
                     ]
                 )
@@ -616,8 +786,10 @@ class TelegramBusinessService:
                     parse_mode="HTML",
                     reply_markup=keyboard,
                 )
-                if self.broker is not None:
-                    self.broker.attach(approval_id, {"chat_id": owner_id, "message_id": msg.message_id})
+                if msg and hasattr(msg, "message_id"):
+                    self._draft_cards[approval_id]["card_message_id"] = msg.message_id
+                    if self.broker is not None:
+                        self.broker.attach(approval_id, {"chat_id": owner_id, "message_id": msg.message_id})
             except Exception as exc:
                 logger.warning("Gửi thẻ duyệt Telegram Business thất bại: %s", exc)
 
@@ -626,7 +798,7 @@ class TelegramBusinessService:
         return approval_id
 
     async def _settle_draft_approval(self, approval_id: str, payload: dict) -> None:
-        """Lắng nghe quyết định phê duyệt và gửi tin nếu được duyệt."""
+        """Lắng nghe quyết định phê duyệt và gửi tin nếu được duyệt (T-37: guard chống gửi thẻ cũ/quá hạn)."""
         if self.broker is None:
             return
 
@@ -634,41 +806,68 @@ class TelegramBusinessService:
         approved = bool(record.get("approved", False))
         outcome = record.get("outcome", "")
 
-        conn_id = payload.get("business_connection_id")
         customer_chat_id = payload.get("customer_chat_id")
-        draft_text = payload.get("draft_text", "")
-        customer_name = payload.get("customer_name", "")
+        card = self._draft_cards.get(approval_id)
+        if card:
+            if outcome == "expired":
+                card["status"] = "expired"
+            elif card.get("status") == "pending":
+                card["status"] = "settled"
 
-        owner_id = self.cfg.allowed_user_id
+        # Guard C2: Nếu thẻ đã bị thay thế (superseded), tuyệt đối không gửi tin
+        if card and card.get("status") == "superseded":
+            logger.info("Thẻ nháp %s đã bị thay thế (superseded), huỷ gửi tin cho khách", approval_id)
+            return
 
-        if approved:
-            self._stats["drafts_approved"] += 1
-            if self.bot is not None and conn_id and customer_chat_id:
-                try:
-                    await self.bot.send_message(
-                        chat_id=customer_chat_id,
-                        text=draft_text,
-                        parse_mode="HTML",
-                        business_connection_id=conn_id,
-                    )
-                    logger.info("Đã gửi tin nhắn Telegram Business sau khi chủ duyệt (chat=%s)", customer_chat_id)
-                    if owner_id:
-                        await self.bot.send_message(
-                            owner_id,
-                            f"<b>Đã gửi tin nhắn cho khách {_html.escape(customer_name or str(customer_chat_id))} thành công!</b>",
-                            parse_mode="HTML",
-                        )
-                except Exception as exc:
-                    logger.warning("Lỗi gửi tin nhắn Telegram Business sau khi duyệt: %s", exc)
-                    if owner_id:
-                        await self.bot.send_message(
-                            owner_id,
-                            f"<b>Gửi tin cho khách thất bại:</b> {_html.escape(str(exc))}",
-                            parse_mode="HTML",
-                        )
-        else:
+        if not approved:
             self._stats["drafts_denied"] += 1
             logger.info("Chủ đã từ chối hoặc thẻ nháp Telegram Business %s hết hạn (outcome=%s)", approval_id, outcome)
+            if customer_chat_id and self._active_drafts.get(customer_chat_id) == approval_id:
+                self._active_drafts.pop(customer_chat_id, None)
+            return
+
+        # Được duyệt -> kiểm tra TTL 15 phút
+        if card and (time.time() - card.get("created_at", 0) > self.draft_ttl_s):
+            logger.warning("Thẻ nháp %s đã quá hạn TTL %ss, huỷ gửi tin", approval_id, self.draft_ttl_s)
+            return
+
+        # Kiểm tra xem có còn là thẻ hiện hành của chat không
+        if self._active_drafts.get(customer_chat_id) != approval_id:
+            logger.warning("Thẻ nháp %s không còn là thẻ hiện hành của chat %s, huỷ gửi tin", approval_id, customer_chat_id)
+            return
+
+        self._stats["drafts_approved"] += 1
+        conn_id = payload.get("business_connection_id")
+        draft_text = payload.get("draft_text", "")
+        customer_name = payload.get("customer_name", "")
+        owner_id = self.cfg.allowed_user_id
+
+        if self.bot is not None and conn_id and customer_chat_id:
+            try:
+                await self.bot.send_message(
+                    chat_id=customer_chat_id,
+                    text=draft_text,
+                    parse_mode="HTML",
+                    business_connection_id=conn_id,
+                )
+                logger.info("Đã gửi tin nhắn Telegram Business sau khi chủ duyệt (chat=%s)", customer_chat_id)
+                if owner_id:
+                    await self.bot.send_message(
+                        owner_id,
+                        f"<b>Đã gửi tin nhắn cho khách {_html.escape(customer_name or str(customer_chat_id))} thành công!</b>",
+                        parse_mode="HTML",
+                    )
+            except Exception as exc:
+                logger.warning("Lỗi gửi tin nhắn Telegram Business sau khi duyệt: %s", exc)
+                if owner_id:
+                    await self.bot.send_message(
+                        owner_id,
+                        f"<b>Gửi tin cho khách thất bại:</b> {_html.escape(str(exc))}",
+                        parse_mode="HTML",
+                    )
+
+        if customer_chat_id and self._active_drafts.get(customer_chat_id) == approval_id:
+            self._active_drafts.pop(customer_chat_id, None)
 
     # ---------- Ghi log & Thống kê ----------
 

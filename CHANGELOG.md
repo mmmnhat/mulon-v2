@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 1.7.46 — 2026-10-28 — Business Chatbot: Bản thảo theo ngữ cảnh + Chống chồng thẻ duyệt (T-37, LUỒNG 4 — ký: Antigravity [L4])
+
+- **(C1) Bản thảo đa dạng theo ngữ cảnh & Chuẩn giọng chủ shop Nam bộ (`mulon/business.py`):**
+  - **Nhận diện tin chào kết / cảm ơn (`CLOSING_KEYWORDS`):** Phân loại các tin "Tks em", "Cảm ơn shop nha", "Ok em", "okie shop", "bye em", "thế nhé em", "vậy nha em" thành diện cần duyệt với đề xuất rõ ràng: *"Đề xuất: KHÔNG CẦN TRẢ LỜI hoặc gửi câu kết ngắn"*. Nút bấm trên thẻ được tinh chỉnh thành `[Gửi câu kết]` | `[Bỏ qua (Không cần rep)]`.
+  - **Soạn nháp theo ngữ cảnh tự nhiên:** Bổ sung nhận diện câu hỏi phí ship/vận chuyển/địa chỉ (`shipping_inquiry`) và câu hỏi tình trạng kho/màu sắc/size (`stock_inquiry`).
+  - **Triệt tiêu hoàn toàn mẫu cứng máy móc:** Xoá bỏ hoàn toàn câu cứng ngắc *"Dạ em chào <tên>, em xin phép ghi nhận thông tin này và sẽ kiểm tra phản hồi lại cho mình ngay nha ạ!"*. Thay bằng giọng chủ shop Nam bộ ngắn gọn, thân mật, xưng em - gọi tên khách hoặc anh/chị, đệm các từ ngữ tự nhiên (*"nè"*, *"nghen"*, *"nha"*, *"liền"*, *"Dạ hông có chi nè {c_name} ơi!"*, *"Dạ em nghe nè {c_name} ơi! Để em coi kỹ lại phần này rồi nhắn lại liền cho mình nghen, {c_name} đợi em xíu nha!"*).
+- **(C2) Chống chồng thẻ duyệt & TTL 15 phút (`mulon/business.py`, `mulon/telegram_bot.py`):**
+  - **Duy nhất một thẻ duyệt hiện hành cho mỗi hội thoại khách (`_active_drafts`, `_draft_cards`):** Quản lý thẻ duyệt đang chờ theo `customer_chat_id`. Khi khách gửi tin nhắn mới trong khi thẻ cũ còn đang chờ, thẻ cũ lập tức bị đánh dấu `superseded` và resolve `approved=False` ở broker.
+  - **Vô hiệu hóa trực quan thẻ cũ trên Telegram:** Sửa nội dung tin nhắn của thẻ cũ ở DM của chủ nhân thành cảnh báo `⚠️ [THẺ ĐÃ BỊ VÔ HIỆU HÓA] Bản thảo này không còn hiệu lực do có tin nhắn mới hơn từ khách`, đồng thời gỡ sạch nút inline keyboard (`reply_markup=None`), ngăn chặn việc bấm nhầm thẻ cũ khi ngữ cảnh đã trôi xa.
+  - **Guard kép chống gửi tin từ thẻ cũ/quá hạn:** Cả ở `TelegramSurface.handle_approval_callback` lẫn `TelegramBusinessService._settle_draft_approval` đều kiểm tra guard `is_draft_active()`. Nếu thẻ đã bị thay thế hoặc quá hạn, chặn gửi tin tuyệt đối và thông báo rõ ràng cho chủ.
+  - **Giới hạn thời gian hiệu lực (TTL 15 phút):** Rút ngắn TTL thẻ nháp business từ 1 giờ xuống 15 phút (900 giây) theo đúng yêu cầu bài toán. Quá 15 phút không duyệt, thẻ tự hết hiệu lực.
+- **Kiểm thử nghiệm thu (`tests/test_v17_telegram_business.py`):**
+  - Thêm 5 bài test hồi quy mới: phân loại tin chào kết `Tks em` và giọng Nam bộ, bản thảo đa ngữ cảnh không còn mẫu cứng, chống chồng thẻ duyệt cho cùng khách, chặn callback từ thẻ superseded/expired, và kiểm tra hết hạn TTL 900s.
+  - Chạy full test suite: **722 passed, 0 failed (100% xanh)**. Eval vàng: **33/36 case đạt (92%, vượt ngưỡng 85%)**.
+
 ## 1.7.45 — 2026-10-28 — Hoàn tất Audit 28/10: dọn topics thừa, gỡ emoji trang trí, sửa lỗi bề mặt Feed/Library & Mini App (T-35, LUỒNG 1 — ký: Antigravity [L1])
 
 - **Dọn dẹp topics thừa & cơ chế chốt phiên gọn gàng (A1–A3):**
