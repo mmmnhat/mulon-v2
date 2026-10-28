@@ -1,7 +1,7 @@
-# BẢN ĐỒ MINI APP MULON — khảo sát chỉ đọc 2026-10-27 (app v1.7.3)
+# BẢN ĐỒ MINI APP MULON — khảo sát chỉ đọc 2026-10-27 (ĐÃ ĐƯỢC THAY THẾ / SUPERSEDED)
 
-> [!IMPORTANT]
-> **TÀI LIỆU ĐÃ ĐƯỢC THAY THẾ (SUPERSEDED):** Khảo sát này ghi nhận hiện trạng lịch sử lúc ứng dụng ở phiên bản cũ v1.7.3.
+> [!WARNING]
+> **TÀI LIỆU ĐÃ ĐƯỢC THAY THẾ (SUPERSEDED):** Khảo sát này chỉ ghi nhận hiện trạng lịch sử lúc ứng dụng ở phiên bản cũ v1.7.3.
 > Toàn bộ các bất thường cấu trúc (thiếu nút quay lại, sheet lồng 3 cấp, thiếu tìm kiếm/phân trang, banner lỗi rò rỉ...) đã được giải quyết triệt để qua các đợt nâng cấp T-12, T-13, T-14, T-23, T-27.
 > **Xem cây cấu trúc và sitemap chính thức hiện tại tại:** [`docs/sitemap-miniapp-v17.md`](sitemap-miniapp-v17.md).
 

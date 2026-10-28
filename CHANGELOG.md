@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 1.7.43 — 2026-10-28 — Xử lý dứt điểm 3 điểm phản hồi của Muse cho T-32 (T-32, LUỒNG 2 — ký: Antigravity [L2])
+
+- **Đồng bộ chuẩn xác tài liệu sitemap Mini App (`docs/sitemap-miniapp-2026-10-27.md`, `docs/sitemap-miniapp-v17.md`, T-32):**
+  - Cập nhật tiêu đề và banner cảnh báo `SUPERSEDED` rõ ràng, nổi bật ở đầu file `docs/sitemap-miniapp-2026-10-27.md`, dẫn link sang sitemap v1.7 chính thức.
+  - Thêm khối tham chiếu chéo ngược lại tài liệu cũ trong `docs/sitemap-miniapp-v17.md`, bảo đảm tính nhất quán và triệt tiêu mâu thuẫn giữa 2 tài liệu.
+- **Sửa tên biến cấu hình Telegram Business trong `README.md` (T-32):**
+  - Đổi biến `BUSINESS_BOT_ENABLED` thành `TELEGRAM_BUSINESS_ENABLED` trong bảng biến môi trường tại dòng 234 của `README.md`, khớp 100% với mã nguồn `mulon/config.py:460` và mẫu `.env.example:199`.
+  - Cập nhật badges phiên bản 1.7.43, 706 tests passed, eval vàng 92% (33/36).
+- **Làm sạch merge marker (T-32):**
+  - Xác nhận và đảm bảo không còn bất kỳ merge marker nào (`>>>>>>> 47c0c58` hay dạng tương tự) tồn tại trong `CHANGELOG.md` hay toàn bộ cây mã nguồn.
+
 ## 1.7.42 — 2026-10-28 — Sửa lỗi eval vàng T-33 & hoàn tất phần còn lại T-25 (LUỒNG 5 — ký: Antigravity [L5])
 
 - **Chẩn đoán & sửa dứt điểm lỗi code trong eval vàng (`mulon/tools.py`, T-33):**

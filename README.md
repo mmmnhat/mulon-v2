@@ -9,10 +9,10 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.7.40-blueviolet">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.7.43-blueviolet">
   <img alt="Python" src="https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14-3776AB">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-700%20passed-brightgreen">
-  <img alt="Eval" src="https://img.shields.io/badge/eval%20gate-86%25%20(31%2F36)-orange">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-706%20passed-brightgreen">
+  <img alt="Eval" src="https://img.shields.io/badge/eval%20gate-92%25%20(33%2F36)-orange">
   <img alt="Platforms" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -231,7 +231,7 @@ Tất cả cấu hình được quản lý qua biến môi trường tại `.env
 | `WEBAPP_PORT` | `8320` | Cổng bind local cho backend Mini App |
 | `WEBAPP_URL` | — | URL HTTPS công khai (Cloudflare Tunnel / Reverse Proxy) trỏ về cổng 8320 |
 | `INIT_DATA_MAX_AGE_S` | `86400` | Thời hạn hiệu lực phiên Mini App (24 giờ) |
-| `BUSINESS_BOT_ENABLED` | `0` | Bật/tắt tính năng Telegram Business Chatbot (`1` = Bật) |
+| `TELEGRAM_BUSINESS_ENABLED` | `0` | Bật/tắt tính năng Telegram Business Chatbot (`1` = Bật) |
 | `VAULT_PORT` | `8765` | Cổng web nhập bí mật một lần (`0` = tắt) |
 
 ---

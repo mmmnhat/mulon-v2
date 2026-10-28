@@ -1,5 +1,7 @@
 # BẢN ĐỒ MINI APP MULON — Kiến trúc chính thức v1.7.3x (Design System 100% Chuyên Nghiệp)
 
+> **Tham chiếu tài liệu khảo sát cũ:** Tài liệu này thay thế hoàn toàn bản khảo sát hiện trạng cũ tại [`docs/sitemap-miniapp-2026-10-27.md`](sitemap-miniapp-2026-10-27.md) (bản cũ đã được đánh dấu superseded).
+>
 > Cập nhật 2026-10-28 theo các đợt hoàn thiện T-12 (Design System), T-13 (Brand & Mascot), T-14 (CLIProxyAPI), T-23 (Phân tách Hồ sơ & Ký ức), T-27 (UI Perfection).
 > Chuẩn giao diện: Tỉ lệ 60/30/10 với màu tím Mulon `#7C3AED`, chiều cao hàng tương tác tối thiểu 44px, phân cấp 4 trạng thái chuẩn (Loading Skeleton, Empty State, Error State có nút thử lại tại chỗ, Ready State). 100% màn con tích hợp BackButton chuẩn (đồng bộ nút quay lại native của Telegram WebApp SDK).
 
