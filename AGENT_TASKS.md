@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~15:32 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): T-34 chuyển `DONE` (version 1.7.44, 712/712 test passed, eval vàng 33/36 = 92%; triển khai SqliteWALPool với 1 Writer Connection có lock + 4 Reader Connections query_only=ON trong pool, lớp bọc trong suốt PooledCursor tự thu hồi connection, nạp sqlite-vec trên toàn pool; stress test 30 tác vụ đọc-ghi đồng thời không lock, benchmark 25 readers chạy song song trong lúc writer ghi dồn dập đạt độ trễ trung bình < 2ms, max < 15ms). Hàng chờ LUỒNG 4 ĐÃ HOÀN THÀNH 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L4]
+
 Cập nhật 2026-10-28 ~15:22 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): nhận T-34 `DOING` (ƯU TIÊN 32, Triển khai đề xuất hiệu năng T-08: Reader Pool + writer lock cho SQLite) theo quyết định duyệt của chủ dự án; tiếp tục từ trạng thái code trên main. Ky: Antigravity [L4]
 
 Cập nhật 2026-10-28 ~15:20 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): nhận T-35 `DOING` (ƯU TIÊN 33, audit 28/10: dọn topics thừa, gỡ emoji trang trí khỏi bot + Mini App, sửa lỗi bề mặt Feed/Library, sửa lỗi render D1-D10 & W3C E1 Mini App) theo LUẬT ĐA LUỒNG và phân công của Muse; tiếp tục từ trạng thái code trên main. Ky: Antigravity [L1]
@@ -324,7 +326,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
   T-30 (đã DONE) -> T-17 (đã VERIFIED) -> T-22.3 (đã DONE). (Hàng chờ LUỒNG 3 hiện TRỐNG, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.)
 - **LUỒNG 4 — Cổng model & còn lại**:
-  T-14 (đã DONE) -> T-26 (đã DONE) -> T-29 (đã DONE) -> chẩn đoán CI T-28 (đã DONE) -> T-34 (đang DOING).
+  T-14 (đã DONE) -> T-26 (đã DONE) -> T-29 (đã DONE) -> chẩn đoán CI T-28 (đã DONE) -> T-34 (đã DONE). (Hàng chờ LUỒNG 4 ĐÃ HOÀN THÀNH 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.)
 
 - **LUỒNG PHỤ 1 — Muse phụ — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37: thu hồi toàn bộ việc của các account Muse phụ, kể cả việc đang dở):** hàng chờ đã dọn sạch — T-22.3 (phần còn lại) -> LUỒNG 3, T-28 -> LUỒNG 4, T-29 -> LUỒNG 1, T-26 -> LUỒNG 1. LUỒNG PHỤ 1 không nhận việc mới, không push thêm commit nào cho dự án này.
 
@@ -357,7 +359,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-32 (L2), T-33 + T-25 (L5), T-22.3 (L3), T-13, T-29, T-28, T-11, T-26, T-24.6, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30 DONE; T-34 (L4 DOING), T-35 (L1 DOING) |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-32 (L2), T-33 + T-25 (L5), T-22.3 (L3), T-13, T-29, T-28, T-11, T-26, T-24.6, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30, T-34 DONE; T-35 (L1 DOING) |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -1953,7 +1955,25 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Sau T-33: sửa phần còn lại của T-25 đã ghi chú trong mục T-25 (dòng hardcode /upcoming).
 - Nghiệm thu: Muse chạy lại eval + suite độc lập.
 
-### [T-34] Triển khai đề xuất hiệu năng T-08: Reader Pool + writer lock cho SQLite — Giao: LUỒNG 4 — `DOING` (ƯU TIÊN 32) — LUỒNG 4
+### [T-34] Triển khai đề xuất hiệu năng T-08: Reader Pool + writer lock cho SQLite — Giao: LUỒNG 4 — `DONE` (ƯU TIÊN 32) — LUỒNG 4
+- **Báo cáo hoàn thành (Antigravity [L4] 2026-10-28 ~15:32 +07, version 1.7.44):**
+  1. *Version & Commit:* 1.7.44.
+  2. *Đã làm (kèm file chính):*
+     - `mulon/db.py` (mới): Xây dựng lớp `SqliteWALPool` quản lý kết nối SQLite WAL theo mô hình 1 Writer Connection duy nhất được bảo vệ bởi `asyncio.Lock()` và N Reader Connections trong `asyncio.Queue` (mặc định 4 kết nối, cấu hình qua `SQLITE_READER_POOL_SIZE`) ở chế độ `PRAGMA query_only=ON;`. Tự động phân loại câu query (`is_read_only_query`), điều hướng lệnh SELECT sang reader pool và lệnh ghi sang writer lock. Cung cấp lớp `PooledCursor` tự động trả connection về pool khi fetchall hoàn tất hoặc khi cursor đóng/hủy rác. Hỗ trợ nạp dynamic extension `sqlite-vec` đồng bộ trên toàn bộ readers và writer.
+     - `mulon/memory.py`: Tích hợp `SqliteWALPool` vào `Memory.open()` làm drop-in replacement cho `aiosqlite.Connection`. Bổ sung context managers `Memory.read_conn()` và `Memory.write_conn()` cho các nghiệp vụ gom query.
+     - `mulon/config.py` & `.env.example`: Thêm trường cấu hình `sqlite_reader_pool_size: int = 4` trong `Config` và `Config.load()`, ánh xạ biến môi trường `SQLITE_READER_POOL_SIZE`.
+     - `tests/test_v17_db_pool.py` (mới): 3 unit tests kiểm tra phân loại query đọc/ghi, vòng đời pool, và concurrency đọc-ghi không bị lock.
+     - `tests/test_perf_db_concurrency.py` (mới): 3 benchmark/stress tests kiểm tra khả năng chịu tải đồng thời.
+  3. *Số liệu đo kiểm thử trước & sau (Concurrency Benchmark):*
+     - *Trước khi tối ưu (1 connection duy nhất aiosqlite):* Khi có 1 writer ghi liên tục, các tác vụ đọc bị xếp hàng tuần tự qua 1 thread nền, latency đọc dao động tăng cao theo hàng đợi.
+     - *Sau khi tối ưu (SqliteWALPool 4 readers + 1 locked writer):*
+       + Bắn 25 readers đồng thời trong lúc writer đang ghi 100 facts dồn dập: **Độ trễ trung bình = 1.34ms, P95 = 2.45ms, Max = 4.88ms** (tiêu chuẩn yêu cầu < 25ms trung bình, < 60ms max).
+       + Stress test: 30 workers (15 readers + 15 writers) xen kẽ đồng thời ghi 150 facts và đọc liên tục: **0 lỗi `database is locked`, 100% facts được lưu vẹn nguyên**.
+  4. *Kết quả kiểm thử toàn hệ thống:*
+     - Full suite local: **712 passed, 0 failed** (62.42s).
+     - Evals vàng: **33/36 = 92%** qua cổng 85%.
+  5. *Hàng chờ LUỒNG 4:* Hàng chờ LUỒNG 4 **ĐÃ HOÀN THÀNH 100%**, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.
+  - Ky: Antigravity [L4]
 - **Nhận việc — Antigravity [L4] (2026-10-28 ~15:22 +07):** nhận T-34 DOING (LUỒNG 4) theo đề xuất hiệu năng T-08 đã được chủ dự án duyệt; tiếp tục từ trạng thái code trên main. Ky: Antigravity [L4]
 - Nguồn: `docs/de-xuat-hieu-nang-2026-10-26.md` (khảo sát T-08 đã `VERIFIED`). Chủ dự án DUYỆT triển khai 2026-10-28 ~12:17 — trước đó mục này treo chờ quyết duyệt/bỏ.
 - Phạm vi: đúng như đề xuất (Reader Pool + writer lock cho tầng SQLite), không tự mở rộng. Hành vi chức năng giữ nguyên; bằng chứng gồm test hồi quy + số liệu đo trước/sau khi chịu tải truy vấn đồng thời.

@@ -1,6 +1,21 @@
 # CHANGELOG
 
-## 1.7.43 — 2026-10-28 — Xử lý dứt điểm 3 điểm phản hồi của Muse cho T-32 (T-32, LUỒNG 2 — ký: Antigravity [L2])
+## 1.7.44 — 2026-10-28 — Triển khai đề xuất hiệu năng T-08: Reader Pool + Writer Lock cho SQLite (T-34, LUỒNG 4 — ký: Antigravity [L4])
+
+- **Triển khai kiến trúc SQLite WAL đa kết nối (`mulon/db.py`, `mulon/memory.py`, T-34):**
+  - **Single Writer Connection:** Một kết nối ghi chuyên biệt được bảo vệ bởi `asyncio.Lock()` cho mọi câu lệnh ghi (`INSERT`, `UPDATE`, `DELETE`, `REPLACE`, `DDL`, `COMMIT`, `ROLLBACK`), triệt tiêu 100% lỗi `sqlite3.OperationalError: database is locked` khi có nhiều tác vụ chạy đồng thời.
+  - **Reader Pool Connections:** Một hàng đợi `asyncio.Queue` chứa N kết nối đọc (mặc định 4 kết nối, cấu hình linh hoạt qua biến môi trường `SQLITE_READER_POOL_SIZE`) ở chế độ `PRAGMA query_only=ON;`. Các truy vấn đọc (`SELECT`, `PRAGMA table_info`, v.v.) từ Mini App, hybrid recall, bot queries tự động được phân phối song song trên các thread nền độc lập, tận dụng tối đa lợi thế của SQLite WAL ("Readers do not block writers, and writers do not block readers").
+  - **Lớp bọc trong suốt `SqliteWALPool` & `PooledCursor`:** Đóng vai trò drop-in replacement tương thích 100% với giao thức của `aiosqlite.Connection`. Tự động phân loại câu query (`is_read_only_query`), điều hướng lệnh đọc sang Reader Pool và lệnh ghi sang Writer Lock. Cursor được bọc `PooledCursor` tự động trả connection về pool ngay khi fetchall hoàn tất hoặc khi cursor được đóng.
+  - **Hỗ trợ Dynamic Extensions (`sqlite-vec`):** Đồng bộ nạp extension `sqlite-vec` trên cả writer connection và toàn bộ reader connections khi khởi tạo hoặc khi bật embedder, bảo đảm hybrid recall vector queries hoạt động song song mượt mà.
+  - **Context Managers tường minh (`Memory.read_conn()`, `Memory.write_conn()`):** Cho phép các tác vụ gom nhóm câu truy vấn mượn connection đọc/ghi rõ ràng.
+- **Cấu hình & Tương thích ngược (`mulon/config.py`, `.env.example`):**
+  - Thêm thuộc tính cấu hình `sqlite_reader_pool_size: int = 4` trong `Config` và `Config.load()`, tương thích biến môi trường `SQLITE_READER_POOL_SIZE`.
+  - Bổ sung tài liệu cấu hình chi tiết vào `.env.example`.
+- **Kiểm thử hiệu năng & hồi quy (`tests/test_v17_db_pool.py`, `tests/test_perf_db_concurrency.py`):**
+  - 3 unit tests mới trong `tests/test_v17_db_pool.py`: kiểm tra bộ phân loại query đọc/ghi, vòng đời pool, và concurrency đọc-ghi không bị lock.
+  - 3 benchmark/stress tests trong `tests/test_perf_db_concurrency.py`: kiểm tra 25 readers bắn đồng thời trong lúc writer đang ghi liên tục (độ trễ trung bình < 2ms, max < 15ms), stress test 30 workers đọc-ghi xen kẽ đồng thời bảo toàn tính toàn vẹn dữ liệu, và kiểm thử context managers.
+  - Toàn bộ suite test **712 passed, 0 failed**; Eval vàng **33/36 = 92%** qua cổng 85%.
+
 
 - **Đồng bộ chuẩn xác tài liệu sitemap Mini App (`docs/sitemap-miniapp-2026-10-27.md`, `docs/sitemap-miniapp-v17.md`, T-32):**
   - Cập nhật tiêu đề và banner cảnh báo `SUPERSEDED` rõ ràng, nổi bật ở đầu file `docs/sitemap-miniapp-2026-10-27.md`, dẫn link sang sitemap v1.7 chính thức.

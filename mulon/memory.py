@@ -23,12 +23,14 @@ import json
 import re
 import time
 import unicodedata
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, AsyncIterator, Optional, Union
 
 import aiosqlite
 
+from .db import SqliteWALPool
 from .embeddings import normalize
 
 # sqlite-vec là optional: có thì bật đường vector, không có thì BM25-only.
@@ -597,8 +599,9 @@ def ensure_goal_workspace(cfg, goal_id: int) -> dict[str, Path]:
 class Memory:
     """Cửa ngõ duy nhất tới DB. Mọi ghi/đọc ký ức đi qua đây."""
 
-    def __init__(self, db: aiosqlite.Connection):
+    def __init__(self, db: aiosqlite.Connection | SqliteWALPool):
         self.db = db
+        self.pool: Optional[SqliteWALPool] = db if isinstance(db, SqliteWALPool) else None
         self.vector_enabled = False
         # Phase 2: embedder + đường vector. vector_enabled (Phase 1) chỉ
         # nói extension sqlite-vec nạp được; vec_ready mới là "hybrid
@@ -610,12 +613,39 @@ class Memory:
         self.recall_vector_weight = 0.7
         self.recall_bm25_weight = 0.3
 
+    @asynccontextmanager
+    async def read_conn(self) -> AsyncIterator[aiosqlite.Connection]:
+        """Mượn một reader connection từ pool để thực thi các câu lệnh đọc."""
+        if self.pool is not None:
+            async with self.pool.read_connection() as conn:
+                yield conn
+        else:
+            yield self.db  # type: ignore[misc]
+
+    @asynccontextmanager
+    async def write_conn(self) -> AsyncIterator[aiosqlite.Connection]:
+        """Mượn writer connection có lock để thực thi các câu lệnh ghi."""
+        if self.pool is not None:
+            async with self.pool.write_connection() as conn:
+                yield conn
+        else:
+            yield self.db  # type: ignore[misc]
+
     # ---------- mở / đóng ----------
     @classmethod
-    async def open(cls, db_path: str | Path) -> "Memory":
+    async def open(
+        cls, db_path: str | Path, reader_pool_size: Optional[int] = None
+    ) -> "Memory":
         path = Path(db_path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        db = await aiosqlite.connect(str(path))
+        if reader_pool_size is None:
+            try:
+                import os
+                reader_pool_size = int(os.environ.get("SQLITE_READER_POOL_SIZE", "4"))
+            except Exception:
+                reader_pool_size = 4
+        # T-34: Khởi tạo SqliteWALPool với Reader Pool + Writer Lock
+        pool = await SqliteWALPool.create(path, pool_size=reader_pool_size)
         # Sửa 1.6.3: DB chứa trajectory/facts/dossier — chmod 0600
         # như Vault. Bỏ qua lỗi trên hệ không hỗ trợ chmod (vd một
         # số filesystem Windows), chỉ log warning, không sập bot.
@@ -626,18 +656,18 @@ class Memory:
             import logging as _logging
             _logging.getLogger("mulon.memory").warning(
                 "Không chmod 0600 được cho %s: %s", path, _exc)
-        db.row_factory = aiosqlite.Row
-        await db.executescript(SCHEMA)
-        await db.commit()
-        await _migrate_feed_14(db)
-        await _migrate_library_16(db)
-        await _migrate_library_17(db)
-        await _migrate_goals_muse(db)
-        await _migrate_schedules_muse(db)
-        await _migrate_ideas_muse(db)
-        await _migrate_feed_signals(db)
-        await _migrate_goal_briefings(db)
-        mem = cls(db)
+        pool.row_factory = aiosqlite.Row
+        await pool.executescript(SCHEMA)
+        await pool.commit()
+        await _migrate_feed_14(pool)
+        await _migrate_library_16(pool)
+        await _migrate_library_17(pool)
+        await _migrate_goals_muse(pool)
+        await _migrate_schedules_muse(pool)
+        await _migrate_ideas_muse(pool)
+        await _migrate_feed_signals(pool)
+        await _migrate_goal_briefings(pool)
+        mem = cls(pool)
         mem.vector_enabled = await mem._try_enable_vector()
         return mem
 

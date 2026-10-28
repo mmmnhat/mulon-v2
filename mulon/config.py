@@ -154,6 +154,9 @@ class Config:
     )
     telegram_business_rate_limit_per_min: int = 10
 
+    # Tối ưu hiệu năng SQLite (T-08, T-34: Reader Pool + Writer Lock)
+    sqlite_reader_pool_size: int = 4
+
     # --- Telegram & Xác thực quyền (T-15 mở khoá cài đặt) ---
     telegram_bot_token: str = ""
     allowed_user_id: int = 0
@@ -460,6 +463,7 @@ class Config:
             telegram_business_enabled=_env_bool("TELEGRAM_BUSINESS_ENABLED", False),
             telegram_business_catalog_path=_resolve(_env("TELEGRAM_BUSINESS_CATALOG_PATH", str(default_config / "shop_catalog.json"))),
             telegram_business_rate_limit_per_min=_env_int("TELEGRAM_BUSINESS_RATE_LIMIT_PER_MIN", 10),
+            sqlite_reader_pool_size=_env_int("SQLITE_READER_POOL_SIZE", 4),
             telegram_bot_token=_env("TELEGRAM_BOT_TOKEN", ""),
             allowed_user_id=final_owner_id,
             allowed_user_ids=tuple(allowed_list),
