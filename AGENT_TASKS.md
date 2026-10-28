@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~15:22 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): nhận T-34 `DOING` (ƯU TIÊN 32, Triển khai đề xuất hiệu năng T-08: Reader Pool + writer lock cho SQLite) theo quyết định duyệt của chủ dự án; tiếp tục từ trạng thái code trên main. Ky: Antigravity [L4]
+
 Cập nhật 2026-10-28 ~15:20 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): nhận T-35 `DOING` (ƯU TIÊN 33, audit 28/10: dọn topics thừa, gỡ emoji trang trí khỏi bot + Mini App, sửa lỗi bề mặt Feed/Library, sửa lỗi render D1-D10 & W3C E1 Mini App) theo LUẬT ĐA LUỒNG và phân công của Muse; tiếp tục từ trạng thái code trên main. Ky: Antigravity [L1]
 
 Cập nhật 2026-10-28 ~13:21 bởi Muse (ký: Muse): (1) KHÔI PHỤC bằng chứng Windows của Antigravity [WIN] (commit `4e6202c9`) bị autowatch `309ebaee` ghi đè mất vì dựng trên base cũ `8b304788` — Muse nhận lỗi ghi đè, đã khôi phục nguyên văn vào T-28 kèm dòng log 13:06 của [WIN]; (2) chấm T-28 **VERIFIED** theo Cách 2 của chủ dự án: đủ 3 chân local thật (Linux VM 693/0, Mac LUỒNG 5 635/0, Windows thật 687/19 với lỗi tzdata collection đã chết hẳn); (3) mở [T-36] cho 19 fail Windows còn lại (nặng nhất: marketplace chặn exe path có khoảng trắng); (4) ĐÍNH CHÍNH (D0) ở T-35: Cloudflare chặn traffic phía reviewer (403 "Your request was blocked", tên miền tunnel vẫn sống ở biên Cloudflare) — rút kết luận "user thật không mở được app", trạng thái đúng là reviewer chưa kiểm chứng được bản live, chờ chủ dự án xác nhận trên điện thoại. Ky: Muse
@@ -322,7 +324,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 - **LUỒNG 3 — Connector** (chủ file `mulon/personal_connectors.py`, `mulon/connectors.py`, `mulon/bridges/`):
   T-30 (đã DONE) -> T-17 (đã VERIFIED) -> T-22.3 (đã DONE). (Hàng chờ LUỒNG 3 hiện TRỐNG, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.)
 - **LUỒNG 4 — Cổng model & còn lại**:
-  T-14 (đã DONE) -> T-26 (đã DONE) -> T-29 (đã DONE) -> chẩn đoán CI T-28 (đã DONE). (Hàng chờ LUỒNG 4 ĐÃ HOÀN THÀNH 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.)
+  T-14 (đã DONE) -> T-26 (đã DONE) -> T-29 (đã DONE) -> chẩn đoán CI T-28 (đã DONE) -> T-34 (đang DOING).
 
 - **LUỒNG PHỤ 1 — Muse phụ — ĐÃ DỪNG (lệnh chủ dự án 27/10 ~22:37: thu hồi toàn bộ việc của các account Muse phụ, kể cả việc đang dở):** hàng chờ đã dọn sạch — T-22.3 (phần còn lại) -> LUỒNG 3, T-28 -> LUỒNG 4, T-29 -> LUỒNG 1, T-26 -> LUỒNG 1. LUỒNG PHỤ 1 không nhận việc mới, không push thêm commit nào cho dự án này.
 
@@ -355,7 +357,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-32 (L2), T-33 + T-25 (L5), T-22.3 (L3), T-13, T-29, T-28, T-11, T-26, T-24.6, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30 DONE; T-34 (L4 TODO), T-35 (L1 DOING) |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-32 (L2), T-33 + T-25 (L5), T-22.3 (L3), T-13, T-29, T-28, T-11, T-26, T-24.6, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30 DONE; T-34 (L4 DOING), T-35 (L1 DOING) |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -1951,7 +1953,8 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Sau T-33: sửa phần còn lại của T-25 đã ghi chú trong mục T-25 (dòng hardcode /upcoming).
 - Nghiệm thu: Muse chạy lại eval + suite độc lập.
 
-### [T-34] Triển khai đề xuất hiệu năng T-08: Reader Pool + writer lock cho SQLite — Giao: LUỒNG 4 — `TODO` (ƯU TIÊN 32) — LUỒNG 4
+### [T-34] Triển khai đề xuất hiệu năng T-08: Reader Pool + writer lock cho SQLite — Giao: LUỒNG 4 — `DOING` (ƯU TIÊN 32) — LUỒNG 4
+- **Nhận việc — Antigravity [L4] (2026-10-28 ~15:22 +07):** nhận T-34 DOING (LUỒNG 4) theo đề xuất hiệu năng T-08 đã được chủ dự án duyệt; tiếp tục từ trạng thái code trên main. Ky: Antigravity [L4]
 - Nguồn: `docs/de-xuat-hieu-nang-2026-10-26.md` (khảo sát T-08 đã `VERIFIED`). Chủ dự án DUYỆT triển khai 2026-10-28 ~12:17 — trước đó mục này treo chờ quyết duyệt/bỏ.
 - Phạm vi: đúng như đề xuất (Reader Pool + writer lock cho tầng SQLite), không tự mở rộng. Hành vi chức năng giữ nguyên; bằng chứng gồm test hồi quy + số liệu đo trước/sau khi chịu tải truy vấn đồng thời.
 - Kỷ luật 7: nhận việc là làm ngay trong cùng lượt, không mở đầu bằng báo cáo; xong ghi `DONE` + commit SHA + số liệu đo vào mục này.
