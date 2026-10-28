@@ -1,5 +1,34 @@
 # CHANGELOG
 
+## 1.7.45 — 2026-10-28 — Hoàn tất Audit 28/10: dọn topics thừa, gỡ emoji trang trí, sửa lỗi bề mặt Feed/Library & Mini App (T-35, LUỒNG 1 — ký: Antigravity [L1])
+
+- **Dọn dẹp topics thừa & cơ chế chốt phiên gọn gàng (A1–A3):**
+  - **Auto-close sidechat khi chốt phiên (`mulon/telegram_bot.py: cmd_new`):** Khi người dùng thực thi `/new` ngay trong một topic chat phụ (sidechat), bot tự động chốt phiên và đóng topic đó an toàn, tránh để lại các topic phụ rác trôi nổi.
+  - **Thẻ duyệt không lưu nút bấm stale (`mulon/telegram_bot.py: on_approval_button`):** Khi thẻ duyệt được chủ nhân bấm xử lý hoặc đã hết hạn, bàn phím inline lập tức được gỡ bỏ (`reply_markup=None`) và nội dung tin nhắn được cập nhật trạng thái quyết định (`[Quyết định: ĐÃ DUYỆT]`), loại bỏ hoàn toàn tình trạng nút bấm mồ côi/stale.
+  - **Menu Dashboard duy nhất chống spam (`mulon/telegram_bot.py: cmd_menu`):** Sử dụng khóa KV `menu_msg:{chat_id}` để lưu vết `message_id` của dashboard `/menu`. Các lượt gọi `/menu` tiếp theo tự động cập nhật (edit) tin nhắn menu hiện có thay vì spam tạo tin mới.
+- **Gỡ bỏ triệt để 261 ký tự emoji trang trí khỏi bot và Mini App (B1–B3):**
+  - **Telegram bot template emojis (`mulon/telegram_bot.py`):** Gỡ bỏ 261 emoji trang trí template (`⚠`, `👉`, `✅`, `❌`, `🧭`, `💡`, `🖼`, `📥`, `🟢`, `🔴`, `🎯`, `🚀`, `📌`, `🔐`...). Giữ lại ký hiệu mảnh `✓` / `✕` theo chuẩn `DESIGN.md`; trạng thái được thể hiện bằng CHỮ phân cấp trung tính rõ ràng. Giữ nguyên bộ reaction tin nhắn của `pick_chat_reaction`.
+  - **Mini App (`mulon/webapp/index.html`):** Gỡ emoji tier model (`🧠 Model Brain`, `⚡ Model Cheap`, `🚀 Model Escalated`), `📬` và `📍` ở thẻ goal, và các cảnh báo thô; cập nhật toast sang `✓` và `✕`.
+  - **Đồng bộ toàn bộ các module liên quan (`mulon/feed.py`, `mulon/surfaces.py`, `mulon/os_service.py`, `mulon/business.py`, `mulon/library.py`, `mulon/webapp_server.py`, `mulon/setup_wizard.py`):** Gỡ emoji nút (`Thích`, `Thảo luận`), gỡ `🎉`, `⚠️`, `🏦`, `💳`, `👤`, `💬`, chuẩn hoá nhãn library sang `[Ảnh]`, `[Media]`, `[Tài liệu]`, `[Mã]`, `[Tệp]`.
+- **Sửa lỗi bề mặt Feed & Library (C1, C2):**
+  - **Sanitize văn bản Feed (`mulon/feed.py: sanitize_feed_text`):** Làm sạch tiêu đề Markdown thô dạng `### 🤖 [GitHub](...)` và chuyển đổi sang HTML an toàn (`<b>...</b>`, thẻ link) trên Telegram, loại bỏ emoji robot.
+  - **Chuẩn hóa nhãn tệp tải lên Thư viện (`mulon/telegram_bot.py`):** Đăng tệp media lên topic Library dùng nhãn đọc được theo caption hoặc `[Thư viện] Ảnh tải lên / Ảnh #{id}`, triệt tiêu hoàn toàn việc để lộ tên tệp nội bộ vô nghĩa (`photo_288_AQAD3RprG-cE-FZ9.jpg`).
+- **Render & Tinh chỉnh Mini App (D1–D10 & E1):**
+  - **(E1) Chuẩn hóa W3C:** Đổi thẻ `<label class="row static">` tại dòng 1938 thành `<div class="row static">` để loại bỏ lỗi lồng thẻ label (nested label).
+  - **(D1) Khắc phục gọi API sai tên:** Sửa `apiFetch` thành `api` tại hàm `renderCLIProxy`.
+  - **(D2) Render Goals tự động:** Tự động gọi `renderGoals()` trong `renderTasks()` và `renderAll()` để cây mục tiêu luôn hiển thị sống động.
+  - **(D3) Đóng gói meta hàng việc đang chạy:** Gói `r-state`, nút `Dừng` (`.btn-subtle` trung tính, không co giãn khối đỏ lỗi) và `r-time` vào container `.r-meta`.
+  - **(D4) Token theme Design System:** Đồng bộ `--ds-primary:var(--accent)` và `--ds-primary-tint:var(--tint-lav)` để ăn theo theme người dùng chọn; chuẩn hóa `.ds-chip.active` theo `.filter-chip.active`.
+  - **(D5) Monogram & Tên kết nối thân thiện:** Suy monogram động ("G", "T", "Z", "F", "M") theo loại kết nối, hiển thị tên dễ đọc (`zalo_personal` -> "Zalo Cá nhân").
+  - **(D6) Chống tràn inset thẻ:** Bổ sung `padding: 0 var(--s4)` cho các khối nội dung và form ở màn Thương hiệu & Quyền.
+  - **(D7) Bỏ emoji tier Model:** Loại bỏ `🧠`, `⚡`, `🚀` khỏi màn hình cấu hình Model.
+  - **(D8) Tinh giản affordance kết nối:** Chỉ giữ 1 nút action soft/accent, ẩn chevron khi hàng kết nối đã có nút bấm hoặc toggle.
+  - **(D9) Header hero 56pt compact & ẩn ở màn con:** Thu gọn header hero về kích thước 56pt dạng thanh ngang (avatar 40px, name 17px, status 13px), tự động ẩn trên các màn con (`showSub`).
+  - **(D10) Chống xén chữ & ẩn phân trang rỗng:** Thêm `line-height:1.45` cho `.appr-sub`, bỏ `text-transform:uppercase` ở tiêu đề lịch sử duyệt, ẩn thanh phân trang `mkt-pagination` khi chưa có dữ liệu.
+- **Kiểm thử nghiệm thu (`tests/test_v17_t35_audit_surfaces_polish.py`):**
+  - Bổ sung 5 bài test mới kiểm chứng toàn bộ luồng A1, A2, A3, C1, C2.
+  - Toàn bộ suite test **717 passed, 0 failed**.
+
 ## 1.7.44 — 2026-10-28 — Triển khai đề xuất hiệu năng T-08: Reader Pool + Writer Lock cho SQLite (T-34, LUỒNG 4 — ký: Antigravity [L4])
 
 - **Triển khai kiến trúc SQLite WAL đa kết nối (`mulon/db.py`, `mulon/memory.py`, T-34):**

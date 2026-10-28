@@ -22,9 +22,9 @@
   --tint-lav:#F3EEFF; --tint-gray:#F0EEE8;
 
   /* ==================== MULON DESIGN SYSTEM TOKENS (T-12) ==================== */
-  --ds-primary:#7C3AED;
-  --ds-primary-press:#6D28D9;
-  --ds-primary-tint:#F3EEFF;
+  --ds-primary:var(--accent);
+  --ds-primary-press:var(--accent-press);
+  --ds-primary-tint:var(--tint-lav);
   --ds-destructive:#DC2626;
   --ds-destructive-press:#B91C1C;
   --ds-destructive-tint:#FEF2F2;
@@ -129,25 +129,25 @@ button, .backrow, .tgl, .segbar, .swatch{
   border-bottom:1px solid color-mix(in srgb, var(--line) 40%, transparent);
 }
 .app-header{
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  padding:6px 0 4px;
-  text-align:center;
+  display:flex; flex-direction:row; align-items:center; justify-content:flex-start;
+  gap:12px; height:56px; padding:0 4px;
+  text-align:left;
 }
 .avatar-wrap{
-  position:relative; width:92px; height:92px; margin:0 auto 6px;
+  position:relative; width:40px; height:40px; flex:0 0 40px; margin:0;
 }
 .avatar{
-  width:92px; height:92px; flex:0 0 92px; border-radius:50%;
+  width:40px; height:40px; flex:0 0 40px; border-radius:50%;
   background:var(--tint-lav); overflow:hidden; position:relative;
-  font-size:36px; font-weight:var(--fw-s); color:var(--lav-deep);
-  box-shadow:0 6px 22px rgba(0,0,0,0.14), inset 0 0 0 1px rgba(0,0,0,.08);
+  font-size:18px; font-weight:var(--fw-s); color:var(--lav-deep);
+  box-shadow:0 2px 8px rgba(0,0,0,0.1), inset 0 0 0 1px rgba(0,0,0,.08);
   transition:box-shadow 240ms var(--ease), transform 240ms var(--ease);
 }
 .avatar:hover{transform:scale(1.02)}
 [data-scheme="dark"] .avatar{
-  box-shadow:0 6px 22px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,.15);
+  box-shadow:0 2px 8px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,.15);
 }
-.head-meta{text-align:center; width:100%}
+.head-meta{text-align:left; flex:1; min-width:0;}
 .avatar #avatar-letter{
   position:absolute; inset:0; display:flex;
   align-items:center; justify-content:center;
@@ -163,14 +163,17 @@ button, .backrow, .tgl, .segbar, .swatch{
 .avatar.sprite-on .sprite{display:block}
 .avatar.sprite-on img{visibility:hidden}
 .avatar.sprite-on #avatar-letter{visibility:hidden}
-.app-name{font-size:21px; font-weight:700;
-  letter-spacing:-0.02em; line-height:1.2; margin-bottom:2px; text-align:center;}
-.app-status{font-size:var(--fs-cap); font-weight:var(--fw-m); color:var(--ink2);
-  display:inline-flex; align-items:center; justify-content:center; gap:6px;
-  margin:0 auto; white-space:nowrap;}
+.app-name{font-size:17px; font-weight:600;
+  letter-spacing:-0.01em; line-height:1.2; margin-bottom:2px; text-align:left;}
+.app-status{font-size:13px; font-weight:var(--fw-m); color:var(--ink2);
+  display:inline-flex; align-items:center; justify-content:flex-start; gap:6px;
+  margin:0; white-space:nowrap;}
 .dot{width:8px; height:8px; border-radius:50%; background:var(--ink3);
   display:inline-block}
 .dot.busy{background:var(--lav); animation:pulse 1.2s infinite}
+.btn-subtle{background:var(--surface2); color:var(--ink2); border:1px solid var(--line); padding:2px 8px; font-size:11px; border-radius:6px; cursor:pointer; min-height:24px; font-weight:var(--fw-m); transition:all .15s ease;}
+.btn-subtle:active{background:var(--tint-gray); color:var(--ink);}
+.r-meta{display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; text-align:right;}
 
 /* ---------- modal chi tiết Heartbeat chuẩn Muse ---------- */
 .modal-overlay{
@@ -447,8 +450,8 @@ button:focus-visible{outline:2px solid var(--lav-deep);
   transition:all var(--t1) var(--ease);
 }
 .ds-chip.active{
-  background:var(--ds-primary-tint); color:var(--ds-primary);
-  border-color:var(--ds-primary);
+  background:var(--tint-lav); color:var(--lav-deep);
+  border-color:transparent; font-weight:var(--fw-s);
 }
 
 /* 4 State Chuẩn: Skeleton / Empty / Error / Ready */
@@ -610,7 +613,7 @@ table.fields tr + tr td.k:before{left:var(--s4)}
 .appr-title{font-size:var(--fs-title); font-weight:var(--fw-s);
   line-height:var(--lh-title); letter-spacing:-0.01em}
 .appr-sub{padding:var(--s1) var(--s4) 0;
-  font-size:var(--fs-cap); color:var(--ink2)}
+  font-size:var(--fs-cap); color:var(--ink2); line-height:1.45;}
 /* Dòng phạm vi + lý do trên thẻ chờ duyệt (server suy từ
    tool/nhóm thật — frontend chỉ trình bày). */
 .appr-scope{
@@ -1555,15 +1558,15 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <div class="card-title">Phân tầng Model (3 Tiers)</div>
     <div style="padding:0 var(--s4) var(--s4);">
       <div style="margin-bottom:12px;">
-        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">🧠 Model Brain (Suy luận &amp; chat chính):</label>
+        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">Model Brain (Suy luận &amp; chat chính):</label>
         <input type="text" id="model-input-brain" class="field-input" style="width:100%; margin:0;" placeholder="gemini-3.8-flash">
       </div>
       <div style="margin-bottom:12px;">
-        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">⚡ Model Cheap (Tác vụ nhẹ &amp; tóm tắt):</label>
+        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">Model Cheap (Tác vụ nhẹ &amp; tóm tắt):</label>
         <input type="text" id="model-input-cheap" class="field-input" style="width:100%; margin:0;" placeholder="gemini-3.5-flash-lite">
       </div>
       <div style="margin-bottom:16px;">
-        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">🚀 Model Escalated (Phức tạp &amp; bế tắc):</label>
+        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">Model Escalated (Phức tạp &amp; bế tắc):</label>
         <input type="text" id="model-input-escalated" class="field-input" style="width:100%; margin:0;" placeholder="grok-4.20-0309-reasoning">
       </div>
       <div class="btn-row" style="padding:0;">
@@ -1586,25 +1589,27 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <!-- Card 1: Đổi tên hiển thị & Giới hạn Telegram -->
   <div class="card" style="margin-bottom:18px;">
     <div class="card-title">Tên hiển thị của bot</div>
-    <div style="font-size:13px; color:var(--ink2); margin-bottom:12px;">
-      Tên thân mật của bot hiển thị trên Mini App và lời thoại.
-    </div>
-    <div style="display:flex; gap:8px; margin-bottom:14px;">
-      <input type="text" id="input-bot-name" class="field-input" placeholder="Ví dụ: Mulon, Miu Con..." style="flex:1; height:42px; border-radius:10px; border:1px solid var(--line); padding:0 12px; font-size:14px; background:var(--surface);">
-      <button class="btn btn-accent" id="btn-save-bot-name" type="button" style="height:42px; padding:0 16px; font-weight:600; border-radius:10px;">Lưu tên</button>
-    </div>
-
-    <!-- Hộp ghi chú giới hạn Telegram theo đúng yêu cầu T-13 -->
-    <div class="info-callout" style="background:var(--tint-lav); border:1px solid var(--line); border-radius:12px; padding:12px 14px; font-size:12px; line-height:1.5;">
-      <div style="font-weight:600; color:var(--lav-deep); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        Lưu ý về giới hạn Telegram (BotFather)
+    <div style="padding:0 var(--s4) var(--s2);">
+      <div style="font-size:13px; color:var(--ink2); margin-bottom:12px;">
+        Tên thân mật của bot hiển thị trên Mini App và lời thoại.
       </div>
-      <div style="color:var(--ink2);">
-        • <b>Tên hiển thị bot (ở trên):</b> Đổi được ngay tại đây — áp dụng tức thì trên Mini App và các phản hồi.<br>
-        • <b>Username bot Telegram (<span id="brand-tg-username">@Mulon_bot</span>):</b> Giới hạn bởi Telegram, chỉ đổi được qua @BotFather với lệnh <code>/setusername</code>.<br>
-        • <b>Tên bot trong danh bạ Telegram:</b> Đổi qua @BotFather bằng lệnh <code>/setname</code>.<br>
-        • <b>Ảnh đại diện bot trên Telegram:</b> Đổi qua @BotFather bằng lệnh <code>/setuserpic</code>.
+      <div style="display:flex; gap:8px; margin-bottom:14px;">
+        <input type="text" id="input-bot-name" class="field-input" placeholder="Ví dụ: Mulon, Miu Con..." style="flex:1; height:42px; border-radius:10px; border:1px solid var(--line); padding:0 12px; font-size:14px; background:var(--surface);">
+        <button class="btn btn-accent" id="btn-save-bot-name" type="button" style="height:42px; padding:0 16px; font-weight:600; border-radius:10px;">Lưu tên</button>
+      </div>
+
+      <!-- Hộp ghi chú giới hạn Telegram theo đúng yêu cầu T-13 -->
+      <div class="info-callout" style="background:var(--tint-lav); border:1px solid var(--line); border-radius:12px; padding:12px 14px; font-size:12px; line-height:1.5;">
+        <div style="font-weight:600; color:var(--lav-deep); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          Lưu ý về giới hạn Telegram (BotFather)
+        </div>
+        <div style="color:var(--ink2);">
+          • <b>Tên hiển thị bot (ở trên):</b> Đổi được ngay tại đây — áp dụng tức thì trên Mini App và các phản hồi.<br>
+          • <b>Username bot Telegram (<span id="brand-tg-username">@Mulon_bot</span>):</b> Giới hạn bởi Telegram, chỉ đổi được qua @BotFather với lệnh <code>/setusername</code>.<br>
+          • <b>Tên bot trong danh bạ Telegram:</b> Đổi qua @BotFather bằng lệnh <code>/setname</code>.<br>
+          • <b>Ảnh đại diện bot trên Telegram:</b> Đổi qua @BotFather bằng lệnh <code>/setuserpic</code>.
+        </div>
       </div>
     </div>
   </div>
@@ -1612,16 +1617,18 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <!-- Card 2: Chọn Mascot trong vũ trụ Mulon -->
   <div class="card" style="margin-bottom:18px;">
     <div class="card-title">Linh vật đại diện (Mascot)</div>
-    <div style="font-size:13px; color:var(--ink2); margin-bottom:14px;">
-      Bộ sưu tập mascot trong vũ trụ thương hiệu Mulon. <i>Bản chính thức vẫn là Sprite v0 (21 frame) tới khi chủ dự án duyệt bộ mới.</i>
+    <div style="padding:0 var(--s4) var(--s2);">
+      <div style="font-size:13px; color:var(--ink2); margin-bottom:14px;">
+        Bộ sưu tập mascot trong vũ trụ thương hiệu Mulon. <i>Bản chính thức vẫn là Sprite v0 (21 frame) tới khi chủ dự án duyệt bộ mới.</i>
+      </div>
+      <div id="mascot-grid" style="display:flex; flex-direction:column; gap:12px;"></div>
     </div>
-    <div id="mascot-grid" style="display:flex; flex-direction:column; gap:12px;"></div>
   </div>
 
   <!-- Card 3: Chuẩn hoá Brand & Giọng văn -->
   <div class="card">
     <div class="card-title">Chuẩn hoá Brand &amp; Giọng điệu</div>
-    <div style="font-size:13px; color:var(--ink2); line-height:1.55;">
+    <div style="padding:0 var(--s4) var(--s2); font-size:13px; color:var(--ink2); line-height:1.55;">
       • <b>Màu nhận diện:</b> Tím Mulon (Tỷ lệ 60/30/10 với màu nhấn <code>#7C3AED</code>).<br>
       • <b>Biểu trưng (Logo):</b> Mèo thông minh kết hợp tia sáng Spark tinh anh.<br>
       • <b>Giọng văn cốt lõi:</b> Thân thiện, khimh nhường, thông minh, gãy gọn; xưng hô chuẩn mực và tôn trọng chủ nhân.
@@ -1824,7 +1831,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     </div>
   </div>
   <div class="card"><div id="mkt-list"></div></div>
-  <div class="card" id="mkt-pagination" style="display:flex; justify-content:space-between; align-items:center; padding:var(--s2) var(--s3); margin-top:var(--s2);">
+  <div class="card" id="mkt-pagination" style="display:none; justify-content:space-between; align-items:center; padding:var(--s2) var(--s3); margin-top:var(--s2);">
     <button class="btn btn-soft btn-sm btn-auto" id="mkt-prev" disabled>Trang trước</button>
     <span id="mkt-page-info" style="font-size:var(--fs-cap); font-weight:var(--fw-s); color:var(--ink2);">Trang 1</span>
     <button class="btn btn-soft btn-sm btn-auto" id="mkt-next">Trang sau</button>
@@ -1926,7 +1933,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
   <div class="card" id="policy-summary-card">
     <div class="card-title">Tổng quan quyền</div>
-    <div id="policy-overview-text" style="font-size:13px; color:var(--ink2); margin-bottom:10px; line-height:1.4;">Đang tính toán tổng quan quyền...</div>
+    <div id="policy-overview-text" style="padding:0 var(--s4); font-size:13px; color:var(--ink2); margin-bottom:10px; line-height:1.4;">Đang tính toán tổng quan quyền...</div>
     <div class="row pol-row" data-scope="default" data-name="default" id="policy-global-default-row">
       <div class="r-main">
         <div class="r-title">Mặc định toàn cục</div>
@@ -1935,16 +1942,16 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       <span class="pol-val" id="policy-global-default-val">Cho phép</span>
       <span class="pol-chev">⋮</span>
     </div>
-    <label class="row static" style="padding-top:10px; border-top:1px solid var(--line);">
+    <div class="row static" style="padding-top:10px; border-top:1px solid var(--line);">
       <div class="r-main"><div class="r-title">Lưu bền vào file policy</div></div>
       <label class="tgl"><input type="checkbox" id="policy-persist" checked>
         <span class="tr"></span></label>
-    </label>
+    </div>
   </div>
 
   <div class="card">
     <div class="card-title">Công cụ kết nối &amp; Dịch vụ</div>
-    <div class="note" style="padding:0 0 8px;">Nhấn vào từng connector để kiểm tra trạng thái và tinh chỉnh quyền từng hành động.</div>
+    <div class="note" style="padding:0 var(--s4) 8px;">Nhấn vào từng connector để kiểm tra trạng thái và tinh chỉnh quyền từng hành động.</div>
     <div id="policy-connectors"></div>
   </div>
 
@@ -2343,7 +2350,7 @@ function showSub(id){
     $(s).classList.toggle("hidden", s !== id));
   $("sticky-top-wrap").classList.remove("hidden");
   $("segbar").classList.remove("hidden");
-  $("app-header").classList.remove("hidden");
+  $("app-header").classList.add("hidden");
   const parentTab = TAB_OF_SCREEN[id] || "caidat";
   document.querySelectorAll("#segbar button").forEach(b =>
     b.classList.toggle("active", b.dataset.tab === parentTab));
@@ -3195,16 +3202,20 @@ function renderTasks(){
 
   box.innerHTML = visible.map(t => {
     const sub = taskSub(t);
-    const stopBtn = (t.status === "running")
-      ? '<button class="btn btn-danger btn-xs" data-stop-id="' + esc(t.id) + '" style="margin-left:8px; padding:2px 8px; font-size:11px; border-radius:6px; cursor:pointer;" title="Dừng việc này">Dừng</button>'
+    const isRunning = t.status === "running";
+    const stopBtn = isRunning
+      ? '<button class="btn btn-subtle btn-xs" data-stop-id="' + esc(t.id) + '" title="Dừng việc này">Dừng</button>'
       : '';
     return '<div class="row" data-task="' + esc(t.id) + '">' +
       '<div class="r-main"><div class="r-title">' + esc(cleanTaskTitle(t.title)) +
       '</div>' + (sub ? '<div class="r-sub">' + esc(sub) +
       '</div>' : "") + '</div>' +
-      '<span class="r-state">' + esc(taskStateText(t)) + '</span>' +
-      stopBtn +
-      '<div class="r-time">' + esc(todayLabel(t.created_at)) +
+      '<div class="r-meta">' +
+        '<div style="display:flex; align-items:center; gap:6px;">' +
+          '<span class="r-state">' + esc(taskStateText(t)) + '</span>' +
+          stopBtn +
+        '</div>' +
+        '<div class="r-time">' + esc(todayLabel(t.created_at)) + '</div>' +
       '</div></div>';
   }).join("");
 
@@ -3226,6 +3237,7 @@ function renderTasks(){
       }
     });
   });
+  renderGoals();
 }
 function renderGoals(){
   const box = $("goals-tree-wrap");
@@ -3277,7 +3289,7 @@ function renderGoals(){
       const latest = briefings[0];
       briefingHtml = '<div class="goal-briefing-snippet" style="margin-top:12px; padding:10px 12px; background:var(--surface2); border-radius:10px; font-size:12px; color:var(--ink);">' +
         '<div style="font-weight:600; margin-bottom:4px; display:flex; justify-content:space-between;">' +
-          '<span>📬 Thư briefing mới nhất</span>' +
+          '<span>Thư briefing mới nhất</span>' +
           '<span style="font-size:11px; color:var(--ink2);">' + esc(todayLabel(latest.created_at)) + '</span>' +
         '</div>' +
         '<div style="color:var(--ink2); margin-bottom:4px;"><b>Tiến triển:</b> ' + esc(latest.progress_summary || latest.title) + '</div>' +
@@ -3303,7 +3315,7 @@ function renderGoals(){
           '<div style="width:' + Math.min(100, Math.max(0, pct)) + '%; height:100%; background:var(--accent); border-radius:3px; transition:width 300ms;"></div>' +
         '</div>' +
       '</div>' +
-      (g.current_state ? '<div style="font-size:12px; color:var(--ink2); margin:4px 0;">📍 <i>' + esc(g.current_state) + '</i></div>' : '') +
+      (g.current_state ? '<div style="font-size:12px; color:var(--ink2); margin:4px 0;"><i>' + esc(g.current_state) + '</i></div>' : '') +
       subHtml +
       briefingHtml +
     '</div>';
@@ -3921,7 +3933,7 @@ function renderApprovals(){
 
   box.innerHTML = groupOrder.map(gKey => {
     const gItems = groups[gKey];
-    return '<div class="hist-day-header" style="font-size:12px; font-weight:600; color:var(--ink2); text-transform:uppercase; letter-spacing:0.5px; padding:10px 4px 6px; border-bottom:1px solid var(--tint-gray); margin-bottom:4px;">' +
+    return '<div class="hist-day-header" style="font-size:12px; font-weight:600; color:var(--ink2); padding:10px 4px 6px; border-bottom:1px solid var(--tint-gray); margin-bottom:4px;">' +
       esc(gKey) + ' (' + gItems.length + ')</div>' +
       gItems.map(({item: h, idx: i}) => {
         const timePart = formatTimeOnly(h.at);
@@ -5160,7 +5172,7 @@ function googleAction(g){
   /* Nút/trạng thái cho connector Google theo 3 trạng thái
      thật từ server (google_auth.status()). */
   if (!g.configured)
-    return '<button class="btn btn-accent btn-sm" data-gconfig="1">Cấu hình</button>';
+    return '<button class="btn btn-soft btn-sm" data-gconfig="1">Cấu hình</button>';
   if (!g.connected)
     return '<div style="display:flex; gap:6px; align-items:center">' +
       '<button class="btn btn-soft btn-sm" data-gconfig="1">Cấu hình</button>' +
@@ -5186,6 +5198,36 @@ function personalConnectorAction(c){
   }
   return '<button class="btn btn-accent btn-sm" data-pqr="' + esc(c.id) + '">Quét QR</button>';
 }
+function formatConnectorName(c){
+  const map = {
+    "google": "Google Workspace",
+    "zalo_personal": "Zalo Cá nhân",
+    "telegram_personal": "Telegram Cá nhân",
+    "facebook_personal": "Facebook Cá nhân",
+    "facebook_page": "Facebook Fanpage",
+    "instagram_messages": "Instagram Tin nhắn",
+    "threads_messages": "Threads Tin nhắn",
+    "tiktok": "TikTok"
+  };
+  const key = c.id || c.name || "";
+  if (map[key]) return map[key];
+  if (c.name && map[c.name]) return map[c.name];
+  if (c.name) return c.name.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+  return key;
+}
+function connMonogram(c){
+  if (c.kind === "mcp") return "M";
+  const id = (c.id || c.name || "").toLowerCase();
+  if (c.google || id.includes("google")) return "G";
+  if (c.zalo || id.includes("zalo")) return "Z";
+  if (c.telegram_personal || id.includes("telegram")) return "T";
+  if (c.facebook_personal || id.includes("facebook") || id.includes("fb")) return "F";
+  if (id.includes("threads")) return "T";
+  if (id.includes("instagram")) return "I";
+  if (id.includes("tiktok")) return "T";
+  const name = (c.name || c.id || "").trim();
+  return name ? name.charAt(0).toUpperCase() : "C";
+}
 function renderConnectors(){
   const list = (S && S.connectors) || [];
   const box = $("connector-list");
@@ -5197,9 +5239,11 @@ function renderConnectors(){
     const isGoogle = !!c.google;
     const isPersonal = !!(c.zalo || c.telegram_personal || c.facebook_personal || c.instagram_messages || c.threads_messages);
     const connId = c.id || c.name;
+    const hasAction = isGoogle || isPersonal || c.toggleable;
+    const chevHtml = hasAction ? '' : '<span class="chev" style="margin-left:6px"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>';
     return '<div class="row clickable" data-open-conn-detail="' + esc(connId) + '">' +
-      '<div class="mono">' + (c.kind === "mcp" ? "M" : "S") + '</div>' +
-      '<div class="r-main"><div class="r-title">' + esc(c.name) + '</div>' +
+      '<div class="mono">' + esc(connMonogram(c)) + '</div>' +
+      '<div class="r-main"><div class="r-title">' + esc(formatConnectorName(c)) + '</div>' +
       '<div class="r-sub">' + esc(connSub(c)) + '</div></div>' +
       (c.google
         ? googleAction(c.google)
@@ -5211,7 +5255,7 @@ function renderConnectors(){
               '><span class="tr"></span></label>'
             : '<span class="r-state">' +
               (c.enabled ? "Đang bật" : "Đã tắt") + '</span>') +
-      '<span class="chev" style="margin-left:6px"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>' +
+      chevHtml +
       '</div>';
   }).join("");
   box.querySelectorAll("[data-gconfig]").forEach(btn =>
@@ -5266,7 +5310,7 @@ function renderConnectors(){
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       const name = btn.dataset.pfbconnect;
-      const cookies = window.prompt("⚠️ CẢNH BÁO RỦI RO CAO: Meta không có API chính thức. Việc dùng cookie có nguy cơ checkpoint/khóa tài khoản tạm thời.\n\nNhập chuỗi cookie Facebook (c_user=...; xs=...;):");
+      const cookies = window.prompt("[Cảnh báo rủi ro cao] Meta không có API chính thức. Việc dùng cookie có nguy cơ checkpoint/khóa tài khoản tạm thời.\n\nNhập chuỗi cookie Facebook (c_user=...; xs=...;):");
       if (!cookies) return;
       try {
         const r = await api("/api/personal-connector/connect", "POST", { name, cookies });
@@ -5292,7 +5336,7 @@ function renderConnectors(){
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       const name = btn.dataset.pthconnect;
-      const cookies = window.prompt("⚠️ GIỚI HẠN CỨNG: Threads chỉ nhắn được người ĐÃ có hội thoại từ trước.\n\nNhập chuỗi phiên/cookie Threads (sessionid=... hoặc token):");
+      const cookies = window.prompt("[Giới hạn] Threads chỉ nhắn được người ĐÃ có hội thoại từ trước.\n\nNhập chuỗi phiên/cookie Threads (sessionid=... hoặc token):");
       if (!cookies) return;
       try {
         const r = await api("/api/personal-connector/connect", "POST", { name, cookies });
@@ -5965,7 +6009,7 @@ async function renderCLIProxy(){
   modelsEl.innerHTML = '<div class="empty-state" style="padding:16px;">Đang tải danh sách model...</div>';
 
   try {
-    const res = await apiFetch("/api/cliproxy/status");
+    const res = await api("/api/cliproxy/status");
     if (!res || !res.ok) {
       statusEl.innerHTML = '<div class="empty-state" style="padding:16px;">Không thể kết nối API: ' + esc((res && res.error) || "Lỗi mạng") + '</div>';
       return;
@@ -6058,12 +6102,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (brain) await api("/api/model", "POST", {tier: "brain", model: brain});
         if (cheap) await api("/api/model", "POST", {tier: "cheap", model: cheap});
         if (escalated) await api("/api/model", "POST", {tier: "escalated", model: escalated});
-        if (status) status.textContent = "✅ Đã lưu cấu hình model thành công!";
+        if (status) status.textContent = "✓ Đã lưu cấu hình model thành công!";
         toast("Đã cập nhật cấu hình model!");
         haptic("impact");
         loadModelsConfig();
       } catch(e){
-        if (status) status.textContent = "❌ Lỗi: " + e.message;
+        if (status) status.textContent = "✕ Lỗi: " + e.message;
         toast("Lỗi lưu model: " + e.message);
       }
     });
@@ -7407,7 +7451,7 @@ function renderBrand() {
 
 /* ---------------- nạp state ---------------- */
 function renderAll(){
-  renderStatus(); renderTasks(); renderApprovals(); renderSchedule();
+  renderStatus(); renderTasks(); renderGoals(); renderApprovals(); renderSchedule();
   renderProfile(); renderConnectors(); renderVault(); renderPolicy();
   renderSystem(); renderFeed(); renderBrand(); loadModelsConfig();
 }

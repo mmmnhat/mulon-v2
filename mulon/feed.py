@@ -371,6 +371,20 @@ def parse_sources_section(text: str) -> list[dict]:
     return out
 
 
+def sanitize_feed_text(text: str) -> str:
+    """Làm sạch văn bản Feed: gỡ emoji robot/trang trí khỏi tiêu đề và chuyển Markdown sang HTML an toàn."""
+    if not text:
+        return ""
+    # Gỡ các emoji trang trí ở tiêu đề (như ### 🤖 [GitHub] hoặc 🤖)
+    cleaned = re.sub(r'^(#+\s*)[\U00010000-\U0010ffff\u2600-\u27bf\s]+', r'\1', text, flags=re.MULTILINE)
+    cleaned = re.sub(r'[🤖📰📌💡]\s*', '', cleaned)
+    try:
+        from .telegram_bot import md_to_html
+        return md_to_html(cleaned)
+    except Exception:
+        return cleaned
+
+
 class FeedEngine:
     def __init__(self, cfg, memory, gateway, connectors=None,
                  searcher: Optional[Callable] = None,
@@ -1005,19 +1019,29 @@ class FeedEngine:
         origin/topic) -> ghi feed_post_sources cho URL đã trích.
         Gửi lỗi -> raise cho nơi gọi phân loại (bài KHÔNG được
         ghi là đã đăng — spec mục 4.5)."""
-        text = composed["text"]
+        raw_text = composed["text"]
+        text = sanitize_feed_text(raw_text)
         kwargs = {}
         if thread_id:
             kwargs["message_thread_id"] = thread_id
         try:
             from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
             kb = InlineKeyboardMarkup(inline_keyboard=[[
-                InlineKeyboardButton(text="❤️ Thích", callback_data="feed:like"),
-                InlineKeyboardButton(text="💬 Thảo luận", callback_data="feed:discuss"),
+                InlineKeyboardButton(text="Thích", callback_data="feed:like"),
+                InlineKeyboardButton(text="Thảo luận", callback_data="feed:discuss"),
             ]])
-            msg = await bot.send_message(chat_id, text, reply_markup=kb, **kwargs)
+            try:
+                msg = await bot.send_message(chat_id, text, reply_markup=kb, parse_mode="HTML", **kwargs)
+            except Exception:
+                msg = await bot.send_message(chat_id, text, reply_markup=kb, **kwargs)
         except (TypeError, Exception):
-            msg = await bot.send_message(chat_id, text, **kwargs)
+            try:
+                msg = await bot.send_message(chat_id, text, parse_mode="HTML", **kwargs)
+            except Exception:
+                try:
+                    msg = await bot.send_message(chat_id, text, **kwargs)
+                except Exception:
+                    msg = await bot.send_message(chat_id, raw_text)
         message_id = int(getattr(msg, "message_id", 0) or 0)
         post_id = await self.memory.add_feed_post(
             chat_id, message_id, text, origin=origin,

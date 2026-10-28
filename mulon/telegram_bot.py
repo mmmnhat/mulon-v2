@@ -459,8 +459,8 @@ def extract_bootstrap_questions(boot_text: str) -> str:
 def idea_card_keyboard(card_id: int) -> InlineKeyboardMarkup:
     """Bàn phím tương tác trực tiếp trên Thẻ ý tưởng: Làm luôn / Bỏ qua."""
     return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="🚀 Làm luôn", callback_data=f"idea:do:{card_id}"),
-        InlineKeyboardButton(text="🗑 Bỏ qua", callback_data=f"idea:bo:{card_id}"),
+        InlineKeyboardButton(text="Làm luôn", callback_data=f"idea:do:{card_id}"),
+        InlineKeyboardButton(text="Bỏ qua", callback_data=f"idea:bo:{card_id}"),
     ]])
 
 
@@ -931,12 +931,12 @@ class TelegramSurface:
                         self.activity.stop_session_tasks(key)
                     if placeholder is not None:
                         try:
-                            await placeholder.edit_text("⚠️ <i>Đã dừng tác vụ theo yêu cầu.</i>", parse_mode="HTML")
+                            await placeholder.edit_text("<i>Đã dừng tác vụ theo yêu cầu.</i>", parse_mode="HTML")
                         except Exception:
                             pass
                     else:
                         try:
-                            await anchor.answer("⚠️ <i>Đã dừng tác vụ theo yêu cầu.</i>", parse_mode="HTML")
+                            await anchor.answer("<i>Đã dừng tác vụ theo yêu cầu.</i>", parse_mode="HTML")
                         except Exception:
                             pass
                     raise
@@ -1048,16 +1048,14 @@ class TelegramSurface:
                     if _denied_reason(cand):
                         continue
                     ext = cand.suffix.lower()
-                    kind = kind_of(cand)
-                    icon = ICON_MAP.get(kind, "📁")
-                    caption = f"{icon} {cand.name}"
+                    caption = cand.name
 
                     # Kiểm tra kích thước tối đa của Telegram Bot API (mặc định 50MB)
                     if cand.stat().st_size > max_bytes:
                         size_mb = cand.stat().st_size / (1024 * 1024)
                         limit_mb = max_bytes // (1024 * 1024)
                         await anchor.answer(
-                            f"⚠️ Tệp <code>{html.escape(cand.name)}</code> ({size_mb:.1f} MB) vượt quá giới hạn "
+                            f"Tệp <code>{html.escape(cand.name)}</code> ({size_mb:.1f} MB) vượt quá giới hạn "
                             f"{limit_mb}MB của Telegram Bot API. "
                             f"Bạn có thể truy cập tệp trực tiếp tại: <code>{html.escape(str(cand))}</code> hoặc qua Mini App Thư viện.",
                             parse_mode="HTML",
@@ -1068,19 +1066,19 @@ class TelegramSurface:
                     try:
                         if ext in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
                             await anchor.answer_photo(FSInputFile(str(cand)), caption=caption)
-                            await self._post_media_to_library("photo", FSInputFile(str(cand)), f"🖼️ [Thư viện] {cand.name}", chat_id=anchor.chat.id)
+                            await self._post_media_to_library("photo", FSInputFile(str(cand)), f"[Thư viện] {cand.name}", chat_id=anchor.chat.id)
                         elif ext in (".mp4", ".mov", ".avi", ".webm", ".mkv"):
                             await anchor.answer_video(FSInputFile(str(cand)), caption=caption)
-                            await self._post_media_to_library("video", FSInputFile(str(cand)), f"🎥 [Thư viện] {cand.name}", chat_id=anchor.chat.id)
+                            await self._post_media_to_library("video", FSInputFile(str(cand)), f"[Thư viện] {cand.name}", chat_id=anchor.chat.id)
                         elif ext in (".ogg",):
                             await anchor.answer_voice(FSInputFile(str(cand)), caption=caption)
-                            await self._post_media_to_library("audio", FSInputFile(str(cand)), f"🎙️ [Thư viện] {cand.name}", chat_id=anchor.chat.id)
+                            await self._post_media_to_library("audio", FSInputFile(str(cand)), f"[Thư viện] {cand.name}", chat_id=anchor.chat.id)
                         elif ext in (".mp3", ".wav", ".m4a", ".flac", ".aac"):
                             await anchor.answer_audio(FSInputFile(str(cand)), caption=caption)
-                            await self._post_media_to_library("audio", FSInputFile(str(cand)), f"🎵 [Thư viện] {cand.name}", chat_id=anchor.chat.id)
+                            await self._post_media_to_library("audio", FSInputFile(str(cand)), f"[Thư viện] {cand.name}", chat_id=anchor.chat.id)
                         else:
                             await anchor.answer_document(FSInputFile(str(cand)), caption=caption)
-                            await self._post_media_to_library("document", FSInputFile(str(cand)), f"📄 [Thư viện] {cand.name}", chat_id=anchor.chat.id)
+                            await self._post_media_to_library("document", FSInputFile(str(cand)), f"[Thư viện] {cand.name}", chat_id=anchor.chat.id)
 
                         lib = self._svc("library")
                         if lib is not None:
@@ -1090,7 +1088,7 @@ class TelegramSurface:
                     except Exception as exc:
                         logger.warning("gửi tệp local qua telegram lỗi: %s", exc)
                         await anchor.answer(
-                            f"⚠️ Không thể gửi tệp <code>{html.escape(cand.name)}</code> qua Telegram ({html.escape(str(exc))}). "
+                            f"Không thể gửi tệp <code>{html.escape(cand.name)}</code> qua Telegram ({html.escape(str(exc))}). "
                             f"Tệp đã được lưu an toàn tại: <code>{html.escape(str(cand))}</code>.",
                             parse_mode="HTML",
                         )
@@ -1110,9 +1108,9 @@ class TelegramSurface:
                 )
                 if is_img_url:
                     try:
-                        await anchor.answer_photo(clean_u, caption="🖼️ Ảnh mới từ AI / Web")
+                        await anchor.answer_photo(clean_u, caption="Ảnh mới từ AI / Web")
                         await self._post_photo_to_library(
-                            clean_u, "🖼️ [Thư viện] Ảnh mới từ AI / Web",
+                            clean_u, "[Thư viện] Ảnh mới từ AI / Web",
                             chat_id=anchor.chat.id,
                         )
                         break
@@ -1248,12 +1246,12 @@ class TelegramSurface:
                 InlineKeyboardButton(text="Mở bảng điều khiển",
                                      url=link)]])
             return (
-                "🧭 <b>Bảng điều khiển Mulon</b>\n"
+                "<b>Bảng điều khiển Mulon</b>\n"
                 "Tiến trình, phê duyệt, lịch, hồ sơ, kết nối, vault "
                 "và quyền — tất cả ở trong app. Chạm nút để mở.",
                 kb)
         return (
-            "🧭 Bảng điều khiển (Mini App) chưa mở được vì thiếu "
+            "Bảng điều khiển (Mini App) chưa mở được vì thiếu "
             "cấu hình. Cần 3 bước:\n"
             "1. Đặt WEBAPP_URL (URL HTTPS, vd tunnel cloudflared / "
             "tailscale funnel về 127.0.0.1:" +
@@ -1278,15 +1276,15 @@ class TelegramSurface:
         đổi hạ tầng."""
         buttons = [
             InlineKeyboardButton(
-                text="✅ Duyệt",
+                text="Duyệt",
                 callback_data=f"appr:1:{approval_id}"),
             InlineKeyboardButton(
-                text="❌ Chặn",
+                text="Chặn",
                 callback_data=f"appr:0:{approval_id}"),
         ]
         if rememberable:
             buttons.append(InlineKeyboardButton(
-                text="📌 Duyệt và nhớ",
+                text="Duyệt và nhớ",
                 callback_data=f"appr:2:{approval_id}"))
         rows: list[list[InlineKeyboardButton]] = [buttons]
         link = webapp_direct_link(self.cfg, self._bot_username(),
@@ -1438,7 +1436,7 @@ class TelegramSurface:
         # là phụ): dòng 1 = hành động lời thường, dưới là bảng
         # trường thu nhỏ Hành động / Đích / Chi tiết, cuối là hạn.
         lines = [
-            f"🔐 <b>{_html.escape(action)}</b>",
+            f"<b>{_html.escape(action)}</b>",
             f"Hành động: {_html.escape(action)}",
         ]
         target = str(payload.get("target") or "")
@@ -1554,9 +1552,9 @@ class TelegramSurface:
             except Exception:
                 pass
         note = {
-            "approved": "✅ Đã ghi nhận: anh vừa DUYỆT thẻ thử.",
-            "denied": "❌ Đã ghi nhận: anh vừa CHẶN thẻ thử.",
-            "expired": "⌛ Thẻ duyệt thử hết hạn — chưa có quyết "
+            "approved": "Đã ghi nhận: anh vừa DUYỆT thẻ thử.",
+            "denied": "Đã ghi nhận: anh vừa CHẶN thẻ thử.",
+            "expired": "Thẻ duyệt thử hết hạn — chưa có quyết "
                        "định nào.",
         }.get(outcome, "Đã ghi nhận quyết định thẻ thử.")
         text = (note + " Đây chỉ là thẻ thử để kiểm tra luồng "
@@ -1584,7 +1582,7 @@ class TelegramSurface:
 
         ttl = int(payload.get("marketplace_ttl_s") or 900)
         lines = [
-            f"🧩 <b>{_html.escape(str(payload.get('title') or 'Thao tác MCP'))}</b>",
+            f"<b>{_html.escape(str(payload.get('title') or 'Thao tác MCP'))}</b>",
             f"Chi tiết: {_html.escape(str(payload.get('summary') or ''))}",
         ]
         target = str(payload.get("target") or "")
@@ -1666,7 +1664,7 @@ class TelegramSurface:
                     safe_param = info.get("startapp_param") or f"vault_{label.replace(':', '__')}"
                     direct_url = webapp_direct_link(self.cfg, self._bot_username(), safe_param)
                     lines = [
-                        "🔐 <b>Yêu cầu bí mật vào Kho</b>",
+                        "<b>Yêu cầu bí mật vào Kho</b>",
                         f"Agent cần thông tin: <code>{label}</code>",
                         f"Mục đích: {desc}",
                         "",
@@ -1704,7 +1702,7 @@ class TelegramSurface:
         safe_param = info.get("startapp_param") or f"vault_{label.replace(':', '__')}"
         direct_url = webapp_direct_link(self.cfg, self._bot_username(), safe_param)
         lines = [
-            "🔐 <b>Yêu cầu bí mật vào Kho</b>",
+            "<b>Yêu cầu bí mật vào Kho</b>",
             f"Agent cần thông tin: <code>{label}</code>",
         ]
         if desc:
@@ -1775,7 +1773,7 @@ class TelegramSurface:
 
         if self.bot is not None and chat_id:
             msg_text = (
-                f"🔐 ✅ <b>Đã nhận và lưu bí mật vào Kho an toàn</b>\n"
+                f"<b>Đã nhận và lưu bí mật vào Kho an toàn</b>\n"
                 f"Nhãn: <code>{_html.escape(label)}</code> · Mã tham chiếu: <code>{_html.escape(ref)}</code>\n"
                 f"Giá trị bí mật được bảo vệ trong Kho trên máy, không hiển thị trong chat."
             )
@@ -1863,16 +1861,16 @@ class TelegramSurface:
         action = tool_action_label(tool, group)
 
         if outcome == "approved":
-            status_header = "✅ <b>ĐÃ DUYỆT</b>" + (" (VÀ NHỚ CHO PHIÊN)" if remember else "")
+            status_header = "<b>ĐÃ DUYỆT</b>" + (" (VÀ NHỚ CHO PHIÊN)" if remember else "")
             status_text = "Đã cho phép thực thi" + (" (đã nhớ cho phiên này)" if remember else " (chỉ lần này)")
         elif outcome == "denied":
-            status_header = "❌ <b>ĐÃ CHẶN</b>"
+            status_header = "<b>ĐÃ CHẶN</b>"
             status_text = "Đã chặn yêu cầu này"
         elif outcome == "expired":
-            status_header = "⌛ <b>HẾT HẠN PHÊ DUYỆT</b>"
+            status_header = "<b>HẾT HẠN PHÊ DUYỆT</b>"
             status_text = "Thẻ đã hết hạn mà chưa có phản hồi — yêu cầu bị hủy an toàn"
         else:
-            status_header = f"ℹ️ <b>KẾT QUẢ: {_html.escape(outcome.upper())}</b>"
+            status_header = f"<b>KẾT QUẢ: {_html.escape(outcome.upper())}</b>"
             status_text = outcome
 
         lines = [
@@ -1943,9 +1941,9 @@ class TelegramSurface:
                     await self.memory.kv_del(f"approval_card_sent:{approval_id}")
                 except Exception:
                     pass
-        label = {"approved": "✅ Đã duyệt",
-                 "denied": "❌ Đã chặn",
-                 "expired": "⌛ Thẻ duyệt hết hạn"}.get(
+        label = {"approved": "Đã duyệt",
+                 "denied": "Đã chặn",
+                 "expired": "Thẻ duyệt hết hạn"}.get(
                      outcome, outcome)
         if payload.get("kind") == "marketplace_operation":
             mkt_title = payload.get("title") or "Thao tác MCP"
@@ -2219,17 +2217,17 @@ class TelegramSurface:
         if success:
             acc_str = f" cho tài khoản <code>{html.escape(user_email)}</code>" if user_email else ""
             await message.answer(
-                f"🎉 <b>Xác thực Google Workspace thành công rực rỡ{acc_str}!</b>\n\n"
-                "✅ Đã nạp và lưu trữ an toàn credentials.\n"
-                "🚀 Toàn bộ 43 công cụ Google Workspace (Gmail, Google Drive, Calendar, Docs, Sheets, Tasks) đã sẵn sàng phục vụ ní ngay lập tức!",
+                f"<b>Xác thực Google Workspace thành công rực rỡ{acc_str}!</b>\n\n"
+                "Đã nạp và lưu trữ an toàn credentials.\n"
+                "Toàn bộ 43 công cụ Google Workspace (Gmail, Google Drive, Calendar, Docs, Sheets, Tasks) đã sẵn sàng phục vụ ní ngay lập tức!",
                 parse_mode="HTML"
             )
             return True
         else:
             await message.answer(
-                "⚠️ <b>Chưa hoàn tất xác thực Google Workspace</b>\n\n"
+                "<b>Chưa hoàn tất xác thực Google Workspace</b>\n\n"
                 f"Lý do: <code>{html.escape(error_detail or 'Không thể kết nối cổng OAuth callback trên máy Mac')}</code>\n\n"
-                "👉 Mã (code) hoặc phiên xác thực có thể đã hết hạn. Ní vui lòng gõ <code>/google_auth</code> để lấy link đăng nhập mới tinh nha!",
+                "• Mã (code) hoặc phiên xác thực có thể đã hết hạn. Ní vui lòng gõ <code>/google_auth</code> để lấy link đăng nhập mới tinh nha!",
                 parse_mode="HTML"
             )
             return True
@@ -2253,7 +2251,7 @@ class TelegramSurface:
             if not subcmd:
                 tok = get_or_create_claim_token(claim_file)
                 await message.answer(
-                    "⚠️ <b>Bot này chưa có chủ sở hữu!</b>\n\n"
+                    "<b>Bot này chưa có chủ sở hữu!</b>\n\n"
                     "Để nhận quyền chủ nhân của bot, vui lòng kiểm tra mã xác thực (Claim Token) "
                     "trong log máy chủ / terminal chạy bot, rồi gửi lệnh:\n"
                     "<code>/setup &lt;mã_token&gt;</code>",
@@ -2270,14 +2268,14 @@ class TelegramSurface:
                     allowed_user_ids=(user_id, *[u for u in getattr(self.cfg, "allowed_user_ids", ()) if u != user_id]),
                 )
                 await message.answer(
-                    f"🎉 <b>Ghép nối thành công!</b>\n\n"
+                    f"<b>Ghép nối thành công!</b>\n\n"
                     f"Tài khoản Telegram của bạn (<code>{user_id}</code>) đã trở thành <b>Chủ sở hữu (Owner)</b> của MuLon.\n\n"
                     f"Từ bây giờ bot sẽ phục vụ bạn. Hãy gõ /menu hoặc gửi tin nhắn để bắt đầu!",
                     parse_mode="HTML",
                 )
             else:
                 await message.answer(
-                    f"❌ <b>Xác thực thất bại:</b> {msg}.\n"
+                    f"<b>Xác thực thất bại:</b> {msg}.\n"
                     f"Vui lòng kiểm tra lại claim token trong log máy chủ.",
                     parse_mode="HTML",
                 )
@@ -2294,7 +2292,7 @@ class TelegramSurface:
 
         if subcmd.lower() in ("add", "them"):
             if not is_owner:
-                await message.answer("⛔ Chỉ chủ sở hữu (Owner) mới có quyền thêm người dùng.")
+                await message.answer("Chỉ chủ sở hữu (Owner) mới có quyền thêm người dùng.")
                 return
             if len(parts) < 3 or not parts[2].isdigit():
                 await message.answer("Cú pháp: <code>/setup add &lt;user_id&gt;</code>", parse_mode="HTML")
@@ -2305,14 +2303,14 @@ class TelegramSurface:
                 _, users = load_allowlist(allow_file)
                 from dataclasses import replace
                 self.cfg = replace(self.cfg, allowed_user_ids=tuple(users))
-                await message.answer(f"✅ Đã thêm người dùng <code>{target_id}</code> vào danh sách cho phép.", parse_mode="HTML")
+                await message.answer(f"Đã thêm người dùng <code>{target_id}</code> vào danh sách cho phép.", parse_mode="HTML")
             else:
-                await message.answer(f"❌ Không thể thêm: {msg}")
+                await message.answer(f"Không thể thêm: {msg}")
             return
 
         if subcmd.lower() in ("remove", "xoa", "del"):
             if not is_owner:
-                await message.answer("⛔ Chỉ chủ sở hữu (Owner) mới có quyền xóa người dùng.")
+                await message.answer("Chỉ chủ sở hữu (Owner) mới có quyền xóa người dùng.")
                 return
             if len(parts) < 3 or not parts[2].isdigit():
                 await message.answer("Cú pháp: <code>/setup remove &lt;user_id&gt;</code>", parse_mode="HTML")
@@ -2323,14 +2321,14 @@ class TelegramSurface:
                 _, users = load_allowlist(allow_file)
                 from dataclasses import replace
                 self.cfg = replace(self.cfg, allowed_user_ids=tuple(users))
-                await message.answer(f"✅ Đã xóa người dùng <code>{target_id}</code> khỏi danh sách.", parse_mode="HTML")
+                await message.answer(f"Đã xóa người dùng <code>{target_id}</code> khỏi danh sách.", parse_mode="HTML")
             else:
-                await message.answer(f"❌ Không thể xóa: {msg}")
+                await message.answer(f"Không thể xóa: {msg}")
             return
 
         if subcmd.lower() in ("api", "endpoint"):
             if not is_owner:
-                await message.answer("⛔ Chỉ chủ sở hữu (Owner) mới có quyền cấu hình API.")
+                await message.answer("Chỉ chủ sở hữu (Owner) mới có quyền cấu hình API.")
                 return
             if len(parts) < 4:
                 await message.answer(
@@ -2352,7 +2350,7 @@ class TelegramSurface:
             if not is_loopback_host(host) and not allow_remote:
                 err = await assert_url_public(endpoint)
                 if err:
-                    await message.answer(f"❌ Endpoint không an toàn: {err}")
+                    await message.answer(f"Endpoint không an toàn: {err}")
                     return
 
             # Kiểm tra kết nối sống
@@ -2364,13 +2362,13 @@ class TelegramSurface:
                     resp = await client.get(test_url, headers=headers)
                     if resp.status_code not in (200, 201, 404):
                         await message.answer(
-                            f"❌ Endpoint từ chối xác thực (HTTP {resp.status_code}). Không lưu cấu hình để tránh bot bị lỗi.",
+                            f"Endpoint từ chối xác thực (HTTP {resp.status_code}). Không lưu cấu hình để tránh bot bị lỗi.",
                             parse_mode="HTML"
                         )
                         return
             except Exception as exc:
                 await message.answer(
-                    f"❌ Không thể kết nối tới endpoint ({exc}). Không lưu cấu hình.",
+                    f"Không thể kết nối tới endpoint ({exc}). Không lưu cấu hình.",
                     parse_mode="HTML"
                 )
                 return
@@ -2393,7 +2391,7 @@ class TelegramSurface:
             except Exception:
                 pass
             await message.answer(
-                f"✅ <b>Kết nối API sống!</b> Đã lưu cấu hình proxy <code>{endpoint}</code> và cất khóa vào Vault an toàn.",
+                f"<b>Kết nối API sống!</b> Đã lưu cấu hình proxy <code>{endpoint}</code> và cất khóa vào Vault an toàn.",
                 parse_mode="HTML"
             )
             return
@@ -2406,7 +2404,7 @@ class TelegramSurface:
         user_list_str = ", ".join(f"<code>{u}</code>" for u in users) if users else "(chưa có)"
 
         info_lines = [
-            "⚙️ <b>Cấu hình bản cài MuLon</b>",
+            "<b>Cấu hình bản cài MuLon</b>",
             f"• <b>Chủ sở hữu (Owner):</b> <code>{self.cfg.allowed_user_id}</code>",
             f"• <b>Allowlist ({len(users)} người):</b> {user_list_str}",
             f"• <b>Hệ điều hành:</b> {platform.system()} {platform.release()}",
@@ -2443,7 +2441,35 @@ class TelegramSurface:
             kwargs = {}
             if kb is not None:
                 kwargs["reply_markup"] = kb
-            await message.answer(text, parse_mode="HTML", **kwargs)
+
+            chat_id = message.chat.id
+            last_msg_id = None
+            if self.memory is not None:
+                try:
+                    raw_id = await self.memory.kv_get(f"menu_msg:{chat_id}")
+                    if raw_id:
+                        last_msg_id = int(raw_id)
+                except Exception:
+                    pass
+
+            edited = False
+            if last_msg_id and self.bot is not None:
+                try:
+                    await self.bot.edit_message_text(
+                        text, chat_id=chat_id, message_id=last_msg_id,
+                        parse_mode="HTML", **kwargs
+                    )
+                    edited = True
+                except Exception:
+                    pass
+
+            if not edited:
+                sent = await message.answer(text, parse_mode="HTML", **kwargs)
+                if self.memory is not None and sent:
+                    try:
+                        await self.memory.kv_set(f"menu_msg:{chat_id}", str(sent.message_id))
+                    except Exception:
+                        pass
 
         @dp.message(F.text.startswith("/help"))
         async def cmd_help(message: Message) -> None:
@@ -2474,7 +2500,7 @@ class TelegramSurface:
                     await message.answer(help_dict[topic], parse_mode="HTML")
                     return
                 await message.answer(
-                    f"ℹ️ Không có hướng dẫn chi tiết cho lệnh <code>/{topic}</code>. Gõ <code>/help</code> để xem danh sách lệnh chung.",
+                    f"Không có hướng dẫn chi tiết cho lệnh <code>/{topic}</code>. Gõ <code>/help</code> để xem danh sách lệnh chung.",
                     parse_mode="HTML"
                 )
                 return
@@ -2484,7 +2510,7 @@ class TelegramSurface:
         @dp.callback_query(F.data.startswith("appr:"))
         async def on_approval_button(query: CallbackQuery) -> None:
             user_id = query.from_user.id if query.from_user else 0
-            _, note = await self.handle_approval_callback(
+            ok, note = await self.handle_approval_callback(
                 query.data or "", user_id)
             try:
                 await query.answer(
@@ -2492,6 +2518,22 @@ class TelegramSurface:
                                       != self.cfg.allowed_user_id))
             except Exception:
                 pass
+            if query.message:
+                try:
+                    if not ok:
+                        await query.message.edit_reply_markup(reply_markup=None)
+                    else:
+                        parts = (query.data or "").split(":")
+                        code = parts[1] if len(parts) > 1 else ""
+                        approved = code in ("1", "2")
+                        status_str = "ĐÃ DUYỆT" if approved else "ĐÃ CHẶN"
+                        if code == "2":
+                            status_str += " (VÀ NHỚ CHO PHIÊN)"
+                        orig_text = query.message.text or ""
+                        new_text = orig_text + f"\n\n<b>[Quyết định: {status_str}]</b>"
+                        await query.message.edit_text(new_text, parse_mode="HTML", reply_markup=None)
+                except Exception:
+                    pass
 
         @dp.callback_query(F.data.startswith("idea:"))
         async def on_idea_button(query: CallbackQuery) -> None:
@@ -2520,7 +2562,7 @@ class TelegramSurface:
                     await query.answer("Đã nhận làm luôn!")
                     try:
                         orig = query.message.text or ""
-                        new_text = orig + f"\n\n🚀 <b>Đã nhận làm luôn!</b>\n• Goal #{res['goal_id']}\n• Task: <code>{res['task_id']}</code>"
+                        new_text = orig + f"\n\n<b>Đã nhận làm luôn!</b>\n• Goal #{res['goal_id']}\n• Task: <code>{res['task_id']}</code>"
                         await query.message.edit_text(new_text, parse_mode="HTML")
                     except Exception:
                         pass
@@ -2532,7 +2574,7 @@ class TelegramSurface:
                     await query.answer("Đã bỏ qua thẻ này.")
                     try:
                         orig = query.message.text or ""
-                        new_text = orig + "\n\n🗑 <i>Đã bỏ qua thẻ ý tưởng này.</i>"
+                        new_text = orig + "\n\n<i>Đã bỏ qua thẻ ý tưởng này.</i>"
                         await query.message.edit_text(new_text, parse_mode="HTML")
                     except Exception:
                         pass
@@ -2549,17 +2591,17 @@ class TelegramSurface:
             if data == "feed:like":
                 if self.memory is not None and msg:
                     try:
-                        await self.memory.add_feed_signal(msg.chat.id, msg.message_id, "❤️")
+                        await self.memory.add_feed_signal(msg.chat.id, msg.message_id, "")
                     except Exception:
                         pass
-                await query.answer("❤️ Đã ghi nhận quan tâm đề tài này!", show_alert=False)
+                await query.answer("Đã ghi nhận quan tâm đề tài này!", show_alert=False)
             elif data == "feed:discuss":
                 if not msg or not self.bot:
                     await query.answer()
                     return
                 if self.memory is not None:
                     try:
-                        await self.memory.add_feed_signal(msg.chat.id, msg.message_id, "💬")
+                        await self.memory.add_feed_signal(msg.chat.id, msg.message_id, "")
                     except Exception:
                         pass
                 chat_id = msg.chat.id
@@ -2586,7 +2628,7 @@ class TelegramSurface:
                     await self.bot.forward_message(**fwd_kwargs)
 
                     guide_text = (
-                        "💬 <b>Thảo luận bài Feed:</b>\n"
+                        "<b>Thảo luận bài Feed:</b>\n"
                         "Ní muốn đào sâu góc nhìn nào, phân tích thêm số liệu, hay biến đề tài này thành kế hoạch hành động?"
                     )
                     send_kwargs: dict[str, Any] = {
@@ -2611,9 +2653,9 @@ class TelegramSurface:
                         
                         await self.memory.get_or_create_session(main_session)
                         discuss_context = (
-                            f"📌 [BÀI VIẾT FEED VỪA CHUYỂN TIẾP ĐỂ THẢO LUẬN]:\n"
+                            f"[BÀI VIẾT FEED VỪA CHUYỂN TIẾP ĐỂ THẢO LUẬN]:\n"
                             f"{feed_content}\n\n"
-                            f"💬 Thảo luận bài Feed: Ní muốn đào sâu góc nhìn nào, phân tích thêm số liệu, hay biến đề tài này thành kế hoạch hành động?"
+                            f"Thảo luận bài Feed: Ní muốn đào sâu góc nhìn nào, phân tích thêm số liệu, hay biến đề tài này thành kế hoạch hành động?"
                         )
                         await self.memory.append_message(
                             main_session,
@@ -2625,7 +2667,7 @@ class TelegramSurface:
                     await query.answer("Đã chuyển tiếp bài sang Chat chính để thảo luận!", show_alert=False)
                 except Exception as exc:
                     logger.warning("forward bài feed sang main lỗi: %s", exc)
-                    await query.answer("💬 Hãy qua Chat chính để cùng thảo luận nhé!", show_alert=True)
+                    await query.answer("Hãy qua Chat chính để cùng thảo luận nhé!", show_alert=True)
 
         @dp.message(F.web_app_data)
         async def on_web_app_data(message: Message) -> None:
@@ -2691,7 +2733,18 @@ class TelegramSurface:
             # đóng (chạy nền, không bắt user chờ).
             if self.consolidator is not None:
                 asyncio.create_task(self._consolidate_closed(key))
-            await message.answer("Đã chốt phiên. Lượt sau bắt đầu ngữ cảnh mới.")
+            current_tid = self._current_thread_id(message)
+            extra_msg = ""
+            if current_tid and current_tid > 1 and self.bot is not None and self.sidechats is not None:
+                try:
+                    res = await self.sidechats.close_current(
+                        self.bot, self.memory, self._svc("topics"),
+                        message.chat.id, current_tid)
+                    if res.get("ok"):
+                        extra_msg = f" và đóng chat phụ '{res['record']['title']}'"
+                except Exception:
+                    pass
+            await message.answer(f"Đã chốt phiên{extra_msg}. Lượt sau bắt đầu ngữ cảnh mới.")
 
         @dp.message(F.text.startswith("/memory"))
         async def cmd_memory(message: Message) -> None:
@@ -2713,7 +2766,7 @@ class TelegramSurface:
                 subjects[subj] = subjects.get(subj, 0) + 1
 
             lines = [
-                "🧠 <b>TỔNG QUAN BỘ NHỚ & TRI THỨC</b>",
+                "<b>TỔNG QUAN BỘ NHỚ & TRI THỨC</b>",
                 f"• Tổng số dữ kiện ghi nhớ (facts): <b>{total_active}</b>",
             ]
             if subjects:
@@ -2740,7 +2793,7 @@ class TelegramSurface:
                     for ul in u_lines:
                         lines.append(f"• {html.escape(ul)}")
 
-            lines.append("\n💡 <i>Mở Mini App (Hồ sơ → Ký ức) để tìm kiếm hoặc dùng /export_memory để xuất toàn bộ tệp.</i>")
+            lines.append("\n<i>Mở Mini App (Hồ sơ → Ký ức) để tìm kiếm hoặc dùng /export_memory để xuất toàn bộ tệp.</i>")
             text = "\n".join(lines)
             for chunk in chunk_html(text):
                 await message.answer(chunk, parse_mode="HTML")
@@ -3036,7 +3089,7 @@ class TelegramSurface:
                     args_str = args_str[:desc_match.start()] + args_str[desc_match.end():]
                 title = args_str.strip()
                 if not title:
-                    await message.answer("⚠️ Cú pháp: <code>/goal create &lt;tiêu đề&gt; [--parent &lt;id&gt;] [--desc &lt;mô tả&gt;]</code>", parse_mode="HTML")
+                    await message.answer("[Lưu ý] Cú pháp: <code>/goal create &lt;tiêu đề&gt; [--parent &lt;id&gt;] [--desc &lt;mô tả&gt;]</code>", parse_mode="HTML")
                     return
                 try:
                     goal = await self.memory.create_goal(title=title, description=desc, parent_id=parent_id)
@@ -3044,22 +3097,22 @@ class TelegramSurface:
                         parent = await self.memory.get_goal(parent_id)
                         p_title = parent['title'] if parent else str(parent_id)
                         text = (
-                            f"🎯 <b>Đã tạo mục tiêu con (Subgoal) thành công!</b>\n"
+                            f"<b>Đã tạo mục tiêu con (Subgoal) thành công!</b>\n"
                             f"• Mã: <code>#{goal['id']}</code>\n"
                             f"• Tiêu đề: <b>{html.escape(goal['title'])}</b>\n"
                             f"• Trực thuộc mục tiêu cha: <b>{html.escape(p_title)}</b> (<code>#{parent_id}</code>)\n\n"
-                            f"💡 <i>Xem toàn bộ cây mục tiêu: /goals</i>"
+                            f"<i>Xem toàn bộ cây mục tiêu: /goals</i>"
                         )
                     else:
                         text = (
-                            f"🎯 <b>Đã tạo mục tiêu (Goal) thành công!</b>\n"
+                            f"<b>Đã tạo mục tiêu (Goal) thành công!</b>\n"
                             f"• Mã: <code>#{goal['id']}</code>\n"
                             f"• Tiêu đề: <b>{html.escape(goal['title'])}</b>\n\n"
-                            f"💡 <i>Xem toàn bộ cây mục tiêu: /goals</i>"
+                            f"<i>Xem toàn bộ cây mục tiêu: /goals</i>"
                         )
                     await self.bot.send_message(message.chat.id, text, parse_mode="HTML", **kwargs)
                 except ValueError as exc:
-                    await message.answer(f"❌ Không tạo được mục tiêu: {exc}")
+                    await message.answer(f"Không tạo được mục tiêu: {exc}")
                 return
 
             elif subcmd in ("close", "done"):
@@ -3070,31 +3123,31 @@ class TelegramSurface:
                         goal_id = int(p_clean)
                         break
                 if goal_id is None:
-                    await message.answer("⚠️ Cú pháp: <code>/goal close &lt;id&gt;</code>", parse_mode="HTML")
+                    await message.answer("[Lưu ý] Cú pháp: <code>/goal close &lt;id&gt;</code>", parse_mode="HTML")
                     return
                 target_goal = await self.memory.get_goal(goal_id)
                 if not target_goal:
-                    await message.answer(f"❌ Không tìm thấy mục tiêu #{goal_id}")
+                    await message.answer(f"Không tìm thấy mục tiêu #{goal_id}")
                     return
                 parent_id = target_goal.get("parent_id")
                 closed = await self.memory.close_goal(goal_id)
                 if closed is None:
-                    await message.answer(f"ℹ️ Mục tiêu #{goal_id} đã ở trạng thái hoàn thành từ trước.")
+                    await message.answer(f"Mục tiêu #{goal_id} đã ở trạng thái hoàn thành từ trước.")
                     return
                 if parent_id:
                     parent_detail = await self.memory.get_goal_detail(parent_id)
                     prog_label = parent_detail["progress"]["progress_label"] if parent_detail else "đã cập nhật"
                     text = (
-                        f"🎯 <b>Đã hoàn thành mục tiêu con (Subgoal) #{goal_id}!</b>\n"
+                        f"<b>Đã hoàn thành mục tiêu con (Subgoal) #{goal_id}!</b>\n"
                         f"• Tiêu đề: <b>{html.escape(target_goal['title'])}</b>\n"
                         f"• Tiến độ mục tiêu cha (#{parent_id}): <b>{html.escape(prog_label)}</b>\n\n"
-                        f"💡 <i>Xem toàn bộ cây mục tiêu: /goals</i>"
+                        f"<i>Xem toàn bộ cây mục tiêu: /goals</i>"
                     )
                 else:
                     text = (
-                        f"🎯 <b>Đã hoàn thành mục tiêu #{goal_id}!</b>\n"
+                        f"<b>Đã hoàn thành mục tiêu #{goal_id}!</b>\n"
                         f"• Tiêu đề: <b>{html.escape(target_goal['title'])}</b>\n\n"
-                        f"💡 <i>Xem toàn bộ cây mục tiêu: /goals</i>"
+                        f"<i>Xem toàn bộ cây mục tiêu: /goals</i>"
                     )
                 await self.bot.send_message(message.chat.id, text, parse_mode="HTML", **kwargs)
                 return
@@ -3107,7 +3160,7 @@ class TelegramSurface:
                         goal_id = int(p_clean)
                         break
                 if goal_id is None:
-                    await message.answer("⚠️ Cú pháp: <code>/goal update &lt;id&gt; [--title ...] [--desc ...] [--state ...]</code>", parse_mode="HTML")
+                    await message.answer("[Lưu ý] Cú pháp: <code>/goal update &lt;id&gt; [--title ...] [--desc ...] [--state ...]</code>", parse_mode="HTML")
                     return
                 args_str = raw_text[raw_text.find(str(goal_id)) + len(str(goal_id)):].strip()
                 new_title = None
@@ -3129,11 +3182,11 @@ class TelegramSurface:
                         goal_id=goal_id, title=new_title, description=new_desc, current_state=new_state
                     )
                     if updated is None:
-                        await message.answer(f"❌ Không tìm thấy goal #{goal_id}")
+                        await message.answer(f"Không tìm thấy goal #{goal_id}")
                         return
-                    await message.answer(f"✅ Đã cập nhật mục tiêu #{goal_id}: <b>{html.escape(updated['title'])}</b>", parse_mode="HTML")
+                    await message.answer(f"Đã cập nhật mục tiêu #{goal_id}: <b>{html.escape(updated['title'])}</b>", parse_mode="HTML")
                 except ValueError as exc:
-                    await message.answer(f"❌ Lỗi cập nhật mục tiêu: {exc}")
+                    await message.answer(f"Lỗi cập nhật mục tiêu: {exc}")
                 return
 
             elif subcmd in ("briefing", "letter"):
@@ -3144,23 +3197,23 @@ class TelegramSurface:
                         goal_id = int(p_clean)
                         break
                 if goal_id is None:
-                    await message.answer("⚠️ Cú pháp: <code>/goal briefing &lt;id&gt;</code>", parse_mode="HTML")
+                    await message.answer("[Lưu ý] Cú pháp: <code>/goal briefing &lt;id&gt;</code>", parse_mode="HTML")
                     return
                 from .goal_briefing import GoalBriefingService
                 svc = GoalBriefingService(self.cfg, self.memory, getattr(self, "gateway", None))
                 try:
                     briefing = await svc.generate_briefing(goal_id)
-                    text = f"📬 <b>THƯ BRIEFING MỤC TIÊU #{goal_id}</b>\n\n{html.escape(briefing['letter_body'])}"
+                    text = f"<b>THƯ BRIEFING MỤC TIÊU #{goal_id}</b>\n\n{html.escape(briefing['letter_body'])}"
                     await self.bot.send_message(message.chat.id, text, parse_mode="HTML", **kwargs)
                 except Exception as exc:
-                    await message.answer(f"❌ Lỗi tạo thư briefing: {exc}")
+                    await message.answer(f"Lỗi tạo thư briefing: {exc}")
                 return
 
             # Mặc định: Hiển thị cây Goal phân cấp kèm subgoals và tiến triển thật
             from .planning import ensure_seed_goals
             await ensure_seed_goals(self.memory)
             tree = await self.memory.get_goal_tree()
-            lines = ["🎯 <b>Mục tiêu đang theo dõi (Goals)</b>\n"]
+            lines = ["<b>Mục tiêu đang theo dõi (Goals)</b>\n"]
             if not tree:
                 lines.append("<i>Chưa có mục tiêu nào. Tạo bằng: /goal create &lt;tiêu đề&gt;</i>")
             for g in tree:
@@ -3174,8 +3227,8 @@ class TelegramSurface:
 
                 lines.append(
                     f"▫️ <b>{html.escape(g['title'])}</b> (#{g['id']} · <i>{cat} / {kind}</i>)\n"
-                    f"   📊 <b>Tiến triển:</b> <code>{html.escape(prog_label)}</code> · <i>{st_icon}</i>\n"
-                    f"   📍 <b>Trạng thái:</b> <i>{html.escape(curr)}</i>"
+                    f"   <b>Tiến triển:</b> <code>{html.escape(prog_label)}</code> · <i>{st_icon}</i>\n"
+                    f"   <b>Trạng thái:</b> <i>{html.escape(curr)}</i>"
                 )
 
                 subgoals = g.get("subgoals") or []
@@ -3191,10 +3244,10 @@ class TelegramSurface:
                 briefings = g.get("briefings") or []
                 if briefings:
                     b = briefings[0]
-                    lines.append(f"   📬 <i>Thư briefing #{b['id']}: {html.escape(b.get('progress_summary', '')[:80])}...</i>")
+                    lines.append(f"   <i>Thư briefing #{b['id']}: {html.escape(b.get('progress_summary', '')[:80])}...</i>")
                 lines.append("")
 
-            lines.append("💡 <i>Lệnh: /goal create &lt;tiêu đề&gt; [--parent &lt;id&gt;], /goal update &lt;id&gt;, /goal close &lt;id&gt;, /goal briefing &lt;id&gt;</i>")
+            lines.append("<i>Lệnh: /goal create &lt;tiêu đề&gt; [--parent &lt;id&gt;], /goal update &lt;id&gt;, /goal close &lt;id&gt;, /goal briefing &lt;id&gt;</i>")
             text = "\n".join(lines)
             await self.bot.send_message(message.chat.id, text, parse_mode="HTML", **kwargs)
             if thread != getattr(message, "message_thread_id", None):
@@ -3301,7 +3354,7 @@ class TelegramSurface:
                 max_bytes = getattr(self.cfg, "telegram_max_file_size_bytes", 52428800)
                 if p.stat().st_size > max_bytes:
                     await message.answer(
-                        f"⚠️ Tệp #{item['id']} ({p.stat().st_size / (1024*1024):.1f} MB) vượt quá giới hạn "
+                        f"[Lưu ý] Tệp #{item['id']} ({p.stat().st_size / (1024*1024):.1f} MB) vượt quá giới hạn "
                         f"{max_bytes // (1024*1024)}MB của Telegram Bot API. "
                         f"Tệp đang nằm tại: <code>{html.escape(str(p))}</code>.",
                         parse_mode="HTML"
@@ -3321,7 +3374,7 @@ class TelegramSurface:
                     else:
                         await message.answer_document(document=FSInputFile(str(p)), caption=caption)
                 except Exception as e:
-                    await message.answer(f"⚠️ Lỗi khi gửi tệp #{target_id} qua Telegram: {e}")
+                    await message.answer(f"[Lưu ý] Lỗi khi gửi tệp #{target_id} qua Telegram: {e}")
                 return
 
             # 2. Nếu người dùng gõ /library <từ khóa>, tìm kiếm bằng ngôn ngữ tự nhiên
@@ -3331,12 +3384,12 @@ class TelegramSurface:
                 from .library import format_library_list
                 if not results:
                     await message.answer(
-                        f"🔍 Không tìm thấy tệp nào trong Thư viện khớp với: <i>{html.escape(query)}</i>",
+                        f"Không tìm thấy tệp nào trong Thư viện khớp với: <i>{html.escape(query)}</i>",
                         parse_mode="HTML"
                     )
                 else:
                     await message.answer(
-                        format_library_list(results, title=f"🔍 <b>Kết quả tìm kiếm Thư viện cho '{html.escape(query)}' ({len(results)} mục):</b>\n"),
+                        format_library_list(results, title=f"<b>Kết quả tìm kiếm Thư viện cho '{html.escape(query)}' ({len(results)} mục):</b>\n"),
                         parse_mode="HTML"
                     )
                 return
@@ -3360,7 +3413,7 @@ class TelegramSurface:
                 media_group = [
                     InputMediaPhoto(
                         media=FSInputFile(it["path"]),
-                        caption=(f"🖼️ Thư viện ảnh Mulon ({len(image_items)} ảnh) • #{it['id']} {it['name']}"
+                        caption=(f"Thư viện ảnh Mulon ({len(image_items)} ảnh) • #{it['id']} {it['name']}"
                                  if idx == 0 else f"#{it['id']} {it['name']}")
                     )
                     for idx, it in enumerate(recent)
@@ -3374,7 +3427,7 @@ class TelegramSurface:
                 try:
                     await message.answer_photo(
                         photo=FSInputFile(it["path"]),
-                        caption=f"🖼️ #{it['id']} {it['name']}"
+                        caption=f"#{it['id']} {it['name']}"
                     )
                 except Exception as e:
                     logger.warning("Gửi ảnh đơn thất bại: %s", e)
@@ -3384,7 +3437,7 @@ class TelegramSurface:
             direct_url = webapp_direct_link(self.cfg, self._bot_username(), "panel")
             if direct_url:
                 kb = InlineKeyboardMarkup(inline_keyboard=[[
-                    InlineKeyboardButton(text="🖼️ Mở Bảng điều khiển (Mini App)", url=direct_url)
+                    InlineKeyboardButton(text="Mở Bảng điều khiển (Mini App)", url=direct_url)
                 ]])
 
             await message.answer(format_library_list(items), parse_mode="HTML", reply_markup=kb)
@@ -3474,7 +3527,7 @@ class TelegramSurface:
         async def cmd_restart(message: Message) -> None:
             if not self._is_allowed(message):
                 return
-            await message.answer("🔄 <b>Đang khởi động lại bot Mulon...</b>", parse_mode="HTML")
+            await message.answer("<b>Đang khởi động lại bot Mulon...</b>", parse_mode="HTML")
             if self.memory is not None:
                 try:
                     import json
@@ -3515,14 +3568,14 @@ class TelegramSurface:
             if not args:
                 session_line = f"• <b>Phiên này:</b> <code>{session_model}</code> (ghi đè riêng)\n" if session_model else f"• <b>Phiên này:</b> Dùng theo hệ thống (<code>{brain}</code>)\n"
                 await message.answer(
-                    "🤖 <b>CẤU HÌNH MODEL AI</b>\n\n"
+                    "<b>CẤU HÌNH MODEL AI</b>\n\n"
                     "<b>Các tầng model hệ thống (3 tiers):</b>\n"
-                    f"• 🧠 <b>Brain (chính):</b> <code>{brain}</code>\n"
-                    f"• ⚡ <b>Cheap (nhẹ/tóm tắt):</b> <code>{cheap}</code>\n"
-                    f"• 🚀 <b>Escalated (phức tạp/bế tắc):</b> <code>{escalated}</code>\n\n"
+                    f"• <b>Brain (chính):</b> <code>{brain}</code>\n"
+                    f"• <b>Cheap (nhẹ/tóm tắt):</b> <code>{cheap}</code>\n"
+                    f"• <b>Escalated (phức tạp/bế tắc):</b> <code>{escalated}</code>\n\n"
                     "<b>Model hiệu lực:</b>\n"
                     f"{session_line}\n"
-                    "👉 <b>Cú pháp đổi model:</b>\n"
+                    "• <b>Cú pháp đổi model:</b>\n"
                     "• <code>/model &lt;tên_model&gt;</code>: Đổi model Brain toàn cục\n"
                     "• <code>/model session &lt;tên_model&gt;</code>: Đổi model chỉ cho riêng phiên/topic này\n"
                     "• <code>/model tier &lt;brain|cheap|escalated&gt; &lt;tên_model&gt;</code>: Đổi tầng model cụ thể\n"
@@ -3546,7 +3599,7 @@ class TelegramSurface:
                     except Exception:
                         pass
                 await message.answer(
-                    f"🔄 <b>Đã xóa ghi đè model phiên này.</b>\nPhiên quay về dùng model mặc định: <code>{brain}</code>",
+                    f"<b>Đã xóa ghi đè model phiên này.</b>\nPhiên quay về dùng model mặc định: <code>{brain}</code>",
                     parse_mode="HTML"
                 )
                 return
@@ -3562,7 +3615,7 @@ class TelegramSurface:
                     except Exception as exc:
                         logger.warning("Lưu session model lỗi: %s", exc)
                 await message.answer(
-                    f"✅ <b>Đã đổi model cho riêng phiên này:</b> <code>{target_model}</code>\n"
+                    f"<b>Đã đổi model cho riêng phiên này:</b> <code>{target_model}</code>\n"
                     f"(Các phiên khác vẫn dùng cấu hình mặc định. Dùng <code>/model reset</code> để hủy)",
                     parse_mode="HTML"
                 )
@@ -3598,7 +3651,7 @@ class TelegramSurface:
                 except Exception:
                     pass
                 await message.answer(
-                    f"✅ Đã cập nhật tầng <b>{tier_name.capitalize()}</b>: <code>{target_model}</code> (trước đó: <code>{old_val}</code>)",
+                    f"Đã cập nhật tầng <b>{tier_name.capitalize()}</b>: <code>{target_model}</code> (trước đó: <code>{old_val}</code>)",
                     parse_mode="HTML"
                 )
                 return
@@ -3621,7 +3674,7 @@ class TelegramSurface:
             except Exception:
                 pass
             await message.answer(
-                f"✅ Đã chuyển model Brain sang: <code>{target_model}</code> (trước đó: <code>{old_model}</code>)",
+                f"Đã chuyển model Brain sang: <code>{target_model}</code> (trước đó: <code>{old_model}</code>)",
                 parse_mode="HTML"
             )
 
@@ -3637,7 +3690,7 @@ class TelegramSurface:
             )
             if not is_dev:
                 await message.answer(
-                    "⚠️ Lệnh dev thử nghiệm (<code>/the_duyet</code>) đang tắt ở bản chạy thật. "
+                    "[Lưu ý] Lệnh dev thử nghiệm (<code>/the_duyet</code>) đang tắt ở bản chạy thật. "
                     "Bật ENABLE_DEV_COMMANDS=1 hoặc MULON_DEV_MODE=1 nếu muốn thử.",
                     parse_mode="HTML"
                 )
@@ -3705,15 +3758,15 @@ class TelegramSurface:
             auth_url = await self._get_google_auth_url()
             if not auth_url:
                 await message.answer(
-                    "⚠️ Không thể tạo link xác thực Google lúc này. Ní hãy kiểm tra xem server <code>google-workspace</code> trong MCP đã bật chưa nhé.",
+                    "[Lưu ý] Không thể tạo link xác thực Google lúc này. Ní hãy kiểm tra xem server <code>google-workspace</code> trong MCP đã bật chưa nhé.",
                     parse_mode="HTML"
                 )
                 return
             await message.answer(
-                "🔗 <b>XÁC THỰC GOOGLE WORKSPACE CHO MULON</b>\n\n"
-                "👉 <b>Bấm vào link đăng nhập Google dưới đây:</b>\n"
-                f"🔗 <a href=\"{auth_url}\"><b>BẤM VÀO ĐÂY ĐỂ ĐĂNG NHẬP GOOGLE</b></a>\n\n"
-                "✨ <b>Cách thức hoạt động:</b>\n"
+                "<b>XÁC THỰC GOOGLE WORKSPACE CHO MULON</b>\n\n"
+                "• <b>Bấm vào link đăng nhập Google dưới đây:</b>\n"
+                f"<a href=\"{auth_url}\"><b>BẤM VÀO ĐÂY ĐỂ ĐĂNG NHẬP GOOGLE</b></a>\n\n"
+                "<b>Cách thức hoạt động:</b>\n"
                 "• Đăng nhập tài khoản Google và bấm <b>Cho phép (Allow)</b>.\n"
                 "• Trình duyệt (trên điện thoại hay máy Mac) sẽ tự động chuyển hướng qua Cloudflare và hoàn tất kích hoạt 100% tự động.\n"
                 "• <i>(Dự phòng):</i> Nếu trình duyệt không tự chuyển hướng, ní chỉ cần copy toàn bộ link trên thanh địa chỉ rồi dán gửi vào đây nha!",
@@ -3729,24 +3782,24 @@ class TelegramSurface:
             connectors = self.surfaces.get("connectors") if self.surfaces else None
             conn = await connectors.get("zalo_personal") if connectors else None
             if not conn:
-                await message.answer("⚠️ Connector Zalo cá nhân chưa sẵn sàng hoặc chưa nạp.")
+                await message.answer("[Lưu ý] Connector Zalo cá nhân chưa sẵn sàng hoặc chưa nạp.")
                 return
 
             if arg == "disconnect":
                 res = await conn.call("disconnect", {})
-                await message.answer("✅ Đã ngắt kết nối và xoá phiên Zalo cá nhân khỏi Kho an toàn.")
+                await message.answer("Đã ngắt kết nối và xoá phiên Zalo cá nhân khỏi Kho an toàn.")
                 return
 
             if arg == "qr":
                 res = await conn.call("qr_login", {"step": "start"})
                 if not res.get("ok"):
-                    await message.answer(f"⚠️ Không thể khởi tạo đăng nhập QR Zalo: {res.get('error')}")
+                    await message.answer(f"[Lưu ý] Không thể khởi tạo đăng nhập QR Zalo: {res.get('error')}")
                     return
                 qr_path = res.get("qr_path")
                 msg_out = (
-                    "📱 <b>ĐĂNG NHẬP ZALO CÁ NHÂN (QR CODE)</b>\n\n"
-                    "👉 Ní hãy dùng app Zalo trên điện thoại quét mã QR để đăng nhập.\n"
-                    f"ℹ️ <i>{res.get('limitations', '')}</i>"
+                    "<b>ĐĂNG NHẬP ZALO CÁ NHÂN (QR CODE)</b>\n\n"
+                    "• Ní hãy dùng app Zalo trên điện thoại quét mã QR để đăng nhập.\n"
+                    f"<i>{res.get('limitations', '')}</i>"
                 )
                 if qr_path and os.path.exists(qr_path):
                     from aiogram.types import FSInputFile
@@ -3761,19 +3814,19 @@ class TelegramSurface:
                 user = health.get("user") or {}
                 uid = user.get("id") or "chưa rõ"
                 await message.answer(
-                    f"✅ <b>ZALO CÁ NHÂN ĐÃ KẾT NỐI</b>\n"
+                    f"<b>ZALO CÁ NHÂN ĐÃ KẾT NỐI</b>\n"
                     f"• User ID: <code>{uid}</code>\n"
                     f"• Trạng thái: Sẵn sàng gửi/nhận tin nhắn và tệp.\n\n"
-                    f"ℹ️ <i>{health.get('limitations', '')}</i>\n"
-                    f"👉 Để ngắt kết nối: <code>/zalo disconnect</code>",
+                    f"<i>{health.get('limitations', '')}</i>\n"
+                    f"• Để ngắt kết nối: <code>/zalo disconnect</code>",
                     parse_mode="HTML"
                 )
             else:
                 await message.answer(
-                    "⚠️ <b>ZALO CÁ NHÂN CHƯA KẾT NỐI</b>\n\n"
+                    "<b>ZALO CÁ NHÂN CHƯA KẾT NỐI</b>\n\n"
                     f"• Chi tiết: {health.get('detail', 'Chưa đăng nhập')}\n"
-                    f"ℹ️ <i>{health.get('limitations', '')}</i>\n\n"
-                    "👉 Gõ <code>/zalo qr</code> để bắt đầu quét mã QR đăng nhập.",
+                    f"<i>{health.get('limitations', '')}</i>\n\n"
+                    "• Gõ <code>/zalo qr</code> để bắt đầu quét mã QR đăng nhập.",
                     parse_mode="HTML"
                 )
 
@@ -3785,28 +3838,28 @@ class TelegramSurface:
             connectors = self.surfaces.get("connectors") if self.surfaces else None
             conn = await connectors.get("telegram_personal") if connectors else None
             if not conn:
-                await message.answer("⚠️ Connector Telegram cá nhân chưa sẵn sàng hoặc chưa nạp.")
+                await message.answer("[Lưu ý] Connector Telegram cá nhân chưa sẵn sàng hoặc chưa nạp.")
                 return
 
             if arg == "disconnect":
                 res = await conn.call("disconnect", {})
-                await message.answer("✅ Đã ngắt kết nối và xoá phiên Telegram cá nhân khỏi Kho an toàn.")
+                await message.answer("Đã ngắt kết nối và xoá phiên Telegram cá nhân khỏi Kho an toàn.")
                 return
 
             if arg == "qr":
                 res = await conn.call("qr_login", {"step": "start"})
                 if not res.get("ok"):
-                    await message.answer(f"⚠️ Không thể khởi tạo đăng nhập QR Telegram: {res.get('error')}")
+                    await message.answer(f"[Lưu ý] Không thể khởi tạo đăng nhập QR Telegram: {res.get('error')}")
                     return
                 qr_url = res.get("qr_url", "")
                 await message.answer(
-                    "📱 <b>ĐĂNG NHẬP TELEGRAM CÁ NHÂN (MTProto)</b>\n\n"
-                    f"👉 Link đăng nhập thiết bị: <code>{qr_url}</code>\n\n"
-                    "✨ <b>Cách quét mã trên điện thoại:</b>\n"
+                    "<b>ĐĂNG NHẬP TELEGRAM CÁ NHÂN (MTProto)</b>\n\n"
+                    f"• Link đăng nhập thiết bị: <code>{qr_url}</code>\n\n"
+                    "<b>Cách quét mã trên điện thoại:</b>\n"
                     "1. Mở app Telegram -> Cài đặt (Settings)\n"
                     "2. Thiết bị (Devices) -> Quét mã QR (Link Desktop Device)\n\n"
-                    f"⚠️ <i>{res.get('warning', '')}</i>\n"
-                    "👉 Sau khi quét xong, gõ <code>/telethon status</code> để kiểm tra.",
+                    f"<i>{res.get('warning', '')}</i>\n"
+                    "• Sau khi quét xong, gõ <code>/telethon status</code> để kiểm tra.",
                     parse_mode="HTML"
                 )
                 return
@@ -3817,19 +3870,19 @@ class TelegramSurface:
                 user = health.get("user") or {}
                 uname = f"@{user.get('username')}" if user.get('username') else str(user.get('id', ''))
                 await message.answer(
-                    f"✅ <b>TELEGRAM CÁ NHÂN ĐÃ KẾT NỐI</b>\n"
+                    f"<b>TELEGRAM CÁ NHÂN ĐÃ KẾT NỐI</b>\n"
                     f"• Tài khoản: <b>{uname}</b>\n"
                     f"• Trạng thái: Sẵn sàng đọc/gửi tin nhắn qua kênh MTProto độc lập.\n\n"
-                    f"⚠️ <i>{health.get('warning', '')}</i>\n"
-                    f"👉 Để ngắt kết nối: <code>/telethon disconnect</code>",
+                    f"<i>{health.get('warning', '')}</i>\n"
+                    f"• Để ngắt kết nối: <code>/telethon disconnect</code>",
                     parse_mode="HTML"
                 )
             else:
                 await message.answer(
-                    "⚠️ <b>TELEGRAM CÁ NHÂN CHƯA KẾT NỐI</b>\n\n"
+                    "<b>TELEGRAM CÁ NHÂN CHƯA KẾT NỐI</b>\n\n"
                     f"• Chi tiết: {health.get('detail', 'Chưa đăng nhập')}\n"
-                    f"⚠️ <i>{health.get('warning', '')}</i>\n\n"
-                    "👉 Gõ <code>/telethon qr</code> để lấy link/mã QR kết nối.",
+                    f"<i>{health.get('warning', '')}</i>\n\n"
+                    "• Gõ <code>/telethon qr</code> để lấy link/mã QR kết nối.",
                     parse_mode="HTML"
                 )
 
@@ -3845,20 +3898,20 @@ class TelegramSurface:
             connectors = self.surfaces.get("connectors") if self.surfaces else None
             conn = await connectors.get("facebook_personal") if connectors else None
             if not conn:
-                await message.answer("⚠️ Connector Facebook cá nhân chưa sẵn sàng hoặc chưa nạp.")
+                await message.answer("[Lưu ý] Connector Facebook cá nhân chưa sẵn sàng hoặc chưa nạp.")
                 return
 
             if subcmd == "disconnect":
                 await conn.call("disconnect", {})
-                await message.answer("✅ Đã ngắt kết nối và xoá phiên cookie Facebook cá nhân khỏi Kho an toàn.")
+                await message.answer("Đã ngắt kết nối và xoá phiên cookie Facebook cá nhân khỏi Kho an toàn.")
                 return
 
             if subcmd == "connect":
                 if not subarg:
                     await message.answer(
-                        "ℹ️ <b>HƯỚNG DẪN KẾT NỐI FACEBOOK CÁ NHÂN</b>\n\n"
+                        "<b>HƯỚNG DẪN KẾT NỐI FACEBOOK CÁ NHÂN</b>\n\n"
                         "Cú pháp: <code>/facebook connect c_user=...; xs=...;</code>\n\n"
-                        "⚠️ <b>LƯU Ý BẢO MẬT & RỦI RO CAO:</b>\n"
+                        "<b>LƯU Ý BẢO MẬT & RỦI RO CAO:</b>\n"
                         "• Meta không hỗ trợ API chính thức cho tài khoản cá nhân.\n"
                         "• Phiên web cookies chỉ nên trích xuất từ chính trình duyệt đang dùng trên máy này (cùng IP mạng).\n"
                         "• Khuyến nghị chỉ dùng tài khoản thử nghiệm / phụ.\n"
@@ -3868,16 +3921,16 @@ class TelegramSurface:
                     return
                 res = await conn.call("configure", {"cookies": subarg})
                 if not res.get("ok"):
-                    await message.answer(f"⚠️ Kết nối Facebook thất bại: {res.get('error')}")
+                    await message.answer(f"[Lưu ý] Kết nối Facebook thất bại: {res.get('error')}")
                     return
                 uid = res.get("user", {}).get("id") or "Đã ghi nhận"
                 await message.answer(
-                    f"✅ <b>ĐÃ CẤU HÌNH PHIÊN FACEBOOK CÁ NHÂN</b>\n"
+                    f"<b>ĐÃ CẤU HÌNH PHIÊN FACEBOOK CÁ NHÂN</b>\n"
                     f"• UID: <code>{uid}</code>\n"
                     f"• Session cookies đã lưu an toàn trong Kho bảo mật (Vault).\n\n"
-                    f"⚠️ <i>{res.get('warning', '')}</i>\n"
-                    f"👉 Để kiểm tra: <code>/facebook status</code>\n"
-                    f"👉 Để ngắt kết nối: <code>/facebook disconnect</code>",
+                    f"<i>{res.get('warning', '')}</i>\n"
+                    f"• Để kiểm tra: <code>/facebook status</code>\n"
+                    f"• Để ngắt kết nối: <code>/facebook disconnect</code>",
                     parse_mode="HTML"
                 )
                 return
@@ -3885,13 +3938,13 @@ class TelegramSurface:
             if subcmd in ("groups", "list_groups"):
                 res = await conn.call("list_groups", {"all": True})
                 if not res.get("ok"):
-                    await message.answer(f"⚠️ Không đọc được danh sách nhóm: {res.get('error')}")
+                    await message.answer(f"[Lưu ý] Không đọc được danh sách nhóm: {res.get('error')}")
                     return
                 groups = res.get("groups") or []
                 if not groups:
-                    await message.answer("👥 Chưa có nhóm Facebook nào trong danh sách.")
+                    await message.answer("Chưa có nhóm Facebook nào trong danh sách.")
                     return
-                lines = [f"👥 <b>DANH SÁCH NHÓM FACEBOOK ĐÃ THAM GIA ({len(groups)} nhóm):</b>\n"]
+                lines = [f"<b>DANH SÁCH NHÓM FACEBOOK ĐÃ THAM GIA ({len(groups)} nhóm):</b>\n"]
                 for g in groups[:10]:
                     gid = g.get("id", "")
                     gname = g.get("name", gid)
@@ -3903,13 +3956,13 @@ class TelegramSurface:
             if subcmd in ("feed", "read_feed"):
                 res = await conn.call("read_feed", {})
                 if not res.get("ok"):
-                    await message.answer(f"⚠️ Không đọc được Bảng tin: {res.get('error')}")
+                    await message.answer(f"[Lưu ý] Không đọc được Bảng tin: {res.get('error')}")
                     return
                 posts = res.get("posts") or []
                 if not posts:
-                    await message.answer("📰 Bảng tin Facebook hiện đang trống.")
+                    await message.answer("Bảng tin Facebook hiện đang trống.")
                     return
-                lines = [f"📰 <b>BẢNG TIN FACEBOOK ({len(posts)} bài viết):</b>\n"]
+                lines = [f"<b>BẢNG TIN FACEBOOK ({len(posts)} bài viết):</b>\n"]
                 for p in posts[:5]:
                     author = p.get("author", "Facebook User")
                     content = p.get("raw_text") or p.get("content") or ""
@@ -3923,29 +3976,29 @@ class TelegramSurface:
             warning_txt = health.get("warning", "")
             if health.get("checkpoint_detected"):
                 await message.answer(
-                    "🚨 <b>PHÁT HIỆN CHECKPOINT FACEBOOK</b>\n\n"
+                    "[Cảnh báo] <b>PHÁT HIỆN CHECKPOINT FACEBOOK</b>\n\n"
                     f"• Chi tiết: {health.get('detail')}\n"
                     "• Checkpoint Guard đã tự động ngắt kết nối để bảo vệ tài khoản khỏi bị spam request.\n"
-                    "👉 Hãy mở trình duyệt và đăng nhập Facebook để hoàn tất xác minh nếu cần, sau đó cập nhật lại cookie hoặc gõ <code>/facebook disconnect</code>.",
+                    "• Hãy mở trình duyệt và đăng nhập Facebook để hoàn tất xác minh nếu cần, sau đó cập nhật lại cookie hoặc gõ <code>/facebook disconnect</code>.",
                     parse_mode="HTML"
                 )
             elif health.get("connected"):
                 user = health.get("user") or {}
                 uname = user.get("name") or str(user.get("id", ""))
                 await message.answer(
-                    f"✅ <b>FACEBOOK CÁ NHÂN ĐÃ KẾT NỐI</b>\n"
+                    f"<b>FACEBOOK CÁ NHÂN ĐÃ KẾT NỐI</b>\n"
                     f"• Tài khoản: <b>{uname}</b>\n"
                     f"• Trạng thái: Sẵn sàng đọc trang cá nhân, bảng tin, bạn bè và Messenger.\n\n"
-                    f"⚠️ <i>{warning_txt}</i>\n\n"
-                    f"👉 Để ngắt kết nối: <code>/facebook disconnect</code>",
+                    f"<i>{warning_txt}</i>\n\n"
+                    f"• Để ngắt kết nối: <code>/facebook disconnect</code>",
                     parse_mode="HTML"
                 )
             else:
                 await message.answer(
-                    "⚠️ <b>FACEBOOK CÁ NHÂN CHƯA KẾT NỐI</b>\n\n"
+                    "<b>FACEBOOK CÁ NHÂN CHƯA KẾT NỐI</b>\n\n"
                     f"• Chi tiết: {health.get('detail', 'Chưa có cookie')}\n\n"
-                    f"⚠️ <b>CẢNH BÁO:</b> <i>{warning_txt}</i>\n\n"
-                    "👉 Gõ <code>/facebook connect &lt;cookies&gt;</code> để kết nối.",
+                    f"<b>CẢNH BÁO:</b> <i>{warning_txt}</i>\n\n"
+                    "• Gõ <code>/facebook connect &lt;cookies&gt;</code> để kết nối.",
                     parse_mode="HTML"
                 )
 
@@ -3961,20 +4014,20 @@ class TelegramSurface:
             connectors = self.surfaces.get("connectors") if self.surfaces else None
             conn = await connectors.get("instagram_messages") if connectors else None
             if not conn:
-                await message.answer("⚠️ Connector Tin nhắn Instagram chưa sẵn sàng hoặc chưa nạp.")
+                await message.answer("[Lưu ý] Connector Tin nhắn Instagram chưa sẵn sàng hoặc chưa nạp.")
                 return
 
             if subcmd == "disconnect":
                 await conn.call("disconnect", {})
-                await message.answer("✅ Đã ngắt kết nối và xoá phiên Tin nhắn Instagram khỏi Kho an toàn.")
+                await message.answer("Đã ngắt kết nối và xoá phiên Tin nhắn Instagram khỏi Kho an toàn.")
                 return
 
             if subcmd == "connect":
                 if not subarg:
                     await message.answer(
-                        "ℹ️ <b>HƯỚNG DẪN KẾT NỐI TIN NHẮN INSTAGRAM</b>\n\n"
+                        "<b>HƯỚNG DẪN KẾT NỐI TIN NHẮN INSTAGRAM</b>\n\n"
                         "Cú pháp: <code>/instagram connect sessionid=...; ds_user_id=...;</code>\n\n"
-                        "⚠️ <b>LƯU Ý BẢO MẬT:</b>\n"
+                        "<b>LƯU Ý BẢO MẬT:</b>\n"
                         "• Phiên cookie/token được lưu an toàn qua Kho bảo mật (Vault).\n"
                         "• Giữ tần suất gửi tin nhắn ở mức bình thường để tránh bị Meta hạn chế tài khoản.",
                         parse_mode="HTML"
@@ -3982,16 +4035,16 @@ class TelegramSurface:
                     return
                 res = await conn.call("configure", {"cookies": subarg})
                 if not res.get("ok"):
-                    await message.answer(f"⚠️ Kết nối thất bại: {res.get('error')}")
+                    await message.answer(f"[Lưu ý] Kết nối thất bại: {res.get('error')}")
                     return
                 user_name = res.get("user", {}).get("username") or "Đã ghi nhận"
                 await message.answer(
-                    f"✅ <b>ĐÃ CẤU HÌNH TIN NHẮN INSTAGRAM</b>\n"
+                    f"<b>ĐÃ CẤU HÌNH TIN NHẮN INSTAGRAM</b>\n"
                     f"• Người dùng: <code>{user_name}</code>\n"
                     f"• Phiên đã được lưu an toàn trong Kho bảo mật (Vault).\n\n"
-                    f"👉 Để kiểm tra: <code>/instagram status</code>\n"
-                    f"👉 Xem hộp thư: <code>/instagram inbox</code>\n"
-                    f"👉 Ngắt kết nối: <code>/instagram disconnect</code>",
+                    f"• Để kiểm tra: <code>/instagram status</code>\n"
+                    f"• Xem hộp thư: <code>/instagram inbox</code>\n"
+                    f"• Ngắt kết nối: <code>/instagram disconnect</code>",
                     parse_mode="HTML"
                 )
                 return
@@ -4000,13 +4053,13 @@ class TelegramSurface:
                 folder = subarg.lower() if subarg in ("pending", "spam") else "inbox"
                 res = await conn.call("read_inbox", {"folder": folder})
                 if not res.get("ok"):
-                    await message.answer(f"⚠️ Không đọc được hộp thư: {res.get('error')}")
+                    await message.answer(f"[Lưu ý] Không đọc được hộp thư: {res.get('error')}")
                     return
                 threads = res.get("threads") or []
                 if not threads:
-                    await message.answer(f"📬 Hộp thư Instagram ({folder}) hiện đang trống.")
+                    await message.answer(f"Hộp thư Instagram ({folder}) hiện đang trống.")
                     return
-                lines = [f"📬 <b>HỘP THƯ INSTAGRAM ({folder.upper()})</b> ({len(threads)} hội thoại):\n"]
+                lines = [f"<b>HỘP THƯ INSTAGRAM ({folder.upper()})</b> ({len(threads)} hội thoại):\n"]
                 for t in threads[:5]:
                     tid = t.get("thread_id", "")
                     title = t.get("title") or t.get("participant") or tid
@@ -4019,28 +4072,28 @@ class TelegramSurface:
             health = await conn.health_check()
             if health.get("checkpoint_detected"):
                 await message.answer(
-                    "🚨 <b>PHÁT HIỆN CHECKPOINT INSTAGRAM</b>\n\n"
+                    "[Cảnh báo] <b>PHÁT HIỆN CHECKPOINT INSTAGRAM</b>\n\n"
                     f"• Chi tiết: {health.get('detail')}\n"
                     "• Checkpoint Guard đã tự ngắt kết nối an toàn để bảo vệ tài khoản.\n"
-                    "👉 Hãy đăng nhập Instagram trên trình duyệt để xác minh, sau đó kết nối lại.",
+                    "• Hãy đăng nhập Instagram trên trình duyệt để xác minh, sau đó kết nối lại.",
                     parse_mode="HTML"
                 )
             elif health.get("connected"):
                 user = health.get("user") or {}
                 uname = user.get("username") or str(user.get("id", ""))
                 await message.answer(
-                    f"✅ <b>TIN NHẮN INSTAGRAM ĐÃ KẾT NỐI</b>\n"
+                    f"<b>TIN NHẮN INSTAGRAM ĐÃ KẾT NỐI</b>\n"
                     f"• Tài khoản: <b>{uname}</b>\n"
                     f"• Trạng thái: Sẵn sàng đọc hộp thư, tìm kiếm tin nhắn, gửi tin và thả reaction.\n\n"
-                    f"👉 Xem hộp thư: <code>/instagram inbox</code>\n"
-                    f"👉 Ngắt kết nối: <code>/instagram disconnect</code>",
+                    f"• Xem hộp thư: <code>/instagram inbox</code>\n"
+                    f"• Ngắt kết nối: <code>/instagram disconnect</code>",
                     parse_mode="HTML"
                 )
             else:
                 await message.answer(
-                    "⚠️ <b>TIN NHẮN INSTAGRAM CHƯA KẾT NỐI</b>\n\n"
+                    "<b>TIN NHẮN INSTAGRAM CHƯA KẾT NỐI</b>\n\n"
                     f"• Chi tiết: {health.get('detail', 'Chưa có phiên')}\n\n"
-                    "👉 Gõ <code>/instagram connect &lt;cookies&gt;</code> để kết nối.",
+                    "• Gõ <code>/instagram connect &lt;cookies&gt;</code> để kết nối.",
                     parse_mode="HTML"
                 )
 
@@ -4056,20 +4109,20 @@ class TelegramSurface:
             connectors = self.surfaces.get("connectors") if self.surfaces else None
             conn = await connectors.get("threads_messages") if connectors else None
             if not conn:
-                await message.answer("⚠️ Connector Tin nhắn Threads chưa sẵn sàng hoặc chưa nạp.")
+                await message.answer("[Lưu ý] Connector Tin nhắn Threads chưa sẵn sàng hoặc chưa nạp.")
                 return
 
             if subcmd == "disconnect":
                 await conn.call("disconnect", {})
-                await message.answer("✅ Đã ngắt kết nối và xoá phiên Tin nhắn Threads khỏi Kho an toàn.")
+                await message.answer("Đã ngắt kết nối và xoá phiên Tin nhắn Threads khỏi Kho an toàn.")
                 return
 
             if subcmd == "connect":
                 if not subarg:
                     await message.answer(
-                        "ℹ️ <b>HƯỚNG DẪN KẾT NỐI TIN NHẮN THREADS</b>\n\n"
+                        "<b>HƯỚNG DẪN KẾT NỐI TIN NHẮN THREADS</b>\n\n"
                         "Cú pháp: <code>/threads connect sessionid=...; ds_user_id=...;</code>\n\n"
-                        "⚠️ <b>GIỚI HẠN CỨNG BẮT BUỘC:</b>\n"
+                        "<b>GIỚI HẠN CỨNG BẮT BUỘC:</b>\n"
                         "• Threads chỉ cho phép gửi tin nhắn tới người ĐÃ có hội thoại từ trước.\n"
                         "• Tuyệt đối KHÔNG mở DM mới tới người lạ chỉ bằng @handle.\n"
                         "• Phiên cookie được lưu an toàn trong Kho bảo mật (Vault).",
@@ -4078,17 +4131,17 @@ class TelegramSurface:
                     return
                 res = await conn.call("configure", {"cookies": subarg})
                 if not res.get("ok"):
-                    await message.answer(f"⚠️ Kết nối thất bại: {res.get('error')}")
+                    await message.answer(f"[Lưu ý] Kết nối thất bại: {res.get('error')}")
                     return
                 user_name = res.get("user", {}).get("username") or "Đã ghi nhận"
                 await message.answer(
-                    f"✅ <b>ĐÃ CẤU HÌNH TIN NHẮN THREADS</b>\n"
+                    f"<b>ĐÃ CẤU HÌNH TIN NHẮN THREADS</b>\n"
                     f"• Người dùng: <code>{user_name}</code>\n"
                     f"• Phiên đã được lưu an toàn trong Kho bảo mật (Vault).\n\n"
-                    f"⚠️ <i>Lưu ý: Chỉ nhắn được người đã có hội thoại từ trước.</i>\n\n"
-                    f"👉 Để kiểm tra: <code>/threads status</code>\n"
-                    f"👉 Xem hộp thư: <code>/threads inbox</code>\n"
-                    f"👉 Ngắt kết nối: <code>/threads disconnect</code>",
+                    f"<i>Lưu ý: Chỉ nhắn được người đã có hội thoại từ trước.</i>\n\n"
+                    f"• Để kiểm tra: <code>/threads status</code>\n"
+                    f"• Xem hộp thư: <code>/threads inbox</code>\n"
+                    f"• Ngắt kết nối: <code>/threads disconnect</code>",
                     parse_mode="HTML"
                 )
                 return
@@ -4097,13 +4150,13 @@ class TelegramSurface:
                 folder = subarg.lower() if subarg == "pending" else "inbox"
                 res = await conn.call("read_inbox", {"folder": folder})
                 if not res.get("ok"):
-                    await message.answer(f"⚠️ Không đọc được hộp thư: {res.get('error')}")
+                    await message.answer(f"[Lưu ý] Không đọc được hộp thư: {res.get('error')}")
                     return
                 threads = res.get("threads") or []
                 if not threads:
-                    await message.answer(f"📬 Hộp thư Threads ({folder}) hiện đang trống.")
+                    await message.answer(f"Hộp thư Threads ({folder}) hiện đang trống.")
                     return
-                lines = [f"📬 <b>HỘP THƯ THREADS ({folder.upper()})</b> ({len(threads)} hội thoại):\n"]
+                lines = [f"<b>HỘP THƯ THREADS ({folder.upper()})</b> ({len(threads)} hội thoại):\n"]
                 for t in threads[:5]:
                     tid = t.get("thread_id", "")
                     title = t.get("title") or t.get("participant") or tid
@@ -4115,17 +4168,17 @@ class TelegramSurface:
             if subcmd in ("posts", "list_posts"):
                 p_conn = await connectors.get("threads_personal") if connectors else None
                 if not p_conn:
-                    await message.answer("⚠️ Connector Threads cá nhân (nội dung) chưa sẵn sàng.")
+                    await message.answer("[Lưu ý] Connector Threads cá nhân (nội dung) chưa sẵn sàng.")
                     return
                 res = await p_conn.call("list_posts", {})
                 if not res.get("ok"):
-                    await message.answer(f"⚠️ Không đọc được bài viết: {res.get('error')}")
+                    await message.answer(f"[Lưu ý] Không đọc được bài viết: {res.get('error')}")
                     return
                 posts = res.get("posts") or []
                 if not posts:
-                    await message.answer("🧵 Chưa có bài viết Threads nào.")
+                    await message.answer("Chưa có bài viết Threads nào.")
                     return
-                lines = [f"🧵 <b>BÀI ĐĂNG THREADS ({len(posts)} bài):</b>\n"]
+                lines = [f"<b>BÀI ĐĂNG THREADS ({len(posts)} bài):</b>\n"]
                 for p in posts[:5]:
                     pid = p.get("id", "")
                     content = p.get("raw_text") or p.get("text") or ""
@@ -4139,30 +4192,30 @@ class TelegramSurface:
             limitations_txt = health.get("limitations", "")
             if health.get("checkpoint_detected"):
                 await message.answer(
-                    "🚨 <b>PHÁT HIỆN CHECKPOINT THREADS</b>\n\n"
+                    "[Cảnh báo] <b>PHÁT HIỆN CHECKPOINT THREADS</b>\n\n"
                     f"• Chi tiết: {health.get('detail')}\n"
                     "• Checkpoint Guard đã tự ngắt kết nối an toàn để bảo vệ tài khoản.\n"
-                    "👉 Hãy đăng nhập Threads trên trình duyệt để xác minh, sau đó kết nối lại.",
+                    "• Hãy đăng nhập Threads trên trình duyệt để xác minh, sau đó kết nối lại.",
                     parse_mode="HTML"
                 )
             elif health.get("connected"):
                 user = health.get("user") or {}
                 uname = user.get("username") or str(user.get("id", ""))
                 await message.answer(
-                    f"✅ <b>TIN NHẮN THREADS ĐÃ KẾT NỐI</b>\n"
+                    f"<b>TIN NHẮN THREADS ĐÃ KẾT NỐI</b>\n"
                     f"• Tài khoản: <b>{uname}</b>\n"
                     f"• Trạng thái: Sẵn sàng đọc hộp thư, đọc tin nhắn và gửi tin (hội thoại có sẵn).\n\n"
-                    f"⚠️ <b>GIỚI HẠN:</b> <i>{limitations_txt}</i>\n\n"
-                    f"👉 Xem hộp thư: <code>/threads inbox</code>\n"
-                    f"👉 Ngắt kết nối: <code>/threads disconnect</code>",
+                    f"<b>GIỚI HẠN:</b> <i>{limitations_txt}</i>\n\n"
+                    f"• Xem hộp thư: <code>/threads inbox</code>\n"
+                    f"• Ngắt kết nối: <code>/threads disconnect</code>",
                     parse_mode="HTML"
                 )
             else:
                 await message.answer(
-                    "⚠️ <b>TIN NHẮN THREADS CHƯA KẾT NỐI</b>\n\n"
+                    "<b>TIN NHẮN THREADS CHƯA KẾT NỐI</b>\n\n"
                     f"• Chi tiết: {health.get('detail', 'Chưa có phiên')}\n\n"
-                    f"⚠️ <b>LƯU Ý:</b> <i>{limitations_txt}</i>\n\n"
-                    "👉 Gõ <code>/threads connect &lt;cookies&gt;</code> để kết nối.",
+                    f"<b>LƯU Ý:</b> <i>{limitations_txt}</i>\n\n"
+                    "• Gõ <code>/threads connect &lt;cookies&gt;</code> để kết nối.",
                     parse_mode="HTML"
                 )
 
@@ -4179,13 +4232,13 @@ class TelegramSurface:
             if arg in ("drive", "files") and gdrive:
                 res = await gdrive.call("list_files", {"page_size": 5})
                 if not res.get("ok"):
-                    await message.answer(f"⚠️ Không đọc được Google Drive: {res.get('error')}")
+                    await message.answer(f"[Lưu ý] Không đọc được Google Drive: {res.get('error')}")
                     return
                 files = res.get("files") or []
                 if not files:
-                    await message.answer("📁 Google Drive của ní chưa có tập tin nào.")
+                    await message.answer("Google Drive của ní chưa có tập tin nào.")
                     return
-                lines = [f"📁 <b>TẬP TIN GOOGLE DRIVE ({len(files)} tệp gần nhất):</b>\n"]
+                lines = [f"<b>TẬP TIN GOOGLE DRIVE ({len(files)} tệp gần nhất):</b>\n"]
                 for f in files:
                     fid = f.get("id", "")
                     name = f.get("raw_name") or f.get("name") or fid
@@ -4200,14 +4253,14 @@ class TelegramSurface:
             health_cal = await gcal.health_check() if gcal else {"ok": False, "detail": "Chưa nạp"}
             email = health_drive.get("email") or health_mail.get("email") or "Chưa kết nối"
             await message.answer(
-                f"🌐 <b>TRẠNG THÁI GOOGLE WORKSPACE</b>\n\n"
+                f"<b>TRẠNG THÁI GOOGLE WORKSPACE</b>\n\n"
                 f"• Tài khoản: <b>{email}</b>\n"
-                f"• Gmail: {'✅ Sẵn sàng' if health_mail.get('ok') else '⚠️ ' + health_mail.get('detail', '')}\n"
-                f"• Google Calendar: {'✅ Sẵn sàng' if health_cal.get('ok') else '⚠️ ' + health_cal.get('detail', '')}\n"
-                f"• Google Drive: {'✅ Sẵn sàng' if health_drive.get('ok') else '⚠️ ' + health_drive.get('detail', '')}\n"
-                f"• Google Docs & Sheets: {'✅ Sẵn sàng' if health_drive.get('ok') else '⚠️ Chưa kết nối'}\n\n"
-                f"👉 Để xác thực/kết nối lại: <code>/google_auth</code>\n"
-                f"👉 Xem file Drive: <code>/google drive</code>",
+                f"• Gmail: {'Sẵn sàng' if health_mail.get('ok') else '[Lưu ý] ' + health_mail.get('detail', '')}\n"
+                f"• Google Calendar: {'Sẵn sàng' if health_cal.get('ok') else '[Lưu ý] ' + health_cal.get('detail', '')}\n"
+                f"• Google Drive: {'Sẵn sàng' if health_drive.get('ok') else '[Lưu ý] ' + health_drive.get('detail', '')}\n"
+                f"• Google Docs & Sheets: {'Sẵn sàng' if health_drive.get('ok') else 'Chưa kết nối'}\n\n"
+                f"• Để xác thực/kết nối lại: <code>/google_auth</code>\n"
+                f"• Xem file Drive: <code>/google drive</code>",
                 parse_mode="HTML"
             )
 
@@ -4219,19 +4272,19 @@ class TelegramSurface:
             connectors = self.surfaces.get("connectors") if self.surfaces else None
             conn = await connectors.get("facebook_page") if connectors else None
             if not conn:
-                await message.answer("⚠️ Connector Facebook Page chưa sẵn sàng.")
+                await message.answer("[Lưu ý] Connector Facebook Page chưa sẵn sàng.")
                 return
 
             if arg in ("feed", "posts"):
                 res = await conn.call("read_page_feed", {"limit": 5})
                 if not res.get("ok"):
-                    await message.answer(f"⚠️ Không đọc được Bảng tin Fanpage: {res.get('error')}")
+                    await message.answer(f"[Lưu ý] Không đọc được Bảng tin Fanpage: {res.get('error')}")
                     return
                 posts = res.get("posts") or []
                 if not posts:
-                    await message.answer("📄 Fanpage chưa có bài đăng nào gần đây.")
+                    await message.answer("Fanpage chưa có bài đăng nào gần đây.")
                     return
-                lines = [f"📄 <b>BÀI ĐĂNG GẦN NHẤT TRÊN FANPAGE:</b>\n"]
+                lines = [f"<b>BÀI ĐĂNG GẦN NHẤT TRÊN FANPAGE:</b>\n"]
                 for p in posts[:5]:
                     pid = p.get("id", "")
                     msg = p.get("raw_message") or p.get("message") or "(Bài đăng kèm ảnh/video)"
@@ -4243,17 +4296,17 @@ class TelegramSurface:
             health = await conn.health_check()
             if health.get("connected"):
                 await message.answer(
-                    f"✅ <b>FACEBOOK FANPAGE ĐÃ KẾT NỐI</b>\n\n"
+                    f"<b>FACEBOOK FANPAGE ĐÃ KẾT NỐI</b>\n\n"
                     f"• Fanpage: <b>{health.get('page_name', '')}</b> (<code>{health.get('page_id', '')}</code>)\n"
                     f"• Trạng thái: Sẵn sàng đọc bảng tin, insights và đăng bài/trả lời bình luận.\n\n"
-                    f"👉 Xem bài đăng: <code>/fbpage feed</code>",
+                    f"• Xem bài đăng: <code>/fbpage feed</code>",
                     parse_mode="HTML"
                 )
             else:
                 await message.answer(
-                    f"⚠️ <b>FACEBOOK FANPAGE CHƯA CẤU HÌNH</b>\n\n"
+                    f"<b>FACEBOOK FANPAGE CHƯA CẤU HÌNH</b>\n\n"
                     f"• Chi tiết: {health.get('detail')}\n\n"
-                    f"👉 Nhập Page Token & Page ID vào Mini App hoặc Vault để kích hoạt.",
+                    f"• Nhập Page Token & Page ID vào Mini App hoặc Vault để kích hoạt.",
                     parse_mode="HTML"
                 )
 
@@ -4265,43 +4318,43 @@ class TelegramSurface:
             connectors = self.surfaces.get("connectors") if self.surfaces else None
             conn = await connectors.get("tiktok") if connectors else None
             if not conn:
-                await message.answer("⚠️ Connector TikTok chưa sẵn sàng.")
+                await message.answer("[Lưu ý] Connector TikTok chưa sẵn sàng.")
                 return
 
             if arg in ("videos", "list"):
                 res = await conn.call("list_videos", {"max_count": 5})
                 if not res.get("ok"):
-                    await message.answer(f"⚠️ Không đọc được danh sách video TikTok: {res.get('error')}")
+                    await message.answer(f"[Lưu ý] Không đọc được danh sách video TikTok: {res.get('error')}")
                     return
                 videos = res.get("videos") or []
                 if not videos:
-                    await message.answer("🎵 Tài khoản TikTok chưa có video nào.")
+                    await message.answer("Tài khoản TikTok chưa có video nào.")
                     return
-                lines = [f"🎵 <b>DANH SÁCH VIDEO TIKTOK ({len(videos)} video gần nhất):</b>\n"]
+                lines = [f"<b>DANH SÁCH VIDEO TIKTOK ({len(videos)} video gần nhất):</b>\n"]
                 for v in videos:
                     vid = v.get("id", "")
                     title = v.get("raw_title") or v.get("title") or "Video TikTok"
                     views = v.get("view_count", 0)
                     likes = v.get("like_count", 0)
-                    lines.append(f"• <b>{html.escape(title)}</b> (<code>{vid}</code>) - <i>👁️ {views} | ❤️ {likes}</i>")
+                    lines.append(f"• <b>{html.escape(title)}</b> (<code>{vid}</code>) - <i>Lượt xem: {views} | {likes}</i>")
                 await message.answer("\n".join(lines), parse_mode="HTML")
                 return
 
             health = await conn.health_check()
             if health.get("connected"):
                 await message.answer(
-                    f"✅ <b>TIKTOK ĐÃ KẾT NỐI</b>\n\n"
+                    f"<b>TIKTOK ĐÃ KẾT NỐI</b>\n\n"
                     f"• Nhà sáng tạo: <b>{health.get('display_name', '')}</b> (<code>{health.get('open_id', '')}</code>)\n"
                     f"• Trạng thái: Sẵn sàng xem thông tin, video và xuất bản nội dung.\n\n"
-                    f"⚠️ <i>Lưu ý: {health.get('limitations', '')}</i>\n\n"
-                    f"👉 Xem video: <code>/tiktok videos</code>",
+                    f"<i>Lưu ý: {health.get('limitations', '')}</i>\n\n"
+                    f"• Xem video: <code>/tiktok videos</code>",
                     parse_mode="HTML"
                 )
             else:
                 await message.answer(
-                    f"⚠️ <b>TIKTOK CHƯA CẤU HÌNH</b>\n\n"
+                    f"<b>TIKTOK CHƯA CẤU HÌNH</b>\n\n"
                     f"• Chi tiết: {health.get('detail')}\n\n"
-                    f"👉 Nhập Access Token & Open ID vào Mini App hoặc Vault để kích hoạt.",
+                    f"• Nhập Access Token & Open ID vào Mini App hoặc Vault để kích hoạt.",
                     parse_mode="HTML"
                 )
 
@@ -4371,7 +4424,7 @@ class TelegramSurface:
 
             is_img = any(name.endswith(ext) for ext in (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"))
             if is_img:
-                await self._post_media_to_library("photo", FSInputFile(str(local)), f"🖼️ [Thư viện] {doc.file_name or local.name}", chat_id=message.chat.id)
+                await self._post_media_to_library("photo", FSInputFile(str(local)), f"[Thư viện] {doc.file_name or 'Ảnh tải lên'}", chat_id=message.chat.id)
                 item_str = f" • Thư viện #{item['id']}" if item else ""
                 text = f"[Người dùng gửi kèm ảnh: {local}{item_str}]\n{caption}".strip() if caption else f"[Người dùng gửi kèm ảnh: {local}{item_str}]"
             else:
@@ -4390,7 +4443,7 @@ class TelegramSurface:
                     except Exception as exc:
                         logger.warning("import ký ức từ file lỗi: %s", exc)
 
-                await self._post_media_to_library("document", FSInputFile(str(local)), f"📄 [Thư viện] {doc.file_name or local.name}", chat_id=message.chat.id)
+                await self._post_media_to_library("document", FSInputFile(str(local)), f"[Thư viện] {doc.file_name or 'Tài liệu'}", chat_id=message.chat.id)
                 from .library import kind_of
                 kind = kind_of(local)
                 item_str = f" • Thư viện #{item['id']}" if item else ""
@@ -4485,7 +4538,7 @@ class TelegramSurface:
                 await message.answer("Chưa khởi tạo bộ nhớ.")
                 return
             from .planning import internal_kind
-            lines = ["📅 <b>Danh sách Sắp tới (Upcoming)</b>\n"]
+            lines = ["<b>Danh sách Sắp tới (Upcoming)</b>\n"]
             # Schedules
             try:
                 scheds = await self.memory.list_schedules()
@@ -4500,7 +4553,7 @@ class TelegramSurface:
                 pass
 
             # Heartbeat
-            lines.append("💓 <b>Heartbeat:</b> 30 phút một lần (quét chủ động) · <i>Chỉ xem</i>")
+            lines.append("<b>Heartbeat:</b> 30 phút một lần (quét chủ động) · <i>Chỉ xem</i>")
             # Feed
             try:
                 from .feed_auto import cron_times_label, DEFAULT_CRON
@@ -4512,17 +4565,17 @@ class TelegramSurface:
                 elif hasattr(self.cfg, "feed_auto_cron") and self.cfg.feed_auto_cron:
                     feed_cron = self.cfg.feed_auto_cron
                 feed_lbl = cron_times_label(feed_cron) or feed_cron
-                lines.append(f"📰 <b>Feed chủ động:</b> {feed_lbl} (2 bài/ngày) · <i>Chỉ xem</i>")
+                lines.append(f"<b>Feed chủ động:</b> {feed_lbl} (2 bài/ngày) · <i>Chỉ xem</i>")
             except Exception:
                 from .feed_auto import cron_times_label, DEFAULT_CRON
                 feed_lbl = cron_times_label(DEFAULT_CRON) or DEFAULT_CRON
-                lines.append(f"📰 <b>Feed chủ động:</b> {feed_lbl} (2 bài/ngày) · <i>Chỉ xem</i>")
+                lines.append(f"<b>Feed chủ động:</b> {feed_lbl} (2 bài/ngày) · <i>Chỉ xem</i>")
 
             # Tracked items
             try:
                 tracked = await self.memory.list_tracked_items(status="open")
                 if tracked:
-                    lines.append("\n📌 <b>Cam kết đang theo dõi:</b>")
+                    lines.append("\n<b>Cam kết đang theo dõi:</b>")
                     for t in tracked:
                         due = t.get("due_at") or "Đang theo dõi"
                         lines.append(f"  • <b>{t['title']}</b> (Hạn: {due})")
@@ -4530,7 +4583,7 @@ class TelegramSurface:
             except Exception:
                 pass
 
-            lines.append("\n💡 <i>Mục có nhãn 'Sửa/huỷ qua chat' bạn có thể ra lệnh trực tiếp trong hội thoại để điều chỉnh.</i>")
+            lines.append("\n<i>Mục có nhãn 'Sửa/huỷ qua chat' bạn có thể ra lệnh trực tiếp trong hội thoại để điều chỉnh.</i>")
             await message.answer("\n".join(lines), parse_mode="HTML")
 
         @dp.message(F.text.startswith("/cancel") | F.text.startswith("/stop"))
@@ -4698,10 +4751,12 @@ class TelegramSurface:
                         item = await library.index_file(local_path, source="user_upload", caption=caption)
                     except Exception as exc:
                         logger.warning("lập chỉ mục ảnh vào thư viện lỗi: %s", exc)
+                item_str = f" #{item['id']}" if item else ""
+                clean_lbl = caption if caption else f"[Thư viện] Ảnh tải lên{item_str}"
                 await self._post_media_to_library(
                     "photo",
                     FSInputFile(str(local_path)),
-                    f"📥 [Thư viện] {local_path.name}" + (f"\n{caption}" if caption else ""),
+                    clean_lbl,
                     chat_id=message.chat.id,
                 )
                 item_str = f" • Thư viện #{item['id']}" if item else ""
@@ -4751,10 +4806,12 @@ class TelegramSurface:
                         item = await library.index_file(local_path, source="user_upload", caption=caption)
                     except Exception as exc:
                         logger.warning("lập chỉ mục video vào thư viện lỗi: %s", exc)
+                item_str = f" #{item['id']}" if item else ""
+                clean_lbl = caption if caption else f"[Thư viện] {vid.file_name or f'Video tải lên{item_str}'}"
                 await self._post_media_to_library(
                     "video",
                     FSInputFile(str(local_path)),
-                    f"🎥 [Thư viện] {local_path.name}" + (f"\n{caption}" if caption else ""),
+                    clean_lbl,
                     chat_id=message.chat.id,
                 )
                 item_str = f" • Thư viện #{item['id']}" if item else ""
@@ -4802,10 +4859,12 @@ class TelegramSurface:
                         item = await library.index_file(local_path, source="user_upload", caption=caption)
                     except Exception as exc:
                         logger.warning("lập chỉ mục audio vào thư viện lỗi: %s", exc)
+                item_str = f" #{item['id']}" if item else ""
+                clean_lbl = caption if caption else f"[Thư viện] {aud.file_name or f'Âm thanh tải lên{item_str}'}"
                 await self._post_media_to_library(
                     "audio",
                     FSInputFile(str(local_path)),
-                    f"🎵 [Thư viện] {local_path.name}" + (f"\n{caption}" if caption else ""),
+                    clean_lbl,
                     chat_id=message.chat.id,
                 )
                 item_str = f" • Thư viện #{item['id']}" if item else ""
@@ -4840,26 +4899,26 @@ class TelegramSurface:
             cfg_on = "Bật (1)" if report["config_enabled"] else "Tắt (0) — đặt TELEGRAM_BUSINESS_ENABLED=1 để bật"
             conn_info = report.get("connection_info")
             if conn_info and conn_info.get("is_enabled"):
-                conn_status = f"✅ Đang kết nối (ID: <code>{conn_info.get('connection_id')}</code>)"
-                reply_perm = "Có quyền gửi thay nick chủ" if conn_info.get("can_reply") else "⚠️ Thiếu quyền can_reply"
+                conn_status = f"Đang kết nối (ID: <code>{conn_info.get('connection_id')}</code>)"
+                reply_perm = "Có quyền gửi thay nick chủ" if conn_info.get("can_reply") else "[Lưu ý] Thiếu quyền can_reply"
             else:
-                conn_status = "❌ Chưa kết nối (hoặc đã ngắt)"
+                conn_status = "Chưa kết nối (hoặc đã ngắt)"
                 reply_perm = "Vào Cài đặt Telegram → Telegram Business → Chatbots để kết nối"
 
             stats = report.get("stats", {})
             lines = [
-                "💼 <b>BÁO CÁO TELEGRAM BUSINESS CHATBOT (T-29)</b>",
+                "<b>BÁO CÁO TELEGRAM BUSINESS CHATBOT (T-29)</b>",
                 f"• Cấu hình hệ thống: <b>{cfg_on}</b>",
                 f"• Trạng thái kết nối: {conn_status}",
                 f"• Quyền trả lời: <i>{reply_perm}</i>",
                 "",
-                "📊 <b>Thống kê hoạt động:</b>",
+                "<b>Thống kê hoạt động:</b>",
                 f"• Tự động trả lời (Auto-reply): <b>{stats.get('auto_replies', 0)}</b>",
                 f"• Bản nháp cần duyệt (Drafts): <b>{stats.get('drafts_created', 0)}</b> (Đã duyệt: {stats.get('drafts_approved', 0)} · Từ chối: {stats.get('drafts_denied', 0)})",
                 f"• Sản phẩm trong catalog: <b>{report.get('products_count', 0)}</b> món (cấm bịa giá)",
                 f"• FAQ giải đáp sẵn: <b>{report.get('faq_count', 0)}</b> chủ đề",
                 "",
-                "🛡️ <i>Nguyên tắc an toàn: STK ngân hàng & giảm giá luôn soạn nháp chờ chủ duyệt, tuyệt đối không tự gửi.</i>",
+                "<i>Nguyên tắc an toàn: STK ngân hàng & giảm giá luôn soạn nháp chờ chủ duyệt, tuyệt đối không tự gửi.</i>",
             ]
             await message.answer("\n".join(lines), parse_mode="HTML")
 
@@ -4971,7 +5030,7 @@ class TelegramSurface:
                 if cid:
                     kws = {
                         "chat_id": cid,
-                        "text": f"✅ <b>Bot Mulon đã khởi động lại thành công và sẵn sàng phục vụ!</b>\n<i>({reason})</i>",
+                        "text": f"<b>Bot Mulon đã khởi động lại thành công và sẵn sàng phục vụ!</b>\n<i>({reason})</i>",
                         "parse_mode": "HTML",
                     }
                     if tid:

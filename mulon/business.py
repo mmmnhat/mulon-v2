@@ -298,7 +298,7 @@ class TelegramBusinessService:
             try:
                 await self.bot.send_message(
                     self.cfg.allowed_user_id,
-                    f"⚠️ <b>Telegram Business đã bị ngắt kết nối!</b>\n"
+                    f"<b>Telegram Business đã bị ngắt kết nối!</b>\n"
                     f"Connection ID: <code>{_html.escape(conn_id)}</code>\n"
                     f"Bot đã tự động dừng trả lời tin nhắn của khách.",
                     parse_mode="HTML",
@@ -415,9 +415,9 @@ class TelegramBusinessService:
             holder = b_info.get("account_holder", "")
             return (
                 f"Dạ để thanh toán đơn hàng, {c_name} có thể chuyển khoản giúp shop qua thông tin này nha ạ:\n"
-                f"🏦 Ngân hàng: {bank_name}\n"
-                f"💳 Số tài khoản: {stk}\n"
-                f"👤 Chủ tài khoản: {holder}\n"
+                f"• Ngân hàng: {bank_name}\n"
+                f"• Số tài khoản: {stk}\n"
+                f"• Chủ tài khoản: {holder}\n"
                 f"Nội dung chuyển khoản: [Tên KH] + [Sản phẩm]\n\n"
                 f"Sau khi chuyển xong, {c_name} chụp màn hình gửi em để em kiểm tra và ship hàng ngay nhé ạ!"
             )
@@ -592,11 +592,11 @@ class TelegramBusinessService:
         if self.bot is not None and owner_id:
             try:
                 card_text = (
-                    f"💬 <b>[Telegram Business] Cần duyệt tin nhắn trả lời khách hàng</b>\n\n"
-                    f"👤 <b>Khách hàng:</b> {_html.escape(customer_name or 'Khách')} (<code>{customer_chat_id}</code>)\n"
-                    f"❓ <b>Khách hỏi:</b> <i>{_html.escape(customer_text)}</i>\n"
-                    f"📌 <b>Lý do cần duyệt:</b> {reason}\n\n"
-                    f"📝 <b>Bản thảo trả lời:</b>\n"
+                    f"<b>[Telegram Business] Cần duyệt tin nhắn trả lời khách hàng</b>\n\n"
+                    f"• <b>Khách hàng:</b> {_html.escape(customer_name or 'Khách')} (<code>{customer_chat_id}</code>)\n"
+                    f"• <b>Khách hỏi:</b> <i>{_html.escape(customer_text)}</i>\n"
+                    f"• <b>Lý do cần duyệt:</b> {reason}\n\n"
+                    f"• <b>Bản thảo trả lời:</b>\n"
                     f"<blockquote>{_html.escape(draft_text)}</blockquote>\n\n"
                     f"<i>Bấm Cho phép để bot gửi thay nick của bạn, hoặc Từ chối để im lặng.</i>"
                 )
@@ -605,8 +605,8 @@ class TelegramBusinessService:
                 keyboard = InlineKeyboardMarkup(
                     inline_keyboard=[
                         [
-                            InlineKeyboardButton(text="✅ Gửi tin này", callback_data=f"appr:{approval_id}:yes"),
-                            InlineKeyboardButton(text="❌ Từ chối", callback_data=f"appr:{approval_id}:no"),
+                            InlineKeyboardButton(text="Gửi tin này", callback_data=f"appr:{approval_id}:yes"),
+                            InlineKeyboardButton(text="Từ chối", callback_data=f"appr:{approval_id}:no"),
                         ]
                     ]
                 )
@@ -655,7 +655,7 @@ class TelegramBusinessService:
                     if owner_id:
                         await self.bot.send_message(
                             owner_id,
-                            f"✅ <b>Đã gửi tin nhắn cho khách {_html.escape(customer_name or str(customer_chat_id))} thành công!</b>",
+                            f"<b>Đã gửi tin nhắn cho khách {_html.escape(customer_name or str(customer_chat_id))} thành công!</b>",
                             parse_mode="HTML",
                         )
                 except Exception as exc:
@@ -663,7 +663,7 @@ class TelegramBusinessService:
                     if owner_id:
                         await self.bot.send_message(
                             owner_id,
-                            f"❌ <b>Gửi tin cho khách thất bại:</b> {_html.escape(str(exc))}",
+                            f"<b>Gửi tin cho khách thất bại:</b> {_html.escape(str(exc))}",
                             parse_mode="HTML",
                         )
         else:

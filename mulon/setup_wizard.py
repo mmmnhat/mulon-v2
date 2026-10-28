@@ -86,7 +86,7 @@ def run_setup(
                 if val:
                     bot_token = val
                     break
-                print("   ⚠️ Token không được để trống!")
+                print("   [Lưu ý] Token không được để trống!")
 
         # 2. Telegram Owner ID
         if owner_id is None:
@@ -95,7 +95,7 @@ def run_setup(
                 try:
                     owner_id = int(raw_id)
                 except ValueError:
-                    print("   ⚠️ User ID không hợp lệ, sẽ dùng chế độ ghép nối /setup sau.")
+                    print("   [Lưu ý] User ID không hợp lệ, sẽ dùng chế độ ghép nối /setup sau.")
                     owner_id = 0
             else:
                 owner_id = 0
@@ -147,19 +147,19 @@ def run_setup(
         tok = get_or_create_claim_token(claim_file)
         if not non_interactive:
             print("\n------------------------------------------------------------------")
-            print(f"🔑 Mã Claim Token của bản cài: {tok}")
+            print(f"Mã Claim Token của bản cài: {tok}")
             print("   Khi khởi động bot, hãy gửi lệnh sau từ Telegram để nhận quyền chủ bot:")
             print(f"   /setup {tok}")
             print("------------------------------------------------------------------")
 
     if not non_interactive:
-        print("\n✅ Thiết lập cấu hình thành công!")
+        print("\n✓ Thiết lập cấu hình thành công!")
         print(f"• File .env: {env_file}")
         print(f"• Thư mục dữ liệu: {paths['data_dir']}")
         print(f"• Chủ sở hữu: {final_owner_id if final_owner_id > 0 else '(chưa đặt — ghép nối qua bot)'}")
-        print("\n🚀 Lệnh khởi động bot:")
+        print("\nLệnh khởi động bot:")
         print("   python -m mulon.main")
-        print("⚙️ Cài đặt chạy ngầm tự khởi động cùng máy:")
+        print("Cài đặt chạy ngầm tự khởi động cùng máy:")
         print("   python -m mulon.service install\n")
 
     return True

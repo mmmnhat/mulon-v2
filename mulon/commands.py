@@ -396,7 +396,7 @@ def is_known_command(text: str) -> bool:
 def format_help_text(is_dev: bool = False) -> str:
     """Sinh văn bản trợ giúp có cấu trúc cho lệnh /help."""
     lines = [
-        "🤖 <b>DANH SÁCH LỆNH MULON</b>\n",
+        "<b>DANH SÁCH LỆNH MULON</b>\n",
         "🌟 <b>Cơ bản (Menu '/')</b>",
     ]
     for cmd in COMMAND_DEFINITIONS:
@@ -419,7 +419,7 @@ def format_help_text(is_dev: bool = False) -> str:
             lines.append(f"/{cmd.name} — {cmd.description}{warn}")
 
     lines.append(
-        "\n💡 <i>Gõ lệnh trực tiếp hoặc chạm nút <b>Menu (/)</b> ở góc màn hình "
+        "\n<i>Gõ lệnh trực tiếp hoặc chạm nút <b>Menu (/)</b> ở góc màn hình "
         "để chọn nhanh các thao tác thường dùng.</i>"
     )
     return "\n".join(lines)

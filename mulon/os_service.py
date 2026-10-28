@@ -120,35 +120,35 @@ class LaunchdManager:
             subprocess.run(["launchctl", "unload", str(self.bot_plist)], capture_output=True)
             res = subprocess.run(["launchctl", "load", "-w", str(self.bot_plist)], capture_output=True, text=True)
             if res.returncode == 0:
-                print(f"✅ Đã cài đặt dịch vụ launchd: com.mulon.bot -> {self.bot_plist}")
+                print(f"✓ Đã cài đặt dịch vụ launchd: com.mulon.bot -> {self.bot_plist}")
             else:
-                print(f"⚠️ Lỗi nạp com.mulon.bot: {res.stderr.strip()}")
+                print(f"[Lưu ý] Lỗi nạp com.mulon.bot: {res.stderr.strip()}")
 
         if service in ("autowatch", "all"):
             self.autowatch_plist.write_text(self._render_autowatch_plist(), encoding="utf-8")
             subprocess.run(["launchctl", "unload", str(self.autowatch_plist)], capture_output=True)
             res = subprocess.run(["launchctl", "load", "-w", str(self.autowatch_plist)], capture_output=True, text=True)
             if res.returncode == 0:
-                print(f"✅ Đã cài đặt dịch vụ launchd: com.mulon.autowatch -> {self.autowatch_plist}")
+                print(f"✓ Đã cài đặt dịch vụ launchd: com.mulon.autowatch -> {self.autowatch_plist}")
             else:
-                print(f"⚠️ Lỗi nạp com.mulon.autowatch: {res.stderr.strip()}")
+                print(f"[Lưu ý] Lỗi nạp com.mulon.autowatch: {res.stderr.strip()}")
         return True
 
     def uninstall(self, service: str = "all") -> bool:
         if service in ("bot", "all") and self.bot_plist.is_file():
             subprocess.run(["launchctl", "unload", "-w", str(self.bot_plist)], capture_output=True)
             self.bot_plist.unlink()
-            print("✅ Đã gỡ bỏ dịch vụ com.mulon.bot")
+            print("✓ Đã gỡ bỏ dịch vụ com.mulon.bot")
         if service in ("autowatch", "all") and self.autowatch_plist.is_file():
             subprocess.run(["launchctl", "unload", "-w", str(self.autowatch_plist)], capture_output=True)
             self.autowatch_plist.unlink()
-            print("✅ Đã gỡ bỏ dịch vụ com.mulon.autowatch")
+            print("✓ Đã gỡ bỏ dịch vụ com.mulon.autowatch")
         return True
 
     def start(self, service: str = "bot") -> bool:
         label = "com.mulon.bot" if service == "bot" else "com.mulon.autowatch"
         subprocess.run(["launchctl", "start", label], check=False)
-        print(f"🚀 Đã gửi lệnh khởi động {label}")
+        print(f"Đã gửi lệnh khởi động {label}")
         return True
 
     def stop(self, service: str = "bot") -> bool:
@@ -230,11 +230,11 @@ WantedBy=default.target
         if service in ("bot", "all"):
             subprocess.run(["systemctl", "--user", "enable", "mulon.service"], check=False)
             subprocess.run(["systemctl", "--user", "start", "mulon.service"], check=False)
-            print(f"✅ Đã cài đặt và khởi chạy systemd service: mulon.service")
+            print(f"✓ Đã cài đặt và khởi chạy systemd service: mulon.service")
         if service in ("autowatch", "all"):
             subprocess.run(["systemctl", "--user", "enable", "mulon-autowatch.service"], check=False)
             subprocess.run(["systemctl", "--user", "start", "mulon-autowatch.service"], check=False)
-            print(f"✅ Đã cài đặt và khởi chạy systemd service: mulon-autowatch.service")
+            print(f"✓ Đã cài đặt và khởi chạy systemd service: mulon-autowatch.service")
         return True
 
     def uninstall(self, service: str = "all") -> bool:
@@ -243,20 +243,20 @@ WantedBy=default.target
             subprocess.run(["systemctl", "--user", "disable", "mulon.service"], check=False)
             if self.bot_unit.is_file():
                 self.bot_unit.unlink()
-            print("✅ Đã gỡ bỏ mulon.service")
+            print("✓ Đã gỡ bỏ mulon.service")
         if service in ("autowatch", "all"):
             subprocess.run(["systemctl", "--user", "stop", "mulon-autowatch.service"], check=False)
             subprocess.run(["systemctl", "--user", "disable", "mulon-autowatch.service"], check=False)
             if self.autowatch_unit.is_file():
                 self.autowatch_unit.unlink()
-            print("✅ Đã gỡ bỏ mulon-autowatch.service")
+            print("✓ Đã gỡ bỏ mulon-autowatch.service")
         subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
         return True
 
     def start(self, service: str = "bot") -> bool:
         unit = "mulon.service" if service == "bot" else "mulon-autowatch.service"
         subprocess.run(["systemctl", "--user", "start", unit], check=False)
-        print(f"🚀 Đã gửi lệnh khởi động {unit}")
+        print(f"Đã gửi lệnh khởi động {unit}")
         return True
 
     def stop(self, service: str = "bot") -> bool:
@@ -313,7 +313,7 @@ cd /d "{self.root}"
 pause
 """, encoding="utf-8")
 
-        print(f"✅ Đã tạo file khởi chạy Windows: {run_bot_bat} và {run_autowatch_bat}")
+        print(f"✓ Đã tạo file khởi chạy Windows: {run_bot_bat} và {run_autowatch_bat}")
 
     def install(self, service: str = "all") -> bool:
         self._generate_bat_launchers()
@@ -330,9 +330,9 @@ pause
             ]
             res = subprocess.run(cmd, capture_output=True, text=True)
             if res.returncode == 0:
-                print(f"✅ Đã đăng ký Windows Task Scheduler: {self.bot_task} (khởi động khi đăng nhập)")
+                print(f"✓ Đã đăng ký Windows Task Scheduler: {self.bot_task} (khởi động khi đăng nhập)")
             else:
-                print(f"⚠️ Ghi chú Task Scheduler: {res.stderr.strip() or res.stdout.strip()}")
+                print(f"[Lưu ý] Ghi chú Task Scheduler: {res.stderr.strip() or res.stdout.strip()}")
 
         if service in ("autowatch", "all"):
             cmd = [
@@ -344,27 +344,27 @@ pause
             ]
             res = subprocess.run(cmd, capture_output=True, text=True)
             if res.returncode == 0:
-                print(f"✅ Đã đăng ký Windows Task Scheduler: {self.autowatch_task}")
+                print(f"✓ Đã đăng ký Windows Task Scheduler: {self.autowatch_task}")
             else:
-                print(f"⚠️ Ghi chú Task Scheduler: {res.stderr.strip() or res.stdout.strip()}")
+                print(f"[Lưu ý] Ghi chú Task Scheduler: {res.stderr.strip() or res.stdout.strip()}")
         return True
 
     def uninstall(self, service: str = "all") -> bool:
         if service in ("bot", "all"):
             subprocess.run(["schtasks", "/Delete", "/TN", self.bot_task, "/F"], capture_output=True)
-            print(f"✅ Đã xóa task {self.bot_task}")
+            print(f"✓ Đã xóa task {self.bot_task}")
         if service in ("autowatch", "all"):
             subprocess.run(["schtasks", "/Delete", "/TN", self.autowatch_task, "/F"], capture_output=True)
-            print(f"✅ Đã xóa task {self.autowatch_task}")
+            print(f"✓ Đã xóa task {self.autowatch_task}")
         return True
 
     def start(self, service: str = "bot") -> bool:
         task = self.bot_task if service == "bot" else self.autowatch_task
         res = subprocess.run(["schtasks", "/Run", "/TN", task], capture_output=True, text=True)
         if res.returncode == 0:
-            print(f"🚀 Đã khởi chạy task {task}")
+            print(f"Đã khởi chạy task {task}")
         else:
-            print(f"⚠️ Không thể khởi chạy {task}: {res.stderr.strip() or res.stdout.strip()}")
+            print(f"[Lưu ý] Không thể khởi chạy {task}: {res.stderr.strip() or res.stdout.strip()}")
         return True
 
     def stop(self, service: str = "bot") -> bool:

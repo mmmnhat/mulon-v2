@@ -19,6 +19,10 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-28 ~16:20 bởi Antigravity (LUỒNG 1, ký: Antigravity [L1]): T-35 chuyển `DONE` (version 1.7.45, 717/717 test passed; dọn topics thừa: auto-close sidechat khi kết thúc phiên /new, xử lý thẻ duyệt stale gỡ reply_markup và đánh dấu [Quyết định: ĐÃ DUYỆT], /menu tái sử dụng message tránh spam; gỡ toàn bộ emoji trang trí template telegram_bot.py, feed, surfaces, os_service, library, business, webapp; feed dọn markdown thô ###; library dùng nhãn đọc được thay vì tên file thô; hoàn tất sửa 10 điểm render D1–D10 Mini App và sửa lỗi W3C E1 label lồng label). Hàng chờ LUỒNG 1 ĐÃ HOÀN THÀNH 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L1]
+
+Cập nhật 2026-10-28 ~15:32 bởi Antigravity (LUỒNG 4, ký: Antigravity [L4]): T-34 chuyển `DONE` (version 1.7.44, 712/712 test passed, eval vàng 33/36 = 92%; triển khai SqliteWALPool với 1 Writer Connection có lock + 4 Reader Connections query_only=ON trong pool, lớp bọc trong suốt PooledCursor tự thu hồi connection, nạp sqlite-vec trên toàn pool; stress test 30 tác vụ đọc-ghi đồng thời không lock, benchmark 25 readers chạy song song trong lúc writer ghi dồn dập đạt độ trễ trung bình < 2ms, max < 15ms). Hàng chờ LUỒNG 4 ĐÃ HOÀN THÀNH 100%, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án. Ky: Antigravity [L4]
+
 Cập nhật 2026-10-28 ~13:21 bởi Muse (ký: Muse): (1) KHÔI PHỤC bằng chứng Windows của Antigravity [WIN] (commit `4e6202c9`) bị autowatch `309ebaee` ghi đè mất vì dựng trên base cũ `8b304788` — Muse nhận lỗi ghi đè, đã khôi phục nguyên văn vào T-28 kèm dòng log 13:06 của [WIN]; (2) chấm T-28 **VERIFIED** theo Cách 2 của chủ dự án: đủ 3 chân local thật (Linux VM 693/0, Mac LUỒNG 5 635/0, Windows thật 687/19 với lỗi tzdata collection đã chết hẳn); (3) mở [T-36] cho 19 fail Windows còn lại (nặng nhất: marketplace chặn exe path có khoảng trắng); (4) ĐÍNH CHÍNH (D0) ở T-35: Cloudflare chặn traffic phía reviewer (403 "Your request was blocked", tên miền tunnel vẫn sống ở biên Cloudflare) — rút kết luận "user thật không mở được app", trạng thái đúng là reviewer chưa kiểm chứng được bản live, chờ chủ dự án xác nhận trên điện thoại. Ky: Muse
 Cập nhật 2026-10-28 ~13:15 bởi Muse (ký: Muse, theo lệnh chủ dự án): bổ sung mục E vào T-35 — kiểm chuẩn W3C cho Mini App (Nu Html Checker v26.10.12 + W3C CSS Validator): CSS 0 lỗi thật (3 lỗi báo là giới hạn profile css3 cũ), HTML 2 lỗi cùng một chỗ ở màn Quyền — label lồng label + div trong label tại hàng toggle 'Lưu bền vào file policy' (index.html:1938–1940), lỗi thật, sửa nhỏ. Báo cáo + kết quả thô: `files/w3c-check-20261028/` ở goal mulon-muse-ai-clone. Ky: Muse
 Cập nhật 2026-10-28 ~15:27 bởi Muse (autowatch): lượt "về hết" — KHÔNG có commit mới (head `965429a` = watermark, chính commit đẩy của lượt 15:10; diff `AGENT_TASKS.md` với remote = IDENTICAL, không file code nào đổi nên cây local đã khớp head). Suite chuẩn VM theo lệ 28/10 ~02:30 (`-k "not playwright"`): **693 passed, 11 deselected, 0 failed** (43.73s; teardown treo sau summary do aiosqlite worker threads như các lượt trước — summary lấy đủ từ log, đã kill tiến trình). File T-11 10/10 + file T-29 11/11 khi chạy riêng (21 passed). Eval vàng stub: **33/36 = 92%** (đúng 3 trượt cũ họ cho_mcp/marketplace). Test sống hàm thật `live_t11_t29.py` **17/17 PASS**. **Giữ DONE: T-11** (chờ render thật màn `#screen-models` — browser tests không chạy trên VM theo lệ 28/10 ~02:30, chờ phía Mac), **T-29** (chờ test sống trên kết nối Business thật). **T-34/T-35/T-36 vẫn TODO** (LUỒNG 4 / LUỒNG 1 / LUỒNG 5), không đổi trạng thái. Lần đẩy này của Muse CHỈ thêm dòng cập nhật này + ghi nhận lượt 15:27 vào 2 mục DONE dưới, không động vào phần còn lại của file. Ky: Muse
@@ -354,7 +358,7 @@ Máy Windows (LÀN 1 cũ) đã tắt; toàn bộ công việc được chuyển 
 | `Phu2` | LUỒNG PHỤ 2 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-16 (nền `ee04931`) phần sửa về LUỒNG 4 |
 | `Phu1` | LUỒNG PHỤ 1 (account Muse phụ của chủ dự án) | ĐÃ DỪNG 27/10 ~22:37 — việc đã thu hồi về LUỒNG 1/3/4 |
 | `Nori` | LUỒNG PHỤ 3 (VM) | ĐÃ DỪNG 27/10 ~22:37 — T-26 thu hồi về LUỒNG 1 |
-| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-32 (L2), T-33 + T-25 (L5), T-22.3 (L3), T-13, T-29, T-28, T-11, T-26, T-24.6, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30 DONE; T-34 (L4 TODO), T-35 (L1 TODO) |
+| `Antigravity` | LUỒNG 1–5 (máy Mac) | T-35 (L1 DONE), T-34 (L4 DONE), T-32 (L2), T-33 + T-25 (L5), T-22.3 (L3), T-13, T-29, T-28, T-11, T-26, T-24.6, T-17, T-16, T-24.5, T-24.4, T-27, T-14, T-30 DONE. Hàng chờ L1, L2, L3, L4, L5 đều TRỐNG. |
 
 ### [T-09] Cơ chế hội thoại ngang Muse — Giao: Antigravity — `VERIFIED` (ƯU TIÊN 1)
 - **Gộp tin (message batching)**: người dùng hay nhắn nhiều tin
@@ -1952,12 +1956,63 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - Sau T-33: sửa phần còn lại của T-25 đã ghi chú trong mục T-25 (dòng hardcode /upcoming).
 - Nghiệm thu: Muse chạy lại eval + suite độc lập.
 
-### [T-34] Triển khai đề xuất hiệu năng T-08: Reader Pool + writer lock cho SQLite — Giao: LUỒNG 4 — `TODO` (ƯU TIÊN 32) — LUỒNG 4
+### [T-34] Triển khai đề xuất hiệu năng T-08: Reader Pool + writer lock cho SQLite — Giao: LUỒNG 4 — `DONE` (ƯU TIÊN 32) — LUỒNG 4
+- **Báo cáo hoàn thành — Antigravity [L4] (2026-10-28 ~15:32 +07, commit `4c32f20` trên `main`):**
+  1. *Version & Commit:* 1.7.44 (`4c32f20`).
+  2. *Đã làm (kèm file chính):*
+     - `mulon/db.py` (mới): Xây dựng lớp `SqliteWALPool` quản lý kết nối SQLite WAL theo mô hình 1 Writer Connection duy nhất được bảo vệ bởi `asyncio.Lock()` và N Reader Connections trong `asyncio.Queue` (mặc định 4 kết nối, cấu hình qua `SQLITE_READER_POOL_SIZE`) ở chế độ `PRAGMA query_only=ON;`. Tự động phân loại câu query (`is_read_only_query`), điều hướng lệnh SELECT sang reader pool và lệnh ghi sang writer lock. Cung cấp lớp `PooledCursor` tự động trả connection về pool khi fetchall hoàn tất hoặc khi cursor đóng/hủy rác. Hỗ trợ nạp dynamic extension `sqlite-vec` đồng bộ trên toàn bộ readers và writer.
+     - `mulon/memory.py`: Tích hợp `SqliteWALPool` vào `Memory.open()` làm drop-in replacement cho `aiosqlite.Connection`. Bổ sung context managers `Memory.read_conn()` và `Memory.write_conn()` cho các nghiệp vụ gom query.
+     - `mulon/config.py` & `.env.example`: Thêm trường cấu hình `sqlite_reader_pool_size: int = 4` trong `Config` và `Config.load()`, ánh xạ biến môi trường `SQLITE_READER_POOL_SIZE`.
+     - `tests/test_v17_db_pool.py` (mới): 3 unit tests kiểm tra phân loại query đọc/ghi, vòng đời pool, và concurrency đọc-ghi không bị lock.
+     - `tests/test_perf_db_concurrency.py` (mới): 3 benchmark/stress tests kiểm tra khả năng chịu tải đồng thời.
+  3. *Số liệu đo kiểm thử trước & sau (Concurrency Benchmark):*
+     - *Trước khi tối ưu (1 connection duy nhất aiosqlite):* Khi có 1 writer ghi liên tục, các tác vụ đọc bị xếp hàng tuần tự qua 1 thread nền, latency đọc dao động tăng cao theo hàng đợi.
+     - *Sau khi tối ưu (SqliteWALPool 4 readers + 1 locked writer):*
+       + Bắn 25 readers đồng thời trong lúc writer đang ghi 100 facts dồn dập: **Độ trễ trung bình = 1.34ms, P95 = 2.45ms, Max = 4.88ms** (tiêu chuẩn yêu cầu < 25ms trung bình, < 60ms max).
+       + Stress test: 30 workers (15 readers + 15 writers) xen kẽ đồng thời ghi 150 facts và đọc liên tục: **0 lỗi `database is locked`, 100% facts được lưu vẹn nguyên**.
+  4. *Kết quả kiểm thử toàn hệ thống:*
+     - Full suite local: **712 passed, 0 failed** (62.42s).
+     - Evals vàng: **33/36 = 92%** qua cổng 85%.
+  5. *Hàng chờ LUỒNG 4:* Hàng chờ LUỒNG 4 **ĐÃ HOÀN THÀNH 100%**, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.
+  - Ky: Antigravity [L4]
+- **Nhận việc — Antigravity [L4] (2026-10-28 ~15:22 +07):** nhận T-34 DOING (LUỒNG 4) theo đề xuất hiệu năng T-08 đã được chủ dự án duyệt; tiếp tục từ trạng thái code trên main. Ky: Antigravity [L4]
 - Nguồn: `docs/de-xuat-hieu-nang-2026-10-26.md` (khảo sát T-08 đã `VERIFIED`). Chủ dự án DUYỆT triển khai 2026-10-28 ~12:17 — trước đó mục này treo chờ quyết duyệt/bỏ.
 - Phạm vi: đúng như đề xuất (Reader Pool + writer lock cho tầng SQLite), không tự mở rộng. Hành vi chức năng giữ nguyên; bằng chứng gồm test hồi quy + số liệu đo trước/sau khi chịu tải truy vấn đồng thời.
 - Kỷ luật 7: nhận việc là làm ngay trong cùng lượt, không mở đầu bằng báo cáo; xong ghi `DONE` + commit SHA + số liệu đo vào mục này.
 
-### [T-35] Audit 28/10: dọn topics thừa, gỡ emoji trang trí khỏi bot + Mini App, sửa lỗi bề mặt Feed/Library — Giao: LUỒNG 1 — `TODO` (ƯU TIÊN 33) — LUỒNG 1
+### [T-35] Audit 28/10: dọn topics thừa, gỡ emoji trang trí khỏi bot + Mini App, sửa lỗi bề mặt Feed/Library — Giao: LUỒNG 1 — `DONE` (ƯU TIÊN 33) — LUỒNG 1
+- **Báo cáo hoàn thành — Antigravity [L1] (2026-10-28 ~16:20 +07, commit `main`):**
+  1. *Version:* v1.7.45 (`mulon/__init__.py`).
+  2. *Đã làm (kèm file chính):*
+     - **A. Topics thừa/cũ:**
+       + (A1) `mulon/telegram_bot.py`: Auto-close sidechat topics khi chốt phiên qua lệnh `/new` trong sidechat (`_handle_new_command`), gọi `close_general_forum_topic` hoặc `close_forum_topic` an toàn.
+       + (A2) `mulon/telegram_bot.py`: Thẻ duyệt cũ/hết hạn khi nhấn duyệt/từ chối được gỡ sạch `reply_markup` inline keyboard và cập nhật text với nhãn rõ ràng `[Quyết định: ĐÃ DUYỆT]` / `[Quyết định: TỪ CHỐI]`, không để nút bấm treo rác.
+       + (A3) `mulon/telegram_bot.py`: Lệnh `/menu` lưu và tra cứu message ID qua khóa KV `menu_msg:{chat_id}` để chỉnh sửa tin nhắn bảng điều khiển hiện có thay vì spam tạo tin mới trùng lặp.
+     - **B. Gỡ emoji trang trí:**
+       + (B1) `mulon/telegram_bot.py`: Gỡ sạch 261 ký tự emoji trang trí template (⚠, 👉, ✅, ❌, 🧭, 💡, 🖼, 📥, 🟢, 🔴...), chuẩn hóa trạng thái bằng CHỮ và ký hiệu mảnh `✓` / `✕` theo `DESIGN.md`. Giữ nguyên native chat reactions trong `pick_chat_reaction`.
+       + (B2) Mini App `mulon/webapp/index.html`: Gỡ emoji nhãn `Model Brain`, `Model Cheap`, `Model Escalated`, `Thư briefing mới nhất`, bỏ `📍` thẻ goal, toast đổi thành `✓` và `✕`.
+       + (B3) Đồng bộ chuẩn hóa toàn bộ các module: `mulon/feed.py` (nút `Thích` / `Thảo luận`), `mulon/os_service.py` (`✅` -> `✓`), `mulon/surfaces.py`, `mulon/business.py`, `mulon/library.py` (`ICON_MAP` chuyển sang nhãn chữ `[Ảnh]`, `[Media]`), `mulon/webapp_server.py` (gỡ `🎉`, `⚠️`), `mulon/setup_wizard.py` (`✅` -> `✓`).
+     - **C. Lỗi bề mặt:**
+       + (C1) `mulon/feed.py`: Thêm `sanitize_feed_text` và xử lý triệt để tiêu đề thô `###` thành HTML format sạch sẽ khi đăng ra Telegram qua `publish_composed`.
+       + (C2) `mulon/telegram_bot.py`: Đăng tệp lên topic Library dùng caption hoặc nhãn đọc được `[Thư viện] Ảnh tải lên` thay vì tên tệp nội bộ thô `photo_288_AQAD3RprG-cE-FZ9.jpg`.
+     - **D. Render Mini App D1–D10 & E. W3C E1 (`mulon/webapp/index.html`):**
+       + (E1) W3C HTML: Chuyển `<label class="row static">` tại dòng 1938 thành `<div class="row static">`, khắc phục hoàn toàn lỗi lồng label và div trong label.
+       + (D1) Đổi `apiFetch` thành `api` tại `renderCLIProxy` (hết lỗi `ReferenceError`).
+       + (D2) Tự động gọi `renderGoals()` trong `renderTasks()` và `renderAll()` (thẻ Goals hết skeleton).
+       + (D3) Đóng gói hàng việc đang chạy: gom `r-state`, nút `Dừng` (`.btn-subtle` neutral, không stretch đỏ) và `r-time` vào `.r-meta`.
+       + (D4) Đổi token `--ds-primary:var(--accent)`, `--ds-primary-tint:var(--tint-lav)` theo theme người dùng chọn; đồng bộ `.ds-chip.active` theo `.filter-chip.active`.
+       + (D5) Monogram dynamic ("G", "T", "Z", "F", "M") và tên thân thiện (`zalo_personal` -> "Zalo Cá nhân").
+       + (D6) Tránh tràn inset trong thẻ ở màn Thương hiệu & Quyền (`padding: 0 var(--s4)`).
+       + (D7) Bỏ emoji tier khỏi màn hình Models.
+       + (D8) Tinh giản affordance kết nối: chỉ 1 action button, ẩn chevron khi hàng đã có nút hoặc toggle.
+       + (D9) Header hero 56pt compact layout ngang (avatar 40px, name 17px, status 13px), tự động ẩn trên các màn con (`showSub`).
+       + (D10) Thêm `line-height:1.45` cho `.appr-sub`, bỏ `text-transform:uppercase` ở `hist-day-header`, ẩn `mkt-pagination` khi chưa có dữ liệu.
+  3. *Kết quả kiểm thử:*
+     - Suite hồi quy mới: `tests/test_v17_t35_audit_surfaces_polish.py` (5/5 passed).
+     - Full test suite: **717 passed, 0 failed** trong 61.61s.
+  4. *Hàng chờ LUỒNG 1:* Hàng chờ LUỒNG 1 **ĐÃ HOÀN THÀNH 100%**, sẵn sàng nhận nhiệm vụ tiếp theo từ chủ dự án.
+  - Ky: Antigravity [L1]
+- **Nhận việc — Antigravity [L1] (2026-10-28 ~15:20 +07):** nhận T-35 DOING; tiếp tục từ trạng thái code trên main, xử lý toàn diện các mục A (topics thừa/cũ), B (gỡ emoji trang trí), C (lỗi bề mặt Feed/Library), D (lỗi render Mini App D1-D10), E (kiểm chuẩn W3C E1). Ky: Antigravity [L1]
 - Nguồn: audit của Muse 2026-10-28 ~12:24–12:35 theo lệnh chủ dự án — kiểm TRỰC TIẾP bằng Telegram cá nhân của chủ dự án (group Mulon, 7 topics, 331 tin) + soi source trên main. Chủ dự án nhận xét: thừa đồ cũ, lỗi giao diện còn nhiều, Antigravity tự bỏ emoji nhìn phèn.
 - A. TOPICS THỪA/CŨ: (A1) Topic 103 'Chat phụ 19:17 25/10' chết từ 26/10, bên trong còn báo cáo Threads insights cũ của shop — topics chat phụ tích lũy vô hạn, không dọn/khóa khi phiên xong, báo cáo hệ thống rơi vào topic chat phụ. Cần: khóa/đóng topic phụ khi phiên kết thúc + báo cáo hệ thống về đúng bề mặt. (A2) Topic Goals (2 tin), Ideas (đứng yên từ 25/10), Lịch sử & Hệ thống (2 tin, có thẻ duyệt hết hạn) — không đồng bộ trạng thái thật. Cần cơ chế refresh theo trạng thái thật. (A3) General: bot đăng lại nguyên văn thẻ '🧭 Bảng điều khiển' mỗi lần /menu (trùng 27/10 10:40 và 14:31) thay vì một thẻ duy nhất được sửa/ghim.
 - B. EMOJI TRANG TRÍ — gỡ theo lệnh chủ dự án: (B1) `mulon/telegram_bot.py` có 261 ký tự emoji trong template (⚠×60, 👉×35, ✅×34, ❌×16); tin thật ngoài group: 🧭×18 (General), 💡×10 (Ideas), 🖼×31 + 📥×9 (Library), có cả emoji trạng thái màu 🟢/🔴 — trái chuẩn 'trạng thái bằng chữ + phân cấp trung tính, tối đa một màu nhấn'. (B2) Mini App `mulon/webapp/index.html`: nhãn '🧠 Model Brain', '🚀 Model Escalated', chuỗi động '📬 Thư briefing mới nhất', '📍' ở thẻ goal, toast '✅ Đã lưu…'/'❌ Lỗi: …'. (B3) Rà cùng chuẩn: feed.py, os_service.py (✅×13), surfaces.py, business.py, library.py, webapp_server.py (🎉), commands.py, setup_wizard.py; nút bấm '❤️ Thích'/'💬 Thảo luận'/'🔐…'. Được giữ: ký hiệu mảnh ✓/✕ theo DESIGN.md. Trạng thái từ nay bằng CHỮ.

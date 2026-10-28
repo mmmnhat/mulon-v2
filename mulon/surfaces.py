@@ -37,13 +37,13 @@ SURFACES: list[dict] = [
         "key": "feed", "title": "Feed",
         "blurb": "Bản tin Công nghệ & AI thực chiến tự đăng theo lịch "
                  "hệ thống. Trích dẫn chỉ dùng nguồn thật. "
-                 "Reaction ❤️ Thích và 💬 Thảo luận giúp học gu bài viết.",
-        "commands": "Tự động đăng bài · Bấm nút ❤️ Thích hoặc 💬 Thảo luận",
+                 "Nút Thích và Thảo luận giúp học gu bài viết.",
+        "commands": "Tự động đăng bài · Bấm nút Thích hoặc Thảo luận",
     },
     {
         "key": "ideas", "title": "Ideas",
-        "blurb": "Thẻ ý tưởng agent đề xuất tự động. Bấm '🚀 Làm luôn' "
-                 "để nhận việc hoặc '🗑 Bỏ qua' để ẩn thẻ; thẻ tự động "
+        "blurb": "Thẻ ý tưởng agent đề xuất tự động. Bấm 'Làm luôn' "
+                 "để nhận việc hoặc 'Bỏ qua' để ẩn thẻ; thẻ tự động "
                  "retire sau ~14 ngày.",
         "commands": "Bấm trực tiếp nút trên thẻ (không cần gõ lệnh)",
     },
@@ -77,7 +77,7 @@ SURFACE_KEYS = [s["key"] for s in SURFACES]
 MAIN_TOPIC_TITLE = "Chat chính"
 
 LEGACY_MAIN_REDIRECT_TEXT = (
-    "📌 Chat chính đã chuyển về topic General (phòng mặc định "
+    "Chat chính đã chuyển về topic General (phòng mặc định "
     "của group) — từ giờ ra lệnh và trao đổi chính với Mulon ở "
     "đó. Topic 'Chat chính' tự tạo này là sót từ bản cũ, nay "
     "được đóng lại để tránh nhầm lẫn; nội dung cũ vẫn còn "
@@ -90,7 +90,7 @@ def index_text(surface: dict, all_surfaces: list[dict]) -> str:
         f"· {s['title']}" for s in all_surfaces
         if s["key"] != surface["key"])
     return (
-        f"📌 {surface['title']}\n\n{surface['blurb']}\n\n"
+        f"{surface['title']}\n\n{surface['blurb']}\n\n"
         f"Lệnh chính: {surface['commands']}\n\n"
         f"Các phòng khác:\n{others}"
     )
@@ -344,9 +344,9 @@ def format_topics_result(result: dict) -> str:
             "đóng lại; chat chính duy nhất là General "
             "(thread 1).")
     for note in recon.get("notes", []):
-        lines.append(f"⚠️ {note}")
+        lines.append(f"[Lưu ý] {note}")
     for err in result.get("errors", []):
-        lines.append(f"⚠️ {err}")
+        lines.append(f"[Lưu ý] {err}")
     return "\n".join(lines)
 
 
@@ -389,7 +389,7 @@ def default_sidechat_title(timezone_name: str = DEFAULT_TIMEZONE,
 
 def sidechat_opening_text(title: str) -> str:
     return (
-        f"💬 {title}\n\n"
+        f"{title}\n\n"
         "Đây là đoạn chat phụ: lịch sử hội thoại ở topic này tách "
         "riêng với các topic khác, còn ký ức dài hạn và hồ sơ vẫn "
         "dùng chung. Khi xong, gõ /dongchat để đóng chat phụ này."

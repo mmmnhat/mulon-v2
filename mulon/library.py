@@ -407,23 +407,23 @@ class LibraryService:
 
 
 ICON_MAP = {
-    "image": "🖼️",
-    "media": "🎵",
-    "document": "📄",
-    "code": "💻",
-    "other": "📁",
+    "image": "[Ảnh]",
+    "media": "[Media]",
+    "document": "[Tài liệu]",
+    "code": "[Mã]",
+    "other": "[Tệp]",
 }
 
 
 def format_library_list(items: list[dict], title: str = "") -> str:
     if not items:
         return "Library trống."
-    header = title if title else f"📚 <b>Thư viện Mulon ({len(items)} mục):</b>\n"
+    header = title if title else f"<b>Thư viện Mulon ({len(items)} mục):</b>\n"
     lines = [header]
     for it in items:
         extra = ""
-        pin = "📌 " if it.get("pinned") else ""
-        icon = ICON_MAP.get(it.get("kind"), "📁")
+        pin = "[Ghim] " if it.get("pinned") else ""
+        icon = ICON_MAP.get(it.get("kind"), "[Tệp]")
         if it.get("share_status") == "active" and it.get("share_token"):
             extra = " <i>(đang chia sẻ)</i>"
         elif it.get("share_status") == "pending_host":
@@ -433,7 +433,7 @@ def format_library_list(items: list[dict], title: str = "") -> str:
         if it.get("caption"):
             cap = f" — <i>{html.escape(str(it['caption']))}</i>"
         lines.append(f"{pin}• <b>#{it['id']}</b> {icon} <code>{name_esc}</code>{cap}{extra}")
-    lines.append("\n💡 <i>Gõ <code>/library &lt;id&gt;</code> (vd: <code>/library 6</code>) để tải file/ảnh gốc về chat, hoặc <code>/library &lt;từ khóa&gt;</code> để tìm kiếm.</i>")
+    lines.append("\n<i>Gõ <code>/library &lt;id&gt;</code> (vd: <code>/library 6</code>) để tải file/ảnh gốc về chat, hoặc <code>/library &lt;từ khóa&gt;</code> để tìm kiếm.</i>")
     return "\n".join(lines)
 
 

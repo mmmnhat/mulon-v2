@@ -4002,7 +4002,7 @@ p {{ line-height: 1.5; color: #6E6A61; margin-bottom: 24px; }}
 </head>
 <body>
 <div class="card">
-  <h2>🎉 Kết nối Google thành công!</h2>
+  <h2>Kết nối Google thành công!</h2>
   <p>Đã cấp quyền Google Workspace{acc_str} cho bot Mulon.<br>Ní có thể đóng trang này và quay lại Telegram làm việc tiếp rồi nha!</p>
   <a href="https://t.me" class="btn">Quay lại Telegram</a>
 </div>
@@ -4027,7 +4027,7 @@ p {{ line-height: 1.5; color: #6E6A61; margin-bottom: 24px; }}
 </head>
 <body>
 <div class="card">
-  <h2>⚠️ Chưa hoàn tất xác thực</h2>
+  <h2>Chưa hoàn tất xác thực</h2>
   <div class="err">{html.escape(error_detail or "Không nhận được phản hồi từ MCP server")}</div>
   <p>Mã xác thực hoặc phiên có thể đã hết hạn. Hãy mở Telegram và gõ <code>/google_auth</code> để lấy link mới tinh nhé!</p>
   <a href="https://t.me" class="btn">Quay lại Telegram</a>
