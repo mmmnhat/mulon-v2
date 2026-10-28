@@ -140,3 +140,13 @@ async def test_generate_image_tool_no_key_returns_structured_error(cfg, monkeypa
     assert "Chưa có API key" in out["error"]
 
 
+def test_escape_filter_path_windows():
+    from mulon.media_tools import _escape_filter_path
+    win_path = Path(r"C:\Users\test user\subs.srt")
+    escaped = _escape_filter_path(win_path)
+    assert "/Users/test user/subs.srt" in escaped
+    assert r"C\:" in escaped
+    assert escaped.startswith("'") and escaped.endswith("'")
+
+
+

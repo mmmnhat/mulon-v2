@@ -270,7 +270,7 @@ def test_config_cliproxy_fields():
         loaded = Config.load()
         assert loaded.cliproxy_auto_start is True
         assert loaded.cliproxy_binary_path is not None
-        assert "bin/cliproxyapi" in str(loaded.cliproxy_binary_path)
+        assert str(Path("bin/cliproxyapi")) in str(loaded.cliproxy_binary_path)
 
 
 @pytest.mark.asyncio

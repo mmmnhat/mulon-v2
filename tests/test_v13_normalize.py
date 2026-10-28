@@ -152,3 +152,36 @@ def test_slugify():
     assert slugify_local_name("My Server!") == "my-server"
     assert slugify_local_name("echo_test") == "echo_test"
     assert slugify_local_name("@@@") == "server"
+
+
+def test_windows_paths_and_shell_distinction(roots):
+    # Đường dẫn Windows chứa khoảng trắng và dấu gạch chéo ngược hợp lệ
+    win_py = r"E:\New folder\lane1\.venv\Scripts\python.exe"
+    m1 = _norm({"command": win_py, "args": ["-m", "server"]}, roots)
+    assert m1["support_state"] == "supported"
+    assert m1["command"] == win_py
+
+    prog_files = r"C:\Program Files\Python312\python.exe"
+    m2 = _norm({"command": prog_files}, roots)
+    assert m2["support_state"] == "supported"
+    assert m2["command"] == prog_files
+
+    quoted = r'"C:\Program Files\Nodejs\node.exe"'
+    m3 = _norm({"command": quoted}, roots)
+    assert m3["support_state"] == "supported"
+    assert m3["command"] == r"C:\Program Files\Nodejs\node.exe"
+
+    # Lệnh shell có cờ/arguments trong command bị từ chối đúng
+    m_shell_args = _norm({"command": r"C:\Python312\python.exe -m my_server"}, roots)
+    assert m_shell_args["support_state"] == "unsupported"
+    assert m_shell_args["unsupported_reasons"][0]["code"] == "unsupported_shell_config"
+
+    # Shell binary có đuôi .exe bị từ chối đúng
+    m_cmd = _norm({"command": "cmd.exe"}, roots)
+    assert m_cmd["support_state"] == "unsupported"
+    assert m_cmd["unsupported_reasons"][0]["code"] == "unsupported_shell_config"
+
+    m_ps = _norm({"command": "powershell.exe"}, roots)
+    assert m_ps["support_state"] == "unsupported"
+    assert m_ps["unsupported_reasons"][0]["code"] == "unsupported_shell_config"
+

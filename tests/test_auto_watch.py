@@ -64,6 +64,16 @@ def test_backup_none_when_clean(repo: Path):
     assert stash_local_changes(repo) == ""
 
 
+def test_git_utf8_encoding_multilingual_diff(repo: Path):
+    vietnamese_text = "Tiếng Việt có dấu: Ắ, Ằ, Ẳ, Ẵ, Ặ, Ẹ, Ẻ, Ẽ, Ế, Ề, Ố, Ộ...\n"
+    (repo / "tracked.txt").write_text(vietnamese_text, encoding="utf-8")
+    backup = backup_local_changes(repo)
+    assert backup is not None
+    content = backup.read_text(encoding="utf-8")
+    assert vietnamese_text in content
+
+
+
 def test_pop_conflict_keeps_stash(repo: Path):
     # Sửa -> stash -> sửa nền theo hướng xung đột -> pop phải báo
     # False và stash vẫn còn, không được âm thầm mất local changes.

@@ -37,7 +37,7 @@ def test_paths_resolve():
 
     # Absolute path
     p2 = resolve_path("/var/log/mulon.log", base_dir=base)
-    assert str(p2).startswith("/var/log/mulon.log")
+    assert str(p2).replace("\\", "/").startswith("/var/log/mulon.log")
 
 
 def test_paths_default_structure():

@@ -41,6 +41,8 @@ echo '{"decision": "wake", "reason": "Có flash sale 50%", "payload": {"discount
 
     # 3. Dry run
     dry = hm.dry_run("test_hook")
+    if dry.get("skipped"):
+        pytest.skip(f"Môi trường thiếu shell bash để chạy hook: {dry.get('reason')}")
     assert dry["ok"] is True
     assert dry["decision"] == "wake"
     assert dry["payload"]["discount"] == 50
@@ -55,3 +57,14 @@ echo '{"decision": "wake", "reason": "Có flash sale 50%", "payload": {"discount
     assert poll_res["ok"] is True
     assert poll_res["decision"] == "wake"
     assert poll_res["payload"]["discount"] == 50
+
+
+def test_hook_degrade_when_no_bash(tmp_path, monkeypatch):
+    monkeypatch.setattr("mulon.hooks._find_bash", lambda: None)
+    hm = HookManager(tmp_path / "hooks")
+    hm.register_hook("no_bash_hook", "Test", "echo 1", "# Doc")
+    res = hm.dry_run("no_bash_hook")
+    assert res["ok"] is False
+    assert res.get("skipped") is True
+    assert "bash_not_available_on_system" in res.get("reason", "")
+

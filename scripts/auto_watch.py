@@ -95,6 +95,8 @@ def get_local_commit() -> str:
             cwd=PROJECT_ROOT,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=True,
         )
         return res.stdout.strip()
@@ -110,6 +112,8 @@ def get_remote_commit(remote: str, branch: str) -> str:
             cwd=PROJECT_ROOT,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=20,
         )
         if res.returncode != 0:
@@ -130,6 +134,8 @@ def get_commit_summary(sha: str) -> str:
             cwd=PROJECT_ROOT,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
         )
         return res.stdout.strip()
     except Exception:
@@ -162,7 +168,13 @@ def auto_watch_enabled(env: Optional[dict] = None, flag: bool = False) -> bool:
 
 def _git(project_root: Path, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["git", *args], cwd=project_root, capture_output=True, text=True)
+        ["git", *args],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
 
 
 def latest_stash_ref(project_root: Path) -> str:
@@ -292,6 +304,8 @@ class BotSupervisor:
                 cwd=PROJECT_ROOT,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=45,
             )
             if res.returncode == 0:
@@ -308,6 +322,8 @@ class BotSupervisor:
                 cwd=PROJECT_ROOT,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
             )
             return "requirements.txt" in res.stdout.splitlines()
         except Exception:
@@ -364,6 +380,8 @@ class BotSupervisor:
             cwd=PROJECT_ROOT,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
         )
         if pull_res.returncode != 0:
             err_msg = pull_res.stderr.strip() or pull_res.stdout.strip()
@@ -398,6 +416,8 @@ class BotSupervisor:
                 cwd=PROJECT_ROOT,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
             )
             if pip_res.returncode != 0:
                 logger.warning("Cập nhật requirements.txt có cảnh báo: %s", pip_res.stderr[:300])

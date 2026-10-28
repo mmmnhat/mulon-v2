@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## 1.7.47 — 2026-10-28 — Khắc phục 19 test fail trên Windows thật (W1–W6, T-36, LUỒNG 5 — ký: Antigravity [L5])
+
+- **(W1) Khắc phục lỗi sản phẩm Chợ MCP trên Windows (`mulon/marketplace.py`):**
+  - **Sửa phân loại executable path vs shell command string:** Hàm `_is_shell_command_string` phân biệt chính xác đường dẫn executable hợp lệ trên Windows (kể cả khi đường dẫn chứa khoảng trắng như `C:\Program Files\Python312\python.exe` hay `E:\New folder\lane1\.venv\Scripts\python.exe` và dùng dấu gạch chéo ngược `\`) với chuỗi shell đa từ hoặc chứa cờ CLI (như `npx -y some-server` hoặc `python.exe -m foo`).
+  - **Gỡ bỏ dấu `\` khỏi `SHELL_META_RE`:** Dấu `\` là `os.sep` hợp lệ trên Windows, việc đưa vào regex shell meta trước đây đã chặn nhầm mọi đường dẫn Windows.
+  - **Nhận diện phần mở rộng `.exe` của shell binary:** Kiểm tra `base.removesuffix(".exe") in SHELL_COMMANDS` để chặn chính xác `cmd.exe`, `powershell.exe`. Đồng bộ hỗ trợ `.exe` cho `DOWNLOAD_RUNNERS`.
+  - Giải quyết dứt điểm 12 test chợ MCP fail cùng gốc trên Windows thật; người dùng Windows có Python ở đường dẫn có khoảng trắng nay cài đặt MCP server bình thường.
+  - Thêm regression tests trong `tests/test_v13_normalize.py`.
+- **(W2) Mã hóa UTF-8 cho toàn bộ tiến trình Git con (`scripts/auto_watch.py`):**
+  - Bổ sung `encoding="utf-8", errors="replace"` cho `_git`, `get_local_commit`, `get_remote_commit`, `get_commit_summary`, `run_smoke_test`, `check_requirements_changed`, `pull_res`, `pip_res`.
+  - Khắc phục triệt để lỗi cp1252 mặc định trên Windows làm mojibake / lỗi giải mã khi git diff hoặc commit message chứa tiếng Việt (`tests/test_auto_watch.py::test_backup_stash_pop_roundtrip`).
+  - Bổ sung regression test `test_git_utf8_encoding_multilingual_diff` trong `tests/test_auto_watch.py`.
+- **(W3) Khắc phục lỗi đốt phụ đề ffmpeg trên Windows (`mulon/media_tools.py`):**
+  - Chuyển `burn_subs` sang chạy ffmpeg với `cwd=subs.parent` và truyền tên file phụ đề tương đối qua filter `subtitles=...`, triệt tiêu hoàn toàn lỗi libavfilter không parse được dấu `:` (ổ đĩa `C:`) và `\` của đường dẫn Windows tuyệt đối.
+  - `_escape_filter_path` chuẩn hoá dấu gạch chéo, escape nháy đơn và escape colon `\:` bọc trong nháy đơn để bảo toàn tương thích khi gọi trực tiếp.
+  - Bổ sung regression test `test_escape_filter_path_windows` trong `tests/test_phase4_media.py`.
+- **(W4) Graceful degrade cho Hook `.sh` trên Windows (`mulon/hooks.py`):**
+  - Hàm `_find_bash()` tự động dò tìm shell `bash`/`sh` trong `PATH` và các đường dẫn cài đặt Git for Windows quen thuộc (`%ProgramFiles%\Git\bin\bash.exe`, v.v.).
+  - Khi môi trường Windows không có sẵn shell bash, `HookManager.dry_run` và `poll` trả về kết quả degrade an toàn `{"ok": False, "skipped": True, "reason": "bash_not_available_on_system"}` theo nguyên tắc Degrade không sập của dự án.
+  - Test `test_hook_lifecycle` skip duyên dáng khi thiếu bash thay vì sập test; bổ sung regression test `test_hook_degrade_when_no_bash` trong `tests/test_hooks_and_goals_workspace.py`.
+- **(W5) Chuẩn hoá so sánh đường dẫn & ngữ nghĩa token expiry (`tests/test_v17_cliproxy.py`, `tests/test_v17_cross_platform_setup.py`, `mulon/vault.py`):**
+  - `test_config_cliproxy_fields`: so sánh qua `str(Path("bin/cliproxyapi"))` thay vì chuỗi POSIX `/`.
+  - `test_paths_resolve`: so sánh sau khi chuẩn hoá `str(p2).replace("\\", "/")`.
+  - `mulon/vault.py`: chuyển điều kiện `check_token` từ `time.time() > entry["expires_at"]` sang `time.time() >= entry["expires_at"]`, phản ánh chính xác ngữ nghĩa "hết hạn ngay tức thì" khi `ttl=0` mà không phụ thuộc vào độ phân giải đồng hồ (timer resolution 15.6ms của Windows).
+- **(W6) Bổ sung guard môi trường cho Playwright test (`tests/test_v17_policy_tightening.py`):**
+  - Đồng bộ pattern dò channel `(None, "msedge", "chrome")` và gọi `pytest.skip` khi máy chưa cài binary trình duyệt Playwright, khớp 100% với các test Playwright khác trong repo.
+
 ## 1.7.46 — 2026-10-28 — Business Chatbot: Bản thảo theo ngữ cảnh + Chống chồng thẻ duyệt (T-37, LUỒNG 4 — ký: Antigravity [L4])
 
 - **(C1) Bản thảo đa dạng theo ngữ cảnh & Chuẩn giọng chủ shop Nam bộ (`mulon/business.py`):**

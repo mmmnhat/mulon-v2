@@ -16,13 +16,33 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 logger = logging.getLogger("mulon.hooks")
+
+
+def _find_bash() -> Optional[str]:
+    """Tìm binary bash khả dụng trên hệ thống (hỗ trợ Windows Git Bash)."""
+    found = shutil.which("bash") or shutil.which("sh")
+    if found:
+        return found
+    if sys.platform == "win32":
+        candidates = [
+            os.path.expandvars(r"%ProgramFiles%\Git\bin\bash.exe"),
+            os.path.expandvars(r"%ProgramFiles%\Git\usr\bin\bash.exe"),
+            os.path.expandvars(r"%ProgramFiles(x86)%\Git\bin\bash.exe"),
+            os.path.expandvars(r"%LocalAppData%\Programs\Git\bin\bash.exe"),
+        ]
+        for c in candidates:
+            if os.path.isfile(c):
+                return c
+    return None
 
 
 def now_iso() -> str:
@@ -124,13 +144,25 @@ class HookManager:
         if not script_path.exists():
             return {"ok": False, "error": "Thiếu scripts/poll.sh"}
 
+        bash_cmd = _find_bash()
+        if not bash_cmd:
+            # Nguyên tắc Degrade: Nếu không có bash khả dụng thì skip có lý do rõ
+            return {
+                "ok": False,
+                "skipped": True,
+                "reason": "bash_not_available_on_system",
+                "error": "Thiếu shell bash để chạy hook script trên hệ thống này",
+            }
+
         start = time.perf_counter()
         try:
             res = subprocess.run(
-                ["bash", str(script_path)],
+                [bash_cmd, str(script_path)],
                 cwd=str((self.hooks_dir / hook_id).resolve()),
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=600,
             )
             duration_ms = int((time.perf_counter() - start) * 1000)
@@ -220,13 +252,23 @@ class HookManager:
             return {"ok": False, "skipped": True}
 
         script_path = (self.hooks_dir / hook_id / "scripts" / "poll.sh").resolve()
+        bash_cmd = _find_bash()
+        if not bash_cmd:
+            return {
+                "ok": False,
+                "skipped": True,
+                "reason": "bash_not_available_on_system",
+            }
+
         start = time.perf_counter()
         try:
             res = subprocess.run(
-                ["bash", str(script_path)],
+                [bash_cmd, str(script_path)],
                 cwd=str((self.hooks_dir / hook_id).resolve()),
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=600,
             )
             duration_ms = int((time.perf_counter() - start) * 1000)

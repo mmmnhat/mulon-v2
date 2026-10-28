@@ -217,7 +217,20 @@ async def test_playwright_t23_6_policy_vault_interaction(env_t23_6):
     base_url = _url(server, f"/?tgWebAppPlatform=ios&tgWebAppVersion=8.0&theme=dark#{init_data}")
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = None
+        last_err = None
+        for channel in (None, "msedge", "chrome"):
+            try:
+                kwargs = {"headless": True}
+                if channel:
+                    kwargs["channel"] = channel
+                browser = await p.chromium.launch(**kwargs)
+                break
+            except Exception as e:
+                last_err = e
+        if browser is None:
+            pytest.skip(f"Chromium/Edge không có sẵn cho Playwright: {last_err}")
+
         context = await browser.new_context(
             viewport={"width": 390, "height": 844},
             is_mobile=True,

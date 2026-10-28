@@ -47,9 +47,11 @@ def _unavailable(what: str) -> dict:
             "error": f"media_unavailable: thiếu {what} trên máy"}
 
 
-async def _run(args: list[str], timeout: float) -> tuple[int, str, str]:
+async def _run(args: list[str], timeout: float,
+               cwd: Optional[Path] = None) -> tuple[int, str, str]:
     proc = await asyncio.create_subprocess_exec(
         *args,
+        cwd=str(cwd) if cwd else None,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -156,9 +158,15 @@ async def trim(cfg, path, start_s: float = 0.0,
 
 
 def _escape_filter_path(path: Path) -> str:
-    """Escape đường dẫn cho filter subtitles của ffmpeg."""
+    """Escape đường dẫn cho filter subtitles của ffmpeg.
+
+    Chuẩn hoá dấu gạch chéo ngược thành '/', escape dấu nháy đơn,
+    escape colon (tránh xung đột option separator trong libavfilter),
+    và bọc trong dấu nháy đơn.
+    """
     text = str(path).replace("\\", "/")
-    return text.replace(":", "\\:").replace("'", "\\'")
+    text = text.replace("'", "'\\''").replace(":", "\\:")
+    return f"'{text}'"
 
 
 async def burn_subs(cfg, path, subs_path, out=None) -> dict:
@@ -173,12 +181,15 @@ async def burn_subs(cfg, path, subs_path, out=None) -> dict:
     dst = (_resolve_in_workspace(cfg, str(out)) if out
            else _default_out(cfg, src, "subbed", "mp4"))
     dst.parent.mkdir(parents=True, exist_ok=True)
-    vf = f"subtitles={_escape_filter_path(subs)}"
+    subs_dir = subs.parent
+    subs_rel = Path(subs.name)
+    vf = f"subtitles={_escape_filter_path(subs_rel)}"
     try:
         rc, _o, err = await _run(
             [cfg.media_ffmpeg, "-y", "-i", str(src), "-vf", vf,
              "-codec:a", "copy", str(dst)],
             timeout=cfg.media_timeout_s,
+            cwd=subs_dir,
         )
     except asyncio.TimeoutError:
         return {"ok": False, "error": "ffmpeg timeout (burn_subs)"}

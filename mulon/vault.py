@@ -457,7 +457,7 @@ class VaultFormServer:
             entry = self._tokens.get(token)
             if entry is None or entry["used"]:
                 return None
-            if time.time() > entry["expires_at"]:
+            if time.time() >= entry["expires_at"]:
                 return None
             return dict(entry)
 

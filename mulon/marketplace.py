@@ -69,7 +69,7 @@ SHELL_COMMANDS = {"sh", "bash", "zsh", "dash", "ksh", "cmd",
                   "fish", "csh"}
 DOWNLOAD_RUNNERS = {"npx": "npm", "bunx": "npm", "pnpm": "npm",
                     "uvx": "pypi", "pipx": "pypi"}
-SHELL_META_RE = re.compile(r"[;&|$`\\<>\n\r]")
+SHELL_META_RE = re.compile(r"[;&|$`<>\n\r]")
 VERSION_RE = re.compile(
     r"^\d+\.\d+\.\d+(?:[-.+][0-9A-Za-z.-]+)?$"
     r"|^\d{4}\.\d{1,2}\.\d{1,2}(?:[-.+][0-9A-Za-z.-]*)?$")
@@ -219,6 +219,75 @@ def _parse_package(args: list[str], ecosystem: str) -> Optional[dict]:
             "version": version or None, "pinned": pinned}
 
 
+def _is_shell_command_string(command: str) -> bool:
+    """Kiểm tra xem 'command' có phải là chuỗi lệnh shell / chuỗi
+    chứa cả command lẫn arguments hay không.
+    Trả về True nếu là chuỗi shell / đa từ cần tách.
+    Trả về False nếu là đường dẫn hợp lệ tới một executable (dù có
+    khoảng trắng trong tên thư mục/tên file)."""
+    # 1. Ký tự đặc biệt của shell (pipe, redirect, subshell, newline...)
+    # Lưu ý: không chứa '\\' vì dấu '\\' là os.sep trên Windows.
+    if SHELL_META_RE.search(command):
+        return True
+
+    # 2. Không có khoảng trắng -> không phải chuỗi đa từ
+    if not any(ch.isspace() for ch in command):
+        return False
+
+    clean = command.strip()
+
+    # 3. Được bọc trong dấu ngoặc kép / nháy đơn toàn bộ
+    # Ví dụ: '"C:\\Program Files\\Python312\\python.exe"'
+    if (clean.startswith('"') and clean.endswith('"') and len(clean) >= 2) or \
+       (clean.startswith("'") and clean.endswith("'") and len(clean) >= 2):
+        inner = clean[1:-1].strip()
+        if '"' not in inner and "'" not in inner and not SHELL_META_RE.search(inner):
+            return False
+
+    # 4. Nếu file thực sự tồn tại trên đĩa -> chắc chắn là executable hợp lệ
+    try:
+        if Path(clean).is_file():
+            return False
+    except Exception:
+        pass
+
+    # 5. Nếu KHÔNG chứa ký tự phân cách thư mục (/ hoặc \\) -> chắc chắn là chuỗi lệnh
+    # Ví dụ: "npx -y some-server", "python -m foo"
+    if "/" not in clean and "\\" not in clean:
+        return True
+
+    # 6. Có ký tự phân cách thư mục:
+    # Nếu có cờ CLI (- hoặc /? /s) sau từ đầu tiên
+    parts = clean.split()
+    if any(p.startswith("-") for p in parts[1:]):
+        return True
+
+    # Nếu từ đầu tiên kết thúc bằng đuôi executable quen thuộc (.exe, .cmd, .bat, .com, .ps1)
+    # và vẫn còn các từ phía sau (ví dụ: "C:\\dir\\python.exe script.py")
+    exe_exts = (".exe", ".cmd", ".bat", ".com", ".ps1")
+    first_token_lower = parts[0].lower()
+    if any(first_token_lower.endswith(ext) for ext in exe_exts) and len(parts) > 1:
+        return True
+
+    # Nếu từ cuối cùng kết thúc bằng đuôi executable (.exe, .cmd, .bat...)
+    # ví dụ: "E:\\New folder\\lane1\\.venv\\Scripts\\python.exe"
+    last_token_lower = parts[-1].lower()
+    if any(last_token_lower.endswith(ext) for ext in exe_exts):
+        return False
+
+    # Trường hợp đường dẫn Windows có ổ đĩa (C:\...) hoặc đường dẫn POSIX bắt đầu bằng /
+    # Nếu bất kỳ từ nào từ vị trí thứ 2 trở đi chứa '/' hoặc '\\',
+    # chứng tỏ khoảng trắng nằm GIỮA một đường dẫn (ví dụ: "C:\\Program" "Files\\app\\tool")
+    if any("/" in p or "\\" in p for p in parts[1:]):
+        return False
+
+    # Khoảng trắng nằm ở tên file cuối (ví dụ: "/opt/tools/my server")
+    if ("/" in parts[0] or "\\" in parts[0]) and len(parts) <= 3:
+        return False
+
+    return True
+
+
 def normalize_server_config(raw, *, source: str,
                             allowed_cwd_roots: list[Path],
                             allow_remote: bool = True) -> dict:
@@ -291,23 +360,29 @@ def normalize_server_config(raw, *, source: str,
         raise MarketplaceError("invalid_config",
                                "'command' phải là chuỗi lệnh.")
     command = command.strip()
-    if any(ch.isspace() for ch in command) or \
-            SHELL_META_RE.search(command):
+    if _is_shell_command_string(command):
         unsupported(
             "unsupported_shell_config",
             "Command là chuỗi shell — Mulon chỉ chạy executable "
             "trực tiếp, không qua shell.")
         manifest["command"] = command
         return manifest
-    base = Path(command).name.lower()
-    if base in SHELL_COMMANDS:
+
+    clean_cmd = command
+    if (clean_cmd.startswith('"') and clean_cmd.endswith('"') and len(clean_cmd) >= 2) or \
+       (clean_cmd.startswith("'") and clean_cmd.endswith("'") and len(clean_cmd) >= 2):
+        clean_cmd = clean_cmd[1:-1].strip()
+
+    base = Path(clean_cmd).name.lower()
+    base_stem = base.removesuffix(".exe")
+    if base in SHELL_COMMANDS or base_stem in SHELL_COMMANDS:
         unsupported(
             "unsupported_shell_config",
             f"'{base}' là shell/công cụ tải-chạy — không được "
             "dùng làm command của MCP server.")
-        manifest["command"] = command
+        manifest["command"] = clean_cmd
         return manifest
-    manifest["command"] = command
+    manifest["command"] = clean_cmd
 
     args = raw.get("args") or []
     if not isinstance(args, list) or \
@@ -324,7 +399,7 @@ def normalize_server_config(raw, *, source: str,
             "unsupported_shell_config",
             "Args chứa cờ chạy lệnh qua shell (-c) — không hỗ trợ.")
 
-    ecosystem = DOWNLOAD_RUNNERS.get(base)
+    ecosystem = DOWNLOAD_RUNNERS.get(base) or DOWNLOAD_RUNNERS.get(base_stem)
     if ecosystem:
         package = _parse_package(args, ecosystem)
         manifest["package"] = package
