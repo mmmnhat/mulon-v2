@@ -159,6 +159,8 @@ async def test_unknown_command_intercepted_without_agent_loop(tmp_path):
 
     # Agent không hề bị gọi
     agent_mock.handle.assert_not_called()
+    await memory.close()
+
 
 
 @pytest.mark.asyncio
@@ -186,6 +188,8 @@ async def test_cmd_help_handler(tmp_path):
     assert "Cơ bản" in reply_text
     assert "/start" in reply_text
     assert "/upcoming" in reply_text
+    await memory.close()
+
 
 
 @pytest.mark.asyncio
@@ -229,6 +233,9 @@ async def test_cmd_the_duyet_respects_dev_flag(tmp_path):
     msg_dev = _make_msg("/the_duyet", user_id=123, message_id=2004)
     await the_duyet_dev_fn(msg_dev)
     surface_dev.send_test_approval_card.assert_called_once()
+    await mem_prod.close()
+    await mem_dev.close()
+
 
 
 @pytest.mark.asyncio
@@ -272,3 +279,5 @@ async def test_cmd_memory_structured_summary_no_raw_dossier_dump(tmp_path):
 
     # TUYỆT ĐỐI KHÔNG dump nội dung thô của MEMORY.md
     assert "CHỈ THỊ BẢO MẬT NỘI BỘ AGENT" not in reply
+    await memory.close()
+

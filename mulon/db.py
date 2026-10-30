@@ -16,8 +16,10 @@ Hiện thực hóa đề xuất hiệu năng T-08 (docs/de-xuat-hieu-nang-2026-1
 from __future__ import annotations
 
 import asyncio
+import atexit
 import logging
 import re
+import weakref
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Optional, Sequence
@@ -25,6 +27,21 @@ from typing import Any, AsyncIterator, Callable, Optional, Sequence
 import aiosqlite
 
 logger = logging.getLogger("mulon.db")
+
+_ACTIVE_POOLS: weakref.WeakSet["SqliteWALPool"] = weakref.WeakSet()
+
+
+def close_all_pools() -> None:
+    """Đóng khẩn cấp đồng bộ toàn bộ worker threads của mọi pool còn mở."""
+    for pool in list(_ACTIVE_POOLS):
+        try:
+            pool.close_sync()
+        except Exception:
+            pass
+
+
+atexit.register(close_all_pools)
+
 
 _RE_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 _RE_LINE_COMMENT = re.compile(r"--[^\n]*")
@@ -173,6 +190,7 @@ class SqliteWALPool:
         self._row_factory: Any = aiosqlite.Row
         self._vec_ext_path: Optional[str] = None
         self._load_ext_enabled = False
+        _ACTIVE_POOLS.add(self)
 
     @property
     def path(self) -> Path:
@@ -254,6 +272,7 @@ class SqliteWALPool:
         if self._closed:
             return
         self._closed = True
+        _ACTIVE_POOLS.discard(self)
 
         for r in self._all_readers:
             try:
@@ -275,20 +294,30 @@ class SqliteWALPool:
                 logger.debug("Lỗi đóng writer: %s", exc)
             self._writer = None
 
+    def close_sync(self) -> None:
+        """Đóng khẩn cấp đồng bộ: ra lệnh _stop_running() ngay lập tức cho toàn bộ worker threads."""
+        if getattr(self, "_closed", False):
+            return
+        self._closed = True
+        _ACTIVE_POOLS.discard(self)
+        for r in list(getattr(self, "_all_readers", [])):
+            try:
+                r._stop_running()
+            except Exception:
+                pass
+        getattr(self, "_all_readers", []).clear()
+        w = getattr(self, "_writer", None)
+        if w is not None:
+            try:
+                w._stop_running()
+            except Exception:
+                pass
+            self._writer = None
+
     def __del__(self) -> None:
         """Dọn dẹp an toàn các thread worker ngầm khi object bị GC."""
-        if not getattr(self, "_closed", True):
-            for r in getattr(self, "_all_readers", []):
-                try:
-                    r._stop_running()
-                except Exception:
-                    pass
-            w = getattr(self, "_writer", None)
-            if w is not None:
-                try:
-                    w._stop_running()
-                except Exception:
-                    pass
+        self.close_sync()
+
 
     def _return_reader(self, conn: aiosqlite.Connection) -> None:
         """Đưa reader connection trở lại hàng đợi pool."""

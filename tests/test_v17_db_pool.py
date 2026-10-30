@@ -115,7 +115,7 @@ async def test_pool_concurrency_no_database_locked():
 
 @pytest.mark.asyncio
 async def test_pool_daemon_threads_and_gc_cleanup():
-    """T-39.1: Khắc phục aiosqlite threads treo — đảm bảo writer và reader connections đều là daemon threads."""
+    """T-39.1: Khắc phục aiosqlite threads treo — đảm bảo writer/readers là daemon và close_sync/close_all_pools giải phóng sạch."""
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = Path(tmpdir) / "test_daemon.db"
         pool = await SqliteWALPool.create(db_path, pool_size=3)
@@ -125,8 +125,24 @@ async def test_pool_daemon_threads_and_gc_cleanup():
         for r in pool._all_readers:
             assert r.daemon is True
 
-        # Test safe __del__ without raising error
-        pool.__del__()
+        writer_th = pool._writer
+        reader_ths = list(pool._all_readers)
 
-        await pool.close()
+        # Test close_sync khẩn cấp đồng bộ
+        pool.close_sync()
         assert pool._closed is True
+
+        # Đợi thread thoát sau khi nhận STOP sentinel
+        writer_th.join(timeout=2.0)
+        assert not writer_th.is_alive()
+        for rth in reader_ths:
+            rth.join(timeout=2.0)
+            assert not rth.is_alive()
+
+        # Tạo pool mới và test close_all_pools
+        db_path2 = Path(tmpdir) / "test_daemon2.db"
+        pool2 = await SqliteWALPool.create(db_path2, pool_size=2)
+        from mulon.db import close_all_pools
+        close_all_pools()
+        assert pool2._closed is True
+

@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 1.7.49 — 2026-10-31 — Diệt dứt điểm rò rỉ thread aiosqlite teardown lifecycle & bảo đảm tiến trình tự thoát (T-39.1 vòng 2, Agency Council Chặng 3 — ký: Antigravity)
+
+- **(ISSUE-01 Vòng 2) Giải quyết triệt để hiện tượng tiến trình pytest không tự thoát sau summary:**
+  - **Truy vết chính xác nguồn gốc rò rỉ:** Dùng hook giám sát thread trong `tests/conftest.py` ghi nhận được toàn bộ các thread rò rỉ ở cuối session: chính xác là 5 worker threads (`Connection`) của 1 `SqliteWALPool` (1 writer + 4 readers) đang chờ trong `self._tx.get()`, sinh ra từ `test_cmd_memory_structured_summary_no_raw_dossier_dump` (và các test mở `open_memory` mà chưa gọi `close()`).
+  - **Cơ chế `close_sync()` khẩn cấp đồng bộ (`mulon/db.py`):** Cung cấp phương thức `close_sync()` không phụ thuộc vào async event loop, gửi sentinel `_stop_running()` trực tiếp qua queue để ép toàn bộ worker threads thoát khỏi vòng lặp `Connection.run()` ngay lập tức.
+  - **Đăng ký dọn dẹp toàn cục `_ACTIVE_POOLS` & `atexit` (`mulon/db.py`):** Sử dụng `weakref.WeakSet` quản lý mọi pool đang hoạt động trong tiến trình, tự động kích hoạt `close_all_pools()` tại sự kiện `atexit` của Python runtime và tại hook `pytest_sessionfinish`.
+  - **Quản lý vòng đời `open_memory` trong test suite (`tests/conftest.py`, `tests/test_v17_commands.py`):** Bổ sung fixture autouse tự động đóng sạch toàn bộ `Memory` sau mỗi bài test; bổ sung đóng tường minh trong `tests/test_v17_commands.py`.
+- **Kiểm thử & Bằng chứng đo đạc thực tế:**
+  - `tests/test_v17_db_pool.py`: Bổ sung kiểm chứng `close_sync()` và `close_all_pools()` đảm bảo `writer_th.join()` và `reader_ths.join()` thành công, `is_alive() == False`.
+  - Kết quả đo tại `PYTEST_SESSIONFINISH`, `PYTEST_UNCONFIGURE` và `ATEXIT`: **Chỉ còn duy nhất 1 thread (MainThread), 0 thread phụ, 0 thread aiosqlite còn sống**.
+  - Toàn bộ full suite: **716 passed, 11 deselected, 0 failed** trong 26.28s; evals vàng **33/36 (92%)** đạt cổng; tiến trình tự thoát tức thì sau summary.
+
+
 ## 1.7.48 — 2026-10-30 — Vá dứt điểm aiosqlite teardown thread lifecycle + Composite index facts (T-39.1, Agency Council Chặng 3 — ký: Antigravity)
 
 - **(ISSUE-01) Khắc phục aiosqlite threads treo khi teardown / exit pool (`mulon/db.py`):**
