@@ -30,11 +30,16 @@ def test_touch_target_rules_enforced():
 
     # 5. Buttons trong các màn hình (Task detail, Heartbeat confirm, Library Trash, Bot name)
     assert 'id="btn-stop-task-detail"' in content
-    assert 'min-height:44px' in content[content.find('id="btn-stop-task-detail"') - 100 : content.find('id="btn-stop-task-detail"') + 200]
+    btn_stop_ctx = content[content.find('id="btn-stop-task-detail"') - 100 : content.find('id="btn-stop-task-detail"') + 200]
+    assert ('min-height:44px' in btn_stop_ctx or 'touch-target-44' in btn_stop_ctx)
+
     assert 'id="btn-heartbeat-confirm-pause"' in content
-    assert 'min-height:44px' in content[content.find('id="btn-heartbeat-confirm-pause"') - 50 : content.find('id="btn-heartbeat-confirm-pause"') + 200]
+    hb_ctx = content[content.find('id="btn-heartbeat-confirm-pause"') - 50 : content.find('id="btn-heartbeat-confirm-pause"') + 200]
+    assert ('min-height:44px' in hb_ctx or 'touch-target-44' in hb_ctx)
+
     assert 'id="btn-save-bot-name"' in content
-    assert 'min-height:44px' in content[content.find('id="btn-save-bot-name"') - 50 : content.find('id="btn-save-bot-name"') + 200]
+    bot_ctx = content[content.find('id="btn-save-bot-name"') - 50 : content.find('id="btn-save-bot-name"') + 200]
+    assert ('min-height:44px' in bot_ctx or 'touch-target-44' in bot_ctx)
 
 
 def test_haptic_feedback_implementation():

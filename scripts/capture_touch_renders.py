@@ -193,12 +193,9 @@ def main():
         page.evaluate("""() => {
             document.documentElement.setAttribute('data-theme', 'light');
         }""")
-        home_tab = page.locator("#tab-tongquan")
-        if home_tab.is_visible():
-            home_tab.click()
-            page.wait_for_timeout(600)
-            page.screenshot(path=str(render_dir / "01_dashboard_light.png"))
-            print(f"Captured: {render_dir / '01_dashboard_light.png'}")
+        page.wait_for_timeout(300)
+        page.screenshot(path=str(render_dir / "01_dashboard_light.png"))
+        print(f"Captured: {render_dir / '01_dashboard_light.png'}")
 
         browser.close()
 

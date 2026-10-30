@@ -273,118 +273,23 @@ class MessageBatcher:
             await self.on_flush(key, "\n".join(parts), parts)
 
 
-# ------------------------- chia tin an toàn HTML -------------------------
+# ------------------------- chia tin an toàn HTML (Tách Presenter sang telegram_delivery.py theo ADR-001) -------------------------
 
-_VOID_TAGS = {"br", "hr"}
-_KNOWN_TAGS = {"b", "strong", "i", "em", "u", "s", "code", "pre", "a",
-               "blockquote", "tg-spoiler"}
-_TAG_RE = re.compile(r"<(/?)([a-zA-Z][\w-]*)((?:\s[^<>]*)?)>")
-
-
-def _open_tags(text: str) -> list[tuple[str, str]]:
-    stack: list[tuple[str, str]] = []
-    for m in _TAG_RE.finditer(text):
-        closing, name, attrs = m.group(1), m.group(2).lower(), m.group(3) or ""
-        if name in _VOID_TAGS:
-            continue
-        if closing:
-            for i in range(len(stack) - 1, -1, -1):
-                if stack[i][0] == name:
-                    del stack[i:]
-                    break
-        else:
-            stack.append((name, attrs))
-    return stack
-
-
-_CODE_OR_LINK_RE = re.compile(
-    r"```([\s\S]*?)```|`([^`\n]+)`|\[([^\]]+)\]\((https?://[^\s)]+)\)")
-_BOLD_RE = re.compile(r"\*\*([^*\n]+)\*\*")
-_HEADING_RE = re.compile(r"^#{1,6}\s+(.+)$", flags=re.MULTILINE)
-_HR_RE = re.compile(r"^[ \t]*([-*_][ \t]*){3,}$", flags=re.MULTILINE)
-
-
-def clean_final_text(text: str) -> str:
-    """Làm sạch văn bản đầu ra: loại bỏ các dòng phân cách thô (---, ***, ___) và chuẩn hóa dòng trống thừa (T-24.7)."""
-    if not text:
-        return ""
-    cleaned = _HR_RE.sub("", text)
-    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
-    return cleaned
-
-
-def safe_stream_markdown_to_html(text: str) -> str:
-    """Chuyển đổi markdown đang stream thành HTML an toàn, tự đóng các thẻ dở dang để không bao giờ lộ markdown thô trên Telegram (T-24.7)."""
-    if not text:
-        return ""
-    # Tự đóng code block dở dang (số lượng ``` lẻ)
-    if text.count("```") % 2 == 1:
-        text = text + "\n```"
-    elif text.count("`") % 2 == 1:
-        text = text + "`"
-    if text.count("**") % 2 == 1:
-        text = text + "**"
-    html_text = md_to_html(text)
-    chunks = chunk_html(html_text)
-    return chunks[0] if chunks else ""
-
-
-def md_to_html(text: str) -> str:
-    """Converter Markdown -> HTML TỐI THIỂU và AN TOÀN cho câu
-    trả lời của model (NC-1): code block/inline + link được trích
-    ra và escape riêng trước, phần còn lại escape toàn bộ rồi mới
-    áp **bold** và heading -> <b>. Nhờ escape trước, HTML thô do
-    model (hoặc nội dung web) chèn vào không bao giờ thành thẻ
-    thật — hết cảnh `**`/`##`/`[chữ](link)` hiện nguyên văn mà
-    cũng không vỡ định dạng vì nội dung lạ."""
-    stash: list[str] = []
-
-    def _keep(m: re.Match) -> str:
-        if m.group(1) is not None:
-            part = "<pre>" + html.escape(m.group(1).strip("\n")) \
-                + "</pre>"
-        elif m.group(2) is not None:
-            part = "<code>" + html.escape(m.group(2)) + "</code>"
-        else:
-            part = ('<a href="' + html.escape(m.group(4), quote=True)
-                    + '">' + html.escape(m.group(3)) + "</a>")
-        stash.append(part)
-        return f"\x00{len(stash) - 1}\x00"
-
-    out = _CODE_OR_LINK_RE.sub(_keep, text or "")
-    out = _HR_RE.sub("", out)
-    out = re.sub(r"\n{3,}", "\n\n", out)
-    out = html.escape(out, quote=False)
-    out = _BOLD_RE.sub(r"<b>\1</b>", out)
-    out = _HEADING_RE.sub(r"\n<b>\1</b>\n", out)
-    return re.sub("\x00(\\d+)\x00",
-                  lambda m: stash[int(m.group(1))], out)
-
-
-def chunk_html(text: str, max_chars: int = 3500) -> list[str]:
-    """Chia text HTML thành các chunk <= max_chars, đóng/mở lại thẻ cân bằng."""
-    if len(text) <= max_chars:
-        return [text]
-    chunks: list[str] = []
-    rest = text
-    prefix = ""
-    while rest:
-        budget = max_chars - len(prefix)
-        if len(rest) <= budget:
-            chunks.append(prefix + rest)
-            break
-        window = rest[:budget]
-        cut = max(window.rfind("\n\n"), window.rfind("\n"), window.rfind(" "))
-        if cut < budget * 0.4:
-            cut = budget
-        piece, rest = rest[:cut], rest[cut:].lstrip("\n")
-        stack = _open_tags(prefix + piece)
-        closing = "".join(f"</{name}>" for name, _ in reversed(stack))
-        chunks.append(prefix + piece + closing)
-        prefix = "".join(
-            f"<{name}{attrs}>" for name, attrs in stack if name in _KNOWN_TAGS
-        )
-    return [c for c in chunks if c.strip()]
+from mulon.telegram_delivery import (  # noqa: F401
+    _VOID_TAGS,
+    _KNOWN_TAGS,
+    _TAG_RE,
+    _CODE_OR_LINK_RE,
+    _BOLD_RE,
+    _HEADING_RE,
+    _HR_RE,
+    _open_tags,
+    clean_final_text,
+    safe_stream_markdown_to_html,
+    md_to_html,
+    chunk_html,
+    format_progress_lines,
+)
 
 
 def session_key_for(message: Message) -> str:
@@ -838,12 +743,7 @@ class TelegramSurface:
                     if now - status_state["last"] < 1.2:
                         return
                     status_state["last"] = now
-                    lines = ["<b>⏳ Đang xử lý:</b>"]
-                    for step in progress_steps[-4:]:
-                        icon = step.get("icon", "•")
-                        stext = html.escape(step.get("text", ""))
-                        lines.append(f"{icon} {stext}")
-                    msg_text = "\n".join(lines)
+                    msg_text = format_progress_lines(progress_steps)
                     try:
                         await placeholder.edit_text(msg_text, parse_mode="HTML")
                     except Exception:

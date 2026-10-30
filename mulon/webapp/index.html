@@ -1034,12 +1034,12 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <!-- chi tiết 1 việc -->
 <section id="screen-task" class="hidden">
   <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
-  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:6px;">
+  <div class="flex-between" style="align-items:flex-start; gap:10px; margin-bottom:6px;">
     <h2 class="screen-title" id="task-detail-title" style="margin-bottom:0; flex:1;">Chi tiết việc</h2>
     <span id="task-detail-status" class="r-state" style="font-size:13px; font-weight:600; color:var(--ink2); white-space:nowrap; padding-top:4px;"></span>
-    <button id="btn-stop-task-detail" class="btn btn-danger btn-sm hidden" style="min-height:44px; height:44px; padding:0 14px; font-size:13px; border-radius:10px; cursor:pointer;">Dừng việc</button>
+    <button id="btn-stop-task-detail" class="btn btn-danger btn-sm touch-target-44 hidden" style="padding:0 14px; font-size:13px; border-radius:10px; cursor:pointer;">Dừng việc</button>
   </div>
-  <div id="task-detail-sub" style="font-size:12px; color:var(--ink2); margin-bottom:12px;"></div>
+  <div id="task-detail-sub" class="text-sub-12" style="margin-bottom:12px;"></div>
 
   <!-- Nút thử lại khi việc lỗi -->
   <div id="task-retry-actions" class="hidden" style="display:flex; gap:8px; margin-bottom:12px;">
@@ -1188,8 +1188,8 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <div id="heartbeat-confirm-box" class="hidden" style="margin-top:16px; padding:14px; border-radius:14px; background:var(--surface2); border:1px solid var(--line);">
       <div style="font-size:13px; font-weight:500; margin-bottom:10px; color:var(--ink);">Ní có chắc muốn tạm dừng vòng quét Heartbeat ngầm (30 phút/lần)?</div>
       <div style="display:flex; gap:8px;">
-        <button class="btn btn-danger btn-sm" id="btn-heartbeat-confirm-pause" style="flex:1; min-height:44px; height:44px; border-radius:10px; border:0; cursor:pointer;">Tạm dừng</button>
-        <button class="btn btn-ghost btn-sm" id="btn-heartbeat-confirm-cancel" style="flex:1; min-height:44px; height:44px; border-radius:10px; cursor:pointer;">Hủy</button>
+        <button class="btn btn-danger btn-sm touch-target-44" id="btn-heartbeat-confirm-pause" style="flex:1; border-radius:10px; border:0; cursor:pointer;">Tạm dừng</button>
+        <button class="btn btn-ghost btn-sm touch-target-44" id="btn-heartbeat-confirm-cancel" style="flex:1; border-radius:10px; cursor:pointer;">Hủy</button>
       </div>
     </div>
   </div>
@@ -1340,9 +1340,9 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <!-- Màn con 4: Thư viện tài liệu (tìm kiếm + lọc loại + danh sách hàng chuẩn + menu ⋯) -->
 <section id="screen-sub-library" class="hidden">
   <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+  <div class="flex-between" style="margin-bottom:10px;">
     <h2 class="screen-title" id="library-screen-title" style="margin-bottom:0;">Thư viện tài liệu</h2>
-    <button class="btn btn-ghost btn-sm" id="lib-trash-view" style="min-height:44px; height:44px; padding:0 14px; font-size:13px; border-radius:10px;">Thùng rác</button>
+    <button class="btn btn-ghost btn-sm touch-target-44" id="lib-trash-view" style="padding:0 14px; font-size:13px; border-radius:10px;">Thùng rác</button>
   </div>
   <div style="margin-bottom:8px">
     <input id="library-search" class="field-input" type="text" placeholder="Tìm tài liệu theo tên..." style="margin:0">
@@ -1602,8 +1602,8 @@ a.ext{color:var(--lav-deep); word-break:break-all}
         Tên thân mật của bot hiển thị trên Mini App và lời thoại.
       </div>
       <div style="display:flex; gap:8px; margin-bottom:14px;">
-        <input type="text" id="input-bot-name" class="field-input" placeholder="Ví dụ: Mulon, Miu Con..." style="flex:1; min-height:44px; height:44px; border-radius:10px; border:1px solid var(--line); padding:0 12px; font-size:14px; background:var(--surface);">
-        <button class="btn btn-accent" id="btn-save-bot-name" type="button" style="min-height:44px; height:44px; padding:0 16px; font-weight:600; border-radius:10px;">Lưu tên</button>
+        <input type="text" id="input-bot-name" class="field-input touch-target-44" placeholder="Ví dụ: Mulon, Miu Con..." style="flex:1; border-radius:10px; border:1px solid var(--line); padding:0 12px; font-size:14px; background:var(--surface);">
+        <button class="btn btn-accent touch-target-44" id="btn-save-bot-name" type="button" style="padding:0 16px; font-weight:600; border-radius:10px;">Lưu tên</button>
       </div>
 
       <!-- Hộp ghi chú giới hạn Telegram theo đúng yêu cầu T-13 -->

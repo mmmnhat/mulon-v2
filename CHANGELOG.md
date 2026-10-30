@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 1.7.55 — 2026-10-31 — Tracer-Bullet Presenter `telegram_delivery.py` theo ADR-001 & Polish hoàn thiện Mini App (T-39.6, Agency Council Chặng 3 — ký: Antigravity)
+
+- **(ADR-001 / T-39.6) Tách lớp Presentation & Delivery khỏi `telegram_bot.py` (`mulon/telegram_delivery.py`):**
+  - **Triển khai lát cắt tracer-bullet đầu tiên theo ADR-001:** Trích xuất toàn bộ logic định dạng và xử lý khối văn bản Telegram từ siêu module `mulon/telegram_bot.py` sang module độc lập `mulon/telegram_delivery.py`:
+    - `clean_final_text(text)`: Làm sạch phân cách thô và chuẩn hoá khoảng trắng thừa.
+    - `safe_stream_markdown_to_html(text)`: Chuyển đổi markdown stream sang HTML an toàn, tự đóng thẻ dở dang, triệt tiêu hiện tượng nhấp nháy markdown thô trên Telegram.
+    - `md_to_html(text)`: Chuyển đổi markdown tối thiểu, escape HTML thô chống injection trước khi format bold và heading.
+    - `chunk_html(text, max_chars)`: Cắt khối tin nhắn an toàn dưới giới hạn Telegram (mặc định 3500 ký tự), tự động cân bằng các cặp thẻ đóng/mở HTML qua các chunk.
+    - `format_progress_lines(steps, max_items, header)`: Format danh sách tiến trình trực quan chuẩn Muse (`✓` / `⏳`) dùng chung cho placeholder.
+  - **Bảo toàn 100% Backward Compatibility:** Re-export toàn bộ hàm và hằng số qua `mulon/telegram_bot.py` (`_open_tags`, `_VOID_TAGS`, `_KNOWN_TAGS`, v.v.), không làm thay đổi chữ ký hay ảnh hưởng bất kỳ module nào đang gọi vào.
+- **Hoàn thiện các lưu ý giao diện Mini App của Muse (T-39.4a Polish):**
+  - Áp dụng thực tế 5 utility classes (`.flex-center`, `.flex-between`, `.flex-col`, `.touch-target-44`, `.text-sub-12`) vào các vị trí markup trong `mulon/webapp/index.html` (màn hình task detail, heartbeat confirm, library trash, mascot settings), triệt tiêu hoàn toàn mã lớp không dùng (dead code).
+  - Refresh lại ảnh render theme Light thật `docs/audits/renders/01_dashboard_light.png` bằng Playwright Chromium 390×844.
+- **Kiểm thử & Bằng chứng đo đạc thực tế:**
+  - File test hồi quy mới: `tests/test_v17_telegram_delivery.py` (6/6 passed trong 0.85s).
+  - Full test suite Mac: **749 passed / 0 failed** (tăng 6 test mới so với 743 passed của v1.7.54) trong 68.68s; evals vàng **33/36 (92%)** đạt cổng 85%; tiến trình tự thoát sạch (<1s).
+  - Phân vai The Agency: Chủ trì kiến trúc `agency-software-architect` + `agency-minimal-change-engineer`, kiểm thử `agency-test-automation-engineer`, thẩm định `agency-reality-checker`.
+
 ## 1.7.54 — 2026-10-31 — Chuẩn hóa Touch Target $\ge 44$px, Haptic Feedback đa hình & Polish UI Mini App (T-39.4a, Agency Council Chặng 3 — ký: Antigravity)
 
 - **(ISSUE-07 / T-39.4a) Chuẩn hóa Touch Target $\ge 44$px (`mulon/webapp/index.html`):**
