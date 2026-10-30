@@ -129,14 +129,14 @@ Dưới đây là ma trận 12 phát hiện kỹ thuật, được phân loại 
 | **ISSUE-02** | Security | DNS-rebinding TOCTOU ở Playwright `browser_worker.py` | 🔴 **HIGH** | **`[T-39.2]`** Chốt chặn DNS rebinding browser | Ghim IP đã xác thực hoặc chặn redirect sang IP loopback trong Chromium. |
 | **ISSUE-03** | RAG / Embed | FastEmbed ONNX nạp lười gây lag lượt tương tác đầu | 🟡 **MEDIUM** | **`[T-39.3]`** FastEmbed startup warm-up | Bổ sung hàm `warmup()` chạy nền lúc `mulon.main` khởi động. |
 | **ISSUE-04** | UI / A11y | 11 nút bấm/hàng tương tác có chiều cao < 44px | 🟡 **MEDIUM** | **`[T-39.4]`** Polish UI Mini App & Touch Zone | Tăng chiều cao touch target ≥44px, dọn 362 style inline, giữ accent `#7C3AED`. |
-| **ISSUE-05** | Storage | Thư mục `data/artifacts/tool-results/` thiếu TTL dọn rác | 🟡 **MEDIUM** | **`[T-39.1]`** (Gộp vào sub-task DB/Storage) | Thêm hàm dọn file cũ > 7 ngày trong vòng consolidation nền. |
+| **ISSUE-05** | Storage | *[ĐÃ RÚT THEO ERRATA E1]* TTL dọn rác tool-results đã có từ v1.6.5 (`clean_old_tool_results` tại `mulon/context.py:157`, gọi ở `main.py:61`) | ⚪ **RÚT** | *Không mở sub-task* | Đã kiểm chứng code hiện hữu có sẵn cơ chế và test riêng. |
 | **ISSUE-06** | API | Định dạng lỗi `/api/*` chưa chuẩn hoá RFC 7807 | 🟡 **MEDIUM** | **`[T-39.5]`** Chuẩn hoá API response contract | Chỉ THÊM field `code`/`detail`, không đổi/bỏ field cũ (Điều kiện 4). |
 | **ISSUE-07** | Architecture | `telegram_bot.py` quá lớn (5,086 dòng) ghép nối cao | 🟡 **MEDIUM** | **`[T-39.6]`** Tách tracer-bullets theo ADR-001 | Triển khai từng lát cắt nhỏ có suite xanh, không refactor ồ ạt. |
 | **ISSUE-08** | Frontend | Code JS `index.html` 5,454 dòng chưa module hoá | 🟢 **POLISH** | **`[T-39.4]`** (Gộp vào Polish UI) | Tách cấu trúc JS client rõ ràng theo State/Renderer. |
 | **ISSUE-09** | UI / Mobile | Thiếu Telegram Haptic Feedback khi bấm duyệt/chuyển tab | 🟢 **POLISH** | **`[T-39.4]`** (Gộp vào Polish UI) | Gọi `Telegram.WebApp.HapticFeedback` khi thao tác. |
 | **ISSUE-10** | Gateway | Circuit breaker chia sẻ state giữa các tier model | 🟢 **POLISH** | **`[T-39.3]`** (Gộp vào Model/Gateway) | Tách breaker key theo model tier. |
 | **ISSUE-11** | Security | HMAC initData thiếu nonce chống replay trong 3600s | 🟢 **POLISH** | **`[T-39.2]`** (Gộp vào Security) | Ghi nhận chấp nhận rủi ro thấp cho bot cá nhân. |
-| **ISSUE-12** | Memory | Thiếu composite index cho facts `(valid_at, invalidated_at)` | 🟢 **POLISH** | **`[T-39.1]`** (Gộp vào DB) | Bổ sung index tối ưu truy vấn bi-temporal. |
+| **ISSUE-12** | Memory | Composite index cho `memory_facts(valid_to, valid_from)` | 🟢 **POLISH** | **`[T-39.1]`** (Gộp vào DB) | Bằng chứng EXPLAIN QUERY PLAN: SQLite dùng MULTI-INDEX OR (INDEX 1 dùng `idx_facts_validity` cho `valid_to=? AND valid_from<?`, INDEX 2 dùng `idx_facts_active` cho `valid_to>?`). |
 
 ---
 

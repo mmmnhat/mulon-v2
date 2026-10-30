@@ -210,7 +210,9 @@ class SqliteWALPool:
         self._path.parent.mkdir(parents=True, exist_ok=True)
 
         # 1. Mở Writer Connection
-        self._writer = await aiosqlite.connect(str(self._path))
+        writer_conn = aiosqlite.connect(str(self._path))
+        writer_conn.daemon = True
+        self._writer = await writer_conn
         self._writer.row_factory = self._row_factory
 
         # Cấu hình WAL + Busy Timeout cho Writer
@@ -223,7 +225,9 @@ class SqliteWALPool:
         # 2. Mở Reader Pool Connections (nếu pool_size > 0)
         for i in range(self._pool_size):
             try:
-                r = await aiosqlite.connect(str(self._path))
+                reader_conn = aiosqlite.connect(str(self._path))
+                reader_conn.daemon = True
+                r = await reader_conn
                 r.row_factory = self._row_factory
                 await r.execute("PRAGMA query_only=ON;")
                 await r.execute(f"PRAGMA busy_timeout={self._busy_timeout_ms};")
@@ -270,6 +274,21 @@ class SqliteWALPool:
             except Exception as exc:
                 logger.debug("Lỗi đóng writer: %s", exc)
             self._writer = None
+
+    def __del__(self) -> None:
+        """Dọn dẹp an toàn các thread worker ngầm khi object bị GC."""
+        if not getattr(self, "_closed", True):
+            for r in getattr(self, "_all_readers", []):
+                try:
+                    r._stop_running()
+                except Exception:
+                    pass
+            w = getattr(self, "_writer", None)
+            if w is not None:
+                try:
+                    w._stop_running()
+                except Exception:
+                    pass
 
     def _return_reader(self, conn: aiosqlite.Connection) -> None:
         """Đưa reader connection trở lại hàng đợi pool."""

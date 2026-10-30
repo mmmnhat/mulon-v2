@@ -111,3 +111,22 @@ async def test_pool_concurrency_no_database_locked():
         assert final_row["val"] == 15 * 4
 
         await pool.close()
+
+
+@pytest.mark.asyncio
+async def test_pool_daemon_threads_and_gc_cleanup():
+    """T-39.1: Khắc phục aiosqlite threads treo — đảm bảo writer và reader connections đều là daemon threads."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test_daemon.db"
+        pool = await SqliteWALPool.create(db_path, pool_size=3)
+
+        assert pool._writer is not None
+        assert pool._writer.daemon is True
+        for r in pool._all_readers:
+            assert r.daemon is True
+
+        # Test safe __del__ without raising error
+        pool.__del__()
+
+        await pool.close()
+        assert pool._closed is True

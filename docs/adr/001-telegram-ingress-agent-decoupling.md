@@ -76,4 +76,4 @@ flowchart TD
 
 ### Ràng buộc thực thi (Theo Điều kiện 3 của Muse):
 - **Tuyệt đối không Big-Bang Refactor**: Việc phân tách sẽ KHÔNG thực hiện trong Chặng 1 & 2.
-- Khi triển khai ở Chặng 3, việc tách phải đi từng lát cắt nhỏ (Sub-tasks: `T-39.3a`, `T-39.3b`...). Mỗi lát cắt phải kèm suite test xanh 100% và kiểm chứng bot sống trên Telegram thật.
+- Khi triển khai ở Chặng 3, việc tách phải đi từng lát cắt nhỏ (Sub-tasks: `T-39.6a`, `T-39.6b`...). Mỗi lát cắt phải kèm suite test xanh 100% và kiểm chứng bot sống trên Telegram thật.

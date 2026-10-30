@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 1.7.48 — 2026-10-30 — Vá dứt điểm aiosqlite teardown thread lifecycle + Composite index facts (T-39.1, Agency Council Chặng 3 — ký: Antigravity)
+
+- **(ISSUE-01) Khắc phục aiosqlite threads treo khi teardown / exit pool (`mulon/db.py`):**
+  - **Đặt `conn.daemon = True` trước khi await khởi tạo kết nối:** Cả Writer connection và toàn bộ Reader pool connections trong `SqliteWALPool.open()` đều được thiết lập `daemon = True` ngay sau khi gọi `aiosqlite.connect()` (trước khi start thread ngầm qua `__await__`).
+  - **Dọn dẹp an toàn qua `__del__`:** Bổ sung phương thức `__del__` tự động gọi `_stop_running()` gửi sentinel kết thúc cho các thread worker aiosqlite khi object pool bị Garbage Collection mà chưa kịp gọi `await pool.close()`.
+  - **Triệt tiêu hoàn toàn lỗi treo test suite:** Toàn bộ 716 tests chạy xong trong 26s và process thoát ngay lập tức, không còn bị treo hay timeout chờ đợi các thread worker aiosqlite nền như các lượt autowatch trước đó.
+- **(ISSUE-12) Bổ sung composite index tối ưu hóa truy vấn bi-temporal facts (`mulon/memory.py`):**
+  - Bổ sung chỉ mục `CREATE INDEX IF NOT EXISTS idx_facts_validity ON memory_facts(valid_to, valid_from);` trong `SCHEMA`.
+  - Tối ưu hóa các câu truy vấn lọc active facts theo khoảng thời gian `(valid_to IS NULL OR valid_to > ?) AND valid_from <= ?`.
+- **Kiểm thử nghiệm thu (`tests/test_v17_db_pool.py`):**
+  - Bổ sung bài kiểm tra `test_pool_daemon_threads_and_gc_cleanup()` xác thực 100% writer và readers trong pool đều là daemon threads và dọn dẹp sạch sẽ khi GC.
+  - Toàn bộ full suite: **716 passed, 11 deselected, 0 failed** trong 26.34s (thoát ngay lập tức).
+
 ## 1.7.47 — 2026-10-28 — Khắc phục 19 test fail trên Windows thật (W1–W6, T-36, LUỒNG 5 — ký: Antigravity [L5])
 
 - **(W1) Khắc phục lỗi sản phẩm Chợ MCP trên Windows (`mulon/marketplace.py`):**

@@ -183,6 +183,7 @@ CREATE TABLE IF NOT EXISTS memory_facts (
     created_at    TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_facts_active ON memory_facts(valid_to);
+CREATE INDEX IF NOT EXISTS idx_facts_validity ON memory_facts(valid_to, valid_from);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS facts_fts USING fts5(
     subject, fact, fact_nodau, content='memory_facts', content_rowid='id'
