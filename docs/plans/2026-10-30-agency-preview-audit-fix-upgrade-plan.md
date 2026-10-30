@@ -65,7 +65,7 @@ flowchart TD
 * **Hành động cụ thể (Tasks Frontend)**:
   - [ ] **Task FE-1 (Client JS Modularization)**: Phân tách logic client JavaScript thành các module chức năng rõ ràng (State Store, API Client, View Renderers), loại bỏ mã lặp và DOM manipulation trực tiếp thiếu kiểm soát.
   - [ ] **Task FE-2 (CSS Token & Inline Style Pruning)**: Dọn sạch 360 thuộc tính `style=""` inline, đưa về các class tiện ích chuẩn hoá dựa trên hệ thống Design Token tại `DESIGN.md` (`--paper`, `--surface`, `--ink`, `--lav`, `--accent`).
-  - [ ] **Task FE-3 (Kỷ luật 60/30/10 & Finish Gate)**: Rà soát 100% các màn hình (`#screen-models`, `#screen-tasks`, `#screen-vault`, `#screen-feed`), triệt tiêu hoàn toàn màu trạng thái xanh/vàng/đỏ trong danh sách, chỉ giữ đúng 1 màu nhấn `--accent` (Tím Mulon `#6B46C1`).
+  - [ ] **Task FE-3 (Kỷ luật 60/30/10 & Finish Gate)**: Rà soát 100% các màn hình (`#screen-models`, `#screen-tasks`, `#screen-vault`, `#screen-feed`), triệt tiêu hoàn toàn màu trạng thái xanh/vàng/đỏ trong danh sách, chỉ giữ đúng 1 màu nhấn `--accent` (Tím Mulon `#7C3AED` theo đúng token code thật).
   - [ ] **Task FE-4 (Thumb Zone & Haptic Feedback)**: Tối ưu hoá vùng ngón cái cho thiết bị di động màn hình dài; tích hợp `Telegram.WebApp.HapticFeedback.impactOccurred` / `notificationOccurred` cho các thao tác phê duyệt, lưu cài đặt và chuyển tab.
   - [ ] **Task FE-5 (Render Thật & W3C Semantic Audit)**: Dùng Chromium headless chụp ảnh render thật ở cả 2 chế độ Telegram Light và Dark mode; chạy Nu HTML Checker chứng minh 0 lỗi semantic.
 
