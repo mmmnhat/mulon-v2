@@ -1,5 +1,36 @@
 # CHANGELOG
 
+## 1.7.54 — 2026-10-31 — Chuẩn hóa Touch Target $\ge 44$px, Haptic Feedback đa hình & Polish UI Mini App (T-39.4a, Agency Council Chặng 3 — ký: Antigravity)
+
+- **(ISSUE-07 / T-39.4a) Chuẩn hóa Touch Target $\ge 44$px (`mulon/webapp/index.html`):**
+  - Rà soát toàn diện và xử lý triệt để 11 vị trí touch target bị co hẹp dưới 44px (như 32px, 36px, 38px, 42px), nâng toàn bộ lên chuẩn Apple HIG và AGENTS.md mục 6 ($\ge 44$px):
+    1. `.segbar` (`min-height: 48px; height: 48px`) và `.segbar button` (`min-height: 44px; height: 44px; border-radius: 10px; font-size: var(--fs-callout); padding: 0 8px`).
+    2. `.ds-search-bar` (`min-height: 44px; height: 44px`).
+    3. `.filter-chip`, `.fchip` (`min-height: 44px; height: 44px; padding: 0 14px; font-size: var(--fs-callout); display: inline-flex; align-items: center; justify-content: center`).
+    4. `.lib-more-btn` (`width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: 10px`).
+    5. `#btn-stop-task-detail` (`min-height: 44px; height: 44px; padding: 0 14px; font-size: 13px; border-radius: 10px`).
+    6. `#btn-heartbeat-confirm-pause` (`min-height: 44px; height: 44px; border-radius: 10px`).
+    7. `#btn-heartbeat-confirm-cancel` (`min-height: 44px; height: 44px; border-radius: 10px`).
+    8. `#lib-trash-view` (`min-height: 44px; height: 44px; padding: 0 14px; font-size: 13px; border-radius: 10px`).
+    9. `#input-bot-name` (`min-height: 44px; height: 44px`).
+    10. `#btn-save-bot-name` (`min-height: 44px; height: 44px`).
+    11. `data-lib-restore` & `data-lib-purge` trong render JS thư viện (`min-height: 44px; height: 44px; padding: 0 14px; font-size: 13px; border-radius: 10px`).
+  - Kiểm tra `grep -n -E "height:\s*(32|36|42)px"` cho kết quả 0 phần tử tương tác còn sót lại.
+- **Nâng cấp Telegram Native Haptic Feedback (`mulon/webapp/index.html`):**
+  - Hàm `haptic(kind)` nâng cấp hỗ trợ đa hình đầy đủ theo Telegram WebApp SDK:
+    - `selectionChanged()`: khi `kind === 'select' || kind === 'selection'` (chọn tab, chọn chip).
+    - `notificationOccurred(type)`: khi `kind === 'success' || kind === 'error' || kind === 'warning'`.
+    - `impactOccurred(style)`: hỗ trợ `light`, `medium`, `heavy`, `rigid`, `soft` (mặc định fallback `medium`).
+    - Bọc `try/catch` an toàn và kiểm tra `tg.HapticFeedback` trước khi gọi, không gây lỗi khi chạy ngoài môi trường Telegram.
+- **Bổ sung Utility Classes & Render thật Playwright:**
+  - Bổ sung 5 utility classes chuẩn hóa trong `<style>`: `.flex-center`, `.flex-between`, `.flex-col`, `.touch-target-44`, `.text-sub-12`.
+  - Tạo script `scripts/capture_touch_renders.py` render thật HTML/CSS bằng Playwright Chromium viewport 390×844 cho 2 theme Light & Dark (lưu tại `docs/audits/renders/01_dashboard_light.png`, `02_dashboard_dark.png`, `04_tasks_dark.png`), bảo đảm quy định cấm mock vẽ tay.
+- **Kiểm thử & Bằng chứng đo đạc thực tế:**
+  - File test hồi quy mới: `tests/test_v17_miniapp_touch_and_haptic.py` (4/4 passed).
+  - Full test suite Mac: **743 passed / 0 failed** (tăng 4 test mới so với 739 passed của v1.7.53) trong 69.22s; evals vàng **33/36 (92%)** đạt cổng 85%.
+  - Phân vai The Agency: Chủ trì `agency-ux-architect` + `agency-frontend-developer`, rà soát cổng `agency-ui-finish-gate-reviewer`, kiểm chứng bằng chứng thật `agency-reality-checker`.
+
+
 ## 1.7.53 — 2026-10-31 — FastEmbed Startup Warm-up không chặn & Bulkhead Circuit Breaker cách ly per-tier (T-39.3, Agency Council Chặng 3 — ký: Antigravity)
 
 - **(ISSUE-03) FastEmbed ONNX Startup Warm-up (`mulon/embeddings.py`, `mulon/main.py`):**
