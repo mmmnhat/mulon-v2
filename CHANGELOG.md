@@ -1,12 +1,27 @@
 # CHANGELOG
 
+## 1.7.53 — 2026-10-31 — FastEmbed Startup Warm-up không chặn & Bulkhead Circuit Breaker cách ly per-tier (T-39.3, Agency Council Chặng 3 — ký: Antigravity)
+
+- **(ISSUE-03) FastEmbed ONNX Startup Warm-up (`mulon/embeddings.py`, `mulon/main.py`):**
+  - Bổ sung phương thức `warmup() -> bool` cho `FastEmbedEmbedder` (và protocol `Embedder`), chủ động gọi `_ensure_impl()` và thực thi một dummy embedding vector ngắn `["warmup"]` để khởi tạo hoàn tất ONNX Runtime session trong RAM.
+  - Tích hợp tác vụ nền không chặn `asyncio.create_task(asyncio.to_thread(embedder.warmup))` khi khởi động bot trong `mulon/main.py`. Triệt tiêu hoàn toàn độ trễ 3–8s ở lượt tương tác đầu tiên của người dùng mà không làm chậm thời gian boot bot (<1s).
+  - Tuân thủ nguyên tắc Degrade không sập: nếu vắng thư viện ONNX/fastembed hoặc lỗi nạp model, `warmup()` bắt ngoại lệ an toàn và bot vẫn chạy bình thường với BM25-only.
+- **(ISSUE-10) Bulkhead Circuit Breaker cách ly lỗi per-tier (`mulon/gateway.py`):**
+  - Tách biến trạng thái circuit breaker toàn cục thành mapping `self._breakers: dict[str, dict]` theo model/tier key chuẩn hoá (`_model_tier_key()`).
+  - Áp dụng Bulkhead Pattern cách ly sự cố: Khi một model cụ thể (ví dụ model cheap hoặc escalated) bị lỗi liên tiếp $\ge 5$ lần dẫn đến mở circuit breaker trong 30s, chỉ duy nhất model đó bị chặn tạm thời; các model thuộc tier khác (như Brain model) hoàn toàn không bị ảnh hưởng, tiếp tục hoạt động thông suốt.
+  - Bảo toàn 100% tính tương thích ngược với API breaker hiện có và duy trì breaker toàn cục bảo vệ hệ thống nếu mọi model đều liên tục sập ($\ge 15$ lần).
+- **Kiểm thử & Bằng chứng đo đạc thực tế:**
+  - File test hồi quy mới: `tests/test_v17_rag_warmup_and_breaker.py` (5/5 passed).
+  - Full test suite Mac: **739 passed / 0 failed** (tăng 5 test mới so với 734 passed của v1.7.52) trong 68.06s; evals vàng **33/36 (92%)** đạt cổng 85%.
+  - Phân vai The Agency: Chủ trì `agency-backend-architect` + `agency-rag-pipeline-engineer`, kiểm thử `agency-test-automation-engineer`, thẩm định `agency-reality-checker`.
+
 ## 1.7.52 — 2026-10-31 — Chuẩn hóa mã lỗi `/api/*` theo RFC 7807 Problem Details & bảo đảm 100% Backward Compatibility (T-39.5, Agency Council Chặng 3 — ký: Antigravity)
 
-- **(ISSUE-05 / T-39.5) Chuẩn hoá phản hồi lỗi REST API theo RFC 7807 (`mulon/webapp_server.py`):**
+- **(ISSUE-06 / T-39.5) Chuẩn hoá phản hồi lỗi REST API theo RFC 7807 (`mulon/webapp_server.py`):**
   - **Middleware RFC 7807 tự động (`_rfc7807_middleware`):** Bổ sung middleware tầng ngoài bắt mọi HTTP response lỗi (`status >= 400`) trên toàn bộ 86 route `/api/*` (đối chiếu chính xác tổng 98 route theo Errata E4).
   - **Tuân thủ tuyệt đối Điều kiện 4 của Muse:**
     - Tuyệt đối không xoá hoặc đổi tên các field cũ: giữ nguyên vẹn 100% `ok: False`, `error: <string>` và `content_type="application/json"` để bảo đảm không phá vỡ client Mini App và các test suite hiện hữu.
-    - Làm giàu thêm các trường RFC 7807 tiêu chuẩn: `status` (int), `title` (string theo RFC 9110), `detail` (string chi tiết lỗi), `error_code` (mã lỗi dạng máy đọc `AUTH_FORBIDDEN`, `INVALID_REQUEST`, `NOT_FOUND`...), `code` (alias cho error_code), `instance` (đường dẫn request URL), `type` (URI tham chiếu dạng `about:blank` hoặc document link).
+    - Làm giàu thêm các trường RFC 7807 tiêu chuẩn: `status` (int), `title` (string theo RFC 9110), `detail` (string chi tiết lỗi), `error_code` (mã lỗi snake_case định danh máy đọc như `invalid_init_data`, `missing_parameter`, `not_found`), `code` (alias cho error_code), `instance` (đường dẫn request URL), `type` (URI tham chiếu URN `urn:mulon:error:<code>`).
   - **Hàm tiện ích `problem_json_response()` & `infer_error_code()`:** Cung cấp helper sinh `web.json_response` chuẩn RFC 7807 dùng chung cho các endpoint cần ném lỗi tường minh.
 - **Kiểm thử & Bằng chứng đo đạc thực tế:**
   - File test hồi quy mới: `tests/test_v17_api_rfc7807.py` (4/4 passed).

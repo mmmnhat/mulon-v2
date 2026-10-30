@@ -110,21 +110,51 @@ class ModelGateway:
         self._breaker_threshold = 5
         self._breaker_cooldown_s = 30.0
         self._max_attempts = 3
+        # ISSUE-10 (T-39.3): Bulkhead Circuit Breaker theo model/tier key
+        self._breakers: dict[str, dict[str, Any]] = {}
 
-    # ---------- circuit breaker ----------
-    def _check_breaker(self) -> None:
+    # ---------- circuit breaker (bulkhead per-tier - ISSUE-10) ----------
+    def _model_tier_key(self, model: Optional[str] = None) -> str:
+        """Trích xuất key nhóm/tier cho circuit breaker để tránh lây nhiễm chéo."""
+        m = (model or getattr(self.cfg, "model_brain", None) or "default").lower().strip()
+        if m.startswith("openai/"):
+            m = m[len("openai/"):]
+        return self._MODEL_ALIASES.get(m, m)
+
+    def _check_breaker(self, model: Optional[str] = None) -> None:
+        key = self._model_tier_key(model)
+        state = self._breakers.get(key)
+        if state and time.monotonic() < state.get("open_until", 0.0):
+            cooldown_rem = int(state.get("open_until", 0.0) - time.monotonic())
+            raise CircuitOpenError(
+                f"circuit breaker đang mở cho model '{key}' (bị coi là lỗi tạm thời, còn {cooldown_rem}s)"
+            )
+        # Tương thích ngược nếu breaker toàn cục bị kích hoạt
         if time.monotonic() < self._breaker_open_until:
             raise CircuitOpenError("circuit breaker đang mở (proxy bị coi là sập)")
 
-    def _record_success(self) -> None:
+    def _record_success(self, model: Optional[str] = None) -> None:
+        key = self._model_tier_key(model)
+        if key in self._breakers:
+            self._breakers[key]["consec_failures"] = 0
         self._consec_failures = 0
 
-    def _record_failure(self) -> None:
+    def _record_failure(self, model: Optional[str] = None) -> None:
+        key = self._model_tier_key(model)
+        state = self._breakers.setdefault(key, {"consec_failures": 0, "open_until": 0.0})
+        state["consec_failures"] += 1
+        if state["consec_failures"] >= self._breaker_threshold:
+            state["open_until"] = time.monotonic() + self._breaker_cooldown_s
+            state["consec_failures"] = 0
+            logger.warning(
+                "circuit breaker mở %ss cho model '%s' (ISSUE-10 Bulkhead)",
+                self._breaker_cooldown_s, key,
+            )
         self._consec_failures += 1
-        if self._consec_failures >= self._breaker_threshold:
+        if self._consec_failures >= self._breaker_threshold * 3:
             self._breaker_open_until = time.monotonic() + self._breaker_cooldown_s
             self._consec_failures = 0
-            logger.warning("circuit breaker mở %ss", self._breaker_cooldown_s)
+            logger.warning("circuit breaker toàn cục mở %ss do toàn bộ model đều lỗi", self._breaker_cooldown_s)
 
     # ---------- chuẩn hoá ----------
     _MODEL_ALIASES = {
@@ -277,7 +307,7 @@ class ModelGateway:
         last_err: Optional[Exception] = None
         started = time.monotonic()
         for attempt in range(self._max_attempts):
-            self._check_breaker()
+            self._check_breaker(model_name)
             try:
                 kwargs: dict[str, Any] = {
                     "model": model_name,
@@ -311,14 +341,14 @@ class ModelGateway:
                     latency_s=time.monotonic() - started,
                     model=model_name,
                 )
-                self._record_success()
+                self._record_success(model_name)
                 await self._log_call(purpose, model_name, comp, ok=True)
                 return comp
             except CircuitOpenError:
                 raise
             except Exception as exc:  # noqa: BLE001 - retry mọi lỗi provider
                 last_err = exc
-                self._record_failure()
+                self._record_failure(model_name)
                 if attempt < self._max_attempts - 1:
                     backoff = (2**attempt) + random.uniform(0, 0.5)
                     await asyncio.sleep(backoff)
@@ -346,7 +376,7 @@ class ModelGateway:
         timeout = timeout or self.cfg.llm_timeout_s
         prepared_messages = self._prepare_multimodal_messages(messages)
         started = time.monotonic()
-        self._check_breaker()
+        self._check_breaker(model_name)
         try:
             resp = await acompletion(
                 model=model_name,
@@ -407,7 +437,7 @@ class ModelGateway:
                 latency_s=time.monotonic() - started,
                 model=model_name,
             )
-            self._record_success()
+            self._record_success(model_name)
             await self._log_call(purpose, model_name, comp, ok=True)
             return comp
         except CircuitOpenError:
@@ -430,7 +460,7 @@ class ModelGateway:
                     return fb_comp
             except Exception:
                 pass
-            self._record_failure()
+            self._record_failure(model_name)
             comp = Completion(latency_s=time.monotonic() - started, model=model_name)
             await self._log_call(purpose, model_name, comp, ok=False, error=str(exc))
             raise GatewayError(f"stream model thất bại: {exc}") from exc

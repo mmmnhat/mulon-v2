@@ -74,6 +74,10 @@ class HashStubEmbedder:
             out.append(normalize(vec))
         return out
 
+    def warmup(self) -> bool:
+        """HashStubEmbedder luôn sẵn sàng tức thì mà không cần nạp trọng số."""
+        return True
+
 
 class FastEmbedEmbedder:
     """bge-m3 qua fastembed, nạp lười ở lần embed đầu tiên."""
@@ -97,6 +101,21 @@ class FastEmbedEmbedder:
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
         impl = self._ensure_impl()
         return [[float(x) for x in vec] for vec in impl.embed(list(texts))]
+
+    def warmup(self) -> bool:
+        """Nạp trước model ONNX và thực thi phép embed mẫu để khởi tạo session.
+
+        Chạy trong thread nền (asyncio.to_thread) lúc khởi động bot để triệt tiêu
+        độ trễ 3-8s ở lượt chat đầu tiên của người dùng (ISSUE-03).
+        """
+        try:
+            impl = self._ensure_impl()
+            list(impl.embed(["warmup"]))
+            logger.info("FastEmbed (%s) đã nạp trước (warm-up) thành công", self.model)
+            return True
+        except Exception as exc:
+            logger.warning("Không thể khởi động trước FastEmbed (%s): %s", self.model, exc)
+            return False
 
 
 def build_embedder(cfg) -> Optional[Embedder]:

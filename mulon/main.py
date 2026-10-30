@@ -69,6 +69,10 @@ async def build_system(cfg: Config):
         memory.recall_vector_weight = cfg.recall_vector_weight
         memory.recall_bm25_weight = cfg.recall_bm25_weight
         await memory.set_embedder(embedder)
+        # ISSUE-03: Khởi động trước trọng số model trong tác vụ nền (non-blocking)
+        # để triệt tiêu độ trễ 3-8s ở lượt tương tác đầu tiên của người dùng
+        if hasattr(embedder, "warmup"):
+            asyncio.create_task(asyncio.to_thread(embedder.warmup))
     dossier = Dossier.load(cfg.dossier_dir)
     # Phase 5: Langfuse tracing tuỳ chọn — thiếu env/gói thì
     # traced_gateway trả lại gateway nguyên bản, hành vi không đổi.
