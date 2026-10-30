@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 1.7.52 — 2026-10-31 — Chuẩn hóa mã lỗi `/api/*` theo RFC 7807 Problem Details & bảo đảm 100% Backward Compatibility (T-39.5, Agency Council Chặng 3 — ký: Antigravity)
+
+- **(ISSUE-05 / T-39.5) Chuẩn hoá phản hồi lỗi REST API theo RFC 7807 (`mulon/webapp_server.py`):**
+  - **Middleware RFC 7807 tự động (`_rfc7807_middleware`):** Bổ sung middleware tầng ngoài bắt mọi HTTP response lỗi (`status >= 400`) trên toàn bộ 86 route `/api/*` (đối chiếu chính xác tổng 98 route theo Errata E4).
+  - **Tuân thủ tuyệt đối Điều kiện 4 của Muse:**
+    - Tuyệt đối không xoá hoặc đổi tên các field cũ: giữ nguyên vẹn 100% `ok: False`, `error: <string>` và `content_type="application/json"` để bảo đảm không phá vỡ client Mini App và các test suite hiện hữu.
+    - Làm giàu thêm các trường RFC 7807 tiêu chuẩn: `status` (int), `title` (string theo RFC 9110), `detail` (string chi tiết lỗi), `error_code` (mã lỗi dạng máy đọc `AUTH_FORBIDDEN`, `INVALID_REQUEST`, `NOT_FOUND`...), `code` (alias cho error_code), `instance` (đường dẫn request URL), `type` (URI tham chiếu dạng `about:blank` hoặc document link).
+  - **Hàm tiện ích `problem_json_response()` & `infer_error_code()`:** Cung cấp helper sinh `web.json_response` chuẩn RFC 7807 dùng chung cho các endpoint cần ném lỗi tường minh.
+- **Kiểm thử & Bằng chứng đo đạc thực tế:**
+  - File test hồi quy mới: `tests/test_v17_api_rfc7807.py` (4/4 passed).
+  - Đối chiếu route theo Errata E4: Đã rà soát đủ 98 routes (44 GET + 54 POST), gồm 12 routes non-API + 86 REST API routes (`/api/*`).
+  - Full test suite Mac: **734 passed** (tăng 4 test mới so với 730 passed của v1.7.51) trong 61.77s; evals vàng **33/36 (92%)** đạt cổng 85%.
+  - Phân vai The Agency: Chủ trì API `agency-api-platform-engineer`, kiểm thử `agency-test-automation-engineer`, thẩm định `agency-reality-checker`.
+
 ## 1.7.51 — 2026-10-31 — Đồng bộ kép aiosqlite 0.20/0.22+ thread lifecycle & dứt điểm triệt để rò rỉ VM teardown (T-39.1 vòng 3, Agency Council Chặng 3 — ký: Antigravity)
 
 - **(ISSUE-01 Vòng 3) Khắc phục triệt để khác biệt API giữa aiosqlite <=0.20 (Mac) và >=0.22 (VM):**

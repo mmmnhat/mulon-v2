@@ -82,6 +82,112 @@ PROXY_CACHE_TTL_S = 5.0
 
 
 # ---------------------------------------------------------------------------
+# Chuẩn hoá lỗi theo RFC 7807 (Problem Details for HTTP APIs - T-39.5)
+# ---------------------------------------------------------------------------
+
+HTTP_STATUS_TITLES: dict[int, str] = {
+    400: "Bad Request",
+    401: "Unauthorized",
+    403: "Forbidden",
+    404: "Not Found",
+    405: "Method Not Allowed",
+    408: "Request Timeout",
+    409: "Conflict",
+    410: "Gone",
+    422: "Unprocessable Entity",
+    429: "Too Many Requests",
+    500: "Internal Server Error",
+    501: "Not Implemented",
+    502: "Bad Gateway",
+    503: "Service Unavailable",
+    504: "Gateway Timeout",
+}
+
+
+def infer_error_code(error_msg: str, status: int) -> str:
+    """Suy luận mã lỗi máy đọc được từ nội dung thông báo lỗi và HTTP status."""
+    msg = (error_msg or "").lower()
+    if "thiếu" in msg or "missing" in msg:
+        return "missing_parameter"
+    if "không hợp lệ" in msg or "invalid" in msg or "sai" in msg:
+        return "invalid_parameter"
+    if "không tìm thấy" in msg or "not found" in msg or "không thấy" in msg or "không tồn tại" in msg:
+        return "not_found"
+    if "từ chối" in msg or "forbidden" in msg or "quyền" in msg or "không phải chủ" in msg:
+        return "forbidden"
+    if "chưa sẵn sàng" in msg or "chưa có" in msg or "unavailable" in msg:
+        return "service_unavailable"
+    if status == 400:
+        return "bad_request"
+    if status == 401:
+        return "unauthorized"
+    if status == 403:
+        return "forbidden"
+    if status == 404:
+        return "not_found"
+    if status == 409:
+        return "conflict"
+    if status == 422:
+        return "unprocessable_entity"
+    if status == 429:
+        return "too_many_requests"
+    if status == 503:
+        return "service_unavailable"
+    return "internal_error" if status >= 500 else "client_error"
+
+
+def problem_json_response(
+    *,
+    status: int,
+    error: str,
+    error_code: Optional[str] = None,
+    title: Optional[str] = None,
+    detail: Optional[str] = None,
+    instance: Optional[str] = None,
+    **extra: Any,
+) -> web.Response:
+    """Tạo phản hồi lỗi chuẩn RFC 7807 (Problem Details for HTTP APIs).
+
+    RÀNG BUỘC BẤT BIẾN (Điều kiện 4 của Muse — ISSUE-06):
+    - Bảo toàn 100% tính tương thích ngược với các trường cũ:
+      + 'ok': False
+      + 'error': error message
+      + các kwargs cũ (reason, code, ref...)
+    - Bổ sung các trường chuẩn RFC 7807:
+      + 'status': HTTP status code nguyên (int)
+      + 'title': Tên ngắn gọn HTTP title (str)
+      + 'detail': Chi tiết lỗi giải thích cụ thể
+      + 'error_code' & 'code': Mã lỗi định danh máy đọc (str)
+      + 'type': URN loại lỗi 'urn:mulon:error:<error_code>'
+      + 'instance': URI tài nguyên nơi xảy ra lỗi (nếu có)
+    """
+    if not HAS_AIOHTTP or web is None:
+        raise RuntimeError("aiohttp chưa được cài")
+
+    code = error_code or extra.get("code") or infer_error_code(error, status)
+    t = title or HTTP_STATUS_TITLES.get(status, "Error")
+    d = detail or error or t
+
+    payload: dict[str, Any] = {
+        "ok": False,
+        "error": error or d,
+        "error_code": code,
+        "code": code,
+        "title": t,
+        "status": status,
+        "detail": d,
+        "type": f"urn:mulon:error:{code}",
+    }
+    if instance:
+        payload["instance"] = instance
+    for k, v in extra.items():
+        if k not in payload or k == "code":
+            payload[k] = v
+
+    return web.json_response(payload, status=status)
+
+
+# ---------------------------------------------------------------------------
 # Validate initData (thuần — test được không cần server)
 # ---------------------------------------------------------------------------
 
@@ -1128,10 +1234,14 @@ class WebAppServer:
             raise RuntimeError("aiohttp chưa được cài")
 
         @web.middleware
+        async def _rfc7807(request, handler):
+            return await self._rfc7807_middleware(request, handler)
+
+        @web.middleware
         async def _auth(request, handler):
             return await self._auth_middleware(request, handler)
 
-        app = web.Application(middlewares=[_auth])
+        app = web.Application(middlewares=[_rfc7807, _auth])
         app.router.add_get("/", self._handle_index)
         app.router.add_get("/a", self._handle_index)
         app.router.add_get("/a/", self._handle_index)
@@ -1323,6 +1433,56 @@ class WebAppServer:
             self._runner = None
             self._site = None
 
+    # ---------- middleware rfc7807 ----------
+    async def _rfc7807_middleware(self, request, handler):
+        try:
+            response = await handler(request)
+        except web.HTTPException as ex:
+            if request.path.startswith("/api/"):
+                return problem_json_response(
+                    status=ex.status,
+                    error=ex.reason or str(ex),
+                    instance=request.path,
+                )
+            raise
+
+        if request.path.startswith("/api/") and response.status >= 400:
+            if response.content_type == "application/json" and getattr(response, "body", None):
+                try:
+                    data = json.loads(response.body.decode("utf-8"))
+                    if isinstance(data, dict):
+                        err_msg = str(data.get("error") or data.get("detail") or "")
+                        code = data.get("error_code") or data.get("code") or infer_error_code(err_msg, response.status)
+                        title = data.get("title") or HTTP_STATUS_TITLES.get(response.status, "Error")
+                        detail = data.get("detail") or err_msg or title
+
+                        data["ok"] = data.get("ok", False)
+                        data["error"] = err_msg or detail
+                        data["error_code"] = code
+                        data["code"] = code
+                        data["title"] = title
+                        data["status"] = response.status
+                        data["detail"] = detail
+                        data["instance"] = data.get("instance") or request.path
+                        data["type"] = data.get("type") or f"urn:mulon:error:{code}"
+
+                        new_body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+                        response.body = new_body
+                        response.content_length = len(new_body)
+                except Exception as exc:
+                    logger.debug("Lỗi enrich RFC 7807: %s", exc)
+            elif getattr(response, "text", None):
+                try:
+                    return problem_json_response(
+                        status=response.status,
+                        error=response.text,
+                        instance=request.path,
+                    )
+                except Exception:
+                    pass
+
+        return response
+
     # ---------- auth ----------
     async def _auth_middleware(self, request, handler):
         if request.path.startswith("/api/"):
@@ -1336,10 +1496,12 @@ class WebAppServer:
                 allowed_ids or self.cfg.allowed_user_id,
                 max_age_s=max_age)
             if user is None:
-                return web.json_response(
-                    {"ok": False, "error": "initData không hợp lệ "
-                                           "hoặc không phải chủ nhân"},
-                    status=403)
+                return problem_json_response(
+                    status=403,
+                    error="initData không hợp lệ hoặc không phải chủ nhân",
+                    error_code="invalid_init_data",
+                    instance=request.path,
+                )
             request["tg_user"] = user
         return await handler(request)
 
