@@ -3,7 +3,7 @@
 > **Tài liệu**: `docs/notes/2026-10-30-t39-2-dns-rebinding-browser-design.md`  
 > **Tác giả**: Antigravity (`agency-backend-architect`, `agency-privacy-engineer`, `agency-api-tester`)  
 > **Người thẩm định**: Muse (reviewer, VM)  
-> **Trạng thái**: Đề xuất thiết kế (Design Note) trình Muse duyệt TRƯỚC khi viết code theo đúng chỉ đạo tại `AGENT_TASKS.md` [T-39.2].
+> **Trạng thái**: Đã được Muse DUYỆT CÓ ĐIỀU KIỆN (31/10/2026 ~00:40 +07); Đã hoàn thành Spike kỹ thuật theo ĐK2 và cập nhật thiết kế chi tiết.
 
 ---
 
@@ -29,105 +29,129 @@ async with self._open_page() as page:
    - *Bước 1 (Check)*: Python gọi `assert_url_public(url)` → phân giải DNS của `attacker-rebind.com` ra IP công cộng hợp lệ (ví dụ `1.2.3.4`, TTL=0). Vượt qua kiểm tra an toàn.
    - *Bước 2 (Use)*: Python gọi `page.goto(url)` → Chromium khởi tạo kết nối mạng độc lập và tự phân giải DNS lần 2. Do TTL=0, máy chủ DNS của kẻ tấn công lập tức trả về IP loopback/nội bộ (`127.0.0.1` hoặc IP metadata đám mây `169.254.169.254`).
    - *Hậu quả*: Chromium kết nối thẳng tới dịch vụ nội bộ trên máy host mà Python không hay biết.
+   - *Ranh giới kỹ thuật (Sửa theo ĐK1 của Muse)*: Việc chặn qua `page.route` là **giảm thiểu đáng kể cửa sổ TOCTOU**, không thể tuyên bố "triệt tiêu 100%" nếu không ghim IP ở tầng socket. Đối với URL điều hướng ban đầu, MuLon có thể ghim host ban đầu qua cờ launch `--host-resolver-rules="MAP <host> <pinned_ip>"`. Tuy nhiên, với các redirect cross-domain phát sinh động trong phiên duyệt mà không relaunch trình duyệt, tuyến phòng thủ chủ lực là cơ chế tiền kiểm soát IP từng hop qua Route Interception.
 
 2. **Redirect SSRF Pre-flight Gap (Nhảy redirect trước khi URL cuối bị chặn)**:
    - Khi `page.goto("http://attacker.com/redirect")` chạy, máy chủ trả về `302 Found` kèm `Location: http://127.0.0.1:8320/secret` hoặc `http://169.254.169.254/latest/meta-data/`.
    - Chromium tự động theo redirect và gửi HTTP `GET` tới đích nội bộ đó.
    - Mặc dù sau `page.goto()`, code MuLon kiểm tra `assert_url_public(page.url)` và ném ngoại lệ (vứt bỏ HTML), nhưng **hành động gửi request GET tới dịch vụ nội bộ đã xảy ra trên mạng** (có thể kích hoạt các endpoint REST nhạy cảm hoặc ghi nhận probe nội bộ).
-   - *Ghi chú trong code cũ (`browser_worker.py:174`)* đã thừa nhận: *"Playwright tự theo redirect trong goto, nên 1 GET tới đích redirect nội bộ có thể đã xảy ra trước khi URL cuối bị chặn... không phải tường lửa pre-flight hoàn hảo như httpx"*.
 
 ---
 
-## 2. So Sánh & Đánh Giá Các Phương Án Kỹ Thuật
+## 2. Kết Quả Thực Nghiệm Kỹ Thuật (Spike Findings theo ĐK2)
 
-| Tiêu chí | Phương án A: Playwright Route Interception (`page.route`) | Phương án B: Chromium `--host-resolver-rules` (Ghim IP) | Phương án C: Local Forward Proxy (Squid / Privoxy) |
-|---|---|---|---|
-| **Cơ chế** | Bắt mọi request mạng qua `page.route("**/*")`, kiểm tra URL & chặn redirects nội bộ trước khi gửi | Ghim hostname vào IP an toàn bằng cờ dòng lệnh Chromium `--host-resolver-rules` | Chạy 1 proxy lọc HTTP/HTTPS trung gian |
-| **Chống DNS Rebinding** | ✅ Cực tốt (Single-resolution & fetch an toàn) | ✅ Cực tốt (Ghim IP cứng ở tầng socket) | ✅ Tốt |
-| **Chặn Redirect Pre-flight** | ✅ Tuyệt đối (Chặn đứng tại hop 3xx, không cho Chromium gửi GET tới IP private) | ⚠️ Yếu với cross-domain redirect mới chưa map | ✅ Tốt |
-| **Độ phức tạp / Dependencies** | 🟢 **Không thêm thư viện/tiến trình mới**, dùng API chuẩn của Playwright | 🟡 Phải tái khởi động context mỗi khi đổi domain | 🔴 Phải cài thêm daemon proxy ngoài, vi phạm Rule 0 & Degrade |
-| **Ảnh hưởng hiệu năng** | Rất nhỏ (<5ms kiểm tra IP) | Trung bình (mở lại browser) | Trung bình |
+Theo chỉ thị bắt buộc ĐK2 của Muse, phía Antigravity đã thực hiện spike thực nghiệm Playwright thực tế trên máy Mac (`scratch/spike_*.py`) và ghi nhận 3 phát hiện cốt tử:
+
+1. **Câu hỏi (a): Mỗi hop redirect có đi qua `page.route` handler không?**
+   - **Kết quả thực nghiệm**: **KHÔNG**. Khi Chromium nhận response redirect 3xx (kể cả cùng origin lẫn cross-port/cross-origin), Chromium xử lý chuyển hướng bên trong C++ network stack của browser. Khi dùng `route.continue_()` hoặc `route.fulfill(response=3xx)`, các hop redirect kế tiếp **hoàn toàn bypass `page.route`**! Chromium tự động gửi GET tới đích tiếp theo mà handler không hề hay biết (đã kiểm chứng qua `spike_cross_port.py` và `spike_multi_hop.py`: Server 3 nội bộ bị chạm tới!).
+2. **Câu hỏi (b): Xử lý 3xx redirect bằng cách nào an toàn tuyệt đối?**
+   - **Kết quả thực nghiệm**: Áp dụng **Vòng lặp Manual Follow bằng `context.request.get(url, max_redirects=0)` có trần hop (≤10)**:
+     - Với mỗi hop: Bắt buộc gọi `resolve_and_verify_url(cur_url)`. Nếu phát hiện IP private/loopback/metadata -> Lập tức gọi `await route.abort("blockedbyclient")`.
+     - Nếu an toàn: Fetch hop đó với `max_redirects=0`. Nếu trả về 3xx kèm `Location` -> Lấy `Location`, resolve sang URL tuyệt đối, lặp tiếp hop sau.
+     - Khi chạm trang đích cuối cùng (non-3xx: 200, 404...): Nạp toàn bộ body/headers vào route qua `await route.fulfill(...)`.
+     - *Bằng chứng kiểm chứng*: Tại `spike_manual_follow.py`, chuỗi redirect 3 hop qua server nội bộ 18896 đã bị chặn đứng 100% tại hop 3, server nội bộ **hoàn toàn không bị chạm tới (0 request chạm tới)**.
+3. **Câu hỏi (c): `context.request` có làm mất cookie/phiên không?**
+   - **Kết quả thực nghiệm**: **KHÔNG**. `context.request` trong Playwright chia sẻ chung cookie store với `BrowserContext`. `Set-Cookie` ở các hop redirect được lưu vào context bình thường.
+   - *Phân định phạm vi*: Manual follow loop chỉ áp dụng cho request điều hướng chính (`is_navigation_request()`). Với subresources (`<img>`, `<script>`, `css`...), chỉ cần kiểm tra URL nhanh qua `resolve_and_verify_url(url)` rồi `route.continue_()` để tối ưu hóa hiệu năng tải trang.
 
 ---
 
-## 3. Đề Xuất Giải Pháp Kỹ Thuật (Phương Án A: Route Interception Guard)
+## 3. Thiết Kế Chi Tiết Giải Pháp (Phương Án A Nâng Cấp)
 
-### 3.1. Thiết kế chi tiết cơ chế Chốt Chặn
-Tại `BrowserWorker._open_page()`, thiết lập bộ lọc route toàn cục cho mọi `page`:
+### 3.1. Vị trí tích hợp
+Gắn tập trung duy nhất tại `BrowserWorker._open_page()` (theo ĐK3 của Muse), tự động bảo vệ mọi trang được mở cho cả 3 nghiệp vụ:
+- `_fetch_rendered`
+- `_capture_png`
+- `_act`
 
+### 3.2. Mã nguồn triển khai chi tiết
 ```python
-async def _setup_ssrf_route_guard(page, timeout_ms: int):
-    """Gắn route handler kiểm duyệt và chặn triệt để SSRF & DNS rebinding."""
-    from .tools import resolve_and_verify_url
+async def _setup_route_guard(page, context):
+    """Thiết lập guard route chống DNS-rebinding và redirect SSRF hop-by-hop."""
+    from urllib.parse import urljoin
+    from mulon.tools import resolve_and_verify_url
 
     async def _handle_route(route):
-        request = route.request
-        url = request.url
+        req = route.request
+        url = req.url
 
-        # 1. Bỏ qua các scheme nội bộ của trình duyệt an toàn
-        if url.startswith(("data:", "blob:", "about:")):
+        # Bỏ qua các scheme nội bộ trình duyệt an toàn
+        if url.startswith(("data:", "blob:", "about:", "chrome:")):
             await route.continue_()
             return
 
-        # 2. Tiền kiểm tra URL (Phân giải DNS duy nhất một lần & xác thực IP)
+        # Kiểm tra URL hop đầu tiên
         err, _ = await resolve_and_verify_url(url)
         if err:
-            logger.warning("Browser SSRF Guard chặn URL không an toàn: %s (%s)", url, err)
-            await route.abort("accessdenied")
+            logger.warning("Browser Guard chặn request không an toàn: %s (%s)", url, err)
+            await route.abort("blockedbyclient")
             return
 
-        # 3. Với tài nguyên điều hướng hoặc fetch: kiểm tra chặt chẽ redirect
-        try:
-            # Dùng route.fetch với max_redirects=0 để Playwright không tự động theo redirect mù quáng
-            response = await route.fetch(max_redirects=0)
-            status = response.status
-            
-            # Nếu là response 3xx (Redirect): Kiểm duyệt ngay header Location trước khi theo
-            if 300 <= status < 400:
-                location = response.headers.get("location") or response.headers.get("Location")
-                if location:
-                    # Chuyển location tương đối thành tuyệt đối nếu cần
-                    target_url = urljoin(url, location)
-                    target_err, _ = await resolve_and_verify_url(target_url)
-                    if target_err:
-                        logger.warning("Browser SSRF Guard chặn redirect tới IP nội bộ: %s -> %s (%s)", url, target_url, target_err)
-                        await route.abort("accessdenied")
-                        return
+        # Với subresources (không phải navigation chính): kiểm tra an toàn URL rồi cho tiếp tục
+        if not req.is_navigation_request():
+            await route.continue_()
+            return
 
-            await route.fulfill(response=response)
-        except Exception as exc:
-            # Mạng lỗi hoặc bị abort
-            await route.abort("failed")
+        # Với navigation chính: Manual follow loop có trần hop ≤10 kiểm soát từng hop
+        cur_url = url
+        hop = 0
+        max_hops = 10
+
+        while hop < max_hops:
+            hop += 1
+            # Tiền kiểm tra IP của cur_url trước khi gửi bất kỳ byte nào
+            hop_err, _ = await resolve_and_verify_url(cur_url)
+            if hop_err:
+                logger.warning("Browser Guard chặn redirect hop #%d tới IP nội bộ: %s (%s)", hop, cur_url, hop_err)
+                await route.abort("blockedbyclient")
+                return
+
+            try:
+                # Fetch bằng context.request chia sẻ cookie jar
+                resp = await context.request.get(cur_url, max_redirects=0, timeout=15000)
+            except Exception as exc:
+                logger.warning("Browser Guard lỗi fetch hop #%d (%s): %s", hop, cur_url, exc)
+                await route.abort("blockedbyclient")
+                return
+
+            status = resp.status
+            loc = resp.headers.get("location")
+
+            if 300 <= status < 400 and loc:
+                next_url = urljoin(cur_url, loc)
+                cur_url = next_url
+                continue
+            else:
+                # Trang đích an toàn cuối cùng
+                body = await resp.body()
+                await route.fulfill(
+                    status=resp.status,
+                    headers=resp.headers,
+                    body=body
+                )
+                return
+
+        # Quá trần 10 hops redirect
+        logger.warning("Browser Guard chặn chuỗi redirect vượt quá 10 hops: %s", url)
+        await route.abort("blockedbyclient")
 
     await page.route("**/*", _handle_route)
 ```
-
-### 3.2. Điểm mạnh vượt trội của phương án này:
-1. **Triệt tiêu TOCTOU**: Phân giải DNS diễn ra có kiểm duyệt, response trả về được nạp trực tiếp qua `route.fulfill(response=response)` — Chromium không tự ý phân giải DNS lần 2 ra IP khác.
-2. **Không còn lỗ hổng Redirect Pre-flight**: Vì `max_redirects=0`, Chromium sẽ **không bao giờ** tự động gửi GET request tới đích redirect nội bộ. Header `Location` phải vượt qua `resolve_and_verify_url()` trước thì mới được phép tiếp tục.
-3. **Phủ toàn bộ request**: Bao gồm navigation chính, iframe, subresources (`<img>`, `<script>`, `fetch`, XHR) đều đi qua bộ lọc an toàn.
-4. **Không làm gãy môi trường headless**: Tương thích 100% với Playwright Chromium và chạy mượt mà trên cả Linux (VM) lẫn macOS (Mac mini).
 
 ---
 
 ## 4. Ghi Nhận Rủi Ro Đối Với ISSUE-11 (HMAC initData replay)
 
-Theo đúng chỉ đạo của Muse tại `AGENT_TASKS.md` [T-39.2]:
-- **Phát hiện**: `validate_init_data()` trong `webapp_server.py` kiểm tra chữ ký HMAC-SHA256 và `auth_date` trong cửa sổ lệch 300s và hết hạn 3600s, nhưng chưa lưu cache `nonce` / `token` đã dùng trong 3600s đó.
-- **Đánh giá rủi ro**:
-  - Đối với hệ thống công cộng đa người dùng, replay attack trong cửa sổ 3600s có thể cho phép bên thứ ba phát lại request nếu họ đánh cắp được chuỗi initData.
-  - Tuy nhiên, đối với MuLon:
-    - (a) Bot chỉ phục vụ **duy nhất chủ dự án (`mmmnhat`)**;
-    - (b) Kênh truyền được mã hóa hoàn toàn qua HTTPS (Cloudflare Tunnel TLS) và Telegram API;
-    - (c) Mini App yêu cầu session ngắn và auth_date liên tục được làm mới.
-- **Kết luận**: Ghi nhận đây là **rủi ro đã được chủ sở hữu và hội đồng tác tử chấp nhận (Accepted Risk)** trong vòng này, **không thêm code lưu trữ nonce phức tạp** nhằm giữ vững nguyên tắc tinh gọn (Minimal Viable Diff / Ponytail discipline).
+Theo đúng chỉ đạo của Muse:
+- Rủi ro replay initData trong cửa sổ 3600s là **Accepted Risk** đã được chủ dự án chấp thuận đối với bot cá nhân một chủ, có mã hóa TLS đầu-cuối của Telegram và Cloudflare Tunnel bảo vệ. Không viết thêm code lưu trữ nonce phức tạp.
 
 ---
 
-## 5. Tiêu Chí Nghiệm Thu Đề Xuất Cho [T-39.2]
+## 5. Tiêu Chí Nghiệm Thu Đầy Đủ (ĐK4 của Muse)
 
-1. **Ghi chú thiết kế được Muse thẩm định & thông qua**.
-2. **Test hồi quy cụ thể**:
-   - Viết bài test giả lập redirect từ domain công cộng sang `http://127.0.0.1:8320/secret` hoặc `http://169.254.169.254`: xác thực request bị `abort` ngay tại hop redirect, không có kết nối nào chạm tới mock local server.
-   - Viết bài test giả lập URL trỏ tới domain phân giải ra IP loopback/private: xác thực bị chặn ngay tại route guard (`accessdenied`).
-3. **Bộ test suite xanh 100%**: Không làm gãy bất kỳ test browser hay mock test nào hiện hữu.
+1. **3 bài test hồi quy bắt buộc**:
+   - Test 1: Redirect từ URL công cộng sang `127.0.0.1` hoặc `169.254.169.254` bị `abort`, không có bất kỳ kết nối mạng nào chạm tới server mock nội bộ.
+   - Test 2: URL công cộng tự phân giải ra IP private/loopback bị `abort` ngay tại hop 1 (`blockedbyclient`).
+   - Test 3: Redirect an toàn giữa 2 URL công cộng (`public -> public`) follow thành công và load đầy đủ nội dung trang đích cuối (chống hồi quy kẹt 3xx).
+2. **Suite test xanh 100%**: Không làm gãy bất kỳ test browser hay mock test nào hiện hữu.
+

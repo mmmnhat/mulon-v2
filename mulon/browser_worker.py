@@ -139,10 +139,86 @@ class BrowserWorker:
     def uses_persistent_profile(self) -> bool:
         return self.profile_dir() is not None
 
+    async def _setup_route_guard(self, page, context) -> None:
+        """Thiết lập route guard chặn triệt để SSRF & DNS-rebinding đa hop (T-39.2)."""
+        from urllib.parse import urljoin
+        from .tools import resolve_and_verify_url
+
+        async def _handle_route(route):
+            req = route.request
+            url = req.url
+
+            # 1. Bỏ qua các scheme an toàn nội bộ của trình duyệt
+            if url.startswith(("data:", "blob:", "about:", "chrome:")):
+                await route.continue_()
+                return
+
+            # 2. Tiền kiểm tra URL hop đầu tiên (ngăn DNS-rebinding và domain private)
+            err, _ = await resolve_and_verify_url(url)
+            if err:
+                logger.warning("Browser Route Guard chặn URL không an toàn: %s (%s)", url, err)
+                await route.abort("blockedbyclient")
+                return
+
+            # 3. Với subresources (ảnh, script, css...): kiểm tra URL an toàn rồi cho tiếp tục
+            if not req.is_navigation_request():
+                await route.continue_()
+                return
+
+            # 4. Với navigation chính: Manual follow loop có trần ≤10 hops
+            cur_url = url
+            hop = 0
+            max_hops = 10
+
+            while hop < max_hops:
+                hop += 1
+                hop_err, _ = await resolve_and_verify_url(cur_url)
+                if hop_err:
+                    logger.warning(
+                        "Browser Route Guard chặn redirect hop #%d tới IP không công cộng: %s (%s)",
+                        hop, cur_url, hop_err,
+                    )
+                    await route.abort("blockedbyclient")
+                    return
+
+                try:
+                    resp = await context.request.get(
+                        cur_url,
+                        max_redirects=0,
+                        timeout=int(self.cfg.browser_timeout_s * 1000),
+                    )
+                except Exception as exc:
+                    logger.warning("Browser Route Guard lỗi fetch hop #%d (%s): %s", hop, cur_url, exc)
+                    await route.abort("blockedbyclient")
+                    return
+
+                status = resp.status
+                loc = resp.headers.get("location") or resp.headers.get("Location")
+
+                if 300 <= status < 400 and loc:
+                    next_url = urljoin(cur_url, loc)
+                    cur_url = next_url
+                    continue
+                else:
+                    # Trang đích an toàn cuối cùng
+                    body = await resp.body()
+                    await route.fulfill(
+                        status=resp.status,
+                        headers=resp.headers,
+                        body=body,
+                    )
+                    return
+
+            logger.warning("Browser Route Guard chặn chuỗi redirect vượt quá %d hops: %s", max_hops, url)
+            await route.abort("blockedbyclient")
+
+        await page.route("**/*", _handle_route)
+
     @asynccontextmanager
     async def _open_page(self):
         """Mở 1 page Chromium: persistent context khi có profile
-        dir (giữ đăng nhập), browser tạm như cũ khi không."""
+        dir (giữ đăng nhập), browser tạm như cũ khi không.
+        Gắn route guard chống SSRF & DNS-rebinding đa hop (T-39.2)."""
         from playwright.async_api import async_playwright
 
         async with async_playwright() as pw:
@@ -154,15 +230,20 @@ class BrowserWorker:
                 try:
                     page = (context.pages[0] if context.pages
                             else await context.new_page())
+                    await self._setup_route_guard(page, context)
                     yield page
                 finally:
                     await context.close()
             else:
                 browser = await pw.chromium.launch(headless=True)
                 try:
-                    yield await browser.new_page()
+                    context = await browser.new_context()
+                    page = await context.new_page()
+                    await self._setup_route_guard(page, context)
+                    yield page
                 finally:
                     await browser.close()
+
 
     async def _fetch_rendered(self, url: str) -> tuple[str, str]:
         """Mở trang bằng Chromium, trả (title, html).

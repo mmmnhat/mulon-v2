@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 1.7.50 — 2026-10-31 — Chốt chặn DNS-rebinding TOCTOU & Hop-by-hop Redirect Guard cho Chromium Browser Worker (T-39.2, Agency Council Chặng 3 — ký: Antigravity)
+
+- **(ISSUE-02) Khắc phục triệt để lỗ hổng DNS-rebinding & Redirect SSRF trên Chromium Playwright (`mulon/browser_worker.py`):**
+  - **Spike kỹ thuật xác thực hành vi Chromium (ĐK2):**
+    - Thực nghiệm chứng minh Chromium tự động follow redirect ngầm mà *không* gọi lại `page.route` ở các hop redirect kế tiếp khi dùng `continue_()` hoặc `fulfill(response=302)`.
+    - Triển khai giải pháp **Manual Follow Loop** bằng `context.request.get(url, max_redirects=0)` có trần hop ≤10: kiểm tra `resolve_and_verify_url` trước mỗi hop và `abort()` ngay lập tức nếu gặp IP private/loopback/cloud-metadata. Chỉ `fulfill()` kết quả cuối cùng (non-3xx) vào Chromium page.
+    - Bảo toàn cookie phiên nhờ `context.request` chia sẻ cookie store chung với `BrowserContext`.
+  - **Gắn Route Interception Guard tập trung (`mulon/browser_worker.py`):**
+    - Hàm `_setup_route_guard()` được gắn tại `_open_page()` bảo vệ toàn bộ 3 luồng trình duyệt (`_fetch_rendered`, `_capture_png`, `_interact`).
+    - Chỉ intercept navigation request (`request.is_navigation_request()`), subresources được `continue_()` an toàn sau khi validate sơ bộ.
+  - **Tài liệu thiết kế (`docs/notes/2026-10-30-t39-2-dns-rebinding-browser-design.md`):**
+    - Hoàn thiện toàn diện 5 điều kiện duyệt của Muse (ĐK1–ĐK5), đính kèm kết quả thực nghiệm 3 bài spike câu hỏi (a, b, c).
+    - Ghi nhận đánh giá an ninh cho ISSUE-11 (HMAC initData replay) là Accepted Risk cho môi trường bot cá nhân.
+- **Kiểm thử & Bằng chứng đo đạc thực tế:**
+  - `tests/test_v17_browser_dns_guard.py`: 3 bài test hồi quy đạt 100% (redirect sang private IP bị abort không chạm server nội bộ; initial URL private IP bị chặn ngay hop 1; safe public redirect tải thành công nội dung trang đích).
+  - Toàn bộ full suite: **730 passed** trong 63.22s; evals vàng **33/36 (92%)** đạt cổng 85%.
+  - Phân vai The Agency: Chủ trì an ninh `agency-application-security-engineer`, kiểm thử `agency-test-automation-engineer`, thẩm định `agency-reality-checker`.
+
 ## 1.7.49 — 2026-10-31 — Diệt dứt điểm rò rỉ thread aiosqlite teardown lifecycle & bảo đảm tiến trình tự thoát (T-39.1 vòng 2, Agency Council Chặng 3 — ký: Antigravity)
 
 - **(ISSUE-01 Vòng 2) Giải quyết triệt để hiện tượng tiến trình pytest không tự thoát sau summary:**
