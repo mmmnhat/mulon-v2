@@ -38,6 +38,20 @@ E. RANH GIỚI — DỪNG VÀ GHI LÊN BOARD CHỜ CHỦ DỰ ÁN
 - Bất đồng với verdict của Muse: ghi ý kiến phản biện vào đúng mục đó (không tự sửa verdict), tiếp tục việc khác; chủ dự án là người quyết cuối.
 - Quá 30 phút không thấy verdict cho một mục DONE đang chờ: ghi 1 dòng ghi chú vào AGENT_TASKS.md rồi chuyển việc khác, không spam, không đứng chờ.
 
+G. PHÂN VAI AGENCY — GỌI ĐÚNG AGENT CHO ĐÚNG VIỆC (chỉ thị của chủ dự án, bắt buộc)
+Mỗi hạng mục phải do đúng agent chuyên môn trong bộ The Agency (các skill `agency-*` đã cài phía Antigravity) chủ trì thực thi — nạp vai đó làm phiên làm việc, không dùng phiên generic làm việc chuyên môn. Bảng phân vai đang có hiệu lực:
+- [T-39.1] teardown aiosqlite + độ tin cậy DB: chủ trì `agency-database-reliability-engineer`; phần index/tối ưu truy vấn: `agency-database-optimizer`.
+- [T-39.2] DNS-rebinding / SSRF guard cho browser worker: chủ trì `agency-application-security-engineer`; test hồi quy e2e (redirect an toàn, Chromium): `agency-test-automation-engineer`.
+- [T-39.5] chuẩn hoá lỗi API (chỉ thêm field): chủ trì `agency-api-platform-engineer`; hạng mục đồng bộ thẻ duyệt 2 chiều nếu mở: `agency-realtime-collaboration-engineer`.
+- [T-39.3] FastEmbed warm-up + circuit breaker theo tier: chủ trì `agency-backend-architect`; phần embeddings/RAG: `agency-rag-pipeline-engineer`.
+- [T-39.4a] touch target/haptics/dọn inline style Mini App: chủ trì `agency-ux-architect` + `agency-frontend-developer`; token & design system: `agency-ui-designer`; cổng chốt trước DONE: `agency-ui-finish-gate-reviewer`. Module hoá JS (ISSUE-08, sub-task riêng): `agency-frontend-developer` + `agency-software-architect`.
+- [T-39.6] tách lớp theo ADR-001 (lát đầu: telegram_delivery.py): chủ trì `agency-software-architect`; giữ diff tối thiểu: `agency-minimal-change-engineer`.
+- [T-36] rerun Windows (phiên [WIN]): `agency-test-automation-engineer` thực thi, `agency-reality-checker` chốt.
+Quy tắc kèm theo:
+1. Mở mục mới hoặc claim mục: ghi ngay dòng "Agent chủ trì: agency-..." vào mục đó trên AGENT_TASKS.md.
+2. Trước khi ghi DONE, hạng mục phải qua `agency-reality-checker` NỘI BỘ phía Antigravity (vai Gatekeeper, mặc định NEEDS WORK) và ghi rõ trong báo cáo: agent chủ trì nào đã làm + reality-checker đã kiểm những gì. Đây là tự kiểm nội bộ — không thay thế nghiệm thu độc lập của Muse.
+3. Việc không khớp vai nào trong bảng: đề xuất agent trên board và chờ Muse duyệt — không tự chế vai mới ngoài bộ agency-agents, không phá kỷ luật tối đa 5 luồng.
+
 F. BÁO CÁO
 Mỗi vòng có thay đổi đáng kể, báo chủ dự án ngắn gọn trong phiên này: commit SHA vừa push, mục nào đổi trạng thái, bằng chứng chính, việc còn treo. Không có gì mới thì im lặng làm tiếp.
 ```
