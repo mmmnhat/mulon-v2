@@ -12,12 +12,12 @@
 Khối mã JavaScript trong `mulon/webapp/index.html` hiện có độ dài hơn **5,400 dòng**, chứa toàn bộ logic tương tác của 5 tab chính (Việc, Phê duyệt, Lịch, Hồ sơ, Cài đặt), các modal chi tiết, cơ chế kết nối SSE/polling, Telegram WebApp SDK bindings và Mascot sprite animator.
 
 ### Các rủi ro kiến trúc phát hiện (ISSUE-08):
-1. **Ô nhiễm không gian tên toàn cục (Global Scope Pollution)**: Các biến trạng thái (`tasks`, `currentTab`, `broker_pending`, `ws_connected`...) và các hàm tiện ích nằm lẫn lộn ở phạm vi toàn cục `window`, tiềm ẩn rủi ro ghi đè biến chéo nhau giữa các màn hình.
+1. **Ô nhiễm không gian tên toàn cục (Global Scope Pollution)**: Các biến trạng thái cốt lõi (`S`, `mainTab`, `subScreen`, `tg`, `INIT`, `sprite`, `curTheme`, `opTimer`...) và các hàm tiện ích nằm lẫn lộn ở phạm vi toàn cục `window`, tiềm ẩn rủi ro ghi đè biến chéo nhau giữa các màn hình.
 2. **Nguy cơ rò rỉ bộ nhớ (Memory & Event Listener Leaks)**: Khi người dùng chuyển đổi tab liên tục trên thiết bị di động, các event listener gắn trực tiếp vào DOM không được huỷ đồng bộ.
 3. **Ràng buộc hạ tầng Telegram & Server Serving**:
    - Máy chủ `mulon/webapp_server.py` hiện được thiết kế bảo mật tối đa: **Single-File Delivery** (`/` phục vụ `index.html`) và chỉ whitelist đúng 2 asset tĩnh (`sprite-sheet-alpha.png`, `mulon-states-manifest.json`).
    - Dự án MuLon **không dùng Node.js, Webpack hay npm**; toàn bộ dependencies là Python thuần.
-   - Ứng dụng chạy qua Cloudflare Tunnel tạm thời (`trycloudflare`) hoặc domain nội bộ; việc phân tán thành nhiều file `.js` tải bất đồng bộ dễ gặp lỗi cache trình duyệt di động, chặn MIME type hoặc độ trễ round-trip (RTT) trên mạng di động 4G.
+   - Ứng dụng chạy qua Cloudflare Tunnel tạm thời (`trycloudflare`) hoặc domain nội bộ; cơ chế đồng bộ hiện hữu là **Polling-only** (`setInterval` 3s gọi `load()` và `opTimer` 2s cho cài đặt; không dùng SSE/WebSocket). Việc phân tán thành nhiều file `.js` tải bất đồng bộ dễ gặp lỗi cache trình duyệt di động, chặn MIME type hoặc độ trễ round-trip (RTT) trên mạng di động 4G.
 
 ---
 

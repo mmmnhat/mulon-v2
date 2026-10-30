@@ -1077,7 +1077,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
   <div class="card-title" style="margin:8px 0 8px 4px; font-size:15px; font-weight:600; color:var(--ink2);">Hàng ngày &amp; Hệ thống</div>
   <div class="card" id="card-heartbeat-item" data-sched-open="heartbeat" style="cursor:pointer; display:flex; align-items:center; gap:14px; padding:16px; border-radius:18px; margin-bottom:18px;">
-    <div style="width:44px; height:44px; border-radius:50%; background:var(--tint-lav); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+    <div class="flex-center" style="width:44px; height:44px; border-radius:50%; background:var(--tint-lav); flex-shrink:0;">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--lav-deep)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
     </div>
     <div style="flex:1;">
@@ -1206,7 +1206,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <div class="modal-title" style="font-size:20px;">Quyền của Heartbeat</div>
     <div class="modal-sub">Tiến trình quét định kỳ 30 phút/lần</div>
 
-    <div style="display:flex; flex-direction:column; gap:10px; margin:16px 0 20px; font-size:13px; line-height:1.45;">
+    <div class="flex-col" style="gap:10px; margin:16px 0 20px; font-size:13px; line-height:1.45;">
       <div style="display:flex; gap:10px; align-items:flex-start;">
         <span style="color:var(--ink); font-weight:600; font-size:14px; flex-shrink:0;">✓</span>
         <div><strong style="color:var(--ink);">Đọc Checklist &amp; Sở thích:</strong> <span style="color:var(--ink2);">Nạp mục tiêu từ HEARTBEAT.md và bộ lọc chủ đề PROACTIVE_PREFERENCES.md.</span></div>
@@ -1389,7 +1389,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       <button class="modal-close-btn" id="btn-close-lib-menu">✕</button>
     </div>
     <div class="modal-title" id="lib-menu-title" style="font-size:17px; margin-bottom:12px;">Tùy chọn tài liệu</div>
-    <div style="display:flex; flex-direction:column; gap:8px;" id="lib-menu-buttons"></div>
+    <div class="flex-col" style="gap:8px;" id="lib-menu-buttons"></div>
   </div>
 </div>
 
@@ -1629,7 +1629,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       <div style="font-size:13px; color:var(--ink2); margin-bottom:14px;">
         Bộ sưu tập mascot trong vũ trụ thương hiệu Mulon. <i>Bản chính thức vẫn là Sprite v0 (21 frame) tới khi chủ dự án duyệt bộ mới.</i>
       </div>
-      <div id="mascot-grid" style="display:flex; flex-direction:column; gap:12px;"></div>
+      <div id="mascot-grid" class="flex-col" style="gap:12px;"></div>
     </div>
   </div>
 
@@ -2071,6 +2071,12 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <script>
 "use strict";
+
+// =============================================================================
+// MULON CLIENT NAMESPACE (ADR-002: LÁT CẮT 1)
+// =============================================================================
+window.Mulon = window.Mulon || {};
+
 const tg = window.Telegram && window.Telegram.WebApp;
 function updateTgInsets() {
   if (!tg) return;
@@ -2217,9 +2223,36 @@ async function api(path, method, body){
   if (body) opt.body = JSON.stringify(body);
   const res = await fetch(path, opt);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+  if (!res.ok) {
+    const errMsg = data.detail || data.error || data.title || ("HTTP " + res.status);
+    const err = new Error(errMsg);
+    err.status = res.status;
+    err.rfc7807 = data;
+    throw err;
+  }
   return data;
 }
+
+// -----------------------------------------------------------------------------
+// Subsystem Decoupling: Mulon.TG & Mulon.API (ADR-002 Lát cắt 1)
+// -----------------------------------------------------------------------------
+Mulon.TG = {
+  get raw() { return window.Telegram && window.Telegram.WebApp; },
+  get isAvailable() { return !!(window.Telegram && window.Telegram.WebApp); },
+  updateInsets: updateTgInsets,
+  getInitData: getInitData,
+  haptic: haptic,
+};
+
+Mulon.API = {
+  getInitData: getInitData,
+  call: api,
+};
+
+// Re-export shim bảo toàn 100% tương thích ngược
+window.api = api;
+window.haptic = haptic;
+window.getInitData = getInitData;
 function formatTimeUnified(iso){
   if (!iso) return "";
   const s = String(iso).trim();
@@ -7418,7 +7451,7 @@ function renderBrand() {
 
     return '<div class="card" style="border:' + (isActive ? '2px solid var(--accent)' : '1px solid var(--line)') + '; padding:14px 16px; margin:0; border-radius:14px; background:' + (isActive ? 'var(--tint-lav)' : 'var(--surface)') + ';">' +
       '<div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">' +
-        '<div style="width:40px; height:40px; border-radius:10px; background:' + badgeBg + '; display:flex; align-items:center; justify-content:center; flex-shrink:0;">' +
+        '<div class="flex-center" style="width:40px; height:40px; border-radius:10px; background:' + badgeBg + '; flex-shrink:0;">' +
           iconSvg +
         '</div>' +
         '<div style="flex:1;">' +

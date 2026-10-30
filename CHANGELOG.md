@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## 1.7.56 — 2026-10-31 — Module hoá JS Client Mini App (Lát cắt 1: Mulon.TG, Mulon.API & RFC 7807 Client) theo ADR-002 & Triệt tiêu Dead Code Utility Classes (T-39.4b, Agency Council Chặng 3 — ký: Antigravity)
+
+- **(ISSUE-08 / T-39.4b Lát cắt 1) Phân rã JS Client theo Phương án A (ADR-002) (`mulon/webapp/index.html`):**
+  - **Khởi tạo Namespace toàn cục:** Khởi tạo `window.Mulon = window.Mulon || {};` tại đầu khối script để chuẩn bị cho kiến trúc module hoá in-place không cần build tool.
+  - **Đóng gói Subsystem `Mulon.TG`:** Đóng gói toàn bộ các hàm trợ giúp Telegram WebApp SDK vào một đối tượng duy nhất (`raw`, `isAvailable`, `updateInsets`, `getInitData`, `haptic`).
+  - **Đóng gói Subsystem `Mulon.API` & Bắt lỗi RFC 7807:**
+    - Tập trung hoá HTTP fetch client có tự động đính kèm `X-Telegram-Init-Data`.
+    - Tích hợp middleware parse lỗi chuẩn RFC 7807 (bắt cả `detail`, `error`, `title` từ server T-39.5), đính kèm thuộc tính `err.rfc7807` vào `Error` object.
+  - **Bảo toàn 100% Backward Compatibility:** Re-export các shim toàn cục `window.api = api;`, `window.haptic = haptic;`, `window.getInitData = getInitData;`, đảm bảo hàng trăm vị trí gọi API hiện hữu trong 5 tab hoạt động trơn tru mà không cần refactor ồ ạt một lần.
+- **Đính chính số liệu Kiến trúc ADR-002 (`docs/adr/002-miniapp-js-modularization.md`):**
+  - Đính chính 2 điểm số liệu ở §1 theo yêu cầu thẩm định thiết kế của Muse: (i) thay các tên biến ví dụ bằng danh sách biến trạng thái thật (`S`, `mainTab`, `subScreen`, `tg`, `INIT`, `sprite`, `curTheme`, `opTimer`...); (ii) xác nhận cơ chế đồng bộ client là polling-only (`load()` 3s và `opTimer` 2s), không có kênh SSE/WebSocket.
+- **Triệt tiêu hoàn toàn Dead Code Utility Classes:**
+  - Áp dụng `.flex-center` vào 2 vị trí markup: icon Heartbeat dòng 1080 và thẻ mascot template dòng 7421 (đạt 1 định nghĩa + 2 vị trí sử dụng).
+  - Áp dụng `.flex-col` vào 3 vị trí markup: modal Heartbeat dòng 1209, menu Thư viện dòng 1392, Mascot grid dòng 1632 (đạt 1 định nghĩa + 3 vị trí sử dụng).
+  - Xác nhận bằng `grep` và test tự động: Toàn bộ 5 utility classes (`.flex-center`, `.flex-between`, `.flex-col`, `.touch-target-44`, `.text-sub-12`) đều có $\ge 1$ lần dùng ở markup ngoài định nghĩa, hoàn toàn hết dead code.
+- **Render thật Playwright Chromium:** Refresh cả 3 ảnh render thật 390×844 (`01_dashboard_light.png`, `02_dashboard_dark.png`, `04_tasks_dark.png`).
+- **Kiểm thử & Bằng chứng đo đạc thực tế:**
+  - File test hồi quy mới: `tests/test_v17_miniapp_modular_js.py` (**5/5 passed** trong 0.03s).
+  - Suite Mini App & Design System: **36/36 passed** trong 27.24s.
+  - Full test suite Mac: **754 passed / 0 failed** (tăng 5 test so với 749 của v1.7.55) trong 69.23s; evals vàng **33/36 (92%)** đạt cổng 85%; tiến trình tự thoát sạch (<1s).
+  - Phân vai The Agency: Chủ trì `agency-frontend-developer` + `agency-software-architect`, kiểm thử `agency-test-automation-engineer`, thẩm định `agency-reality-checker`.
+
 ## 1.7.55 — 2026-10-31 — Tracer-Bullet Presenter `telegram_delivery.py` theo ADR-001 & Polish hoàn thiện Mini App (T-39.6, Agency Council Chặng 3 — ký: Antigravity)
 
 - **(ADR-001 / T-39.6) Tách lớp Presentation & Delivery khỏi `telegram_bot.py` (`mulon/telegram_delivery.py`):**
