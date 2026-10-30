@@ -19,6 +19,7 @@ import asyncio
 import atexit
 import logging
 import re
+import threading
 import weakref
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -29,6 +30,84 @@ import aiosqlite
 logger = logging.getLogger("mulon.db")
 
 _ACTIVE_POOLS: weakref.WeakSet["SqliteWALPool"] = weakref.WeakSet()
+
+
+def get_connection_thread(conn: Any) -> Optional[threading.Thread]:
+    """Lấy thread worker thực sự điều khiển aiosqlite connection.
+    - Ở aiosqlite >= 0.22: conn._thread (Connection chứa worker Thread).
+    - Ở aiosqlite <= 0.20: conn (Connection kế thừa từ threading.Thread).
+    """
+    if conn is None:
+        return None
+    th = getattr(conn, "_thread", None)
+    if th is not None and isinstance(th, threading.Thread):
+        return th
+    if isinstance(conn, threading.Thread):
+        return conn
+    return None
+
+
+def _make_connection_daemon(conn: Any) -> None:
+    """Thiết lập daemon=True cho worker thread trước khi start."""
+    if conn is None:
+        return
+    th = getattr(conn, "_thread", None)
+    if th is not None and isinstance(th, threading.Thread):
+        try:
+            if not th.is_alive():
+                th.daemon = True
+        except Exception:
+            pass
+    if isinstance(conn, threading.Thread):
+        try:
+            if not conn.is_alive():
+                conn.daemon = True
+        except Exception:
+            pass
+
+
+def _stop_connection_sync(conn: Any, timeout: float = 2.0) -> None:
+    """Dừng triệt để worker thread của connection cả trên aiosqlite 0.20.x và >=0.22.x."""
+    if conn is None:
+        return
+
+    # 1. Gọi stop() đồng bộ (aiosqlite >= 0.22.1)
+    stop_fn = getattr(conn, "stop", None)
+    if callable(stop_fn):
+        try:
+            stop_fn()
+        except Exception as exc:
+            logger.debug("conn.stop() error: %s", exc)
+
+    # 2. Gọi _stop_running() đồng bộ (aiosqlite <= 0.20.x)
+    stop_run_fn = getattr(conn, "_stop_running", None)
+    if callable(stop_run_fn):
+        try:
+            stop_run_fn()
+        except Exception as exc:
+            logger.debug("conn._stop_running() error: %s", exc)
+
+    # 3. Fallback: Đẩy sentinel trực tiếp vào transaction queue
+    tx = getattr(conn, "_tx", None)
+    if tx is not None and hasattr(tx, "put"):
+        try:
+            from aiosqlite.core import _STOP_RUNNING_SENTINEL  # type: ignore
+
+            def _sentinel_cb():
+                return _STOP_RUNNING_SENTINEL
+
+            tx.put((None, _sentinel_cb))
+        except Exception:
+            pass
+
+    # 4. Chờ join thread thật
+    th = get_connection_thread(conn)
+    if th is not None and hasattr(th, "join"):
+        try:
+            if th.is_alive():
+                th.join(timeout=timeout)
+        except Exception as exc:
+            logger.debug("thread.join() error: %s", exc)
 
 
 def close_all_pools() -> None:
@@ -229,8 +308,9 @@ class SqliteWALPool:
 
         # 1. Mở Writer Connection
         writer_conn = aiosqlite.connect(str(self._path))
-        writer_conn.daemon = True
+        _make_connection_daemon(writer_conn)
         self._writer = await writer_conn
+        _make_connection_daemon(self._writer)
         self._writer.row_factory = self._row_factory
 
         # Cấu hình WAL + Busy Timeout cho Writer
@@ -244,8 +324,9 @@ class SqliteWALPool:
         for i in range(self._pool_size):
             try:
                 reader_conn = aiosqlite.connect(str(self._path))
-                reader_conn.daemon = True
+                _make_connection_daemon(reader_conn)
                 r = await reader_conn
+                _make_connection_daemon(r)
                 r.row_factory = self._row_factory
                 await r.execute("PRAGMA query_only=ON;")
                 await r.execute(f"PRAGMA busy_timeout={self._busy_timeout_ms};")
@@ -271,14 +352,14 @@ class SqliteWALPool:
         """Đóng sạch sẽ toàn bộ readers và writer."""
         if self._closed:
             return
-        self._closed = True
         _ACTIVE_POOLS.discard(self)
 
-        for r in self._all_readers:
+        for r in list(self._all_readers):
             try:
                 await r.close()
             except Exception as exc:
                 logger.debug("Lỗi đóng reader: %s", exc)
+                _stop_connection_sync(r, timeout=0.5)
         self._all_readers.clear()
 
         while not self._readers.empty():
@@ -292,27 +373,26 @@ class SqliteWALPool:
                 await self._writer.close()
             except Exception as exc:
                 logger.debug("Lỗi đóng writer: %s", exc)
+                _stop_connection_sync(self._writer, timeout=0.5)
             self._writer = None
 
-    def close_sync(self) -> None:
-        """Đóng khẩn cấp đồng bộ: ra lệnh _stop_running() ngay lập tức cho toàn bộ worker threads."""
-        if getattr(self, "_closed", False):
-            return
         self._closed = True
+
+    def close_sync(self) -> None:
+        """Đóng khẩn cấp đồng bộ: ra lệnh dừng triệt để và join toàn bộ worker threads."""
         _ACTIVE_POOLS.discard(self)
-        for r in list(getattr(self, "_all_readers", [])):
-            try:
-                r._stop_running()
-            except Exception:
-                pass
-        getattr(self, "_all_readers", []).clear()
+        readers = list(getattr(self, "_all_readers", []))
+        for r in readers:
+            _stop_connection_sync(r, timeout=1.0)
+        if hasattr(self, "_all_readers"):
+            self._all_readers.clear()
+
         w = getattr(self, "_writer", None)
         if w is not None:
-            try:
-                w._stop_running()
-            except Exception:
-                pass
+            _stop_connection_sync(w, timeout=1.0)
             self._writer = None
+
+        self._closed = True
 
     def __del__(self) -> None:
         """Dọn dẹp an toàn các thread worker ngầm khi object bị GC."""

@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 1.7.51 — 2026-10-31 — Đồng bộ kép aiosqlite 0.20/0.22+ thread lifecycle & dứt điểm triệt để rò rỉ VM teardown (T-39.1 vòng 3, Agency Council Chặng 3 — ký: Antigravity)
+
+- **(ISSUE-01 Vòng 3) Khắc phục triệt để khác biệt API giữa aiosqlite <=0.20 (Mac) và >=0.22 (VM):**
+  - **Nhận diện đúng kiến trúc aiosqlite v0.22+ (`mulon/db.py`):** Trong aiosqlite >=0.22, `Connection` không còn kế thừa `threading.Thread` mà bọc worker thread ngầm tại `self._thread`. Phương thức dừng đồng bộ chuẩn là `conn.stop()`, method `_stop_running()` cũ không tồn tại.
+  - **Hàm trợ giúp đa hình `get_connection_thread()` & `_stop_connection_sync()` (`mulon/db.py`):**
+    - Trích xuất đúng `threading.Thread` worker thật ở cả 2 môi trường: `conn._thread` (ở aiosqlite >=0.22) hoặc `conn` (ở aiosqlite <=0.20).
+    - Quy trình dừng đồng bộ 4 lớp: gọi `conn.stop()` -> gọi `conn._stop_running()` -> đưa sentinel trực tiếp vào transaction queue -> join thread thật `th.join(timeout=...)`.
+    - Thiết lập `_make_connection_daemon()` trước khi start thread để bảo đảm thread luôn là daemon trên mọi môi trường.
+    - Đảm bảo `self._closed = True` chỉ được gán sau khi toàn bộ worker threads đã được ra lệnh dừng và join.
+  - **Sửa test hồi quy `tests/test_v17_db_pool.py`:**
+    - Sử dụng `get_connection_thread(pool._writer)` và `get_connection_thread(r)` để kiểm tra và join thread worker thật. Khắc phục dứt điểm lỗi `AttributeError: 'Connection' object has no attribute 'join'` trên aiosqlite 0.22.1.
+- **Kiểm thử & Bằng chứng đo đạc thực tế:**
+  - Môi trường đo Mac: Python 3.14.6, aiosqlite 0.20.0. Môi trường đo VM: Python 3.12, aiosqlite 0.22.1.
+  - `tests/test_v17_db_pool.py`: 4/4 passed trong 6.60s.
+  - Toàn bộ full suite: **730 passed / 0 failed** trong 63.69s; evals vàng **33/36 (92%)** đạt cổng 85%.
+  - Tiến trình pytest tự thoát hoàn toàn sau dòng summary (<1s), 0 non-daemon thread rò rỉ.
+  - Phân vai The Agency: Chủ trì `agency-database-reliability-engineer`, thẩm định `agency-reality-checker`.
+
 ## 1.7.50 — 2026-10-31 — Chốt chặn DNS-rebinding TOCTOU & Hop-by-hop Redirect Guard cho Chromium Browser Worker (T-39.2, Agency Council Chặng 3 — ký: Antigravity)
 
 - **(ISSUE-02) Khắc phục triệt để lỗ hổng DNS-rebinding & Redirect SSRF trên Chromium Playwright (`mulon/browser_worker.py`):**
