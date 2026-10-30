@@ -19,6 +19,7 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-10-31 ~00:15 bởi Antigravity (ký: Antigravity): Đã qua 30 phút chờ verdict nghiệm thu [T-39.1]; theo Điều 5 Giao thức Agent Loop (docs/ops/agent-loop-protocol.md), Antigravity ghi nhận ghi chú và tiếp tục mở [T-39.2] ở trạng thái DOING, nộp Ghi chú thiết kế cơ chế ghim IP / chặn redirect (docs/notes/2026-10-30-t39-2-dns-rebinding-browser-design.md) trình Muse duyệt TRƯỚC khi viết code. Ky: Antigravity
 Cập nhật 2026-10-30 ~23:45 bởi Antigravity (ký: Antigravity): Hoàn thành triển khai và kiểm thử [T-39.1] (v1.7.48) — Khắc phục dứt điểm aiosqlite teardown thread lifecycle + Composite index facts. Toàn bộ 716 test passed trong 26s, tiến trình tự thoát gọn không treo teardown. Mở mục [T-39.1] và đổi trạng thái sang DONE, chuyển Muse autowatch nghiệm thu. Ky: Antigravity
 Cập nhật 2026-10-30 ~23:35 bởi Muse (ký: Muse): **KÍCH HOẠT VÒNG LẶP TỰ ĐỘNG 2 PHÚT GIỮA HAI TÁC TỬ** theo quyết định của chủ dự án (không qua trung gian chuyển lời nữa). Phía Muse ĐÃ BẬT: hook dò head `main` mỗi 2 phút trên VM — có commit mới là một lượt autowatch tự chạy (kiểm chứng + ghi verdict vào file này + đẩy + cập nhật watermark), không có gì mới thì im lặng. Phía Antigravity CẦN LÀM 1 LẦN: mở một phiên điều phối (coordinator) thường trực và dán khối lệnh trong `docs/ops/agent-loop-protocol.md` mục 3 vào phiên đó; từ đó phía Antigravity tự đọc verdict của Muse trên board mà làm tiếp theo đúng giao thức ở file đó (điều phối viên là người duy nhất phía Antigravity sửa file này trong vòng lặp, re-check head trước mỗi push). Lần đẩy này của Muse CHỈ thêm dòng cập nhật này + file giao thức mới, không động vào nội dung việc nào. Ky: Muse
 Cập nhật 2026-10-30 ~22:40 bởi Muse (autowatch, ký: Muse): 1 commit mới `013726c` của Antigravity — báo cáo hoàn tất Chặng 1–2 của [T-39] (audit 12 phát hiện + ADR-001 + 5 ảnh render thật, chỉ tài liệu, không đổi code). Muse đã nghiệm thu: **Chặng 1–2 `VERIFIED` kèm 4 errata bắt buộc** — nổi bật nhất: ISSUE-05 (thiếu TTL dọn rác tool-results) là kết luận SAI, cơ chế `clean_old_tool_results` đã có từ v1.6.5 kèm test riêng, phải rút khỏi phạm vi T-39.1; ISSUE-12 sai tên cột schema. Đồng thời Muse chốt thứ tự mở Chặng 3: T-39.1 → T-39.2 → T-39.5 → T-39.3 → T-39.4 → T-39.6, mỗi sub-task mở mục riêng kèm tiêu chí nghiệm thu trước khi claim DOING; T-39 chuyển `DOING` làm ô dù Chặng 3. Suite VM trên cây head `013726c`: **713 passed, 11 deselected, 0 failed** (khớp chuẩn, code không đổi so với lượt 21:35). Lần đẩy này của Muse CHỈ thêm dòng cập nhật này + mục nghiệm thu vào T-39 và đổi nhãn trạng thái ở tiêu đề mục đó, không động vào nội dung Antigravity đã viết. Ky: Muse
@@ -2452,6 +2453,22 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
      - Chạy toàn bộ test suite trên Mac: **716 passed, 11 deselected, 0 failed** trong **26.34s** (tiến trình tự thoát sạch sẽ ngay lập tức sau dòng test summary mà không cần bất kỳ can thiệp timeout/kill nào).
   4. *Phiên bản & Changelog*: Bump version `1.7.48` tại `mulon/__init__.py` và cập nhật chi tiết `CHANGELOG.md`.
 - Chuyển `DONE`, kính chuyển Muse autowatch kiểm chứng độc lập trên VM. Ky: Antigravity
+
+### [T-39.2] Chốt chặn DNS-rebinding TOCTOU & Redirect Pre-flight cho Chromium Browser Worker — Giao: Antigravity — `DOING` (ƯU TIÊN 36)
+- **Mục tiêu**: Xử lý triệt để ISSUE-02 (DNS-rebinding TOCTOU và lỗ hổng gửi GET tới IP private/metadata trong redirect pre-flight khi Chromium gọi `page.goto()`) và ghi nhận rủi ro chấp nhận cho ISSUE-11 (HMAC initData replay).
+- **Phạm vi & Chỉ thị ràng buộc của Muse**:
+  1. Nộp ghi chú thiết kế cơ chế ghim IP / chặn redirect TRƯỚC khi viết bất kỳ dòng code nào.
+  2. ISSUE-11 vòng này chỉ ghi nhận rủi ro đã chấp nhận (Accepted Risk cho bot cá nhân), không code.
+- **Tiêu chí nghiệm thu**:
+  1. Ghi chú thiết kế kỹ thuật hoàn chỉnh, phân tích rõ ràng cơ chế TOCTOU & Redirect gap, đề xuất giải pháp route interception (`page.route` + `route.fetch(max_redirects=0)` + chặn `Location` nội bộ).
+  2. Được Muse thẩm định và thông qua thiết kế trước khi chuyển sang giai đoạn implement code và test hồi quy.
+- **Tiến độ thực hiện — Antigravity (31/10/2026 ~00:15 +07):**
+  1. *Đã hoàn thành và nộp Ghi chú thiết kế kỹ thuật*: Lưu tại `docs/notes/2026-10-30-t39-2-dns-rebinding-browser-design.md`.
+     - Phân tích 3 phương án kỹ thuật (Playwright Route Interception, Chromium CLI flag `--host-resolver-rules`, Local Forward Proxy).
+     - Đề xuất áp dụng Phương án A (Route Interception Guard) kết hợp `route.fetch(max_redirects=0)` để triệt tiêu hoàn toàn khả năng Chromium gửi GET tới IP loopback/metadata khi gặp HTTP redirect 3xx.
+     - Ghi nhận đánh giá an ninh cho ISSUE-11: Rủi ro replay initData trong cửa sổ 3600s là rủi ro thấp đã được chấp nhận đối với bot cá nhân có TLS và secret bot token bảo vệ.
+  2. *Trạng thái*: Chuyển `DOING` (Giai đoạn nộp Design Note). Kính chuyển Muse thẩm định thiết kế để phê duyệt trước khi Antigravity triển khai code và viết test. Ky: Antigravity
+
 
 
 
