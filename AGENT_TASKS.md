@@ -2387,17 +2387,16 @@ Nguồn: battery v3 (27/10 01:02) + v4 (01:41–01:48) + lượt test T-10.1 (02
 - **Nghiệm thu — Muse (autowatch 28/10/2026 ~23:01 +07, head `bad183f`): `VERIFIED`.** Kiểm chứng sống lại đúng 2 chân mục giao: qua Telegram cá nhân @mmmnhat gửi `/menu` (tin 25973, 23:01:10 +07) → bot trả tin 25974 sau 1s ('**Bảng điều khiển Mulon**...'); tin thường 'ping test bot còn sống không?' (25975, 23:01:23) → bot trả 25976 sau 3s ('Sống nhăn răng nha ní ơi! Tui vẫn đang online, chạy mượt và sẵn sàng đây...'). Watch 150s mở sau đó không bắt thêm tin vì cả 2 phản hồi đã về trước khi watch mở — xác nhận lại qua history @Mulon_bot. Phần nguyên nhân + khắc phục dựa trên báo cáo Mac (`ef04faa`, đã khôi phục nguyên văn vào mục này sau khi `bad183f` ghi đè mất): Mac reboot ~22:30 rớt daemon, cliproxyapi thiếu API key, đã sửa + test completion `gemini-3.8-flash-high` thành công, tunnel mới, auto_watch giám sát mulon.main (PID 7864), weights fastembed tải xong, polling ổn định. Suite VM cùng lượt 713 passed, 11 deselected, 0 failed; eval vàng 33/36 = 92% — không liên quan trực tiếp tới mục này nhưng xác nhận cây head không gãy. (Giữ mục tại chỗ theo tiền lệ, không dời xuống "Đã đóng".) Ky: Muse
 
 ### [T-39] Kế hoạch Đa Tác Tử: Preview — Audit — Fix — Upgrade MuLon bằng Agency Agents — Giao: Antigravity — `TODO` (CHỜ DUYỆT)
-- **Mục tiêu**: Tận dụng 85 specialized agent personas từ kho `agency-agents` đã được cài đặt vào `~/.gemini/config/skills/agency-*` để tổ chức đợt rà soát, kiểm toán, sửa lỗi và nâng cấp toàn diện dự án MuLon (v1.7.47+).
-- **Tài liệu kế hoạch chi tiết**: `docs/plans/2026-10-30-agency-preview-audit-fix-upgrade-plan.md`.
-- **Tóm tắt 4 giai đoạn**:
-  1. *Giai đoạn 1 (PREVIEW)*: `agency-codebase-onboarding-engineer`, `agency-software-architect`, `agency-ux-architect` rà soát cấu trúc 26 module, sơ đồ phụ thuộc và hành trình trải nghiệm người dùng Telegram <-> Mini App.
-  2. *Giai đoạn 2 (AUDIT)*: Kiểm toán 5 góc chuyên sâu:
-     - Bảo mật & Quyền riêng tư (`agency-application-security-engineer`, `agency-privacy-engineer`).
-     - Cơ sở dữ liệu SQLite & Ký ức (`agency-database-optimizer`, `agency-database-reliability-engineer`).
-     - Hệ thống RAG & Ngữ cảnh 200k token (`agency-rag-pipeline-engineer`, `agency-autonomous-optimization-architect`).
-     - Độ hoàn thiện UI/UX Mini App (`agency-ui-finish-gate-reviewer`, `agency-accessibility-auditor`).
-     - Chất lượng code & Over-engineering (`agency-code-reviewer`, `agency-reality-checker`).
-  3. *Giai đoạn 3 (FIX)*: `agency-minimal-change-engineer`, `agency-test-automation-engineer`, `agency-git-workflow-master` khắc phục các tồn đọng theo kỷ luật minimal diff, TDD, 100% test suite xanh trước khi commit.
-  4. *Giai đoạn 4 (UPGRADE)*: `agency-multi-agent-systems-architect` (nâng cấp SubagentRunner và điều phối đa tác tử), `agency-whimsy-injector` (micro-interactions và phản hồi tự nhiên), `agency-performance-benchmarker` & `agency-evidence-collector` (benchmark latency, test sống, live evidence).
-- **Quy trình duyệt**: Trình Muse (reviewer) thẩm định tính khả thi và đóng góp ý kiến. Sau khi Muse và chủ dự án duyệt, Antigravity sẽ claim `DOING` và triển khai theo từng chặng. Ky: Antigravity
+- **Mục tiêu**: Thiết lập Hội đồng Tác tử gồm các AI Specialists từ kho `agency-agents` (`~/.gemini/config/skills/agency-*`) để rà soát, kiểm toán, khắc phục và nâng cấp toàn diện dự án MuLon (41,210 dòng code Python / 60 modules tại v1.7.47+).
+- **Tài liệu kế hoạch chi tiết**: `docs/plans/2026-10-30-agency-preview-audit-fix-upgrade-plan.md` (Bản chuẩn Hội đồng Tác tử).
+- **Phân hệ chuyên trách & Tasks cốt lõi**:
+  1. *Phân hệ 1 — Kiến trúc & Ranh giới Hệ thống* (`agency-software-architect`, `agency-backend-architect`): Lập ma trận phụ thuộc 60 modules; soạn ADR-001 tách mạch Transport (Telegram handlers) khỏi Agent loop trong `telegram_bot.py` (5,086 dòng) và `webapp_server.py` (4,654 dòng); rà soát Circuit Breaker ở `mulon/gateway.py`.
+  2. *Phân hệ 2 — Cơ sở dữ liệu SQLite, Vector & Bộ nhớ* (`agency-database-optimizer`, `agency-database-reliability-engineer`): Tối ưu hybrid search (`vec0` + FTS5 BM25) <20ms trên `mulon/memory.py`; rà soát locking `PRAGMA busy_timeout`; thiết lập TTL dọn dẹp artifacts `tool-results/`.
+  3. *Phân hệ 3 — RAG, Ngữ cảnh 200K & Model Routing* (`agency-rag-pipeline-engineer`, `agency-autonomous-optimization-architect`): Kiểm toán hybrid RAG nâng tỷ lệ evals vàng từ 92% (33/36) lên 100%; tối ưu khởi động tải weights FastEmbed ONNX; chuẩn hoá router 3-tier (Brain/Cheap/Escalated) tối ưu chi phí token.
+  4. *Phân hệ 4 — An ninh ứng dụng & Quyền riêng tư* (`agency-application-security-engineer`, `agency-privacy-engineer`): Fuzzing denylist file nhạy cảm ở `tools.py` và multimodal gateway; kiểm toán HMAC `initData` Mini App; chặn triệt để SSRF & DNS-rebinding TOCTOU tại `assert_url_public`.
+  5. *Phân hệ 5 — Hoàn thiện Giao diện Mini App* (`agency-ui-finish-gate-reviewer`, `agency-accessibility-auditor`): Render thật 100% bằng Chromium đối chiếu `#screen-models`, `#screen-tasks`, `#screen-vault`; kiểm tra tương phản WCAG 2.1 AA; tối ưu Thumb Zone cho Telegram Webview trên di động.
+  6. *Phân hệ 6 — Đa Tác Tử & Phối Hợp Swarm* (`agency-multi-agent-systems-architect`, `agency-whimsy-injector`): Nâng cấp `SubagentRunner`, phân bổ token và nén digest bullet points; tinh chỉnh giọng văn Nam bộ tự nhiên, micro-interactions mượt mà.
+  7. *Phân hệ 7 — Kỷ luật Thực thi & Cửa ải Kiểm chứng* (`agency-minimal-change-engineer`, `agency-test-automation-engineer`, `agency-reality-checker`): Kỷ luật minimal diff, TDD bắt buộc 100% test pass; Reality Checker đóng vai trò gatekeeper với triết lý mặc định "NEEDS WORK" trừ khi có bằng chứng sống thực tế (log/screenshot/test).
+- **Quy trình duyệt**: Trình Muse (reviewer) và chủ dự án thẩm định. Sau khi được duyệt, Antigravity sẽ claim `DOING` và kích hoạt triển khai theo từng chặng. Ky: Antigravity
+
 
