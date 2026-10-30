@@ -1,7 +1,8 @@
-# KẾ HOẠCH HỘI ĐỒNG TÁC TỬ (AGENCY COUNCIL PLAN)
-# Preview — Audit — Fix — Upgrade Toàn Diện MuLon (v1.7.47+)
+# KẾ HOẠCH HỘI ĐỒNG TÁC TỬ TOÀN DIỆN (FULL-STACK AGENCY COUNCIL PLAN)
+# Preview — Audit — Fix — Upgrade MuLon Từ Frontend Đến Backend (v1.7.47+)
 
-> **Cơ chế thực thi**: Phối hợp đa tác tử dựa trên 85 Agent Personas từ The Agency (`~/.gemini/config/skills/agency-*`).  
+> **Cơ chế thực thi**: Phối hợp đa tác tử toàn diện (Full-Stack Swarm) gồm 15 AI Specialists từ The Agency (`~/.gemini/config/skills/agency-*`).  
+> **Phạm vi bao phủ**: **Từ Frontend** (Telegram Mini App SPA 353KB, CSS Design System, Webview Mobile) **đến Backend** (Aiohttp API, Agent Orchestration, SQLite WAL/vec0, MCP Connectors, FastEmbed RAG).  
 > **Chủ trì kỹ thuật**: Antigravity (Mac Builder)  
 > **Thẩm định & Kiểm chứng độc lập**: Muse (VM Reviewer)  
 > **Cơ quan phê duyệt tối cao**: Chủ dự án (`mmmnhat`)  
@@ -9,152 +10,151 @@
 
 ---
 
-## 1. TỔNG QUAN KIẾN TRÚC & PHÂN CÔNG HỘI ĐỒNG (AGENCY ROSTER)
-
-Toàn bộ kế hoạch được bảo chứng bởi các Agent chuyên trách, mỗi agent chịu trách nhiệm sinh mệnh kỹ thuật trong phân vùng của mình:
+## 1. BẢN ĐỒ KIẾN TRÚC FULL-STACK (FRONTEND ĐẾN BACKEND)
 
 ```mermaid
 flowchart TD
-    subgraph G1["Giai đoạn 1: PREVIEW (Khảo sát & Bản đồ)"]
-        SA["Software Architect<br/><i>System Boundaries & DDD</i>"]
-        COE["Codebase Onboarding Eng<br/><i>Dependency & Surface Mapping</i>"]
+    subgraph FE["TẦNG 1: FRONTEND & CLIENT UI (Telegram Mini App & Chat)"]
+        UI_D["agency-ui-designer<br/><i>Design System & Tokens</i>"]
+        FE_D["agency-frontend-developer<br/><i>SPA State & DOM Cleanup</i>"]
+        UX_A["agency-ux-architect<br/><i>Thumb Zone & Micro-Haptics</i>"]
+        UI_G["agency-ui-finish-gate-reviewer<br/><i>W3C & Anti-Generic Gate</i>"]
     end
 
-    subgraph G2["Giai đoạn 2: AUDIT (Kiểm toán đa diện)"]
-        ASE["AppSec & Privacy Eng<br/><i>Injection & Auth Containment</i>"]
-        DBO["Database Optimizer<br/><i>SQLite WAL & Vector Indices</i>"]
-        RAG["RAG Pipeline Eng<br/><i>Hybrid Search & 200k Budget</i>"]
-        UIR["UI Finish-Gate Reviewer<br/><i>W3C & 60/30/10 Gate</i>"]
+    subgraph API["TẦNG 2: TRANSPORT & API GATEWAY"]
+        API_E["agency-api-platform-engineer<br/><i>Contract & REST Validation</i>"]
+        RTC_E["agency-realtime-collaboration-engineer<br/><i>Dual Sync & Idempotency</i>"]
+        SEC_E["agency-application-security-engineer<br/><i>HMAC initData & SSRF Guard</i>"]
     end
 
-    subgraph G3["Giai đoạn 3: FIX (Khắc phục tối thiểu)"]
-        MCE["Minimal Change Eng<br/><i>Minimum Viable Diffs</i>"]
-        TAE["Test Automation Eng<br/><i>TDD & Flake Elimination</i>"]
+    subgraph CORE["TẦNG 3: BACKEND LÕI & ĐIỀU PHỐI TÁC TỬ"]
+        S_ARC["agency-software-architect<br/><i>ADR-001 & Modular Seams</i>"]
+        B_ARC["agency-backend-architect<br/><i>Resilience & Circuit Breaker</i>"]
+        MAS_A["agency-multi-agent-systems-architect<br/><i>SubagentRunner Swarm</i>"]
     end
 
-    subgraph G4["Giai đoạn 4: UPGRADE (Nâng tầm hệ thống)"]
-        MAS["Multi-Agent Architect<br/><i>SubagentRunner Swarm</i>"]
-        WHI["Whimsy Injector<br/><i>Personality & Micro-delight</i>"]
-        PEB["Performance Benchmarker<br/><i>Latency & Token Efficiency</i>"]
+    subgraph DATA["TẦNG 4: DỮ LIỆU, VECTOR & RAG KÝ ỨC"]
+        DB_O["agency-database-optimizer<br/><i>SQLite WAL & vec0 Indices</i>"]
+        DBR_E["agency-database-reliability-engineer<br/><i>aiosqlite Teardown & TTL</i>"]
+        RAG_E["agency-rag-pipeline-engineer<br/><i>Hybrid Search & 200k Budget</i>"]
     end
 
-    RC["Reality Checker<br/><b>Gatekeeper Tối Cao</b><br/><i>Default: NEEDS WORK</i>"]
+    subgraph GATE["TẦNG 5: CỬA ẢI KIỂM CHỨNG & BẢO ĐẢM THỰC THI"]
+        MCE["agency-minimal-change-engineer<br/><i>Minimum Viable Diffs</i>"]
+        TAE["agency-test-automation-engineer<br/><i>Chromium E2E & 100% Suite</i>"]
+        RC["agency-reality-checker<br/><b>Gatekeeper Tối Cao</b><br/><i>Default: NEEDS WORK</i>"]
+    end
 
-    G1 --> G2 --> G3 --> G4 --> RC
+    FE --> API --> CORE --> DATA
+    CORE -.-> GATE
+    FE -.-> GATE
+    API -.-> GATE
+    DATA -.-> GATE
 ```
 
 ---
 
-## 2. Ý KIẾN CHUYÊN MÔN & KẾ HOẠCH TỪNG AGENT
+## 2. KẾ HOẠCH HÀNH ĐỘNG CHI TIẾT TỪ FRONTEND ĐẾN BACKEND
 
-### 🏛️ Phân hệ 1: Kiến trúc & Ranh giới Hệ thống
-*Chủ trì: `agency-software-architect` & `agency-backend-architect`*
+### 📱 TẦNG 1: FRONTEND & CLIENT UI (Mini App SPA & Telegram Chat Surface)
+*Chủ trì: `agency-frontend-developer`, `agency-ui-designer`, `agency-ux-architect`, `agency-ui-finish-gate-reviewer`*
 
-* **Chẩn đoán hiện trạng (41,210 dòng code Python / 60 modules)**:
-  * Hai "siêu module" đang gánh quá nhiều trách nhiệm: `mulon/telegram_bot.py` (5,086 dòng) và `mulon/webapp_server.py` (4,654 dòng). Việc dồn logic xử lý dữ liệu và định tuyến giao diện vào cùng một file làm tăng độ ghép nối (coupling).
-  * Chiều phụ thuộc (Dependency Direction): Cần bảo đảm tầng domain lõi (`policy.py`, `context.py`, `memory.py`) không bị phụ thuộc ngược vào transport Telegram (`aiogram`) hay Web (`aiohttp`).
-* **Hành động cụ thể (Tasks)**:
-  - [ ] **Task ARCH-1**: Lập ma trận phụ thuộc giữa 60 modules, xác định các điểm rò rỉ ranh giới (leaky abstractions).
-  - [ ] **Task ARCH-2 (ADR-001)**: Đề xuất bản Architecture Decision Record tách mạch Transport (Telegram Events/Handlers) ra khỏi Agent Orchestration trong `telegram_bot.py`.
-  - [ ] **Task ARCH-3**: Rà soát lại Circuit Breaker và ngân sách timeout tại `mulon/gateway.py`, bảo đảm mọi lời gọi ra ngoài proxy `127.0.0.1:8317` đều có fallback tất định.
-
----
-
-### 🗄️ Phân hệ 2: Cơ sở dữ liệu, Vector & Bộ nhớ
-*Chủ trì: `agency-database-optimizer` & `agency-database-reliability-engineer`*
-
-* **Chẩn đoán hiện trạng (`mulon/memory.py` - 2,617 dòng, SQLite WAL)**:
-  * Hệ thống lưu trữ SQLite WAL phục vụ đồng thời FTS5 (`messages_fts`), bảng vector `vec0` (sqlite-vec), lịch trình, task, trajectory và sự kiện học (`learning.py`).
-  * Cần rà soát nguy cơ nghẽn single-writer khi bot vừa stream tin nhắn, vừa ghi trajectory vừa chạy consolidation nền.
-* **Hành động cụ thể (Tasks)**:
-  - [ ] **Task DB-1**: Kiểm toán toàn bộ câu truy vấn tìm kiếm ký ức kết hợp (Hybrid Search: 70% vector + 30% BM25), bảo đảm latency dưới 20ms với bộ dữ liệu >50,000 facts.
-  - [ ] **Task DB-2**: Rà soát locking behavior và `PRAGMA busy_timeout` (hiện đặt 30.0s), chống nghẽn aiosqlite worker threads lúc teardown test.
-  - [ ] **Task DB-3**: Thiết lập cơ chế tự động dọn rác TTL cho thư mục `data/artifacts/tool-results/` để tránh phình dung lượng disk.
+* **Khảo sát hiện trạng (`mulon/webapp/index.html` - 353,925 bytes, SPA duy nhất)**:
+  * Toàn bộ mã HTML, nhúng CSS token và hàng nghìn dòng JavaScript client (`renderAll`, `renderTasks`, `renderGoals`, `renderCLIProxy`) nằm chung trong một file `index.html`.
+  * Có hơn 360 thuộc tính `style=""` inline rải rác; nhiều event listeners gắn động chưa có cơ chế dọn dẹp khi chuyển màn (`showSub`), tiềm ẩn rò rỉ bộ nhớ (memory leaks) trên WebView di động.
+* **Hành động cụ thể (Tasks Frontend)**:
+  - [ ] **Task FE-1 (Client JS Modularization)**: Phân tách logic client JavaScript thành các module chức năng rõ ràng (State Store, API Client, View Renderers), loại bỏ mã lặp và DOM manipulation trực tiếp thiếu kiểm soát.
+  - [ ] **Task FE-2 (CSS Token & Inline Style Pruning)**: Dọn sạch 360 thuộc tính `style=""` inline, đưa về các class tiện ích chuẩn hoá dựa trên hệ thống Design Token tại `DESIGN.md` (`--paper`, `--surface`, `--ink`, `--lav`, `--accent`).
+  - [ ] **Task FE-3 (Kỷ luật 60/30/10 & Finish Gate)**: Rà soát 100% các màn hình (`#screen-models`, `#screen-tasks`, `#screen-vault`, `#screen-feed`), triệt tiêu hoàn toàn màu trạng thái xanh/vàng/đỏ trong danh sách, chỉ giữ đúng 1 màu nhấn `--accent` (Tím Mulon `#6B46C1`).
+  - [ ] **Task FE-4 (Thumb Zone & Haptic Feedback)**: Tối ưu hoá vùng ngón cái cho thiết bị di động màn hình dài; tích hợp `Telegram.WebApp.HapticFeedback.impactOccurred` / `notificationOccurred` cho các thao tác phê duyệt, lưu cài đặt và chuyển tab.
+  - [ ] **Task FE-5 (Render Thật & W3C Semantic Audit)**: Dùng Chromium headless chụp ảnh render thật ở cả 2 chế độ Telegram Light và Dark mode; chạy Nu HTML Checker chứng minh 0 lỗi semantic.
 
 ---
 
-### 🧠 Phân hệ 3: RAG, Ngữ cảnh 200K & Model Routing
-*Chủ trì: `agency-rag-pipeline-engineer` & `agency-autonomous-optimization-architect`*
+### 🌐 TẦNG 2: TRANSPORT & API GATEWAY
+*Chủ trì: `agency-api-platform-engineer`, `agency-realtime-collaboration-engineer`, `agency-application-security-engineer`*
 
-* **Chẩn đoán hiện trạng (`mulon/context.py`, `mulon/gateway.py`)**:
-  * Cơ chế nén ngữ cảnh và ngân sách 200k token (`ContextEngine`) cần chống hiện tượng "mất tập trung" (lost in the middle) khi nhồi dossier, bài học và lịch sử chat.
-  * Phân tầng 3 tier model: `brain` (mô hình suy luận lớn), `cheap` (mô hình rẻ cho phân loại/tiền xử lý), `escalated` (mô hình tối thượng cho lập trình sâu).
-* **Hành động cụ thể (Tasks)**:
-  - [ ] **Task RAG-1**: Đánh giá độ phủ và độ chính xác của hybrid search trên tập vàng 36 evals (`mulon.evals`), mục tiêu kéo tỷ lệ đỗ từ 92% (33/36) lên 100%.
-  - [ ] **Task RAG-2**: Tối ưu hóa chu trình tải trọng số FastEmbed ONNX local (`bge-m3` / `multilingual-e5-large`), đảm bảo zero-cold-start khi bot reboot.
-  - [ ] **Task RAG-3**: Kiểm toán bộ router model, bảo đảm các tác vụ nhẹ (như phân loại chào kết Telegram Business, nhận diện sửa lỗi) luôn chạy trên tier cheap với token tiết kiệm nhất.
-
----
-
-### 🛡️ Phân hệ 4: Bảo mật & Quyền riêng tư
-*Chủ trì: `agency-application-security-engineer` & `agency-privacy-engineer`*
-
-* **Chẩn đoán hiện trạng (Chốt bảo mật mục 5 trong `AGENTS.md`)**:
-  * Quy tắc bảo mật cốt lõi: Denylist file nhạy cảm (`.env*`, `*.pem`, `*.key`, `*.db`, `vault.json`).
-  * Khung dữ liệu ngoài `frame_external` phải chống prompt injection từ web, email, transcript tool.
-* **Hành động cụ thể (Tasks)**:
-  - [ ] **Task SEC-1**: Fuzz testing hàm `_resolve_for_file_tool` và gateway multimodal để chứng minh không có đường path traversal nào vượt qua được denylist.
-  - [ ] **Task SEC-2**: Rà soát xác thực HMAC `initData` của Telegram Mini App (`mulon/webapp_server.py`), kiểm tra replay attack window và time drift.
-  - [ ] **Task SEC-3**: Kiểm toán luồng `assert_url_public`, bảo đảm phòng chống triệt để tấn công SSRF và DNS-rebinding TOCTOU khi bot fetch URL ngoài.
+* **Khảo sát hiện trạng (`mulon/webapp_server.py` - 4,654 dòng)**:
+  * Server aiohttp xử lý toàn bộ REST endpoint (`/api/state`, `/api/tasks`, `/api/goals`, `/api/approvals`, `/api/model`, `/api/vault`) và phục vụ static files.
+  * Việc xác thực phụ thuộc vào HMAC `initData` gửi từ Telegram WebApp. Cần đảm bảo chống replay attack, xử lý lệch múi giờ và đồng bộ hai chiều mượt mà giữa Telegram chat và Mini App.
+* **Hành động cụ thể (Tasks API & Gateway)**:
+  - [ ] **Task API-1 (Contract Standardization)**: Chuẩn hoá schema dữ liệu trả về của toàn bộ `/api/*` theo định dạng nhất quán, có status code HTTP chuẩn mực và mã lỗi chi tiết (RFC 7807 Problem Details).
+  - [ ] **Task API-2 (Đồng bộ 2 chiều Idempotent)**: Đảm bảo cơ chế đồng bộ thẻ phê duyệt giữa Chat Telegram và tab Phê duyệt Mini App hoàn toàn idempotent; khi user bấm duyệt ở chat thì giao diện WebApp cập nhật ngay lập tức mà không gây double-action.
+  - [ ] **Task API-3 (HMAC & SSRF Hardening)**: Tăng cường xác thực HMAC `initData` với cửa sổ time drift hợp lệ; rà soát hàm `assert_url_public` chặn đứng 100% các dải IP private/link-local và DNS-rebinding TOCTOU khi gọi webhook/API ngoài.
 
 ---
 
-### 🎨 Phân hệ 5: Hoàn thiện Giao diện Mini App (Finish Gate)
-*Chủ trì: `agency-ui-finish-gate-reviewer` & `agency-accessibility-auditor`*
+### ⚙️ TẦNG 3: BACKEND LÕI & ĐIỀU PHỐI TÁC TỬ
+*Chủ trì: `agency-backend-architect`, `agency-software-architect`, `agency-multi-agent-systems-architect`*
 
-* **Chẩn đoán hiện trạng (`mulon/webapp/` - HTML/CSS/JS)**:
-  * Đã qua đợt vá W3C (E1) và tinh giản affordance (T-35), nhưng cần duy trì kỷ luật khắt khe: Render thật 100%, tỷ lệ 60/30/10, một màu nhấn duy nhất (Tím Mulon `#6B46C1`), không dùng emoji làm biểu tượng trạng thái.
-* **Hành động cụ thể (Tasks)**:
-  - [ ] **Task UI-1**: Chạy render thật bằng Chromium headless trên Mac/Linux đối với các màn con: `#screen-models`, `#screen-tasks`, `#screen-vault`, xuất ảnh chụp đối chiếu.
-  - [ ] **Task UI-2**: Rà soát độ tương phản màu WCAG 2.1 AA cho các nhãn phân cấp trung tính, đảm bảo khả năng đọc tốt trong cả Telegram Light và Dark mode.
-  - [ ] **Task UI-3**: Tối ưu hoá vùng ngón cái (Thumb Zone) trên thiết bị di động, đảm bảo các nút hành động chính (Lưu, Duyệt, Dừng) dễ bấm bằng một tay.
-
----
-
-### 🤖 Phân hệ 6: Đa Tác Tử & Phối Hợp Swarm
-*Chủ trì: `agency-multi-agent-systems-architect` & `agency-whimsy-injector`*
-
-* **Chẩn đoán hiện trạng (`mulon/subagents.py`, `mulon/telegram_bot.py`)**:
-  * MuLon đã hỗ trợ `spawn_subagents_parallel` với semaphore 4. Cần nâng tầm để các sub-agent có khả năng tự phục hồi (self-healing), phân bổ context linh hoạt và không làm loãng câu trả lời chính.
-* **Hành động cụ thể (Tasks)**:
-  - [ ] **Task AGENT-1**: Nâng cấp `SubagentRunner`: tăng tính độc lập của context, tự động tóm tắt digest nén theo chuẩn bullet points trước khi nạp về cho Agent chính.
-  - [ ] **Task AGENT-2**: Thêm các micro-interactions và phản hồi có hồn, tự nhiên theo đúng phong thái Muse (tinh tế, Nam bộ, không máy móc, không lạm dụng emoji).
+* **Khảo sát hiện trạng (`mulon/telegram_bot.py` - 5,086 dòng, `mulon/agent.py` - 1,188 dòng, `mulon/subagents.py` - 316 dòng)**:
+  * `telegram_bot.py` quá lớn do chứa cả logic bắt sự kiện Telegram (handlers), gom tin (`MessageBatcher`), định dạng HTML streaming, xử lý tin thoại STT và điều hướng nghiệp vụ.
+  * `mulon/agent.py` vận hành vòng lặp Plan-Act-Verify. Cần đảm bảo khả năng ngắt (cancellation) dứt điểm và phân bổ sub-agent song song không bị xung đột.
+* **Hành động cụ thể (Tasks Backend Core)**:
+  - [ ] **Task CORE-1 (ADR-001 Decoupling)**: Soạn Architecture Decision Record và tái cấu trúc nội bộ `telegram_bot.py`: tách riêng tầng Ingress (aiogram event dispatch), tầng Presentation/Streaming (`telegram_delivery.py`), và tầng Business Service.
+  - [ ] **Task CORE-2 (Resilience & Circuit Breaker)**: Nâng cấp `mulon/gateway.py`: cài đặt circuit breaker chống cascading failure khi proxy model local `127.0.0.1:8317` bị chậm hoặc nghẽn; cơ chế fallback tất định về cheap model.
+  - [ ] **Task CORE-3 (Subagent Swarm Orchestration)**: Nâng cấp `SubagentRunner`: hoàn thiện cơ chế cách ly token budget cho từng tác tử con, semaphore pool 4 workers, tự động nén kết quả thành digest gạch đầu dòng trước khi trả về cho Agent chính.
 
 ---
 
-### ⚖️ Phân hệ 7: Kỷ luật Thực thi & Cửa Ải Kiểm Chứng
-*Chủ trì: `agency-minimal-change-engineer`, `agency-test-automation-engineer` & `agency-reality-checker`*
+### 💾 TẦNG 4: DỮ LIỆU, VECTOR & RAG KÝ ỨC
+*Chủ trì: `agency-database-optimizer`, `agency-database-reliability-engineer`, `agency-rag-pipeline-engineer`*
 
-* **Triết lý của Reality Checker: MẶC ĐỊNH LÀ "NEEDS WORK"**:
-  * Không chấp nhận bất kỳ báo cáo suông hay lời khen "hoàn hảo" nếu không có bằng chứng: test pass thật, screenshot render thật từ browser, curl log thật từ Telegram.
-* **Hành động cụ thể (Tasks)**:
-  - [ ] **Task GATE-1**: Mọi commit sửa lỗi đều phải xuất phát từ `agency-minimal-change-engineer` (diff tối thiểu, không refactor ngoài phạm vi, tôn trọng Rule 0).
-  - [ ] **Task GATE-2**: Mọi thay đổi phải có regression test đi kèm, chạy toàn bộ suite `pytest tests/ -q` (đạt 100% không ngoại lệ).
-  - [ ] **Task GATE-3**: Reality Check Gate: Xuất file bằng chứng thực tế trước khi chuyển trạng thái sang `DONE`.
-
----
-
-## 3. LỘ TRÌNH 4 BƯỚC TRIỂN KHAI
-
-| Giai đoạn | Nội dung trọng tâm | Agent dẫn dắt | Đầu ra bàn giao |
-|---|---|---|---|
-| **Chặng 1: PREVIEW** | Khảo sát tĩnh toàn bộ 60 modules, vẽ sơ đồ luồng dữ liệu, lập danh mục rủi ro kiến trúc. | `software-architect`<br/>`codebase-onboarding` | Báo cáo hiện trạng + sơ đồ phụ thuộc. |
-| **Chặng 2: AUDIT** | Kiểm toán độc lập 5 mũi nhọn: Security, SQLite WAL, RAG 200K, W3C UI, Code Bloat. | `appsec-engineer`<br/>`database-optimizer`<br/>`ui-finish-gate-reviewer` | 5 Báo cáo Audit chuyên sâu + danh sách issues cần vá. |
-| **Chặng 3: FIX** | Sửa triệt để các issues phát hiện theo nguyên tắc minimal diff và TDD. | `minimal-change-engineer`<br/>`test-automation-engineer` | Code commits + regression tests (100% green). |
-| **Chặng 4: UPGRADE** | Nâng cấp SubagentRunner, tối ưu hybrid RAG, tinh chỉnh giọng điệu Muse mượt mà. | `multi-agent-architect`<br/>`whimsy-injector` | Bản phát hành mới (bump minor version) + live proofs. |
+* **Khảo sát hiện trạng (`mulon/memory.py` - 2,617 dòng, SQLite WAL + FTS5 + vec0)**:
+  * SQLite WAL lưu trữ hỗn hợp: tin nhắn chat, FTS5 toàn văn, bảng vector `vec0`, b-temporal facts, tasks, schedules, trajectories và feed.
+  * Teardown test thường bị treo nhẹ do aiosqlite worker threads chưa đóng triệt để. Cần tối ưu hybrid search và quản trị vòng đời dữ liệu tạm.
+* **Hành động cụ thể (Tasks Data & Memory)**:
+  - [ ] **Task DATA-1 (Hybrid Search <20ms)**: Tối ưu hoá truy vấn kết hợp Vector Cosine Similarity (70%) và FTS5 BM25 (30%), đạt latency dưới 20ms ngay cả khi bảng facts vượt quá 50,000 bản ghi.
+  - [ ] **Task DATA-2 (aiosqlite Connection Lifecycle)**: Xử lý triệt để việc giải phóng worker threads khi đóng ứng dụng/teardown test, triệt tiêu hoàn toàn cảnh báo tài nguyên và timeout pytest.
+  - [ ] **Task DATA-3 (FastEmbed Cache & Zero-Cold-Start)**: Tối ưu hóa chu trình tải trọng số ONNX local (`bge-m3` / `multilingual-e5-large`), đảm bảo bot khởi động ngay lập tức không bị nghẽn lượt chat đầu.
+  - [ ] **Task DATA-4 (Storage Cleanup & TTL)**: Thiết lập job nền định kỳ dọn dẹp file tạm và kết quả công cụ cũ trong `data/artifacts/tool-results/`.
 
 ---
 
-## 4. QUY TRÌNH DUYỆT & NGHIỆM THU CÙNG MUSE
+### 🛡️ TẦNG 5: CỬA ẢI KIỂM CHỨNG & BẢO ĐẢM THỰC THI (REALITY GATE)
+*Chủ trì: `agency-minimal-change-engineer`, `agency-test-automation-engineer`, `agency-reality-checker`*
 
-1. **Gửi bản kế hoạch**: Antigravity cập nhật bản kế hoạch chi tiết này vào `docs/plans/2026-10-30-agency-preview-audit-fix-upgrade-plan.md` và gắn thẻ nhiệm vụ **`[T-39]`** trong `AGENT_TASKS.md`.
-2. **Reviewer thẩm định**: Muse pull về từ `origin/main`, đọc kỹ phân công của Hội đồng Tác tử và đưa ra phản hồi:
-   * **CHẤP THUẬN (APPROVED)**: Antigravity claim `DOING` trên `AGENT_TASKS.md` và khởi động ngay Chặng 1 (PREVIEW).
-   * **YÊU CẦU ĐIỀU CHỈNH (NEEDS-ADJUST)**: Antigravity điều chỉnh phân công hoặc bổ sung tiêu chí nghiệm thu theo yêu cầu của Muse.
-3. **Nghiệm thu từng chặng**: Mỗi chặng kết thúc đều phải qua ải `agency-reality-checker` và được Muse kiểm chứng độc lập trên VM bằng test sống trước khi nhận dấu `VERIFIED`.
+* **Triết lý Reality Checker: MẶC ĐỊNH LÀ "NEEDS WORK"**:
+  * Bất kỳ tính năng hay bản vá nào cũng bị coi là chưa hoàn thành nếu thiếu:
+    1. Screenshot render thật từ trình duyệt Chromium trên chính mã nguồn đã build.
+    2. Log curl tương tác thực tế hoặc tin nhắn đối soát từ Telegram thật.
+    3. Bộ test hồi quy bổ sung và full suite `pytest tests/ -q` đạt 100% xanh.
+* **Hành động cụ thể (Tasks Gate)**:
+  - [ ] **Task GATE-1 (Minimal Diff Discipline)**: Mọi sửa đổi backend hay frontend đều phải có diff tối thiểu, từ chối trừu tượng hoá sớm (YAGNI), ưu tiên thư viện chuẩn.
+  - [ ] **Task GATE-2 (E2E Test Coverage)**: Bổ sung các bài kiểm thử E2E bằng Playwright/Chromium cho toàn bộ các luồng: Đăng nhập WebApp -> Xem việc -> Phê duyệt -> Cấu hình Model.
+  - [ ] **Task GATE-3 (Bằng chứng trước khi DONE)**: Xuất file artifact bằng chứng trước khi đổi trạng thái nhiệm vụ sang `DONE` để Muse nghiệm thu.
 
 ---
-*Ký tên phê duyệt kế hoạch:*
-* **Antigravity (Mac Builder)** — *Đã ký*
-* **Muse (Reviewer)** — *Chờ thẩm định*
+
+## 3. LỘ TRÌNH TRIỂN KHAI 4 CHẶNG ĐỒNG BỘ
+
+```
+Chặng 1: PREVIEW (Toàn diện Frontend + Backend)
+  ├── Frontend: Quét DOM index.html, kiểm tra 360 inline styles, đo đạc layout
+  └── Backend: Lập ma trận phụ thuộc 60 modules, rà soát SQLite WAL & aiosqlite threads
+Chặng 2: AUDIT (Kiểm toán chuyên sâu 5 góc)
+  ├── Audit 1: Bảo mật (Denylist, HMAC initData, SSRF)
+  ├── Audit 2: Hiệu năng dữ liệu (SQLite WAL, vec0, Hybrid RAG 200k)
+  ├── Audit 3: Giao diện (W3C Nu HTML, 60/30/10, WCAG 2.1 AA)
+  └── Audit 4: Kiến trúc lõi (Coupling telegram_bot.py & webapp_server.py)
+Chặng 3: FIX (Khắc phục theo Minimal Diff)
+  ├── Sửa triệt để các tồn đọng phát hiện từ Audit
+  └── Bổ sung unit/regression tests (100% green full suite)
+Chặng 4: UPGRADE (Nâng tầm trải nghiệm Full-Stack)
+  ├── Frontend: SPA module hoá, Thumb Zone, Telegram Haptics, Tím Mulon mượt mà
+  └── Backend: Subagent swarm tối ưu, hybrid search <20ms, zero-cold-start
+```
+
+---
+
+## 4. QUY TRÌNH DUYỆT & PHỐI HỢP CÙNG MUSE
+
+1. **Trình duyệt Plan**: Bản kế hoạch Full-Stack từ Frontend đến Backend này được gắn mã nhiệm vụ **`[T-39]`** trong `AGENT_TASKS.md` và push lên `origin/main`.
+2. **Reviewer phê duyệt**: Muse autowatch kéo về, đối chiếu với kiến trúc hệ thống và đưa ra ý kiến duyệt/phản biện.
+3. **Thực thi có kiểm chứng**: Antigravity thực hiện từng task, tuân thủ kỷ luật của `agency-minimal-change-engineer`, qua ải của `agency-reality-checker` trước khi báo cáo cho Muse nghiệm thu `VERIFIED`.
+
+---
+*Ký tên trình duyệt kế hoạch:*
+* **Antigravity (Mac Builder — Full-Stack Lead)** — *Đã ký*
+* **Muse (VM Reviewer)** — *Chờ thẩm định*
 * **Chủ dự án (mmmnhat)** — *Quyết định cuối cùng*
