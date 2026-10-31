@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.7.43-blueviolet">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.7.62-blueviolet">
   <img alt="Python" src="https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14-3776AB">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-706%20passed-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-755%20passed-brightgreen">
   <img alt="Eval" src="https://img.shields.io/badge/eval%20gate-92%25%20(33%2F36)-orange">
   <img alt="Platforms" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
@@ -118,6 +118,24 @@ tương tác tối thiểu 44px, Bottom Sheet L3 chi tiết từng bước, phâ
 lịch sử và thanh tìm kiếm tự động khi danh sách >= 5 mục. Tích hợp sâu
 Telegram WebApp SDK (nút quay lại native, haptic feedback, thêm ra màn hình chính).
 
+**Đợt nâng cấp nền tảng & giao diện 1.7.48 → 1.7.62 (T-39 + T-40).**
+Độ tin cậy dữ liệu: vá dứt điểm vòng đời teardown của aiosqlite (tiến
+trình test tự thoát sạch sau khi chạy xong) và thêm composite index
+cho facts bi-temporal. Bảo mật trình duyệt: Chromium worker có chốt
+chặn DNS-rebinding kiểm chứng từng hop redirect trước khi mở trang.
+API Mini App trả lỗi thống nhất theo chuẩn **RFC 7807** (Problem
+Details, thay đổi cộng thêm — client cũ không gãy). Khởi động không
+còn độ trễ embedding: FastEmbed warm-up nền kèm circuit breaker theo
+tầng model. Code được module hoá có kỷ luật: lớp trình bày Telegram
+tách thành `mulon/telegram_delivery.py`, JS của Mini App gom vào
+namespace `window.Mulon` (`Mulon.TG` / `Mulon.API` / `Mulon.State` /
+`Mulon.Tabs`). Giao diện Mini App cải tổ đồng bộ trải nghiệm Meta
+Muse App theo ADR-003: bộ design token Muse Clean Palette, header
+Hero Mascot, thẻ tác vụ **Activity Stream** gom nhóm Hôm nay/Hôm qua
+kèm **badge nền tảng** (suy ra từ bảng từ khóa khai báo
+`config/platform_keywords.json`, không đoán bừa), bố cục split-view
+cho Telegram Desktop (≥ 768px) và theme runtime lavender.
+
 ---
 
 ## Kiến trúc hệ thống
@@ -147,7 +165,8 @@ flowchart LR
 | `mulon/personal_connectors.py` | Connectors cá nhân hóa: Zalo, Facebook, Threads, Instagram session |
 | `mulon/threads_browser_bridge.py` | Browser Bridge Playwright gửi DM & Reaction thật trên Threads/Instagram |
 | `mulon/vault.py` | Kho bí mật an toàn (Secure Vault), giải mã ref UUID/nhãn, che mờ trong shell |
-| `mulon/webapp_server.py` | Backend Mini App (aiohttp): xác thực HMAC initData, API quản trị toàn diện |
+| `mulon/webapp_server.py` | Backend Mini App (aiohttp): xác thực HMAC initData, API quản trị toàn diện, lỗi chuẩn RFC 7807 |
+| `mulon/telegram_delivery.py` | Lớp trình bày & gửi tin Telegram tách khỏi bot chính (định dạng, placeholder, streaming) |
 | `mulon/feed_auto.py` · `websearch.py` | Feed chủ động tự đăng theo lịch, suy nhãn giờ động, tìm kiếm tin tức |
 
 ---
@@ -258,14 +277,14 @@ Bề mặt lệnh Telegram được chuẩn hóa toàn diện theo kiến trúc 
 ## Bảng điều khiển Mini App
 
 Từ phiên bản 1.2.0 (hoàn thiện 1.7.x), gõ `/menu` để mở bảng điều khiển trực tiếp trên Telegram:
-- **Tab Việc:** Lịch sử tác vụ kèm thanh tìm kiếm, filter chip trạng thái, phân trang "Xem thêm" và Bottom Sheet L3 xem chi tiết đầu vào/kết quả từng bước.
+- **Tab Việc:** Lịch sử tác vụ dạng Activity Stream gom nhóm theo ngày (Hôm nay/Hôm qua) kèm badge nền tảng của từng tác vụ, thanh tìm kiếm, filter chip trạng thái, phân trang "Xem thêm" và Bottom Sheet L3 xem chi tiết đầu vào/kết quả từng bước.
 - **Tab Phê duyệt:** Thẻ banner yêu cầu chờ duyệt nổi bật, lịch sử phê duyệt phân nhóm theo ngày ("Hôm nay", "Hôm qua", ngày cụ thể) kèm mốc giờ thu gọn.
 - **Tab Lịch trình:** Heartbeat chủ động và lịch hẹn cá nhân được gom chung vào Màn Chi tiết Lịch trình L2 (`#screen-schedule-detail`), hỗ trợ phân trang lịch sử chạy.
 - **Tab Hồ sơ:** 4 cửa điều hướng độc lập xem Hồ sơ agent (9 file dossier), Bộ nhớ dài hạn (tra cứu fact), Kỹ năng (che giấu path tuyệt đối) và Thư viện tài liệu (xem trước, thùng rác).
 - **Tab Cài đặt:**
   - *Hệ sinh thái:* Quản lý Công cụ kết nối, Chợ MCP, Kho bí mật an toàn (tìm kiếm khi >= 5 mục), Phân quyền 3 nấc (`allow`, `ask`, `deny`), Feed chủ động, Thiết bị & Hệ thống (tích hợp nút Thêm ra màn hình chính) và Cổng model CLIProxyAPI.
   - *Cá nhân hoá:* Màn hình Thương hiệu & Mascot (`#screen-brand`) cho phép đổi tên bot và chọn mascot đại diện với hướng dẫn rõ ràng về giới hạn BotFather.
-  - *Giao diện:* Bộ màu nhận diện chuẩn 60/30/10 với màu tím Mulon `#7C3AED` chủ đạo.
+  - *Giao diện:* Bộ màu nhận diện chuẩn 60/30/10 với màu tím Mulon `#7C3AED` chủ đạo; từ 1.7.60 giao diện đồng bộ trải nghiệm Meta Muse App (design token Muse Clean Palette, header Hero Mascot, theme lavender) và tự chuyển bố cục split-view trên Telegram Desktop (≥ 768px).
 
 ---
 
@@ -286,7 +305,7 @@ Từ phiên bản 1.2.0 (hoàn thiện 1.7.x), gõ `/menu` để mở bảng đi
 Bộ kiểm thử được duy trì ở mức nghiêm ngặt nhất với độ bao phủ 100%:
 
 ```bash
-# Chạy toàn bộ test suite (679 test)
+# Chạy toàn bộ test suite (755 test)
 .venv/bin/python -m pytest tests/ -q
 
 # Chạy bộ Eval vàng đo lường trí tuệ & phong cách (cổng chuẩn 85%)
@@ -313,7 +332,7 @@ mulon/                  Mã nguồn agent lõi
   ├── threads_browser_bridge.py Browser Bridge gửi tin nhắn thật qua Playwright
   ├── webapp_server.py  Backend server cho Telegram Mini App
   └── webapp/           Giao diện Mini App (index.html, DESIGN.md, assets)
-tests/                  679 unit, integration và Playwright render tests
+tests/                  755 unit, integration và Playwright render tests
 config/                 Dữ liệu cấu hình JSON (mascots, policy, catalog, intent)
 docs/                   Tài liệu kiến trúc, sitemap và hướng dẫn kỹ thuật
 dossier/                Hồ sơ cá nhân hóa của agent (SOUL, IDENTITY, USER...)
