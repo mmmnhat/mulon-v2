@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## 1.7.59 — 2026-10-31 — Module hoá JS Client Mini App (Lát cắt 3: Mulon.Tabs & Lifecycle Decoupling) theo ADR-002 (T-39.4b, Agency Council Chặng 3 — ký: Antigravity)
+
+- **(ISSUE-08 / T-39.4b Lát cắt 3) Hoàn tất Phân rã JS Client theo Phương án A (ADR-002) (`mulon/webapp/index.html`):**
+  - **Đóng gói Subsystem `Mulon.Tabs` & Phân rã 5 Tab:**
+    - Đóng gói toàn bộ logic render của 5 tab chính (`viec`, `pheduyet`, `lich`, `hoso`, `caidat`) vào namespace `Mulon.Tabs[tabName]`.
+    - Chuẩn hoá hợp đồng lifecycle cho từng tab: `render()`, `mount()` (kích hoạt render khi tab mở), và `cleanup()` (giải phóng tài nguyên khi rời tab).
+    - Cung cấp `Mulon.Tabs.renderAll()` gom toàn bộ render của các tab và uỷ quyền an toàn từ hàm `renderAll()` toàn cục.
+  - **Thống nhất Cơ chế Chuyển Tab/Màn con qua `Mulon.State`:**
+    - Triệt tiêu hoàn toàn hiện tượng 2 đường đổi state theo ghi chú (i) của Muse: hàm `showMain(tab)` và `showSub(id)` giờ đây gọi tập trung qua `Mulon.State.setTab(tab)` và `Mulon.State.setSubScreen(id)`.
+    - Tích hợp hook chuyển tab: khi rời tab cũ, `showMain` tự động kích hoạt `Mulon.Tabs[prevTab].cleanup()` trước khi mount tab mới `Mulon.Tabs[tab].mount()`.
+  - **Quản lý Event Listener & Dọn Rác Triệt Để:**
+    - Tab `caidat`: Dừng dứt điểm polling tác vụ `opTimer` (`stopOpPoll()`) khi rời tab Cài đặt.
+    - Tab `viec` & `hoso`: Tự động ẩn các modal overlay đang treo (`modal-heartbeat`, `modal-lib-menu`) khi chuyển tab.
+    - Xác nhận đối với các DOM render dạng `innerHTML = ...`: toàn bộ các event listener con gắn trên thẻ DOM được garbage collector của trình duyệt tự động thu hồi khi node bị thay thế.
+  - **Bảo toàn 100% Backward Compatibility:**
+    - Re-export các shim toàn cục `window.showMain = showMain;`, `window.showSub = showSub;`, `window.renderAll = renderAll;` giúp toàn bộ mã điều hướng hiện hữu chạy trơn tru mà không có breaking change.
+- **Render thật Playwright Chromium (390×844) & Kiểm chứng Runtime:**
+  - Chạy `scripts/capture_touch_renders.py`: Cả 3 ảnh render `01_dashboard_light.png`, `02_dashboard_dark.png`, `04_tasks_dark.png` đều được làm mới bằng trình duyệt Playwright Chromium thật.
+  - Kiểm chứng runtime JavaScript trong Chromium headless: **0 pageerror**, `Mulon.Tabs` chứa đủ 5 tab và phương thức lifecycle, tab switch kích hoạt `cleanup()` của tab cũ và `mount()` của tab mới, `renderAll` hoạt động hoàn hảo.
+- **Kiểm thử & Bằng chứng đo đạc thực tế:**
+  - File test hồi quy: `tests/test_v17_miniapp_modular_js.py` (**9/9 passed** trong 0.05s).
+  - Test Mini App & Design System: **15/15 passed** trong 4.53s.
+  - Full test suite Mac: **761 passed / 0 failed** trong 71.34s (tăng 1 test so với 760 của v1.7.58; tiến trình tự thoát sạch sau summary <1s, exit code 0).
+  - Eval vàng: **33/36 (92%)** đạt cổng 85%; smoke `--dry-run` exit code 0.
+  - Phân vai The Agency: Chủ trì `agency-frontend-developer` + `agency-software-architect`, kiểm thử `agency-test-automation-engineer`, thẩm định `agency-reality-checker`.
+
 ## 1.7.58 — 2026-10-31 — Module hoá JS Client Mini App (Lát cắt 2: Mulon.State & Mulon.Mascot) theo ADR-002 (T-39.4b, Agency Council Chặng 3 — ký: Antigravity)
 
 - **(ISSUE-08 / T-39.4b Lát cắt 2) Phân rã JS Client theo Phương án A (ADR-002) (`mulon/webapp/index.html`):**

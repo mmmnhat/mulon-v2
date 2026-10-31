@@ -2421,12 +2421,82 @@ const SCREEN_TITLES = {
 };
 let profileReturnScreen = "screen-sub-dossier";
 let connPolReturnScreen = "screen-connectors";
+
+// -----------------------------------------------------------------------------
+// Subsystem Decoupling: Mulon.Tabs (ADR-002 Lát cắt 3)
+// -----------------------------------------------------------------------------
+Mulon.Tabs = {
+  viec: {
+    get title() { return TAB_TITLES.viec || "Việc"; },
+    render: function() { if (typeof renderTasks === "function") renderTasks(); },
+    mount: function() { this.render(); },
+    cleanup: function() {
+      const mh = $("modal-heartbeat");
+      if (mh) mh.classList.add("hidden");
+    }
+  },
+  pheduyet: {
+    get title() { return TAB_TITLES.pheduyet || "Phê duyệt"; },
+    render: function() { if (typeof renderApprovals === "function") renderApprovals(); },
+    mount: function() { this.render(); },
+    cleanup: function() {}
+  },
+  lich: {
+    get title() { return TAB_TITLES.lich || "Lịch"; },
+    render: function() {
+      if (typeof renderSchedule === "function") renderSchedule();
+      if (typeof renderGoals === "function") renderGoals();
+    },
+    mount: function() { this.render(); },
+    cleanup: function() {}
+  },
+  hoso: {
+    get title() { return TAB_TITLES.hoso || "Hồ sơ"; },
+    render: function() { if (typeof renderProfile === "function") renderProfile(); },
+    mount: function() { this.render(); },
+    cleanup: function() {
+      const mlm = $("modal-lib-menu");
+      if (mlm) mlm.classList.add("hidden");
+    }
+  },
+  caidat: {
+    get title() { return TAB_TITLES.caidat || "Cài đặt"; },
+    render: function() {
+      if (typeof renderConnectors === "function") renderConnectors();
+      if (typeof renderVault === "function") renderVault();
+      if (typeof renderPolicy === "function") renderPolicy();
+      if (typeof renderSystem === "function") renderSystem();
+      if (typeof renderFeed === "function") renderFeed();
+      if (typeof renderBrand === "function") renderBrand();
+      if (typeof loadModelsConfig === "function") loadModelsConfig();
+    },
+    mount: function() { this.render(); },
+    cleanup: function() {
+      if (typeof stopOpPoll === "function") stopOpPoll();
+    }
+  },
+  renderAll: function() {
+    if (typeof renderStatus === "function") renderStatus();
+    for (const t of MAIN_TABS) {
+      if (this[t] && typeof this[t].render === "function") {
+        try { this[t].render(); } catch (e) { console.error("Lỗi render tab " + t, e); }
+      }
+    }
+  }
+};
+
 function showMain(tab){
-  stopOpPoll();
   const prevTab = mainTab;
-  mainTab = tab; subScreen = null;
+  if (window.Mulon && window.Mulon.Tabs && window.Mulon.Tabs[prevTab] && typeof window.Mulon.Tabs[prevTab].cleanup === "function") {
+    try { window.Mulon.Tabs[prevTab].cleanup(); } catch (e) { console.error(e); }
+  } else {
+    stopOpPoll();
+  }
   if (window.Mulon && window.Mulon.State) {
-    window.Mulon.State.emit("tab:changed", {tab: tab, prev: prevTab});
+    window.Mulon.State.setTab(tab);
+    window.Mulon.State.setSubScreen(null);
+  } else {
+    mainTab = tab; subScreen = null;
   }
   document.body.classList.remove("split");
   MAIN_TABS.forEach(t => $("tab-" + t).classList.toggle("hidden", t !== tab));
@@ -2442,13 +2512,16 @@ function showMain(tab){
   window.scrollTo(0, 0);
   const ge = $("global-error");
   if (ge) ge.innerHTML = "";
+  if (window.Mulon && window.Mulon.Tabs && window.Mulon.Tabs[tab] && typeof window.Mulon.Tabs[tab].mount === "function") {
+    try { window.Mulon.Tabs[tab].mount(); } catch (e) { console.error(e); }
+  }
 }
 function showSub(id){
   if (id !== "screen-install") stopOpPoll();
-  const prevSub = subScreen;
-  subScreen = id;
   if (window.Mulon && window.Mulon.State) {
-    window.Mulon.State.emit("screen:changed", {subScreen: id, prev: prevSub});
+    window.Mulon.State.setSubScreen(id);
+  } else {
+    subScreen = id;
   }
   MAIN_TABS.forEach(t => $("tab-" + t).classList.add("hidden"));
   Object.keys(TAB_OF_SCREEN).forEach(s =>
@@ -7582,10 +7655,18 @@ function renderBrand() {
 
 /* ---------------- nạp state ---------------- */
 function renderAll(){
-  renderStatus(); renderTasks(); renderGoals(); renderApprovals(); renderSchedule();
-  renderProfile(); renderConnectors(); renderVault(); renderPolicy();
-  renderSystem(); renderFeed(); renderBrand(); loadModelsConfig();
+  if (window.Mulon && window.Mulon.Tabs && typeof window.Mulon.Tabs.renderAll === "function") {
+    window.Mulon.Tabs.renderAll();
+  } else {
+    renderStatus(); renderTasks(); renderGoals(); renderApprovals(); renderSchedule();
+    renderProfile(); renderConnectors(); renderVault(); renderPolicy();
+    renderSystem(); renderFeed(); renderBrand(); loadModelsConfig();
+  }
 }
+window.renderAll = renderAll;
+window.showMain = showMain;
+window.showSub = showSub;
+
 function refresh(){ return load(); }
 async function load(){
   try {

@@ -1,4 +1,4 @@
-"""Test hồi quy cho [T-39.4b]: Module hoá JS Client Mini App (ISSUE-08) — Lát cắt 1 & Lát cắt 2.
+"""Test hồi quy cho [T-39.4b]: Module hoá JS Client Mini App (ISSUE-08) — Lát cắt 1, 2 & 3.
 
 Kiểm chứng:
 1. Namespace window.Mulon tồn tại trong khối <script>.
@@ -6,8 +6,10 @@ Kiểm chứng:
 3. Subsystem Mulon.API đóng gói fetch client, auth initData và RFC 7807 error parsing.
 4. Subsystem Mulon.State đóng gói Reactive State Store và Event Bus nội bộ (on, off, emit).
 5. Subsystem Mulon.Mascot đóng gói bộ điều khiển Sprite Mascot Animator và voice indicators.
-6. Shim re-export toàn cục (api, haptic, getInitData, spritePlay, spriteStop, spriteApplyBase, flashAvatar) bảo toàn 100% tương thích ngược.
-7. Triệt tiêu dead code: Toàn bộ 5 utility classes (.flex-center, .flex-between, .flex-col, .touch-target-44, .text-sub-12) đều có sử dụng thực tế ở markup HTML/template.
+6. Subsystem Mulon.Tabs phân rã 5 tab (viec, pheduyet, lich, hoso, caidat) có lifecycle render/mount/cleanup.
+7. Thống nhất chuyển tab/màn qua Mulon.State.setTab và setSubScreen (triệt tiêu 2 đường đổi state).
+8. Shim re-export toàn cục (api, haptic, getInitData, spritePlay, spriteStop, spriteApplyBase, flashAvatar, showMain, showSub, renderAll) bảo toàn 100% tương thích ngược.
+9. Triệt tiêu dead code: Toàn bộ 5 utility classes (.flex-center, .flex-between, .flex-col, .touch-target-44, .text-sub-12) đều có sử dụng thực tế ở markup HTML/template.
 """
 from pathlib import Path
 import re
@@ -67,14 +69,27 @@ def test_mulon_mascot_subsystem_declared():
     assert "play: function(name, once)" in content, "Mulon.Mascot phải có method play phát event mascot:state"
 
 
-def test_state_and_mascot_lifecycle_integration():
-    """Kiểm tra tích hợp sự kiện state và mascot trong showMain, showSub và load."""
+def test_mulon_tabs_subsystem_and_lifecycle():
+    """Kiểm tra khai báo Subsystem Mulon.Tabs và lifecycle render/mount/cleanup (Lát cắt 3)."""
     content = WEBAPP_INDEX.read_text(encoding="utf-8")
 
-    assert 'window.Mulon.State.emit("tab:changed"' in content, "showMain phải emit sự kiện tab:changed"
-    assert 'window.Mulon.State.emit("screen:changed"' in content, "showSub phải emit sự kiện screen:changed"
-    assert 'window.Mulon.State.set(S)' in content, "load() phải đồng bộ state qua Mulon.State.set(S)"
-    assert 'window.Mulon.State.emit("mascot:state"' in content, "Mulon.Mascot.play phải emit sự kiện mascot:state"
+    assert "Mulon.Tabs = {" in content, "Mulon.Tabs phải được định nghĩa"
+    for tab in ["viec", "pheduyet", "lich", "hoso", "caidat"]:
+        assert f"{tab}: {{" in content, f"Mulon.Tabs phải chứa tab {tab}"
+    assert "renderAll: function()" in content, "Mulon.Tabs phải cung cấp method renderAll"
+    assert "stopOpPoll()" in content, "Mulon.Tabs.caidat.cleanup phải gọi stopOpPoll"
+
+
+def test_state_and_lifecycle_integration():
+    """Kiểm tra tích hợp chuyển tab/màn và lifecycle qua Mulon.State & Mulon.Tabs."""
+    content = WEBAPP_INDEX.read_text(encoding="utf-8")
+
+    assert "window.Mulon.State.setTab(tab)" in content, "showMain phải gọi Mulon.State.setTab(tab)"
+    assert "window.Mulon.State.setSubScreen(id)" in content, "showSub phải gọi Mulon.State.setSubScreen(id)"
+    assert "window.Mulon.Tabs[prevTab].cleanup()" in content, "showMain phải gọi cleanup của tab trước"
+    assert "window.Mulon.Tabs[tab].mount()" in content, "showMain phải gọi mount của tab mới"
+    assert "window.Mulon.Tabs.renderAll()" in content, "renderAll phải uỷ quyền qua Mulon.Tabs.renderAll"
+    assert "window.Mulon.State.set(S)" in content, "load() phải đồng bộ state qua Mulon.State.set(S)"
 
 
 def test_backward_compatibility_shims_present():
@@ -88,6 +103,9 @@ def test_backward_compatibility_shims_present():
     assert "window.spriteStop = spriteStop;" in content, "Phải shim window.spriteStop"
     assert "window.spriteApplyBase = spriteApplyBase;" in content, "Phải shim window.spriteApplyBase"
     assert "window.flashAvatar = flashAvatar;" in content, "Phải shim window.flashAvatar"
+    assert "window.showMain = showMain;" in content, "Phải shim window.showMain"
+    assert "window.showSub = showSub;" in content, "Phải shim window.showSub"
+    assert "window.renderAll = renderAll;" in content, "Phải shim window.renderAll"
 
 
 def test_api_rfc7807_error_handling_present():
@@ -125,4 +143,5 @@ def test_utility_classes_have_actual_markup_usage():
     # Khẳng định số lượng cụ thể đã kiểm chứng
     assert utility_classes["flex-center"] >= 2, f".flex-center phải dùng ít nhất 2 lần, thực tế: {utility_classes['flex-center']}"
     assert utility_classes["flex-col"] >= 3, f".flex-col phải dùng ít nhất 3 lần, thực tế: {utility_classes['flex-col']}"
+
 
