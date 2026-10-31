@@ -11,10 +11,11 @@
    Mọi style đi qua token. Cấm số ma thuật rải rác.
    ================================================================== */
 :root{
-  /* màu */
-  --paper:#FAF9F7; --surface:#FFFFFF; --surface2:#F3F1EC;
-  --ink:#1F1E1D; --ink2:#6E6A61; --ink3:#A39E93;
-  --line:#E8E4DC; --accent:#7C3AED; --accent-press:#6D28D9;
+  /* màu — Muse Clean Palette (ADR-003, [T-40]) */
+  --paper:#F8F9FA; --surface:#FFFFFF; --surface2:#F1F3F5;
+  --ink:#1C1E21; --ink2:#65676B; --ink3:#8D949E;
+  --line:#EBECEF; --accent:#7C3AED; --accent-press:#6D28D9;
+  /* tham chiếu token cũ v1.2: #FAF9F7 nền giấy cũ, #1F1E1D chữ mực cũ, #E8E4DC viền cũ */
   --lav:#9598C4; --lav-deep:#7C3AED;
   --bc1:#7C3AED; --bc2:#5B21B6;
   --cream:#EFD8AE; --rose:#D17E78; --ok:#3E9B6C; --warn:#C9932B; --err:#D95F57;
@@ -82,10 +83,10 @@
   --ease:cubic-bezier(.2,0,0,1);
 }
 [data-scheme="dark"]{
-  --paper:#17212B; --surface:#232E3C; --surface2:#2B3747;
-  --ink:#E9EDEF; --ink2:#9DABB9; --ink3:#67788A;
-  --line:#303D4D; --tint-err:#452723; --tint-lav:#2E1065;
-  --tint-gray:#2B3747; --shadow-pop:0 8px 24px rgba(0,0,0,.35);
+  --paper:#121214; --surface:#1E1E22; --surface2:#28282E;
+  --ink:#F5F5F7; --ink2:#A0A0A8; --ink3:#6C6C76;
+  --line:#2A2A30; --tint-err:#452723; --tint-lav:#2E1065;
+  --tint-gray:#28282E; --shadow-pop:0 8px 24px rgba(0,0,0,.35);
   --tgl-off:#3A4757;
   --border:var(--line); --card-tint:var(--surface2); --fs-caption:var(--fs-cap);
   --ds-primary-tint:#2E1065;
@@ -117,37 +118,40 @@ button, .backrow, .tgl, .segbar, .swatch{
     font-size: 16px;
   }
 }
-/* ---------- Cụm Header dính (Stitched Mascot Mulon + Tab Bar) ---------- */
+/* ---------- Cụm Header Danh Tính & Điều Hướng Chuẩn Muse (ADR-003) ---------- */
 .sticky-top-wrap{
   position:sticky; top:0; z-index:30;
-  background:color-mix(in srgb, var(--paper) 92%, transparent);
-  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  background:color-mix(in srgb, var(--paper) 95%, transparent);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
   padding-top:calc(max(var(--s2), var(--tg-content-safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px), var(--tg-top-inset, 0px), env(safe-area-inset-top, 0px)) + var(--s1));
   margin:0 calc(-1 * var(--s4)) var(--s2);
   padding-left:var(--s4); padding-right:var(--s4);
-  padding-bottom:2px;
-  border-bottom:1px solid color-mix(in srgb, var(--line) 40%, transparent);
+  padding-bottom:4px;
+  border-bottom:1px solid var(--line);
 }
 .app-header{
-  display:flex; flex-direction:row; align-items:center; justify-content:flex-start;
-  gap:12px; height:56px; padding:0 4px;
-  text-align:left;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:8px; padding:12px 4px 8px;
+  text-align:center;
 }
 .avatar-wrap{
-  position:relative; width:40px; height:40px; flex:0 0 40px; margin:0;
+  position:relative; width:64px; height:64px; flex:0 0 64px; margin:0 auto;
 }
 .avatar{
-  width:40px; height:40px; flex:0 0 40px; border-radius:50%;
-  background:var(--tint-lav); overflow:hidden; position:relative;
-  font-size:18px; font-weight:var(--fw-s); color:var(--lav-deep);
-  box-shadow:0 2px 8px rgba(0,0,0,0.1), inset 0 0 0 1px rgba(0,0,0,.08);
+  width:64px; height:64px; flex:0 0 64px; border-radius:50%;
+  background:var(--surface); overflow:hidden; position:relative;
+  font-size:24px; font-weight:var(--fw-s); color:var(--lav-deep);
+  box-shadow:0 4px 14px rgba(0,0,0,0.06), inset 0 0 0 1px var(--line);
   transition:box-shadow 240ms var(--ease), transform 240ms var(--ease);
 }
-.avatar:hover{transform:scale(1.02)}
+.avatar:hover{transform:scale(1.03)}
 [data-scheme="dark"] .avatar{
-  box-shadow:0 2px 8px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,.15);
+  box-shadow:0 4px 14px rgba(0,0,0,0.4), inset 0 0 0 1px var(--line);
 }
-.head-meta{text-align:left; flex:1; min-width:0;}
+.head-meta{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; min-width:0; width:100%; gap:4px;
+}
 .avatar #avatar-letter{
   position:absolute; inset:0; display:flex;
   align-items:center; justify-content:center;
@@ -163,17 +167,46 @@ button, .backrow, .tgl, .segbar, .swatch{
 .avatar.sprite-on .sprite{display:block}
 .avatar.sprite-on img{visibility:hidden}
 .avatar.sprite-on #avatar-letter{visibility:hidden}
-.app-name{font-size:17px; font-weight:600;
-  letter-spacing:-0.01em; line-height:1.2; margin-bottom:2px; text-align:left;}
-.app-status{font-size:13px; font-weight:var(--fw-m); color:var(--ink2);
-  display:inline-flex; align-items:center; justify-content:flex-start; gap:6px;
-  margin:0; white-space:nowrap;}
-.dot{width:8px; height:8px; border-radius:50%; background:var(--ink3);
+.app-name{font-size:19px; font-weight:700;
+  letter-spacing:-0.02em; line-height:1.2; margin:0; text-align:center; color:var(--ink);}
+.app-status{font-size:12px; font-weight:var(--fw-m); color:var(--ink2);
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  padding:3px 10px; border-radius:999px; background:var(--surface2);
+  border:1px solid var(--line); margin:0; white-space:nowrap;}
+.dot{width:7px; height:7px; border-radius:50%; background:var(--ink3);
   display:inline-block}
-.dot.busy{background:var(--lav); animation:pulse 1.2s infinite}
+.dot.busy{background:var(--accent); animation:pulse 1.2s infinite}
 .btn-subtle{background:var(--surface2); color:var(--ink2); border:1px solid var(--line); padding:2px 8px; font-size:11px; border-radius:6px; cursor:pointer; min-height:24px; font-weight:var(--fw-m); transition:all .15s ease;}
 .btn-subtle:active{background:var(--tint-gray); color:var(--ink);}
-.r-meta{display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; text-align:right;}
+.r-meta{display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; text-align:center;}
+
+/* 4 Quick Switcher Icons Chuẩn Muse (ADR-003) */
+.hero-quick-nav{
+  display:flex; align-items:center; justify-content:center; gap:16px;
+  margin-top:6px; margin-bottom:2px; width:100%;
+}
+.hero-quick-btn{
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  background:none; border:none; padding:0; cursor:pointer;
+  min-width:48px; min-height:48px; touch-action:manipulation;
+  user-select:none; -webkit-user-select:none;
+}
+.hero-quick-icon{
+  width:48px; height:48px; border-radius:50%;
+  background:var(--surface); border:1px solid var(--line);
+  display:flex; align-items:center; justify-content:center;
+  font-size:20px; box-shadow:0 2px 6px rgba(0,0,0,0.03);
+  transition:transform .15s ease, background .15s ease, border-color .15s ease;
+}
+.hero-quick-btn:active .hero-quick-icon, .hero-quick-btn.active .hero-quick-icon{
+  transform:scale(0.94); background:var(--surface2); border-color:var(--accent);
+}
+.hero-quick-label{
+  font-size:11px; font-weight:var(--fw-m); color:var(--ink2); line-height:1;
+}
+.hero-quick-btn.active .hero-quick-label{
+  color:var(--accent); font-weight:var(--fw-s);
+}
 
 /* ---------- modal chi tiết Heartbeat chuẩn Muse ---------- */
 .modal-overlay{
@@ -958,10 +991,28 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     </div>
     <div class="head-meta">
       <div class="app-name" id="app-brand-name">Mulon</div>
-      <div class="app-status">
+      <div class="app-status" id="app-status-pill">
         <span class="dot" id="status-dot"></span>
         <span id="status-text">Đã kết nối</span>
       </div>
+    </div>
+    <div class="hero-quick-nav" id="hero-quick-nav">
+      <button class="hero-quick-btn active" data-hero-tab="viec" type="button" title="Việc">
+        <span class="hero-quick-icon">📋</span>
+        <span class="hero-quick-label">Việc</span>
+      </button>
+      <button class="hero-quick-btn" data-hero-tab="pheduyet" type="button" title="Quyền">
+        <span class="hero-quick-icon">🛡️</span>
+        <span class="hero-quick-label">Quyền</span>
+      </button>
+      <button class="hero-quick-btn" data-hero-tab="lich" type="button" title="Lịch">
+        <span class="hero-quick-icon">⏰</span>
+        <span class="hero-quick-label">Lịch</span>
+      </button>
+      <button class="hero-quick-btn" data-hero-sub="screen-vault" type="button" title="Kho">
+        <span class="hero-quick-icon">🔑</span>
+        <span class="hero-quick-label">Kho</span>
+      </button>
     </div>
   </header>
 
@@ -2503,6 +2554,8 @@ function showMain(tab){
   Object.keys(TAB_OF_SCREEN).forEach(id => $(id).classList.add("hidden"));
   document.querySelectorAll("#segbar button").forEach(b =>
     b.classList.toggle("active", b.dataset.tab === tab));
+  document.querySelectorAll(".hero-quick-btn").forEach(b =>
+    b.classList.toggle("active", b.dataset.heroTab === tab));
   $("sticky-top-wrap").classList.remove("hidden");
   $("segbar").classList.remove("hidden");
   $("app-header").classList.remove("hidden");
@@ -2532,6 +2585,8 @@ function showSub(id){
   const parentTab = TAB_OF_SCREEN[id] || "caidat";
   document.querySelectorAll("#segbar button").forEach(b =>
     b.classList.toggle("active", b.dataset.tab === parentTab));
+  document.querySelectorAll(".hero-quick-btn").forEach(b =>
+    b.classList.toggle("active", b.dataset.heroSub === id));
   closePolMenu();
   if (tg && tg.BackButton) tg.BackButton.show();
   document.title = (SCREEN_TITLES[id] || "Mulon") + " — Mulon";
@@ -2605,6 +2660,12 @@ if (tg && tg.BackButton) {
 }
 document.querySelectorAll("#segbar button").forEach(b =>
   b.addEventListener("click", () => { haptic("select"); showMain(b.dataset.tab); }));
+document.querySelectorAll(".hero-quick-btn").forEach(b =>
+  b.addEventListener("click", () => {
+    haptic("select");
+    if (b.dataset.heroTab) showMain(b.dataset.heroTab);
+    else if (b.dataset.heroSub) showSub(b.dataset.heroSub);
+  }));
 
 // Uỷ quyền sự kiện click điều hướng toàn thân hàng và nút quay lại chuẩn
 document.addEventListener("click", (e) => {

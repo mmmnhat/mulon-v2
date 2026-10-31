@@ -191,7 +191,8 @@ def main():
 
         # Chụp theme Light
         page.evaluate("""() => {
-            document.documentElement.setAttribute('data-theme', 'light');
+            document.documentElement.removeAttribute('data-scheme');
+            document.documentElement.dataset.scheme = 'light';
         }""")
         page.wait_for_timeout(300)
         page.screenshot(path=str(render_dir / "01_dashboard_light.png"))

@@ -145,3 +145,46 @@ def test_utility_classes_have_actual_markup_usage():
     assert utility_classes["flex-col"] >= 3, f".flex-col phải dùng ít nhất 3 lần, thực tế: {utility_classes['flex-col']}"
 
 
+def test_muse_clean_palette_tokens_present():
+    """Kiểm tra hệ thống Design Tokens Muse Clean Palette (ADR-003, [T-40] Lát cắt 1)."""
+    content = WEBAPP_INDEX.read_text(encoding="utf-8")
+
+    # Light mode
+    assert "--paper:#F8F9FA;" in content, "Light mode nền phải là xám Muse #F8F9FA"
+    assert "--surface:#FFFFFF;" in content, "Light mode thẻ card phải là #FFFFFF"
+    assert "--line:#EBECEF;" in content, "Light mode viền phải là #EBECEF"
+    assert "--accent:#7C3AED;" in content, "Màu nhấn phải là Tím Mulon #7C3AED (tuân thủ lock thiết kế §6)"
+
+    # Dark mode
+    assert "--paper:#121214;" in content, "Dark mode nền phải là Muse dark #121214"
+    assert "--surface:#1E1E22;" in content, "Dark mode card phải là #1E1E22"
+    assert "--line:#2A2A30;" in content, "Dark mode viền phải là #2A2A30"
+
+
+def test_muse_companion_hero_and_quick_switcher():
+    """Kiểm tra Header Hero Muse Companion và 4 nút quick switcher (ADR-003, [T-40] Lát cắt 1)."""
+    content = WEBAPP_INDEX.read_text(encoding="utf-8")
+
+    # 1. Các phần tử danh tính chính của Hero
+    assert 'id="avatar-box"' in content, "Avatar box phải tồn tại"
+    assert 'id="app-brand-name"' in content, "Brand name bot phải tồn tại"
+    assert 'id="status-dot"' in content, "Status dot phải tồn tại"
+    assert 'id="status-text"' in content, "Status text phải tồn tại"
+    assert 'id="hero-quick-nav"' in content, "Thanh 4 nút Hero Quick Nav phải tồn tại"
+
+    # 2. Đủ 4 nút điều hướng nhanh với data attributes chuẩn
+    assert 'data-hero-tab="viec"' in content, "Nút Hero Việc phải liên kết tab viec"
+    assert 'data-hero-tab="pheduyet"' in content, "Nút Hero Quyền phải liên kết tab pheduyet"
+    assert 'data-hero-tab="lich"' in content, "Nút Hero Lịch phải liên kết tab lich"
+    assert 'data-hero-sub="screen-vault"' in content, "Nút Hero Kho phải liên kết subScreen screen-vault"
+
+    # 3. Touch target >= 44px
+    assert re.search(r"\.hero-quick-btn\s*\{[^}]*min-width:\s*48px", content), "Hero quick btn min-width >= 44px"
+    assert re.search(r"\.hero-quick-btn\s*\{[^}]*min-height:\s*48px", content), "Hero quick btn min-height >= 44px"
+    assert re.search(r"\.hero-quick-icon\s*\{[^}]*width:\s*48px", content), "Hero quick icon width >= 44px"
+
+    # 4. Tích hợp chuyển tab đồng bộ
+    assert "data.heroTab" in content or "dataset.heroTab" in content, "showMain/click handler phải xử lý heroTab"
+
+
+

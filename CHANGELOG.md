@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## 1.7.60 — 2026-10-31 — Cải tổ giao diện Mini App theo Meta Muse App (Lát cắt 1: Muse Clean Palette & Header Hero Mascot) theo ADR-003 (T-40 — ký: Antigravity)
+
+- **(T-40 Lát cắt 1) Triển khai Design Tokens Muse Clean Palette & Header Hero Mascot (`mulon/webapp/index.html`):**
+  - **Hệ thống Design Tokens Muse Clean Palette:**
+    - Cập nhật palette giao diện sáng: nền xám hiện đại `--paper: #F8F9FA`, bề mặt card trắng tinh khiết `--surface: #FFFFFF`, bề mặt phụ `--surface2: #F1F3F5`, chữ độ tương phản cao `--ink: #1C1E21`, chữ phụ `--ink2: #65676B`, viền mỏng `--line: #EBECEF`.
+    - Cập nhật palette giao diện tối: nền `--paper: #121214`, card `--surface: #1E1E22`, viền `--line: #2A2A30`, chữ `--ink: #F5F5F7`.
+    - Bảo toàn 100% màu nhấn nhận diện Tím Mulon `--accent: #7C3AED` và lock thiết kế §6 (trạng thái thể hiện bằng chữ, dot trung tính, không dùng xanh/vàng/đỏ).
+  - **Tái cấu trúc Header Hero Mascot Trung Tâm:**
+    - Nâng cấp Mascot Avatar nổi bật với đường kính 64px, căn giữa ấm cúng, tương thích bộ Sprite Mascot Animator.
+    - Tiêu đề danh tính bot `MuLon` (20px, font-weight 700) căn giữa trang trọng.
+    - Pill trạng thái kết nối `● Đã kết nối` bo tròn mềm mại (`app-status`) với dot chỉ báo trung tính `var(--ink3)` và hiệu ứng nhịp thở `pulse` tím khi bận.
+    - Bổ sung 4 nút chuyển nhanh ngữ cảnh tròn (`#hero-quick-nav`) với touch target 48×48px $\ge 44$px: `[ 📋 Việc ]` (`data-hero-tab="viec"`), `[ 🛡️ Quyền ]` (`data-hero-tab="pheduyet"`), `[ ⏰ Lịch ]` (`data-hero-tab="lich"`), `[ 🔑 Kho ]` (`data-hero-sub="screen-vault"`).
+    - Tích hợp sự kiện chuyển tab đồng bộ qua `Mulon.State.setTab()` / `showMain()` và `Mulon.State.setSubScreen()` / `showSub()`.
+  - **Bổ sung tài liệu tham chiếu & Phân vai Agency:**
+    - Lưu trữ ảnh tham chiếu ứng dụng Meta Muse thật tại `docs/reference/meta_muse_app_reference.png`.
+    - Cập nhật tài liệu thiết kế `docs/adr/003-miniapp-muse-ui-parity.md` đáp ứng trọn vẹn 5 điều kiện duyệt của Muse autowatch.
+    - Bổ sung vai trò `[T-40]` vào bảng phân vai mục G trong `docs/ops/antigravity-coordinator-prompt.md`.
+- **Render thật Playwright Chromium (390×844) & Bằng chứng nghiệm thu:**
+  - Chạy `scripts/capture_touch_renders.py`: Cả 3 ảnh render `01_dashboard_light.png`, `02_dashboard_dark.png`, `04_tasks_dark.png` đều được làm mới bằng Playwright Chromium headless thật với hash sha256 mới.
+  - Runtime JavaScript: **0 pageerror**, các nút bấm và trạng thái hoạt động trơn tru.
+- **Kiểm thử & Bằng chứng đo đạc thực tế:**
+  - File test hồi quy: `tests/test_v17_miniapp_modular_js.py` (**11/11 passed** trong 0.05s, bổ sung 2 test mới cho tokens và Hero Quick Switcher).
+  - Test Mini App & Design System: **32/32 passed** trong 21.50s.
+  - Phân vai The Agency: Chủ trì `agency-ui-designer` + `agency-frontend-developer`, cổng chốt thẩm định giao diện `agency-ui-finish-gate-reviewer`, kiểm thử `agency-test-automation-engineer`, tự kiểm `agency-reality-checker`.
+
 ## 1.7.59 — 2026-10-31 — Module hoá JS Client Mini App (Lát cắt 3: Mulon.Tabs & Lifecycle Decoupling) theo ADR-002 (T-39.4b, Agency Council Chặng 3 — ký: Antigravity)
 
 - **(ISSUE-08 / T-39.4b Lát cắt 3) Hoàn tất Phân rã JS Client theo Phương án A (ADR-002) (`mulon/webapp/index.html`):**
