@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## 1.7.58 — 2026-10-31 — Module hoá JS Client Mini App (Lát cắt 2: Mulon.State & Mulon.Mascot) theo ADR-002 (T-39.4b, Agency Council Chặng 3 — ký: Antigravity)
+
+- **(ISSUE-08 / T-39.4b Lát cắt 2) Phân rã JS Client theo Phương án A (ADR-002) (`mulon/webapp/index.html`):**
+  - **Đóng gói Subsystem `Mulon.State` & Event Bus nội bộ:**
+    - Cung cấp getter reactive an toàn: `raw`, `current` (trỏ tới `S`), `tab` (`mainTab`), `subScreen`.
+    - Cung cấp các phương thức cập nhật: `set(newS)` (hỗ trợ updater function hoặc object), `setTab(tab)`, `setSubScreen(id)`.
+    - Event Bus đa kênh nhẹ nhàng, độc lập không phụ thuộc thư viện ngoài: `on(event, handler)`, `off(event, handler)`, `emit(event, ...args)` bọc try-catch an toàn.
+    - Tích hợp phát sự kiện tự động: `showMain` emit `tab:changed` (`{tab, prev}`), `showSub` emit `screen:changed` (`{subScreen, prev}`), `load()` cập nhật state qua `Mulon.State.set(S)` và emit `change` / `update`.
+  - **Đóng gói Subsystem `Mulon.Mascot` Sprite Animator Controller:**
+    - Gom toàn bộ bộ điều khiển avatar sprite atlas 21 frame vào `Mulon.Mascot`: `raw` (`sprite`), `state`, `isReady`, `getBaseState`, `applyBase`, `flash`, `play`, `stop`.
+    - `Mulon.Mascot.play(name, once)` tự động phát sự kiện `mascot:state` (`{state, once}`) qua Event Bus `Mulon.State` giúp các component khác lắng nghe mà không bị ghép nối chặt.
+  - **Bảo toàn 100% Backward Compatibility:**
+    - Giữ nguyên các biến toàn cục `S`, `mainTab`, `subScreen`, `sprite` và shim re-export toàn bộ các hàm tiện ích (`window.spritePlay`, `window.spriteStop`, `window.spriteApplyBase`, `window.flashAvatar`). Hàng trăm vị trí logic cũ tiếp tục hoạt động mà không bị ảnh hưởng.
+- **Đính chính số liệu Kiến trúc ADR-002 (`docs/adr/002-miniapp-js-modularization.md`):**
+  - Xử lý lưu ý (ii) của Muse: sửa triệt để cụm từ "cơ chế kết nối SSE/polling" tại dòng 12 §1 thành "cơ chế kết nối polling-only (load() 3s và opTimer 2s)", bảo đảm tính nhất quán 100% xuyên suốt tài liệu.
+- **Render thật Playwright Chromium (390×844):**
+  - Chạy script `scripts/capture_touch_renders.py`, capture thành công 3 ảnh màn hình trong môi trường headless Chromium. Ghi nhận chính xác theo lưu ý (i) của Muse: 2 ảnh thực sự đổi hash trong commit này là `02_dashboard_dark.png` và `04_tasks_dark.png`; `01_dashboard_light.png` giữ nguyên hash.
+  - Kiểm chứng runtime JavaScript trong trình duyệt thật: 0 pageerror, `Mulon.State` và `Mulon.Mascot` hoạt động đầy đủ, Event Bus phát và nhận sự kiện chính xác, chuyển tab phản hồi đúng.
+- **Kiểm thử & Bằng chứng đo đạc thực tế:**
+  - File test hồi quy: `tests/test_v17_miniapp_modular_js.py` (**8/8 passed** trong 0.05s, bổ sung 3 test mới cho State, Mascot và Event integration).
+  - Test Mini App & Design System: **15/15 passed** trong 4.53s.
+  - Full test suite Mac: **760 passed / 0 failed** trong 72.51s (tăng 3 test so với 757 của v1.7.57; tiến trình tự thoát sạch sau summary <1s, exit code 0).
+  - Eval vàng: **33/36 (92%)** đạt cổng 85%; smoke `--dry-run` exit code 0.
+  - Phân vai The Agency: Chủ trì `agency-frontend-developer` + `agency-software-architect`, kiểm thử `agency-test-automation-engineer`, thẩm định `agency-reality-checker`.
+
 ## 1.7.57 — 2026-10-31 — Rerun & Khép trọn vẹn Chân Windows Thật: 19/19 T-36 & 757/757 Full Suite PASSED trên Windows 11 (T-36 — ký: Antigravity [WIN])
 
 - **Thực thi rerun trên phần cứng Windows 11 thật (`Windows-11-10.0.26300-SP0`, Python `3.12.10`, path có khoảng trắng `E:\New folder\lane1\.venv`) & xử lý dứt điểm các lỗi thứ cấp lộ diện sau bản vá W1–W6:**

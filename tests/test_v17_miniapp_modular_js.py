@@ -1,11 +1,13 @@
-"""Test hồi quy cho [T-39.4b]: Module hoá JS Client Mini App (ISSUE-08) — Lát cắt 1.
+"""Test hồi quy cho [T-39.4b]: Module hoá JS Client Mini App (ISSUE-08) — Lát cắt 1 & Lát cắt 2.
 
 Kiểm chứng:
 1. Namespace window.Mulon tồn tại trong khối <script>.
 2. Subsystem Mulon.TG đóng gói đầy đủ các helper Telegram WebApp SDK và HapticFeedback.
 3. Subsystem Mulon.API đóng gói fetch client, auth initData và RFC 7807 error parsing.
-4. Shim re-export window.api, window.haptic, window.getInitData bảo toàn 100% tương thích ngược.
-5. Triệt tiêu dead code: Toàn bộ 5 utility classes (.flex-center, .flex-between, .flex-col, .touch-target-44, .text-sub-12) đều có sử dụng thực tế ở markup HTML/template.
+4. Subsystem Mulon.State đóng gói Reactive State Store và Event Bus nội bộ (on, off, emit).
+5. Subsystem Mulon.Mascot đóng gói bộ điều khiển Sprite Mascot Animator và voice indicators.
+6. Shim re-export toàn cục (api, haptic, getInitData, spritePlay, spriteStop, spriteApplyBase, flashAvatar) bảo toàn 100% tương thích ngược.
+7. Triệt tiêu dead code: Toàn bộ 5 utility classes (.flex-center, .flex-between, .flex-col, .touch-target-44, .text-sub-12) đều có sử dụng thực tế ở markup HTML/template.
 """
 from pathlib import Path
 import re
@@ -37,6 +39,44 @@ def test_mulon_namespace_and_subsystems_declared():
     assert "call: api" in content, "Mulon.API phải liên kết call: api"
 
 
+def test_mulon_state_subsystem_declared():
+    """Kiểm tra khai báo Subsystem Mulon.State và Event Bus nội bộ (Lát cắt 2)."""
+    content = WEBAPP_INDEX.read_text(encoding="utf-8")
+
+    assert "Mulon.State = {" in content, "Mulon.State phải được định nghĩa"
+    assert "get current()" in content, "Mulon.State phải cung cấp getter current"
+    assert "get tab()" in content, "Mulon.State phải cung cấp getter tab"
+    assert "get subScreen()" in content, "Mulon.State phải cung cấp getter subScreen"
+    assert "set: function(newS)" in content, "Mulon.State phải có method set"
+    assert "setTab: function(tab)" in content, "Mulon.State phải có method setTab"
+    assert "setSubScreen: function(id)" in content, "Mulon.State phải có method setSubScreen"
+    assert "on: function(event, handler)" in content, "Mulon.State phải cung cấp Event Bus on"
+    assert "off: function(event, handler)" in content, "Mulon.State phải cung cấp Event Bus off"
+    assert "emit: function(event, ...args)" in content, "Mulon.State phải cung cấp Event Bus emit"
+
+
+def test_mulon_mascot_subsystem_declared():
+    """Kiểm tra khai báo Subsystem Mulon.Mascot đóng gói Sprite controller (Lát cắt 2)."""
+    content = WEBAPP_INDEX.read_text(encoding="utf-8")
+
+    assert "Mulon.Mascot = {" in content, "Mulon.Mascot phải được định nghĩa"
+    assert "getBaseState: spriteBaseState" in content, "Mulon.Mascot phải liên kết getBaseState"
+    assert "applyBase: spriteApplyBase" in content, "Mulon.Mascot phải liên kết applyBase"
+    assert "flash: flashAvatar" in content, "Mulon.Mascot phải liên kết flash"
+    assert "stop: spriteStop" in content, "Mulon.Mascot phải liên kết stop"
+    assert "play: function(name, once)" in content, "Mulon.Mascot phải có method play phát event mascot:state"
+
+
+def test_state_and_mascot_lifecycle_integration():
+    """Kiểm tra tích hợp sự kiện state và mascot trong showMain, showSub và load."""
+    content = WEBAPP_INDEX.read_text(encoding="utf-8")
+
+    assert 'window.Mulon.State.emit("tab:changed"' in content, "showMain phải emit sự kiện tab:changed"
+    assert 'window.Mulon.State.emit("screen:changed"' in content, "showSub phải emit sự kiện screen:changed"
+    assert 'window.Mulon.State.set(S)' in content, "load() phải đồng bộ state qua Mulon.State.set(S)"
+    assert 'window.Mulon.State.emit("mascot:state"' in content, "Mulon.Mascot.play phải emit sự kiện mascot:state"
+
+
 def test_backward_compatibility_shims_present():
     """Kiểm tra các shim re-export toàn cục để giữ nguyên 100% tương thích ngược."""
     content = WEBAPP_INDEX.read_text(encoding="utf-8")
@@ -44,6 +84,10 @@ def test_backward_compatibility_shims_present():
     assert "window.api = api;" in content, "Phải shim window.api"
     assert "window.haptic = haptic;" in content, "Phải shim window.haptic"
     assert "window.getInitData = getInitData;" in content, "Phải shim window.getInitData"
+    assert "window.spritePlay = spritePlay;" in content, "Phải shim window.spritePlay"
+    assert "window.spriteStop = spriteStop;" in content, "Phải shim window.spriteStop"
+    assert "window.spriteApplyBase = spriteApplyBase;" in content, "Phải shim window.spriteApplyBase"
+    assert "window.flashAvatar = flashAvatar;" in content, "Phải shim window.flashAvatar"
 
 
 def test_api_rfc7807_error_handling_present():
@@ -81,3 +125,4 @@ def test_utility_classes_have_actual_markup_usage():
     # Khẳng định số lượng cụ thể đã kiểm chứng
     assert utility_classes["flex-center"] >= 2, f".flex-center phải dùng ít nhất 2 lần, thực tế: {utility_classes['flex-center']}"
     assert utility_classes["flex-col"] >= 3, f".flex-col phải dùng ít nhất 3 lần, thực tế: {utility_classes['flex-col']}"
+

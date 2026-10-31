@@ -9,7 +9,7 @@
 
 ## 1. Ngữ cảnh & Vấn đề (Context & Risks)
 
-Khối mã JavaScript trong `mulon/webapp/index.html` hiện có độ dài hơn **5,400 dòng**, chứa toàn bộ logic tương tác của 5 tab chính (Việc, Phê duyệt, Lịch, Hồ sơ, Cài đặt), các modal chi tiết, cơ chế kết nối SSE/polling, Telegram WebApp SDK bindings và Mascot sprite animator.
+Khối mã JavaScript trong `mulon/webapp/index.html` hiện có độ dài hơn **5,400 dòng**, chứa toàn bộ logic tương tác của 5 tab chính (Việc, Phê duyệt, Lịch, Hồ sơ, Cài đặt), các modal chi tiết, cơ chế kết nối polling-only (load() 3s và opTimer 2s), Telegram WebApp SDK bindings và Mascot sprite animator.
 
 ### Các rủi ro kiến trúc phát hiện (ISSUE-08):
 1. **Ô nhiễm không gian tên toàn cục (Global Scope Pollution)**: Các biến trạng thái cốt lõi (`S`, `mainTab`, `subScreen`, `tg`, `INIT`, `sprite`, `curTheme`, `opTimer`...) và các hàm tiện ích nằm lẫn lộn ở phạm vi toàn cục `window`, tiềm ẩn rủi ro ghi đè biến chéo nhau giữa các màn hình.

@@ -2253,6 +2253,54 @@ Mulon.API = {
 window.api = api;
 window.haptic = haptic;
 window.getInitData = getInitData;
+
+// -----------------------------------------------------------------------------
+// Subsystem Decoupling: Mulon.State (ADR-002 Lát cắt 2)
+// -----------------------------------------------------------------------------
+const _mulonStateListeners = {};
+Mulon.State = {
+  get raw() { return S; },
+  get current() { return S; },
+  get tab() { return mainTab; },
+  get subScreen() { return subScreen; },
+  set: function(newS) {
+    S = typeof newS === "function" ? newS(S) : newS;
+    this.emit("change", S);
+    this.emit("update", S);
+    return S;
+  },
+  setTab: function(tab) {
+    const prev = mainTab;
+    mainTab = tab;
+    this.emit("tab:changed", {tab: tab, prev: prev});
+    return mainTab;
+  },
+  setSubScreen: function(id) {
+    const prev = subScreen;
+    subScreen = id;
+    this.emit("screen:changed", {subScreen: id, prev: prev});
+    return subScreen;
+  },
+  on: function(event, handler) {
+    if (!event || typeof handler !== "function") return () => {};
+    if (!_mulonStateListeners[event]) _mulonStateListeners[event] = [];
+    _mulonStateListeners[event].push(handler);
+    return () => this.off(event, handler);
+  },
+  off: function(event, handler) {
+    if (!event || !_mulonStateListeners[event]) return;
+    if (!handler) { delete _mulonStateListeners[event]; return; }
+    _mulonStateListeners[event] = _mulonStateListeners[event].filter(h => h !== handler);
+  },
+  emit: function(event, ...args) {
+    if (!event || !_mulonStateListeners[event]) return;
+    const list = _mulonStateListeners[event].slice();
+    for (const fn of list) {
+      try { fn(...args); } catch (e) { console.error("Mulon.State event error:", e); }
+    }
+  }
+};
+
 function formatTimeUnified(iso){
   if (!iso) return "";
   const s = String(iso).trim();
@@ -2375,7 +2423,11 @@ let profileReturnScreen = "screen-sub-dossier";
 let connPolReturnScreen = "screen-connectors";
 function showMain(tab){
   stopOpPoll();
+  const prevTab = mainTab;
   mainTab = tab; subScreen = null;
+  if (window.Mulon && window.Mulon.State) {
+    window.Mulon.State.emit("tab:changed", {tab: tab, prev: prevTab});
+  }
   document.body.classList.remove("split");
   MAIN_TABS.forEach(t => $("tab-" + t).classList.toggle("hidden", t !== tab));
   Object.keys(TAB_OF_SCREEN).forEach(id => $(id).classList.add("hidden"));
@@ -2393,7 +2445,11 @@ function showMain(tab){
 }
 function showSub(id){
   if (id !== "screen-install") stopOpPoll();
+  const prevSub = subScreen;
   subScreen = id;
+  if (window.Mulon && window.Mulon.State) {
+    window.Mulon.State.emit("screen:changed", {subScreen: id, prev: prevSub});
+  }
   MAIN_TABS.forEach(t => $("tab-" + t).classList.add("hidden"));
   Object.keys(TAB_OF_SCREEN).forEach(s =>
     $(s).classList.toggle("hidden", s !== id));
@@ -3097,6 +3153,32 @@ function flashAvatar(stateName){ spritePlay(stateName, true); }
     })
     .catch(() => {});
 })();
+
+// -----------------------------------------------------------------------------
+// Subsystem Decoupling: Mulon.Mascot (ADR-002 Lát cắt 2)
+// -----------------------------------------------------------------------------
+Mulon.Mascot = {
+  get raw() { return sprite; },
+  get state() { return sprite.state; },
+  get isReady() { return !!sprite.ready; },
+  getBaseState: spriteBaseState,
+  applyBase: spriteApplyBase,
+  flash: flashAvatar,
+  play: function(name, once) {
+    spritePlay(name, once);
+    if (window.Mulon && window.Mulon.State) {
+      window.Mulon.State.emit("mascot:state", {state: name, once: !!once});
+    }
+  },
+  stop: spriteStop,
+};
+
+// Re-export shim bảo toàn 100% tương thích ngược
+window.spritePlay = spritePlay;
+window.spriteStop = spriteStop;
+window.spriteApplyBase = spriteApplyBase;
+window.flashAvatar = flashAvatar;
+
 
 let lastTaskStatus = null;
 function renderStatus(){
@@ -7508,6 +7590,9 @@ function refresh(){ return load(); }
 async function load(){
   try {
     S = await api("/api/state");
+    if (window.Mulon && window.Mulon.State) {
+      window.Mulon.State.set(S);
+    }
     $("global-error").innerHTML = "";
     if ($("tasks-error-state")) $("tasks-error-state").classList.add("hidden");
     /* Đồng bộ theme đa thiết bị: server là nguồn chung; nếu
