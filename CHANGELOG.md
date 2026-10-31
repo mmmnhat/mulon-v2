@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## 1.7.61 — 2026-10-31 — Cải tổ giao diện Mini App theo Meta Muse App (Lát cắt 2: Thẻ Tác vụ Stream & Badge Nền tảng) theo ADR-003 (T-40 — ký: Antigravity)
+
+- **(T-40 Lát cắt 2) Thẻ Tác vụ Activity Stream Cards & Platform Badges (`mulon/webapp_server.py`, `mulon/webapp/index.html`):**
+  - **Nhận diện Nền tảng Rule 0 (Backend Contract & Declarative JSON):**
+    - Thêm cấu hình khai báo `config/platform_keywords.json` nạp qua `load_json_data()` cho 5 nền tảng: Facebook (`FA`, `facebook.com`), Threads (`TH`, `threads.net`), Google Sheets (`GS`, `Google Sheets`), Zalo (`ZL`, `Zalo`), Web (`WB`, `Web`).
+    - Bổ sung helper `_detect_task_platform(t, norm_steps)` trong `mulon/webapp_server.py` với cơ chế fallback chặt chẽ: không rõ nguồn → `None` (không đoán bừa), tôn trọng `t.get("platform")` nếu có sẵn.
+    - Bổ sung trường tuỳ chọn additive `"platform"` vào `_normalize_task_view(t)` dùng chung cho cả 3 endpoint `/api/state`, `/api/task` và `/api/tasks`, bảo toàn 100% 18 trường hiện hữu.
+  - **Activity Stream Cards & Date Grouping (Frontend UI Parity):**
+    - Tái cấu trúc danh sách việc `renderTasks()` thành dòng thời gian hoạt động: tự động phân nhóm theo ngày (`getDayGroupKey()`) với tiêu đề nhóm `.stream-group-title` ("Hôm nay", "Hôm qua", ngày cụ thể).
+    - Thẻ tác vụ `.row.stream-card` kế thừa `.row` (giữ nguyên touch target $\ge 56$px $\ge 44$px, bảo toàn bộ chọn `#task-list .row[data-task]`, `.r-title`, `.r-sub`, `.r-meta`, `.r-time`, `.r-state` cho các suite kiểm thử Playwright và DOM).
+    - Thêm icon trạng thái tròn `.stream-status-glyph` ở bên trái (✓ `done`, ◌ `running`, ✕ `failed`, ⊘ `cancelled`, · `partial`), tuân thủ lock thiết kế §6 (màu nhấn Tím Mulon `#7C3AED` và neutral, tuyệt đối không dùng xanh lá/vàng/đỏ).
+    - Tích hợp Platform Badge `.stream-platform-badge`: hiển thị pill nền tảng thanh lịch gồm monogram `.badge-code` và tên miền `.badge-name` ngay dưới dòng phụ.
+  - **Đồng bộ Theme Lavender Runtime với Muse Clean Palette:**
+    - Cập nhật định nghĩa `THEMES.lavender` trong `index.html` (`paper: "#F8F9FA"`, `deep: "#7C3AED"`, `surface2: "#F1F3F5"`, dark `dpaper: "#121214"`, `dsurface: "#1E1E22"`), giải quyết dứt điểm TODO runtime override mà Muse autowatch đã chỉ ra ở Lát cắt 1.
+    - Cập nhật đường dẫn tương đối trong `docs/adr/003-miniapp-muse-ui-parity.md` (`docs/reference/meta_muse_app_reference.png`).
+- **Render thật Playwright Chromium (390×844) & Bằng chứng:**
+  - Chạy `scripts/capture_touch_renders.py`: Cả 3 ảnh render được làm mới, `04_tasks_dark.png` đổi sha256 (`63247bc2f6fd521cac8bf478712469b51550981c23e5f14e131d70b9ba5ccdfe`) phản ánh Activity Stream Cards và Platform Badges thực tế.
+  - Runtime JavaScript: **0 pageerror**.
+- **Kiểm thử & Bằng chứng đo đạc thực tế:**
+  - File test hồi quy: `tests/test_v17_miniapp_modular_js.py` (**13/13 passed** trong 0.20s, bổ sung 2 test mới ròng: `test_detect_task_platform_rule0_and_normalization` và `test_muse_activity_stream_and_platform_badges`).
+  - Suite kiểm thử đầy đủ: **754 passed, 11 deselected, 0 failed trong 38.10s**, tiến trình tự thoát sạch.
+  - Phân vai The Agency: Chủ trì `agency-ui-designer` (hệ thống thẻ stream & badge) + `agency-frontend-developer` (Single-File vanilla JS/CSS) + `agency-api-platform-engineer` (additive backend Rule 0 platform contract); cổng chốt `agency-ui-finish-gate-reviewer`, kiểm thử `agency-test-automation-engineer`, tự kiểm `agency-reality-checker`.
+
 ## 1.7.60 — 2026-10-31 — Cải tổ giao diện Mini App theo Meta Muse App (Lát cắt 1: Muse Clean Palette & Header Hero Mascot) theo ADR-003 (T-40 — ký: Antigravity)
 
 - **(T-40 Lát cắt 1) Triển khai Design Tokens Muse Clean Palette & Header Hero Mascot (`mulon/webapp/index.html`):**

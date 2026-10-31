@@ -375,6 +375,48 @@ section{animation:tab-in var(--t2) var(--ease)}
   background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A39E93' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 13h4l2 3h5l2-3h4'/%3E%3Cpath d='M5.5 5.5h13L21 13v4.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V13z'/%3E%3C/svg%3E")
     center / contain no-repeat;
 }
+/* ---------- Activity Stream Cards & Platform Badges (T-40 Lát cắt 2) ---------- */
+.stream-group{margin-bottom:12px}
+.stream-group:last-child{margin-bottom:0}
+.stream-group-title{
+  font-size:var(--fs-cap); font-weight:var(--fw-s); color:var(--ink2);
+  padding:10px var(--s4) 4px var(--s4); letter-spacing:0.02em;
+}
+.stream-group-items{display:flex; flex-direction:column}
+.row.stream-card{
+  display:flex; align-items:flex-start; gap:var(--s3);
+  padding:var(--s3) var(--s4); min-height:56px;
+}
+.stream-status-glyph{
+  width:26px; height:26px; flex:0 0 26px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:700; margin-top:2px;
+  background:var(--surface2); color:var(--ink2);
+}
+.stream-status-glyph.done{
+  background:var(--tint-lav); color:var(--accent);
+}
+.stream-status-glyph.running{
+  background:var(--surface2); color:var(--accent); animation:pulse 1.4s ease-in-out infinite;
+}
+.stream-status-glyph.failed{
+  background:var(--surface2); color:var(--ink2);
+}
+.stream-status-glyph.partial{
+  background:var(--surface2); color:var(--ink2);
+}
+.stream-platform-badge{
+  display:inline-flex; align-items:center; gap:5px;
+  padding:2px 8px; border-radius:6px; background:var(--surface2);
+  border:1px solid var(--line); font-size:11px; line-height:1.2;
+  margin-top:6px; max-width:100%;
+}
+.stream-platform-badge .badge-code{
+  font-weight:700; color:var(--accent); letter-spacing:0.02em;
+}
+.stream-platform-badge .badge-name{
+  color:var(--ink2); font-size:11px;
+}
 /* ---------- skeleton / lỗi ---------- */
 .skel{padding:var(--s3) var(--s4)}
 .skel .bar{
@@ -3075,10 +3117,10 @@ function previewImage(url){
    hue riêng cho nút. Chỉ mực/chữ giữ trung tính. Khóa phải
    khớp THEME_KEYS ở webapp_server.py. */
 const THEMES = {
-  lavender: {label:"Tím Mulon", base:"#9598C4", deep:"#5A5E94",
-    press:"#4C4F80", tint:"#E9EAF4", dtint:"#2E2A4A",
-    deep2:"#43466E", paper:"#EFF0F5", surface2:"#EEEDF0",
-    dpaper:"#212539", dsurface:"#272C41", dsurface2:"#2C3248"},
+  lavender: {label:"Tím Mulon", base:"#9598C4", deep:"#7C3AED",
+    press:"#6D28D9", tint:"#F3EEFF", dtint:"#2E1065",
+    deep2:"#5B21B6", paper:"#F8F9FA", surface2:"#F1F3F5",
+    dpaper:"#121214", dsurface:"#1E1E22", dsurface2:"#28282E"},
   blue: {label:"Xanh dương", base:"#86ABD8", deep:"#40639A",
     press:"#355584", tint:"#E3EBF6", dtint:"#22344E",
     deep2:"#2F4972", paper:"#ECF0F6", surface2:"#EAEEF2",
@@ -3399,6 +3441,28 @@ let taskFilter = "all";
 let taskSearchQuery = "";
 let taskPageLimit = 20;
 
+function renderPlatformBadge(p){
+  if (!p) return "";
+  const code = esc(p.code || "");
+  const name = esc(p.name || "");
+  const key = esc(p.key || "");
+  return '<div class="stream-platform-badge" data-platform="' + key + '">' +
+    '<span class="badge-code">' + code + '</span>' +
+    '<span class="badge-name">' + name + '</span>' +
+    '</div>';
+}
+
+function renderStatusGlyph(st){
+  let sym = "·";
+  let cls = "pending";
+  if (st === "done") { sym = "✓"; cls = "done"; }
+  else if (st === "running") { sym = "◌"; cls = "running"; }
+  else if (st === "failed") { sym = "✕"; cls = "failed"; }
+  else if (st === "cancelled") { sym = "⊘"; cls = "cancelled"; }
+  else if (st === "partial") { sym = "·"; cls = "partial"; }
+  return '<div class="stream-status-glyph ' + cls + '">' + sym + '</div>';
+}
+
 function renderTasks(){
   const box = $("task-list");
   const tasks = (S && S.tasks) || [];
@@ -3465,23 +3529,45 @@ function renderTasks(){
     }
   }
 
-  box.innerHTML = visible.map(t => {
-    const sub = taskSub(t);
-    const isRunning = t.status === "running";
-    const stopBtn = isRunning
-      ? '<button class="btn btn-subtle btn-xs" data-stop-id="' + esc(t.id) + '" title="Dừng việc này">Dừng</button>'
-      : '';
-    return '<div class="row" data-task="' + esc(t.id) + '">' +
-      '<div class="r-main"><div class="r-title">' + esc(cleanTaskTitle(t.title)) +
-      '</div>' + (sub ? '<div class="r-sub">' + esc(sub) +
-      '</div>' : "") + '</div>' +
-      '<div class="r-meta">' +
-        '<div style="display:flex; align-items:center; gap:6px;">' +
-          '<span class="r-state">' + esc(taskStateText(t)) + '</span>' +
-          stopBtn +
-        '</div>' +
-        '<div class="r-time">' + esc(todayLabel(t.created_at)) + '</div>' +
-      '</div></div>';
+  // Phân nhóm theo ngày: Hôm nay / Hôm qua / ngày cụ thể (ADR-003, Lát cắt 2)
+  const groups = [];
+  const groupMap = new Map();
+  for (const t of visible) {
+    const k = getDayGroupKey(t.created_at);
+    if (!groupMap.has(k)) {
+      const g = { key: k, items: [] };
+      groupMap.set(k, g);
+      groups.push(g);
+    }
+    groupMap.get(k).items.push(t);
+  }
+
+  box.innerHTML = groups.map(g => {
+    const itemsHtml = g.items.map(t => {
+      const sub = taskSub(t);
+      const isRunning = t.status === "running";
+      const stopBtn = isRunning
+        ? '<button class="btn btn-subtle btn-xs" data-stop-id="' + esc(t.id) + '" title="Dừng việc này">Dừng</button>'
+        : '';
+      const badgeHtml = renderPlatformBadge(t.platform);
+      const glyphHtml = renderStatusGlyph(t.status);
+      return '<div class="row stream-card" data-task="' + esc(t.id) + '">' +
+        glyphHtml +
+        '<div class="r-main"><div class="r-title">' + esc(cleanTaskTitle(t.title)) +
+        '</div>' + (sub ? '<div class="r-sub">' + esc(sub) +
+        '</div>' : "") + badgeHtml + '</div>' +
+        '<div class="r-meta">' +
+          '<div style="display:flex; align-items:center; gap:6px;">' +
+            '<span class="r-state">' + esc(taskStateText(t)) + '</span>' +
+            stopBtn +
+          '</div>' +
+          '<div class="r-time">' + esc(todayLabel(t.created_at)) + '</div>' +
+        '</div></div>';
+    }).join("");
+    return '<div class="stream-group">' +
+      '<div class="stream-group-title">' + esc(g.key) + '</div>' +
+      '<div class="stream-group-items">' + itemsHtml + '</div>' +
+      '</div>';
   }).join("");
 
   box.querySelectorAll("[data-stop-id]").forEach(btn => {

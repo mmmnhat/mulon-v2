@@ -1,6 +1,6 @@
 # ADR-003: Cải Tổ Giao Diện Mini App Đồng Bộ Nhận Diện & Trải Nghiệm Meta Muse App ([T-40])
 
-> **Trạng thái**: Đã duyệt có điều kiện (Approved with Conditions) — Đang triển khai Lát cắt 1  
+> **Trạng thái**: Đã duyệt có điều kiện (Approved with Conditions) — Lát cắt 1 VERIFIED, Lát cắt 2 DONE, Chuẩn bị Lát cắt 3  
 > **Chủ trì (The Agency)**: `agency-ui-designer` & `agency-frontend-developer`  
 > **Phối hợp thẩm định**: `agency-ui-finish-gate-reviewer`, `agency-reality-checker`, `agency-test-automation-engineer`  
 > **Ngày lập**: 31/10/2026 (Cập nhật sau verdict thẩm định của Muse)  
@@ -10,7 +10,7 @@
 
 ## 1. Ngữ cảnh & Đánh giá sai lệch (Context & Gap Analysis)
 
-Sau khi đối chiếu ảnh chụp màn hình thực tế của ứng dụng **Meta Muse** (ảnh do chủ dự án cung cấp, đã lưu trữ độc lập trong kho tài liệu tại [`docs/reference/meta_muse_app_reference.png`](file:///Volumes/External/auto/docs/reference/meta_muse_app_reference.png)) với giao diện Mini App hiện hành (`01_dashboard_light.png` / `02_dashboard_dark.png`), xác định các sai lệch thị giác và trải nghiệm cốt lõi:
+Sau khi đối chiếu ảnh chụp màn hình thực tế của ứng dụng **Meta Muse** (ảnh do chủ dự án cung cấp, đã lưu trữ độc lập trong kho tài liệu tại [`docs/reference/meta_muse_app_reference.png`](docs/reference/meta_muse_app_reference.png)) với giao diện Mini App hiện hành (`01_dashboard_light.png` / `02_dashboard_dark.png`), xác định các sai lệch thị giác và trải nghiệm cốt lõi:
 
 | Thành phần | Meta Muse App (Bản gốc) | Mini App MuLon hiện tại | Sai lệch & Hướng xử lý |
 |---|---|---|---|

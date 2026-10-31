@@ -78,6 +78,11 @@ def main():
             await mem.add_task_step("task-01", "Cào tin tức từ Hacker News", status="done")
             await mem.add_task_step("task-01", "Phân tích nội dung", status="doing")
 
+            await mem.create_task("task-02", "default", "Đăng bài chào hàng lên Facebook fanpage", [])
+            await mem.add_task_step("task-02", "Soạn nội dung bài viết", status="done")
+            await mem.add_task_step("task-02", "Đăng bài Facebook", status="done")
+            await mem.finish_task("task-02", "done", result="Đã đăng bài viết chào hàng lên Facebook fanpage.")
+
             policy = PolicyEngine(cfg.policy_path, memory=mem)
             registry = build_default_registry(cfg, mem)
             server = WebAppServer(

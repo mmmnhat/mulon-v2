@@ -546,6 +546,54 @@ def _disambiguate_schedule_items(raw_items: list[dict], title_key: str = "name",
                 g[title_key] = f"{base_t} ({cron_str})"
 
 
+def _detect_task_platform(t: dict, norm_steps: list[dict] | None = None) -> dict | None:
+    """Nhận diện nền tảng tương tác của task theo cấu hình khai báo Rule 0 (T-40 Lát cắt 2).
+    Nếu không nhận diện được nguồn tin cậy, trả về None (không đoán bừa)."""
+    explicit = t.get("platform")
+    from .datafiles import load_json_data
+    cfg = load_json_data("platform_keywords.json", {})
+    if not isinstance(cfg, dict):
+        return None
+
+    # Nếu task đã có sẵn platform khai báo rõ ràng
+    if isinstance(explicit, dict) and explicit.get("code") and explicit.get("name"):
+        return explicit
+    if isinstance(explicit, str) and explicit in cfg:
+        entry = cfg[explicit]
+        return {
+            "key": explicit,
+            "code": entry.get("code", explicit.upper()[:2]),
+            "name": entry.get("name", explicit),
+        }
+
+    # Thu thập text từ title, current_step, prompt, result để đối chiếu từ khóa
+    search_parts = [
+        str(t.get("title") or ""),
+        str(t.get("current_step") or ""),
+        str(t.get("prompt") or "")[:300],
+        str(t.get("result") or "")[:500],
+    ]
+    if norm_steps:
+        for s in norm_steps[:5]:
+            search_parts.append(str(s.get("title") or ""))
+            search_parts.append(str(s.get("detail") or "")[:200])
+
+    combined_text = " ".join(search_parts).lower()
+
+    for p_key, p_val in cfg.items():
+        if not isinstance(p_val, dict):
+            continue
+        keywords = p_val.get("keywords") or []
+        for kw in keywords:
+            if kw.lower() in combined_text:
+                return {
+                    "key": p_key,
+                    "code": p_val.get("code", p_key.upper()[:2]),
+                    "name": p_val.get("name", p_key),
+                }
+    return None
+
+
 def _normalize_task_view(t: dict, live_step: str = "") -> dict:
     """MỘT nguồn sự thật duy nhất chuẩn hoá trạng thái, bước và tóm tắt của task (T-23.4).
     Dùng chung cho cả /api/state (danh sách Việc) và /api/task (chi tiết Việc)."""
@@ -722,6 +770,7 @@ def _normalize_task_view(t: dict, live_step: str = "") -> dict:
         "updated_at": str(t.get("updated_at") or t.get("created_at") or ""),
         "steps": norm_steps,
         "final_step": final_step,
+        "platform": _detect_task_platform(t, norm_steps),
     }
 
 

@@ -1,0 +1,27 @@
+{
+  "facebook": {
+    "code": "FA",
+    "name": "facebook.com",
+    "keywords": ["facebook", "facebook.com", "fb_", "fb comment", "fb post"]
+  },
+  "threads": {
+    "code": "TH",
+    "name": "threads.net",
+    "keywords": ["threads", "threads.net", "threads post"]
+  },
+  "sheets": {
+    "code": "GS",
+    "name": "Google Sheets",
+    "keywords": ["sheets", "google sheet", "spreadsheet", "bảng tính"]
+  },
+  "zalo": {
+    "code": "ZL",
+    "name": "Zalo",
+    "keywords": ["zalo", "zalo oa", "oa_"]
+  },
+  "web": {
+    "code": "WB",
+    "name": "Web",
+    "keywords": ["browser", "crawl", "cào", "scrape", "trang web", "http", "hacker news"]
+  }
+}

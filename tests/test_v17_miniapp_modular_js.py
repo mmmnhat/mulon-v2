@@ -187,4 +187,86 @@ def test_muse_companion_hero_and_quick_switcher():
     assert "data.heroTab" in content or "dataset.heroTab" in content, "showMain/click handler phải xử lý heroTab"
 
 
+def test_detect_task_platform_rule0_and_normalization():
+    """Kiểm tra logic nhận diện nền tảng Rule 0 và trường additive platform (ADR-003, [T-40] Lát cắt 2)."""
+    from mulon.webapp_server import _detect_task_platform, _normalize_task_view
+
+    # 1. Fallback chuẩn: Khi không có manh mối nền tảng -> None (không đoán bừa)
+    neutral_task = {
+        "id": "t_neutral",
+        "title": "Kiểm tra tính toàn vẹn cơ sở dữ liệu nội bộ",
+        "status": "done",
+    }
+    assert _detect_task_platform(neutral_task) is None
+    norm_neutral = _normalize_task_view(neutral_task)
+    assert "platform" in norm_neutral
+    assert norm_neutral["platform"] is None
+
+    # 2. Nhận diện qua title các nền tảng
+    cases = [
+        ("Đăng bài lên Facebook fanpage bán hàng", "facebook", "FA", "facebook.com"),
+        ("Quét bài viết mới nhất trên Threads", "threads", "TH", "threads.net"),
+        ("Cập nhật dữ liệu vào Google Sheets", "sheets", "GS", "Google Sheets"),
+        ("Gửi thông báo qua Zalo OA khách hàng", "zalo", "ZL", "Zalo"),
+        ("Cào dữ liệu thị trường từ web tin tức", "web", "WB", "Web"),
+    ]
+    for title, expected_key, expected_code, expected_name in cases:
+        t = {"id": f"t_{expected_key}", "title": title, "status": "done"}
+        detected = _detect_task_platform(t)
+        assert detected is not None, f"Phải nhận diện được {expected_key} từ title '{title}'"
+        assert detected["key"] == expected_key
+        assert detected["code"] == expected_code
+        assert detected["name"] == expected_name
+        norm = _normalize_task_view(t)
+        assert norm["platform"] == detected
+
+    # 3. Nhận diện qua steps chi tiết khi title chung chung
+    step_task = {
+        "id": "t_step",
+        "title": "Thực hiện tác vụ tự động #42",
+        "status": "running",
+    }
+    steps = [
+        {"idx": 0, "title": "Khởi tạo môi trường", "status": "done"},
+        {"idx": 1, "title": "Mở bảng tính spreadsheet cập nhật dòng mới", "status": "doing"},
+    ]
+    step_detected = _detect_task_platform(step_task, norm_steps=steps)
+    assert step_detected is not None
+    assert step_detected["code"] == "GS"
+    assert step_detected["name"] == "Google Sheets"
+
+    # 4. Tôn trọng platform khai báo rõ ràng (explicit)
+    explicit_task = {
+        "id": "t_explicit",
+        "title": "Đồng bộ đơn hàng",
+        "platform": {"code": "FA", "name": "facebook.com"},
+    }
+    assert _detect_task_platform(explicit_task) == {"code": "FA", "name": "facebook.com"}
+
+
+def test_muse_activity_stream_and_platform_badges():
+    """Kiểm tra Activity Stream Cards, Date Grouping và Platform Badges trong DOM (ADR-003, [T-40] Lát cắt 2)."""
+    content = WEBAPP_INDEX.read_text(encoding="utf-8")
+
+    # 1. CSS Design Tokens & Styles cho Activity Stream
+    assert ".stream-group" in content, "Phải có CSS .stream-group cho phân nhóm thời gian"
+    assert ".stream-group-title" in content, "Phải có CSS .stream-group-title ('Hôm nay', 'Hôm qua')"
+    assert ".stream-group-items" in content, "Phải có CSS .stream-group-items bọc danh sách thẻ"
+    assert ".row.stream-card" in content, "Phải có CSS .row.stream-card kế thừa .row"
+    assert ".stream-status-glyph" in content, "Phải có CSS .stream-status-glyph cho icon trạng thái tròn"
+    assert ".stream-platform-badge" in content, "Phải có CSS .stream-platform-badge"
+    assert ".badge-code" in content, "Phải có CSS .badge-code (FA, TH, GS, ZL, WB)"
+    assert ".badge-name" in content, "Phải có CSS .badge-name"
+
+    # 2. Touch target & Ranh giới an toàn
+    assert re.search(r"\.row\.stream-card\s*\{[^}]*min-height:\s*56px", content), "Stream card min-height 56px >= 44px"
+
+    # 3. Hàm render JS trong Client Script
+    assert "function renderPlatformBadge(" in content, "Client script phải có renderPlatformBadge"
+    assert "function renderStatusGlyph(" in content, "Client script phải có renderStatusGlyph"
+    assert "getDayGroupKey(t.created_at)" in content, "renderTasks phải phân nhóm theo getDayGroupKey"
+    assert 'class="row stream-card"' in content, "renderTasks phải gán class 'row stream-card' để giữ tương thích ngược"
+
+
+
 

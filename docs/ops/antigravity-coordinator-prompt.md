@@ -47,7 +47,7 @@ Mỗi hạng mục phải do đúng agent chuyên môn trong bộ The Agency (c�
 - [T-39.4a] touch target/haptics/dọn inline style Mini App: chủ trì `agency-ux-architect` + `agency-frontend-developer`; token & design system: `agency-ui-designer`; cổng chốt trước DONE: `agency-ui-finish-gate-reviewer`. Module hoá JS (ISSUE-08, sub-task riêng): `agency-frontend-developer` + `agency-software-architect`.
 - [T-39.6] tách lớp theo ADR-001 (lát đầu: telegram_delivery.py): chủ trì `agency-software-architect`; giữ diff tối thiểu: `agency-minimal-change-engineer`.
 - [T-36] rerun Windows (phiên [WIN]): `agency-test-automation-engineer` thực thi, `agency-reality-checker` chốt.
-- [T-40] Cải tổ giao diện Mini App theo Meta Muse App: token & design system: `agency-ui-designer`; triển khai single-file client: `agency-frontend-developer`; cổng chốt thẩm định giao diện: `agency-ui-finish-gate-reviewer`; test hồi quy: `agency-test-automation-engineer`; tự kiểm trước DONE: `agency-reality-checker`.
+- [T-40] Cải tổ giao diện Mini App theo Meta Muse App: token & design system: `agency-ui-designer`; triển khai single-file client: `agency-frontend-developer`; contract & platform backend: `agency-api-platform-engineer`; cổng chốt thẩm định giao diện: `agency-ui-finish-gate-reviewer`; test hồi quy: `agency-test-automation-engineer`; tự kiểm trước DONE: `agency-reality-checker`.
 Quy tắc kèm theo:
 1. Mở mục mới hoặc claim mục: ghi ngay dòng "Agent chủ trì: agency-..." vào mục đó trên AGENT_TASKS.md.
 2. Trước khi ghi DONE, hạng mục phải qua `agency-reality-checker` NỘI BỘ phía Antigravity (vai Gatekeeper, mặc định NEEDS WORK) và ghi rõ trong báo cáo: agent chủ trì nào đã làm + reality-checker đã kiểm những gì. Đây là tự kiểm nội bộ — không thay thế nghiệm thu độc lập của Muse.
