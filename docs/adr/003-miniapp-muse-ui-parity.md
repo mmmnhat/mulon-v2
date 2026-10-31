@@ -1,6 +1,6 @@
 # ADR-003: Cải Tổ Giao Diện Mini App Đồng Bộ Nhận Diện & Trải Nghiệm Meta Muse App ([T-40])
 
-> **Trạng thái**: Đã duyệt có điều kiện (Approved with Conditions) — Lát cắt 1 VERIFIED, Lát cắt 2 DONE, Chuẩn bị Lát cắt 3  
+> **Trạng thái**: Đã nghiệm thu Lát cắt 1 & 2 (VERIFIED) — Đã hoàn thành toàn bộ 3 Lát cắt (DONE, Chờ nghiệm thu tổng thể T-40)  
 > **Chủ trì (The Agency)**: `agency-ui-designer` & `agency-frontend-developer`  
 > **Phối hợp thẩm định**: `agency-ui-finish-gate-reviewer`, `agency-reality-checker`, `agency-test-automation-engineer`  
 > **Ngày lập**: 31/10/2026 (Cập nhật sau verdict thẩm định của Muse)  

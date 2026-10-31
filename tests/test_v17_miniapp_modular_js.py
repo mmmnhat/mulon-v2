@@ -268,5 +268,24 @@ def test_muse_activity_stream_and_platform_badges():
     assert 'class="row stream-card"' in content, "renderTasks phải gán class 'row stream-card' để giữ tương thích ngược"
 
 
+def test_muse_split_view_desktop_responsive_and_glyph_cancelled():
+    """Kiểm tra Responsive Split-View Telegram Desktop (>= 768px) và glyph cancelled (ADR-003, [T-40] Lát cắt 3)."""
+    content = WEBAPP_INDEX.read_text(encoding="utf-8")
+
+    # 1. Bổ sung rule CSS cho .stream-status-glyph.cancelled (theo ghi chú nghiệm thu Lát cắt 2 của Muse)
+    assert ".stream-status-glyph.cancelled" in content, "Phải có rule CSS riêng cho .stream-status-glyph.cancelled"
+
+    # 2. Breakpoint min-width: 768px thay thế cap 600px cũ
+    assert "@media (min-width:768px)" in content or "@media (min-width: 768px)" in content, "Phải có breakpoint min-width: 768px"
+    assert "max-width:960px" in content or "max-width: 960px" in content, "Body mở rộng max-width: 960px cho màn hình Desktop"
+
+    # 3. Split-View 2 cột trên #tab-viec
+    assert re.search(r"#tab-viec\s*\{[^}]*display:\s*grid", content), "#tab-viec phải dùng grid ở Desktop"
+    assert re.search(r"#tab-viec\s*\{[^}]*grid-template-columns:", content), "#tab-viec phải chia 2 cột"
+    assert "#tasks-overview-bar" in content, "Thanh overview bar phải nằm trong CSS Desktop"
+    assert "#card-goals" in content, "Card goals phải định vị ở cột 2 Desktop"
+
+
+
 
 

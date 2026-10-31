@@ -405,6 +405,9 @@ section{animation:tab-in var(--t2) var(--ease)}
 .stream-status-glyph.partial{
   background:var(--surface2); color:var(--ink2);
 }
+.stream-status-glyph.cancelled{
+  background:var(--surface2); color:var(--ink3);
+}
 .stream-platform-badge{
   display:inline-flex; align-items:center; gap:5px;
   padding:2px 8px; border-radius:6px; background:var(--surface2);
@@ -924,11 +927,36 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   #connector-list{display:grid; grid-template-columns:1fr 1fr}
   #connector-list .row + .row:before{display:none}
 }
-@media (min-width:769px){
-  html{background:#EFECE5}
-  [data-scheme="dark"] html, html[data-scheme="dark"]{background:#0E1621}
-  body{max-width:600px; margin:0 auto;
-    box-shadow:0 0 0 1px var(--line)}
+/* ---------- Responsive Split-View cho Telegram Desktop (>= 768px) (ADR-003, T-40 Lát cắt 3) ---------- */
+@media (min-width:768px){
+  html{background:#E8EAED}
+  [data-scheme="dark"] html, html[data-scheme="dark"]{background:#0D0E11}
+  body{
+    max-width:960px; margin:0 auto;
+    box-shadow:0 0 0 1px var(--line);
+    min-height:100vh;
+  }
+  #tab-viec{
+    display:grid;
+    grid-template-columns:1.15fr 0.85fr;
+    gap:0 var(--s4);
+    align-items:start;
+  }
+  #tasks-overview-bar{
+    grid-column:1 / -1;
+  }
+  #tasks-search-wrap,
+  #tasks-filter-chips,
+  #tab-viec > .card:first-of-type{
+    grid-column:1 / 2;
+  }
+  #card-goals{
+    grid-column:2 / 3;
+    grid-row:2 / span 3;
+    margin-top:0 !important;
+    position:sticky;
+    top:12px;
+  }
 }
 #screen-task{max-width:100%; overflow-x:hidden}
 /* ---------- Rich Markdown & Media Preview (T-23.2) ---------- */

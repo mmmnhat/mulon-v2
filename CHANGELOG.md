@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## 1.7.62 — 2026-10-31 — Cải tổ giao diện Mini App theo Meta Muse App (Lát cắt 3: Responsive Split-View Telegram Desktop) theo ADR-003 (T-40 — ký: Antigravity)
+
+- **(T-40 Lát cắt 3) Responsive Split-View cho Telegram Desktop (≥ 768px) & Hoàn thiện T-40 (`mulon/webapp/index.html`):**
+  - **Mở rộng Giới hạn Khung Hình & Split-View 2 Cột Desktop:**
+    - Thay thế breakpoint `@media (min-width: 769px)` cũ bằng chuẩn `@media (min-width: 768px)`, nâng giới hạn khung `body` từ `max-width: 600px` lên `max-width: 960px; min-height: 100vh;` với viền mỏng hiện đại `box-shadow: 0 0 0 1px var(--line)` và nền ngoài canvas Clean Palette (`#E8EAED` Light / `#0D0E11` Dark).
+    - Tái cấu trúc `#tab-viec` bằng CSS Grid 2 cột song song trên Desktop:
+      - Cột trái: Tìm kiếm, Chip lọc trạng thái và Thẻ Activity Stream Cards (`#task-list`).
+      - Cột phải: Thẻ Mục tiêu & Cây tiến triển (`#card-goals`) với định vị `sticky; top: 12px;` giúp giữ nguyên tầm nhìn khi cuộn danh sách tác vụ dài.
+      - Thanh tổng quan việc (`#tasks-overview-bar`) bung toàn chiều rộng (`grid-column: 1 / -1;`).
+  - **Bổ sung Rule CSS Cancelled Glyph (Giải quyết ghi chú Lát cắt 2):**
+    - Thêm rule CSS `.stream-status-glyph.cancelled { background: var(--surface2); color: var(--ink3); }` hoàn thiện trọn vẹn bộ 5 trạng thái glyph không lỗi khuyết rule.
+  - **Bảo toàn Bất biến:**
+    - 100% Single-File Serving: không thêm file JS/CSS rời, không build tool Node.
+    - Bảo toàn toàn bộ DOM selector: `#task-list .row[data-task]`, `.r-title`, `.r-sub`, `.r-meta`, `.r-time`, `.r-state`, `#card-goals`.
+- **Render thật Playwright Chromium (390×844) & Bằng chứng:**
+  - Chạy `scripts/capture_touch_renders.py`: Refresh toàn bộ renders, `04_tasks_dark.png` đổi hash sha256 (`3e8e1876fd755325a9000252b9ade44b2d58f272880d7d6363afdf1cb3b9fd69`).
+  - Runtime JavaScript: **0 pageerror**; `node --check` sạch 0 lỗi cú pháp.
+- **Kiểm thử & Bằng chứng đo đạc thực tế:**
+  - File test hồi quy: `tests/test_v17_miniapp_modular_js.py` (**14/14 passed** trong 0.24s, bổ sung test mới ròng `test_muse_split_view_desktop_responsive_and_glyph_cancelled`).
+  - Suite kiểm thử Mini App: **27/27 passed** trong 15.40s.
+  - Suite toàn diện local: **755 passed, 11 deselected, 0 failed trong 36.93s**, tiến trình tự thoát sạch (<1s).
+  - Phân vai The Agency: Chủ trì `agency-ui-designer` + `agency-frontend-developer`; cổng chốt thẩm định giao diện `agency-ui-finish-gate-reviewer`, kiểm thử `agency-test-automation-engineer`, tự kiểm `agency-reality-checker`.
+
 ## 1.7.61 — 2026-10-31 — Cải tổ giao diện Mini App theo Meta Muse App (Lát cắt 2: Thẻ Tác vụ Stream & Badge Nền tảng) theo ADR-003 (T-40 — ký: Antigravity)
 
 - **(T-40 Lát cắt 2) Thẻ Tác vụ Activity Stream Cards & Platform Badges (`mulon/webapp_server.py`, `mulon/webapp/index.html`):**
