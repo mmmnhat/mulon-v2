@@ -954,11 +954,14 @@ class Memory:
         return new_id
 
     async def active_facts(self, limit: int = 200) -> list[dict]:
-        cur = await self.db.execute(
+        sql = (
             "SELECT * FROM memory_facts WHERE valid_to IS NULL"
-            " ORDER BY salience DESC, id DESC LIMIT ?",
-            (limit,),
+            " ORDER BY salience DESC, id DESC LIMIT ?"
         )
+        if hasattr(self.db, "execute_fetchall"):
+            rows = await self.db.execute_fetchall(sql, (limit,))
+            return [dict(r) for r in rows]
+        cur = await self.db.execute(sql, (limit,))
         return [dict(r) for r in await cur.fetchall()]
 
     async def get_fact(self, fact_id: int) -> Optional[dict]:

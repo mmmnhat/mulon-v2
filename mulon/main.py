@@ -472,6 +472,14 @@ async def _run(cfg: Config) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    for stream in (sys.stdout, sys.stderr):
+        enc = (getattr(stream, "encoding", "") or "").lower().replace("-", "")
+        reconf = getattr(stream, "reconfigure", None)
+        if enc != "utf8" and callable(reconf):
+            try:
+                reconf(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
     parser = argparse.ArgumentParser(prog="mulon")
     parser.add_argument("--dry-run", action="store_true",
                         help="smoke test không cần token Telegram")

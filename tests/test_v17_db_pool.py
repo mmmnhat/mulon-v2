@@ -160,3 +160,39 @@ async def test_pool_daemon_threads_and_gc_cleanup():
                 p2_rth.join(timeout=2.0)
                 assert not p2_rth.is_alive()
 
+
+@pytest.mark.asyncio
+async def test_pool_execute_fetchall_and_no_reader_leak_on_error():
+    """Kiểm chứng execute_fetchall 1-hop trên Reader Pool và hoàn trả reader khi câu lệnh SQL lỗi."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test_fetchall.db"
+        pool = await SqliteWALPool.create(db_path, pool_size=2)
+        try:
+            await pool.execute("CREATE TABLE notes(id INTEGER PRIMARY KEY, body TEXT);")
+            for idx in range(5):
+                await pool.execute("INSERT INTO notes(body) VALUES (?);", (f"note_{idx}",))
+            await pool.commit()
+
+            rows = await pool.execute_fetchall("SELECT body FROM notes ORDER BY id")
+            assert [r["body"] for r in rows] == [f"note_{i}" for i in range(5)]
+            assert pool._readers.qsize() == 2
+
+            # Giữ bận 2 readers tạm thời để ép luồng chờ asyncio.wait_for, sau đó truyền SQL lỗi
+            r1 = pool._readers.get_nowait()
+            r2 = pool._readers.get_nowait()
+
+            async def release_soon():
+                await asyncio.sleep(0.02)
+                pool._return_reader(r1)
+                pool._return_reader(r2)
+
+            rel_task = asyncio.create_task(release_soon())
+            with pytest.raises(Exception):
+                await pool.execute("SELECT * FROM bang_khong_ton_tai")
+            await rel_task
+
+            # Cả 2 readers đều phải trở về hàng đợi, không bị rò rỉ
+            assert pool._readers.qsize() == 2
+        finally:
+            await pool.close()
+

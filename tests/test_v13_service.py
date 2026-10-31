@@ -255,7 +255,7 @@ async def test_full_two_approval_install(env13):
     assert await until(
         lambda: stage_of(svc, op_id) == "pending_restart")
     # File cấu hình: entry mới + entry thủ công nguyên vẹn.
-    data = json.loads(Path(env13.mcp_config_path).read_text())
+    data = json.loads(Path(env13.mcp_config_path).read_text(encoding="utf-8"))
     names = [e["name"] for e in data["servers"]]
     assert "echo-test" in names and "manual-one" in names
     assert data["_comment"] == "giữ nguyên trường lạ"
@@ -312,7 +312,7 @@ async def test_commit_failure_rolls_back(env13, monkeypatch):
     final = svc.store.get_operation(op["id"])
     assert final["error"]["code"] == "commit_failed"
     # Rollback: không entry mới, không rule policy, record giữ.
-    data = json.loads(Path(env13.mcp_config_path).read_text())
+    data = json.loads(Path(env13.mcp_config_path).read_text(encoding="utf-8"))
     assert [e["name"] for e in data["servers"]] == ["manual-one"]
     assert policy.get_host_verdict("group", "mcp:echo-test") is None
     record = svc.store.get_installed("echo-test")
@@ -348,7 +348,7 @@ async def test_uninstall_flow_blocks_then_removes(env13):
     # Tool bị chặn ngay bằng policy deny + entry đã khỏi file.
     assert policy.get_host_verdict("group", "mcp:echo-test") == \
         "deny"
-    data = json.loads(Path(env13.mcp_config_path).read_text())
+    data = json.loads(Path(env13.mcp_config_path).read_text(encoding="utf-8"))
     assert [e["name"] for e in data["servers"]] == ["manual-one"]
     record = svc.store.get_installed("echo-test")
     assert record["lifecycle_state"] == "uninstall_pending_restart"

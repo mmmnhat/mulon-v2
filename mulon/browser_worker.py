@@ -214,6 +214,41 @@ class BrowserWorker:
 
         await page.route("**/*", _handle_route)
 
+    _CHROMIUM_CHANNELS = (None, "msedge", "chrome")
+
+    async def _launch_browser(self, pw):
+        """Khởi chạy Chromium headless; tự động fallback sang Edge/Chrome hệ thống
+        (hữu ích trên Windows khi chưa tải riêng chromium_headless_shell)."""
+        first_err: Optional[Exception] = None
+        for channel in self._CHROMIUM_CHANNELS:
+            try:
+                kwargs: dict = {"headless": True}
+                if channel:
+                    kwargs["channel"] = channel
+                return await pw.chromium.launch(**kwargs)
+            except Exception as exc:
+                if first_err is None:
+                    first_err = exc
+        assert first_err is not None
+        raise first_err
+
+    async def _launch_persistent(self, pw, profile: Path):
+        """Khởi chạy persistent Chromium context kèm fallback sang Edge/Chrome hệ thống."""
+        first_err: Optional[Exception] = None
+        for channel in self._CHROMIUM_CHANNELS:
+            try:
+                kwargs: dict = {"headless": True}
+                if channel:
+                    kwargs["channel"] = channel
+                return await pw.chromium.launch_persistent_context(
+                    str(profile), **kwargs
+                )
+            except Exception as exc:
+                if first_err is None:
+                    first_err = exc
+        assert first_err is not None
+        raise first_err
+
     @asynccontextmanager
     async def _open_page(self):
         """Mở 1 page Chromium: persistent context khi có profile
@@ -225,8 +260,7 @@ class BrowserWorker:
             profile = self.profile_dir()
             if profile is not None:
                 profile.mkdir(parents=True, exist_ok=True)
-                context = await pw.chromium.launch_persistent_context(
-                    str(profile), headless=True)
+                context = await self._launch_persistent(pw, profile)
                 try:
                     page = (context.pages[0] if context.pages
                             else await context.new_page())
@@ -235,7 +269,7 @@ class BrowserWorker:
                 finally:
                     await context.close()
             else:
-                browser = await pw.chromium.launch(headless=True)
+                browser = await self._launch_browser(pw)
                 try:
                     context = await browser.new_context()
                     page = await context.new_page()

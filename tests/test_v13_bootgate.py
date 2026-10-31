@@ -93,7 +93,7 @@ def env13(cfg, tmp_path):
         "kind": "install", "local_names": ["echo-test"],
         "rollback_attempted": False, "at": "2026-10-24"})
     # Entry đã được commit vào file từ tiến trình trước.
-    data = json.loads(mcp_file.read_text())
+    data = json.loads(mcp_file.read_text(encoding="utf-8"))
     data["servers"].append(entry)
     mcp_file.write_text(json.dumps(data), encoding="utf-8")
     return cfg2, svc
@@ -127,11 +127,11 @@ async def test_boot_gate_blocks_tool_drift(env13):
 
 async def test_boot_gate_blocks_config_drift(env13):
     cfg2, svc = env13
-    data = json.loads(Path(cfg2.mcp_config_path).read_text())
+    data = json.loads(Path(cfg2.mcp_config_path).read_text(encoding="utf-8"))
     for e in data["servers"]:
         if e["name"] == "echo-test":
             e["args"] = ["-m", "server_khac"]
-    Path(cfg2.mcp_config_path).write_text(json.dumps(data))
+    Path(cfg2.mcp_config_path).write_text(json.dumps(data), encoding="utf-8")
     svc.store.set_restart_pending(None)
     excluded = await svc.boot_gate()
     assert excluded == {"echo-test"}
@@ -147,7 +147,7 @@ async def test_boot_apply_failure_auto_rollback(env13):
     await svc.boot_gate()
     # Entry bị gỡ khỏi file, record biến mất (trạng thái trước đó
     # là chưa cài), policy rule bị dọn.
-    data = json.loads(Path(cfg2.mcp_config_path).read_text())
+    data = json.loads(Path(cfg2.mcp_config_path).read_text(encoding="utf-8"))
     assert [e["name"] for e in data["servers"]] == ["manual-one"]
     assert svc.store.get_installed("echo-test") is None
     pending = svc.store.restart_pending()

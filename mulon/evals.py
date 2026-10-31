@@ -437,6 +437,14 @@ async def run_eval(cases: list[dict], cfg, live: bool = False) -> dict:
 # CLI: python -m mulon.evals [--live] [--threshold 0.85] [--out F]
 # ------------------------------------------------------------------
 def main(argv: Optional[list[str]] = None) -> int:
+    for stream in (sys.stdout, sys.stderr):
+        enc = (getattr(stream, "encoding", "") or "").lower().replace("-", "")
+        reconf = getattr(stream, "reconfigure", None)
+        if enc != "utf8" and callable(reconf):
+            try:
+                reconf(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
     parser = argparse.ArgumentParser(prog="mulon.evals")
     parser.add_argument("--live", action="store_true",
                         help="dùng gateway thật qua proxy (hoặc env "

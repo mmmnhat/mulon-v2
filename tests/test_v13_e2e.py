@@ -102,17 +102,17 @@ async def test_broken_config_after_commit_auto_rolls_back(env13):
     await install_echo(svc, broker)
     # Phá entry sau commit (đổi command sang thứ không tồn tại)
     # trước lần boot áp dụng.
-    data = json.loads(Path(env13.mcp_config_path).read_text())
+    data = json.loads(Path(env13.mcp_config_path).read_text(encoding="utf-8"))
     for entry in data["servers"]:
         if entry["name"] == "echo":
             entry["command"] = "/khong/ton/tai/server"
-    Path(env13.mcp_config_path).write_text(json.dumps(data))
+    Path(env13.mcp_config_path).write_text(json.dumps(data), encoding="utf-8")
     svc2, _p2, _b2, manager2 = make_stack(env13)
     await manager2.start()
     excluded = await svc2.boot_gate()
     # Đối chiếu thất bại -> tự rollback: entry bị gỡ, record mất,
     # chờ restart lần 2 để hoàn tất khôi phục.
-    data = json.loads(Path(env13.mcp_config_path).read_text())
+    data = json.loads(Path(env13.mcp_config_path).read_text(encoding="utf-8"))
     assert [e["name"] for e in data["servers"]] == ["manual-one"]
     assert svc2.store.get_installed("echo") is None
     pending = svc2.store.restart_pending()

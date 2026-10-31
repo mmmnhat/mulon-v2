@@ -186,5 +186,5 @@ async def test_connector_toggle_routes_to_service(app13):
     # Qua service: policy group bị deny ngay, entry enabled=false.
     assert svc.policy.get_host_verdict(
         "group", "mcp:echo-test") == "deny"
-    data = json.loads(Path(cfg2.mcp_config_path).read_text())
+    data = json.loads(Path(cfg2.mcp_config_path).read_text(encoding="utf-8"))
     assert data["servers"][0]["enabled"] is False

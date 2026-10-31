@@ -22,6 +22,12 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def _skip_if_browser_binary_missing(result: dict) -> None:
+    err = result.get("error", "")
+    if result.get("unavailable") and "BrowserType.launch" in err:
+        pytest.skip(f"Chromium/Edge/Chrome binary không có sẵn cho Playwright: {err}")
+
+
 @pytest.fixture
 def browser_cfg(tmp_path: Path) -> Config:
     dossier = tmp_path / "dossier"
@@ -80,10 +86,12 @@ async def test_redirect_to_private_ip_is_aborted_without_touching_local_server(b
 
         worker = BrowserWorker(browser_cfg)
         result = await worker.read("http://127.0.0.1:19991/start")
+        _skip_if_browser_binary_missing(result)
 
         # Nghiệm thu: read thất bại an toàn, và server 2 nội bộ KHÔNG bị chạm tới
         assert result["ok"] is False
         assert result["unavailable"] is True
+        assert "ERR_BLOCKED_BY_CLIENT" in result["error"] or "blocked" in result["error"].lower()
         assert not local_touched, "VI PHẠM AN NINH: Server nội bộ 19992 đã bị chạm tới!"
     finally:
         await runner1.cleanup()
@@ -103,6 +111,7 @@ async def test_initial_url_private_ip_is_blocked_at_hop_one(browser_cfg, monkeyp
 
     worker = BrowserWorker(browser_cfg)
     result = await worker.read("http://malicious-internal-rebind.com/probe")
+    _skip_if_browser_binary_missing(result)
 
     assert result["ok"] is False
     assert result["unavailable"] is True
@@ -142,6 +151,7 @@ async def test_safe_public_redirect_follows_and_loads_final_content(browser_cfg,
 
         worker = BrowserWorker(browser_cfg)
         result = await worker.read("http://127.0.0.1:19993/start-redirect")
+        _skip_if_browser_binary_missing(result)
 
         assert result["ok"] is True
         assert result["title"] == "Trang Đích An Toàn"

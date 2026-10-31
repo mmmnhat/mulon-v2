@@ -23,7 +23,8 @@ from auto_watch import (  # noqa: E402
 
 def _git(repo: Path, *args: str):
     subprocess.run(["git", *args], cwd=repo, check=True,
-                   capture_output=True, text=True)
+                   capture_output=True, text=True,
+                   encoding="utf-8", errors="replace")
 
 
 @pytest.fixture

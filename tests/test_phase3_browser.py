@@ -68,3 +68,27 @@ async def test_browser_worker_uses_injected_render(cfg, monkeypatch):
     assert out["ok"] is True
     assert out["title"] == "Trang test"
     assert "Nội dung quan trọng" in out["content"]
+
+
+async def test_browser_worker_launch_channel_fallback(cfg):
+    """Khi thiếu bundled chromium_headless_shell (thường gặp trên Windows),
+    BrowserWorker tự fallback sang msedge/chrome trước khi báo lỗi."""
+    worker = bw.BrowserWorker(cfg)
+    attempts: list[dict] = []
+
+    class FakeChromium:
+        async def launch(self, **kwargs):
+            attempts.append(dict(kwargs))
+            if kwargs.get("channel") != "msedge":
+                raise RuntimeError("Executable doesn't exist")
+            return "edge-browser-handle"
+
+    class FakePW:
+        chromium = FakeChromium()
+
+    handle = await worker._launch_browser(FakePW())
+    assert handle == "edge-browser-handle"
+    assert attempts == [
+        {"headless": True},
+        {"headless": True, "channel": "msedge"},
+    ]

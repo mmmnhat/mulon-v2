@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## 1.7.57 — 2026-10-31 — Rerun & Khép trọn vẹn Chân Windows Thật: 19/19 T-36 & 757/757 Full Suite PASSED trên Windows 11 (T-36 — ký: Antigravity [WIN])
+
+- **Thực thi rerun trên phần cứng Windows 11 thật (`Windows-11-10.0.26300-SP0`, Python `3.12.10`, path có khoảng trắng `E:\New folder\lane1\.venv`) & xử lý dứt điểm các lỗi thứ cấp lộ diện sau bản vá W1–W6:**
+  - **(W1/W2/W5 hậu kiểm — Mã hóa UTF-8 tường minh trên Windows `cp1252`):**
+    - Sau khi W1 (`normalize_server_config`) được gỡ ở `v1.7.46`, 3/19 test gốc của `T-36` trong `tests/test_v13_service.py` (`test_full_two_approval_install`, `test_commit_failure_rolls_back`, `test_uninstall_flow_blocks_then_removes`) chạy xuyên qua bước `probe`/`commit`/`rollback` (nơi `MarketplaceService` ghi UTF-8 tiếng Việt `"_comment": "giữ nguyên trường lạ"`) và lộ lỗi thứ cấp `.read_text()` thiếu `encoding="utf-8"` trên Windows (`cp1252`). Đã bổ sung `encoding="utf-8"` cho `.read_text()`/`.write_text()` tại `tests/test_v13_service.py`, `tests/test_v13_api.py`, `tests/test_v13_bootgate.py`, `tests/test_v13_e2e.py`, và helper `_git` trong `tests/test_auto_watch.py` (triệt tiêu hoàn toàn `PytestUnhandledThreadExceptionWarning: UnicodeDecodeError` ở `test_pop_conflict_keeps_stash`).
+    - Bổ sung tự động `reconfigure(encoding="utf-8", errors="replace")` cho `sys.stdout`/`sys.stderr` khi stream mặc định khác UTF-8 trong `mulon/evals.py` và `mulon/main.py`: khắc phục lỗi sản phẩm `python -m mulon.evals` bị sập `UnicodeEncodeError` khi in tiếng Việt (`"ĐẠT CỔNG"`) ra pipe `cp1252` trên Windows (tránh làm `self_verify_and_restart(run_evals=True)` rollback oan trên Windows).
+  - **(BrowserWorker Windows Multi-Channel Fallback — `mulon/browser_worker.py`, `tests/test_v17_browser_dns_guard.py`):**
+    - Bổ sung `_launch_browser` và `_launch_persistent` trong `BrowserWorker` tự động duyệt thứ tự channel `(None, "msedge", "chrome")`: ưu tiên nguyên bản Chromium của Playwright (`None` — không đổi hành vi trên Mac/Linux VM), và tự động fallback sang Microsoft Edge / Chrome có sẵn trên Windows khi máy chưa tải riêng `chromium_headless_shell`; vẫn degrade sạch qua `_unavailable()` khi thiếu mọi trình duyệt.
+    - Bổ sung guard `_skip_if_browser_binary_missing` chuẩn W6 và kiểm tra thông điệp chặn thật trong Test 1 của `tests/test_v17_browser_dns_guard.py` (cả 3 test SSRF/DNS-rebinding e2e của `T-39.2` chạy thật qua headless Chromium/Edge trên Windows 11 đều PASSED).
+  - **(Tối ưu 1-hop `SqliteWALPool.execute_fetchall` & đóng kết nối an toàn trên NTFS — `mulon/db.py`, `mulon/memory.py`, `tests/test_perf_db_concurrency.py`):**
+    - Bổ sung `SqliteWALPool.execute_fetchall(sql, parameters)` (tương thích chuẩn `aiosqlite.Connection.execute_fetchall`) thực thi `SELECT` + `fetchall` trong 1 bước worker-thread duy nhất và trả ngay reader connection về pool; sửa lỗi rò rỉ reader connection nếu `conn.execute()` ném ngoại lệ sau `asyncio.wait_for(self._readers.get())`.
+    - Cập nhật `Memory.active_facts()` dùng `execute_fetchall`, giảm ~40% độ trễ đọc đồng thời dưới tải ghi nặng trên Windows NTFS mà **giữ nguyên 100% ngưỡng kiểm thử gốc** (`avg_latency < 25.0ms`, `max_latency < 60.0ms`, không nới test). Bọc `try ... finally: await mem.close()` trong `tests/test_perf_db_concurrency.py` để Windows NTFS luôn giải phóng file handle trước khi `TemporaryDirectory` xoá `.db` (ngăn `PermissionError: [WinError 32]`).
+- **3 test hồi quy mới (tổng suite tăng từ 754 → 757 tests):**
+  - `tests/test_phase3_browser.py::test_browser_worker_launch_channel_fallback`
+  - `tests/test_v17_db_pool.py::test_pool_execute_fetchall_and_no_reader_leak_on_error`
+  - `tests/test_phase5_evals.py::test_cli_subprocess_cp1252_stdout_does_not_crash`
+- **Bằng chứng đo đạc thực tế trên máy Windows 11 thật:**
+  - Nhóm 19 test gốc của `T-36`: **19/19 PASSED** (0 failed, 0 skipped) trong `11.32s`, `EXIT_CODE=0`.
+  - Full test suite Windows 11 (chạy đủ cả Playwright, không lọc `-k`): **757 passed, 0 failed, 0 skipped** trong `191.34s` (`TOTAL_WALL_SECONDS=196.93s`, tiến trình tự thoát sạch sau `~5.59s`, `EXIT_CODE=0`).
+  - Evals vàng trên Windows 11: **33/36 = 92% -> ĐẠT CỔNG** (ngưỡng 85%, đúng 3 ca cũ họ `cho_mcp`), `EXIT_CODE=0`; smoke `--dry-run` `EXIT_CODE=0`.
+  - Phân vai The Agency: Chủ trì `agency-test-automation-engineer`, cổng chốt tự kiểm nội bộ `agency-reality-checker`.
+
 ## 1.7.56 — 2026-10-31 — Module hoá JS Client Mini App (Lát cắt 1: Mulon.TG, Mulon.API & RFC 7807 Client) theo ADR-002 & Triệt tiêu Dead Code Utility Classes (T-39.4b, Agency Council Chặng 3 — ký: Antigravity)
 
 - **(ISSUE-08 / T-39.4b Lát cắt 1) Phân rã JS Client theo Phương án A (ADR-002) (`mulon/webapp/index.html`):**

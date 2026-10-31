@@ -477,15 +477,39 @@ class SqliteWALPool:
             # Nếu pool đang bận hết, thử chờ 0.5s
             try:
                 conn = await asyncio.wait_for(self._readers.get(), timeout=0.5)
-                cur = await conn.execute(sql, parameters)
-                return PooledCursor(cur, conn, self)
             except (asyncio.TimeoutError, Exception):
-                # Fallback về writer nếu pool bận
-                pass
+                conn = None
+
+            if conn is not None:
+                try:
+                    cur = await conn.execute(sql, parameters)
+                    return PooledCursor(cur, conn, self)
+                except Exception:
+                    self._return_reader(conn)
+                    raise
 
         # Lệnh GHI hoặc fallback
         async with self._write_lock:
             return await self._writer.execute(sql, parameters)
+
+    async def execute_fetchall(
+        self, sql: str, parameters: Any = None
+    ) -> list[Any]:
+        """Thực thi câu lệnh SQL và nạp toàn bộ dòng kết quả trong 1 bước worker-thread
+        duy nhất (tương thích aiosqlite.Connection.execute_fetchall), giải phóng ngay
+        reader connection về pool mà không giữ qua nhiều vòng lặp event loop."""
+        if self._closed or self._writer is None:
+            raise RuntimeError("SqliteWALPool đã đóng")
+
+        params = [] if parameters is None else parameters
+        if is_read_only_query(sql) and self._all_readers:
+            async with self.read_connection() as rconn:
+                rows = await rconn.execute_fetchall(sql, params)
+                return list(rows)
+
+        async with self._write_lock:
+            rows = await self._writer.execute_fetchall(sql, params)
+            return list(rows)
 
     async def executemany(
         self, sql: str, seq_of_parameters: Sequence[Any]

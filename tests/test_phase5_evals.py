@@ -118,3 +118,29 @@ def test_cli_gate_exit_code(cfg, tmp_path, monkeypatch, capsys):
     rc = evals_mod.main(["--out", str(out), "--threshold", "0.5"])
     assert rc == 0
     capsys.readouterr()
+
+
+def test_cli_subprocess_cp1252_stdout_does_not_crash(tmp_path):
+    """Hồi quy Windows (T-36): chạy `python -m mulon.evals` dưới pipe cp1252 không vỡ UnicodeEncodeError."""
+    import os
+    import subprocess
+    import sys
+
+    evals_dir = tmp_path / "evals"
+    evals_dir.mkdir()
+    (evals_dir / "golden.jsonl").write_text(
+        json.dumps(GOOD_RECALL, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    out = tmp_path / "report.json"
+    env = dict(os.environ)
+    env["MULON_EVALS_DIR"] = str(evals_dir)
+    env["PYTHONIOENCODING"] = "cp1252"
+    res = subprocess.run(
+        [sys.executable, "-m", "mulon.evals", "--out", str(out), "--threshold", "0.85"],
+        cwd=str(PROJECT_ROOT),
+        env=env,
+        capture_output=True,
+    )
+    assert res.returncode == 0
+    assert "ĐẠT CỔNG" in res.stdout.decode("utf-8", errors="replace")
