@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-11-01 ~22:34 bởi Muse (ghi theo chỉ đạo trực tiếp của chủ dự án, ký: Muse): **Ghi Đợt 3 (12 mục, toàn cục + Hồ sơ + Cài đặt + Model/Proxy) vào danh sách sửa trong [T-41]** — gồm các luật toàn cục mới: bỏ toàn bộ sub-text, bỏ mọi search bar + chip lọc, bỏ thanh quay lại ở màn con, bỏ mọi văn bản trong ngoặc; bỏ mục Cá nhân hoá + màn Tất cả công cụ + màn Feed chủ động; thêm icon sửa cạnh tên mở modal đổi mascot (đúng 5 con chủ dự án đã chốt) + đổi tên; Model dùng 1 dropdown cấu hình 1 model dùng chung 3 tier, gộp màn Model với màn Proxy, màn Proxy đổi thành Thiết lập API nhập endpoint + key trực tiếp. Đồng thời **mở [T-43] chế độ quyền theo nấc** theo câu hỏi của chủ dự án ("MuLon chưa có mode quyền từng nấc như mấy con agent nhỉ?"). Ky: Muse
+
 Cập nhật 2026-11-01 ~22:12 bởi Muse (ghi theo chỉ đạo trực tiếp của chủ dự án, ký: Muse): **Ghi Đợt 2 (3 mục, tab Lịch) vào danh sách sửa trong [T-41]**: bỏ đoạn sub-text "Vòng lặp hẹn giờ đang TẮT…", gộp hai mục "Sắp tới (Upcoming)" và "Lịch hẹn & Nhắc việc cá nhân" làm một, đưa Heartbeat lên trên cùng tab Lịch. Ky: Muse
 
 Cập nhật 2026-11-01 ~22:10 bởi Muse (ghi theo chỉ đạo trực tiếp của chủ dự án, ký: Muse): **Chủ dự án bắt đầu chỉ lỗi trực tiếp trên bộ render 64 ảnh — đã ghi Đợt 1 (5 mục) vào danh sách sửa trong mục [T-41]** (bỏ hàng icon Hero, bỏ card thống kê việc, bỏ ô tìm kiếm, bỏ card Goals ở tab Việc, bỏ 4 chip lọc). Chủ dự án báo "còn nhiều lắm" — các đợt tiếp theo Muse ghi nối tiếp vào cùng danh sách, Antigravity làm theo danh sách này. Ky: Muse
@@ -447,6 +449,13 @@ này không ghi đè gì) + commit verdict này.
 - Tiêu chí nghiệm thu (Muse kiểm chứng độc lập): API trả `rights` khớp fixture `BusinessConnection`; render màn Telegram Business hiển thị đúng 3 nhóm quyền ở cả 2 theme, 0 pageerror; kiểm chứng sống: trạng thái kết nối ở lệnh `/business` của bot thật và trên màn Mini App phải khớp nhau.
 
 
+### [T-43] Chế độ quyền theo nấc (tiered permission modes) cho MuLon — `TODO`
+
+- Giao: Antigravity. Agent chủ trì: `agency-application-security-engineer` + `agency-api-platform-engineer`; phối hợp `agency-frontend-developer` cho phần UI; tự kiểm `agency-reality-checker` trước DONE.
+- Nguồn lệnh: chủ dự án, 2026-11-01 ~22:34 — "MuLon chưa có mode quyền từng nấc như mấy con agent nhỉ?" (nêu trong lúc rà soát màn Quyền trên bộ render). Hiện MuLon chỉ có quyền theo từng connector/hành động (đọc = Cho phép, ghi/xoá = Hỏi) trong `config/policy.json` + màn Quyền, **chưa có khái niệm "mode" tổng theo nấc** như các agent khác (vd các nấc kiểu: Chỉ đọc / Hỏi trước khi ghi / Tự chạy trong phiên / Tự chạy toàn quyền — Antigravity khảo sát cách các agent phổ biến chia nấc rồi đề xuất bảng nấc cụ thể trong design note, không tự bịa tên nấc khi chưa trình).
+- Phạm vi: (1) design note ngắn trình Muse duyệt trước khi code: bảng nấc + hành vi từng nấc + cách mode tổng tương tác với policy theo connector/hành động hiện có (mode là trần trên, policy riêng chỉ được chặt hơn, không nới hơn mode — đề xuất, Muse chốt khi duyệt); (2) backend: mode lưu qua cơ chế config/policy hiện hữu (Rule 0, không hardcode danh sách nấc trong `.py` — để ở config), đổi mode áp dụng ngay; (3) UI: chọn mode ngay trong màn Quyền (dạng danh sách chọn một, đúng kỷ luật thị giác của [T-41]: không sub-text, không chip lọc); (4) thẻ duyệt trong chat + Mini App phải thể hiện mode đang hiệu lực khi quyết định tự chạy hay hỏi.
+- Ràng buộc: không nới lỏng luật bảo mật `AGENTS.md` §5 (denylist file nhạy cảm, secret không vào log); mode cao nhất cũng không vượt qua denylist cứng. Suite xanh 100% + eval + render 2 theme trước DONE; nghiệm thu gồm kiểm chứng sống qua bot thật một hành vi đổi nấc (nấc thấp → bot hỏi; nấc cao → bot tự chạy đúng phạm vi).
+
 ### [T-41] Muse-parity vòng 2: thu tỉ lệ + mật độ + kỷ luật thị giác về đúng chuẩn Muse — `TODO`
 
 - Giao: Antigravity. Agent chủ trì: `agency-ui-designer` + `agency-frontend-developer`; cổng chốt: `agency-ui-finish-gate-reviewer`; tự kiểm trước DONE: `agency-reality-checker`.
@@ -479,6 +488,19 @@ này không ghi đè gì) + commit verdict này.
     6. **Bỏ đoạn sub-text dài đầu tab Lịch** ("Vòng lặp hẹn giờ đang TẮT (SCHEDULER_ENABLED=0 trong .env) — …") — text kỹ thuật dư thừa, không hiển thị cho người dùng.
     7. **Gộp "Sắp tới (Upcoming)" và "Lịch hẹn & Nhắc việc cá nhân" thành một mục duy nhất** — hiện có tận 2 mục cùng là lịch cá nhân, trùng nhau.
     8. **Đưa Heartbeat lên trên cùng tab Lịch** (hiện đang nằm giữa trang, dưới mục Sắp tới).
+  - Đợt 3 (22:34, toàn cục + Hồ sơ + Cài đặt + Model/Proxy):
+    9. **Màn Hồ sơ: thống nhất bộ icon** — hiện icon không đồng bộ, lẫn emoji với icon nét. Toàn app chỉ dùng một bộ icon nét (line/SVG) duy nhất, cấm emoji làm icon.
+    10. **Bỏ toàn bộ sub-text trên mọi màn hình** (dòng chữ nhỏ mô tả dưới tiêu đề/dưới hàng) — luật toàn cục, áp cho mọi tab và màn con.
+    11. **Bỏ mục "Cá nhân hoá"** ở tab Cài đặt (hàng "Thương hiệu & Mascot") — thay bằng cơ chế ở mục 12.
+    12. **Thêm icon chỉnh sửa ngay cạnh tên "Mulon"** ở khối danh tính: bấm mở modal cho **đổi mascot + đổi tên**. Danh sách mascot = đúng 5 con chủ dự án đã chốt 2026-11-01 (mulon, bach-tuoc, meo-hoodie, may-sam, nam-sao; gói asset `mulon-mascot-final-5`), không liệt kê con khác.
+    13. **Bỏ màn hình "Tất cả công cụ"** (`screen-all-tools-policy`) cùng điểm vào của nó ở màn Quyền.
+    14. **Bỏ mọi search bar và chip lọc trên TẤT CẢ màn hình** (mở rộng mục 3 + 5 thành luật toàn cục).
+    15. **Bỏ thanh điều hướng quay lại (backrow) ở mọi màn con** — chỉ dùng điều hướng global (thanh tab + mở/đóng màn con theo state), không thêm nút back riêng.
+    16. **Cấu hình Model dùng một dropdown duy nhất**: chủ dự án cấu hình đúng 1 model và model đó **dùng chung cho cả 3 tier** (brain/cheap/escalated). Ghi rõ: quyết định này của chủ dự án ghi đè ghi chú "3 tier phải khác nhau" ở `AGENTS.md` §4 — Antigravity cập nhật `AGENTS.md` + `docs` liên quan trong cùng commit (luật no-drift).
+    17. **Gộp màn hình Model và màn hình thiết lập Proxy thành một màn hình duy nhất.**
+    18. **Màn hình thiết lập Proxy đổi thành "Thiết lập API"**: người dùng **nhập endpoint + API key trực tiếp** tại đây. Ghi rõ: quyết định này đụng bất biến proxy-only ở `AGENTS.md` §3.2 — chủ dự án chốt đổi; Antigravity cập nhật `AGENTS.md` §3.2 + validate ở `Config.load()`/`ModelGateway` trong cùng đợt, API key bắt buộc lưu qua Vault (luật §4/§5, không lưu plaintext vào config/code).
+    19. **Bỏ màn hình "Feed chủ động"** (`screen-feed`) cùng điểm vào của nó.
+    20. **Bỏ mọi văn bản trong ngoặc đơn trên toàn bộ giao diện** — vd "(Upcoming)", "(*/30 * * * *)", ghi chú ngoặc trong nhãn/nút/tiêu đề đều xoá hoặc viết lại không ngoặc.
 - Chia lát: (1) Hero + điều hướng + icon; (2) Mật độ danh sách Việc + trạng thái/badge; (3) Áp cùng thang tỉ lệ cho 4 tab còn lại + chấm thông báo. Mỗi lát: render trước/sau + suite xanh mới lên DONE.
 
 
