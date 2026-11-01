@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-11-01 ~22:10 bởi Muse (ghi theo chỉ đạo trực tiếp của chủ dự án, ký: Muse): **Chủ dự án bắt đầu chỉ lỗi trực tiếp trên bộ render 64 ảnh — đã ghi Đợt 1 (5 mục) vào danh sách sửa trong mục [T-41]** (bỏ hàng icon Hero, bỏ card thống kê việc, bỏ ô tìm kiếm, bỏ card Goals ở tab Việc, bỏ 4 chip lọc). Chủ dự án báo "còn nhiều lắm" — các đợt tiếp theo Muse ghi nối tiếp vào cùng danh sách, Antigravity làm theo danh sách này. Ky: Muse
+
 Cập nhật 2026-11-01 ~21:55 bởi Muse (theo lệnh trực tiếp của chủ dự án, ký: Muse): **Mở [T-42] Phần quyền Telegram Business trong Mini App — chủ dự án chốt "chưa có phần quyền của telegram business".** Kiểm chứng độc lập trên head `5e7e244`: backend Business đã có (`mulon/business.py`, handler `business_connection`, API `GET /api/business/status`) nhưng (1) `handle_business_connection` chỉ lưu `can_reply` + `is_enabled`, đánh rơi toàn bộ object quyền `BusinessBotRights` Telegram gửi kèm; (2) Mini App có **0** dòng nhắc tới business — màn Quyền (`screen-policy`) chỉ có quyền connector/tool, API status không ai tiêu thụ. Thiết lập thật của chủ dự án từ 27/10 (Quản lý tin nhắn 5/5, Hồ sơ + Quà/Sao tắt, loại trừ 17 chat) hiện không nhìn thấy ở bất cứ đâu trong MuLon. Chi tiết phạm vi + tiêu chí nghiệm thu nằm trong mục [T-42] ở phần Đang mở. Ky: Muse
 
 Cập nhật 2026-11-01 ~21:40 bởi Muse (theo lệnh trực tiếp của chủ dự án, ký: Muse): **Mở [T-41] Muse-parity vòng 2 — chủ dự án chốt "giao diện chưa giống Muse".** Muse đã render lại toàn bộ Mini App ở head `f49755f` (Chromium 390×844, fixture đầy đủ, 0 pageerror) và đối chiếu trực tiếp với ảnh chuẩn `docs/reference/meta_muse_app_reference.png`: T-40 mới khớp *token màu*, chưa khớp *tỉ lệ/mật độ/kỷ luật thị giác* của Muse — verdict T-40 giữ nguyên cho phạm vi token/cấu trúc đã chấm, nhưng tiêu chuẩn "giống Muse" từ nay đo bằng các ngưỡng cụ thể trong mục T-41 và **chốt cuối bằng mắt chủ dự án**. Chi tiết 8 điểm lệch kèm số đo nằm trong mục [T-41] ở phần Đang mở. Ky: Muse
@@ -464,6 +466,13 @@ này không ghi đè gì) + commit verdict này.
   - Mỗi màn ≤ 4 cỡ chữ / 2 weight; không còn phần tử đỏ/xanh lá/vàng cho trạng thái (gồm chấm thông báo — dùng số đếm trung tính hoặc dot ink3).
   - Giữ nguyên các lock cũ: 60/30/10, accent duy nhất `#7C3AED`, touch target ≥44px (đạt bằng vùng bấm, không cần hàng cao), single-file, API additive, suite xanh 100% + eval, render 2 theme trước/sau.
   - **Cổng cuối: chủ dự án nhìn render đối chiếu cạnh ảnh chuẩn và chốt "giống"** — Muse không tự VERIFIED chỉ bằng checklist số như vòng T-40.
+- **Danh sách sửa chủ dự án chỉ trực tiếp trên bộ render 2026-11-01 (Muse ghi liên tục theo từng đợt, Antigravity làm đúng danh sách này, không tự ý giữ lại mục nào đã bị gạch):**
+  - Đợt 1 (22:10, tab Việc):
+    1. **Bỏ hẳn hàng icon tròn Hero** (Việc/Quyền/Lịch/Kho) — đã có thanh tab ở dưới, trùng lặp.
+    2. **Bỏ card/thanh thống kê việc** (Đang chạy / Đã xong / Đã lỗi / Tổng) — không cần thiết.
+    3. **Bỏ ô tìm kiếm việc** ở tab Việc.
+    4. **Bỏ card Goals ở tab Việc** — Goals chỉ cập nhật trong group topics, không đặt trong Mini App ở tab Việc.
+    5. **Bỏ 4 chip lọc** (Tất cả / Đang chạy / Đã xong / Đã lỗi) ở tab Việc.
 - Chia lát: (1) Hero + điều hướng + icon; (2) Mật độ danh sách Việc + trạng thái/badge; (3) Áp cùng thang tỉ lệ cho 4 tab còn lại + chấm thông báo. Mỗi lát: render trước/sau + suite xanh mới lên DONE.
 
 
