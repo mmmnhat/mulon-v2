@@ -1,5 +1,37 @@
 # CHANGELOG
 
+## 1.7.65 — 2026-11-02 — Muse-parity vòng 2: Hoàn tất Lát cắt 3, Chuẩn hoá Tab Lịch & Khắc phục toàn diện 3 điểm nghiệm thu của Muse (T-41 — ký: Antigravity)
+
+- **Khắc phục trọn vẹn 3 điểm `NEEDS-FIX` của Muse tại commit `0e5a402`:**
+  - **1. Đồng bộ toàn bộ suite test cũ theo kiến trúc mới:**
+    - `tests/test_v13_sprite_assets.py`: Nối assert `loadMascotSprite` và thư mục `/app/assets/mascots/<id>/manifest-anim.json` động thay thế cho manifest v0 tĩnh.
+    - `tests/test_v17_t13_brand_mascot.py`: Cập nhật tập 5 mascot chuẩn (`mulon`, `bach-tuoc`, `meo-hoodie`, `may-sam`, `nam-sao`), kiểm tra modal `#modal-edit-identity`, `#identity-bot-name-input`, `#identity-mascot-picker`, giữ case test legacy id trả về 400.
+    - `tests/test_v17_policy_tightening.py`: Cập nhật theo Mục 13 (gỡ bỏ màn `screen-all-tools-policy`).
+    - `tests/test_v17_miniapp_polish_mkt_feed.py`: Cập nhật theo Mục 11 & Mục 19 (gỡ màn `screen-feed`, bỏ chú thích 60/30/10).
+    - `tests/test_v17_t27_ui_perfection.py`: Cập nhật theo Mục 14 (bỏ tìm kiếm/lọc ở màn con Kho lưu trữ).
+    - Toàn bộ suite test Mac: **776 passed / 0 failed** (765 passed / 0 failed khi chạy non-playwright).
+  - **2. Chiều cao Header + Segbar $\le 160$px có biên an toàn:**
+    - Điều chỉnh dòng tiêu đề danh tính và `#btn-edit-identity` dùng margin âm `margin-top: -10px; margin-bottom: -10px; margin-right: -10px;` để giữ nguyên vùng bấm chuẩn touch target 44×44px mà không làm phình hàng tiêu đề.
+    - Đo đạc thực tế Playwright Chromium 390×844: Header = **103.94px**, Segbar = **48.00px**, tổng Header + Segbar = **151.94px $\le 160$px** (đạt biên an toàn 8px). Vùng bấm nút edit identity: đúng 44×44px.
+  - **3. Bằng chứng render 2 theme thật (Light & Dark) đo đạc trực quan:**
+    - Tạo script `scripts/capture_muse_renders.py` khởi chạy WebAppServer thật với mock memory và dữ liệu việc/lịch, kích hoạt `syncColorScheme()` đồng bộ cả theme và scheme CSS.
+    - Đo đạc pixel bằng Pillow & NumPy:
+      - `docs/audits/renders/01_dashboard_light.png`: SHA256 `e0ca07b3864e8bed0b216bb5788ce81ac3a778220cc1ae100c38fdfc48e0459f`, mean RGB **246.81** (R: 245.7, G: 246.8, B: 247.9).
+      - `docs/audits/renders/02_dashboard_dark.png`: SHA256 `241afe496851de02fdf6b212202d064ce1931d43253c455a38d7dcc714c3c4c7`, mean RGB **22.11** (R: 21.3, G: 21.3, B: 23.7).
+      - `docs/audits/renders/04_tasks_dark.png`: SHA256 `f4947d4cf5a2fb2b9acfd18d08e7520ea9bb33c6a39411d1cc9829d689d055ec`, mean RGB **22.07** (R: 21.3, G: 21.3, B: 23.6).
+    - Cả 3 ảnh có SHA256 và mean RGB độc lập, phân biệt rạch ròi giữa nền giấy sáng và nền tối sâu.
+- **(T-41 Lát cắt 3) Hoàn tất các mục kiến trúc và trải nghiệm toàn cục:**
+  - **Tab Lịch (Mục 6, 7, 8 [T-41]):** Đưa thẻ "Nhịp tim hệ thống" (`#card-heartbeat-item`) lên đầu danh sách Tab Lịch, gỡ bỏ banner rườm rà `#schedule-banner`, gộp "Lịch hẹn cá nhân" và "Lịch định kỳ" thành một danh sách "Lịch trình" duy nhất.
+  - **Màn Cài đặt & Thiết lập API (Mục 13, 17, 18, 19 [T-41]):** Gộp màn Model và Proxy thành màn "Thiết lập API" (`screen-api-settings`), gỡ bỏ màn "Feed chủ động" (`screen-feed`), gỡ bỏ màn "Tất cả công cụ" (`screen-all-tools-policy`), gỡ bỏ màn `#screen-brand` thừa.
+  - **Kỷ luật thị giác toàn app (Mục 11, 14, 21 [T-41]):** Bỏ toàn bộ văn bản giải thích phụ/sub-text rườm rà dưới các thẻ, bỏ thanh tìm kiếm/lọc ở tất cả các màn con (Kho lưu trữ, Quyền...), bỏ toàn bộ văn bản trong ngoặc đơn ở mọi tiêu đề/nhãn.
+  - **Backend API Model (Mục 18 [T-41]):** API `POST /api/model` hỗ trợ `tier="all"` cập nhật đồng thời 3 tier (`model_brain`, `model_cheap`, `model_escalated`), proxy endpoint và lưu an toàn `api_key` vào Vault `llm:api_key`.
+- **Kiểm thử & Tiêu chuẩn nghiệm thu:**
+  - Full test suite: **776 passed / 0 failed** (765 passed / 0 failed non-playwright).
+  - Evals vàng: **33/36 = 92%** (vượt cổng 85%).
+  - Smoke test: `python -m mulon.main --dry-run` exit 0.
+  - Runtime Mini App: **0 pageerror**.
+  - Phân vai The Agency: Chủ trì `agency-ui-designer` + `agency-frontend-developer`; cổng chốt thẩm định `agency-ui-finish-gate-reviewer`, kiểm thử `agency-test-automation-engineer`, tự kiểm `agency-reality-checker`.
+
 ## 1.7.64 — 2026-11-01 — Muse-parity vòng 2: Tối ưu mật độ danh sách Việc & Badge/Trạng thái chuẩn Muse (T-41 Lát cắt 2 — ký: Antigravity)
 
 - **(T-41 Lát cắt 2) Mật độ danh sách Việc & Chuẩn hoá Badge/Trạng thái (`mulon/webapp/index.html`):**

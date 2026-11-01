@@ -91,9 +91,10 @@ async def test_unknown_asset_404_and_no_dir_traversal(app):
 
 def test_frontend_plays_real_atlas_not_css_keyframes():
     html = INDEX_HTML.read_text(encoding="utf-8")
-    # Cơ chế sprite thật: nạp atlas + manifest, player theo fps.
-    assert "/app/assets/sprite-sheet-alpha.png" in html
-    assert "/app/assets/mulon-states-manifest.json" in html
+    # Cơ chế sprite thật: nạp atlas + manifest theo từng mascot (loadMascotSprite), player theo fps.
+    assert "loadMascotSprite" in html
+    assert "/app/assets/mascots/" in html
+    assert "manifest-anim.json" in html
     assert "SPRITE_FALLBACK" in html and "spritePlay" in html
     assert 'id="avatar-sprite"' in html
     # Cơ chế cũ đã gỡ hẳn: không còn keyframes giả trạng thái.

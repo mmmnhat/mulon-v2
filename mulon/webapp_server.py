@@ -3822,9 +3822,13 @@ class WebAppServer:
         """Cập nhật tầng model AI hoặc ghi đè model theo phiên (T-11)."""
         body = await self._json_body(request)
         tier = str(body.get("tier") or "brain").strip().lower()
-        model = str(body.get("model") or "").strip()
+        model = str(body.get("model") or body.get("brain") or "").strip()
+        brain = str(body.get("brain") or model).strip()
+        cheap = str(body.get("cheap") or model).strip()
+        escalated = str(body.get("escalated") or model).strip()
         session_key = str(body.get("session_key") or "").strip()
-        if not model:
+
+        if not model and not brain and tier not in ("all", "shared", "single"):
             return web.json_response({"ok": False, "error": "Thiếu tên model"}, status=400)
 
         if session_key:
@@ -3837,8 +3841,64 @@ class WebAppServer:
                 "model": model,
             })
 
+        if tier in ("all", "shared", "single"):
+            for t_name, m_val in (("brain", brain), ("cheap", cheap), ("escalated", escalated)):
+                if m_val:
+                    attr_name = f"model_{t_name}"
+                    object.__setattr__(self.cfg, attr_name, m_val)
+                    if self.memory is not None:
+                        try:
+                            await self.memory.kv_set(f"config:{attr_name}", m_val)
+                        except Exception:
+                            pass
+                    try:
+                        from dotenv import set_key
+                        from .config import PROJECT_ROOT
+                        env_path = Path(getattr(self.cfg, "project_root", None) or PROJECT_ROOT) / ".env"
+                        if env_path.is_file():
+                            set_key(str(env_path), attr_name.upper(), m_val)
+                    except Exception:
+                        pass
+
+            # Hỗ trợ cập nhật endpoint và API key nếu gửi kèm (T-41 Mục 18)
+            endpoint = str(body.get("endpoint") or body.get("proxy_base_url") or "").strip()
+            if endpoint:
+                object.__setattr__(self.cfg, "proxy_base_url", endpoint)
+                try:
+                    from dotenv import set_key
+                    from .config import PROJECT_ROOT
+                    env_path = Path(getattr(self.cfg, "project_root", None) or PROJECT_ROOT) / ".env"
+                    if env_path.is_file():
+                        set_key(str(env_path), "PROXY_BASE_URL", endpoint)
+                except Exception:
+                    pass
+
+            api_key = str(body.get("api_key") or "").strip()
+            if api_key and self.vault_store is not None:
+                try:
+                    if hasattr(self.vault_store, "put"):
+                        self.vault_store.put("llm:api_key", api_key)
+                    elif hasattr(self.vault_store, "set"):
+                        res = self.vault_store.set("llm:api_key", api_key)
+                        if asyncio.iscoroutine(res):
+                            await res
+                except Exception as e:
+                    logger.warning("Không thể lưu API key vào vault: %s", e)
+
+            return web.json_response({
+                "ok": True,
+                "scope": "global",
+                "tier": "all",
+                "model": model or brain,
+                "brain": getattr(self.cfg, "model_brain", ""),
+                "cheap": getattr(self.cfg, "model_cheap", ""),
+                "escalated": getattr(self.cfg, "model_escalated", ""),
+                "proxy_base_url": getattr(self.cfg, "proxy_base_url", ""),
+                "endpoint": getattr(self.cfg, "proxy_base_url", ""),
+            })
+
         if tier not in ("brain", "cheap", "escalated"):
-            return web.json_response({"ok": False, "error": "Tier không hợp lệ (brain, cheap, escalated)"}, status=400)
+            return web.json_response({"ok": False, "error": "Tier không hợp lệ (brain, cheap, escalated, all)"}, status=400)
 
         attr_name = f"model_{tier}"
         old_val = getattr(self.cfg, attr_name, "")

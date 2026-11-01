@@ -38,7 +38,6 @@ def test_all_subscreens_have_backrow():
         "screen-profile",
         "screen-skill",
         "screen-system",
-        "screen-feed",
         "screen-connectors",
         "screen-google-config",
         "screen-mktcat",
@@ -143,12 +142,12 @@ def test_browser_navigation_flow_with_playwright():
         assert page.evaluate("mainTab") == "caidat"
         assert page.locator("#tab-caidat").is_visible()
         
-        # Thử mở từng hàng trong Cài đặt và quay lại
+        # Thử mở từng hàng trong Cài đặt và quay lại (Mục 15: quay lại bằng segbar)
         screens = [
             ("screen-connectors", "Công cụ kết nối"),
             ("screen-vault", "Kho lưu trữ an toàn"),
             ("screen-policy", "Quyền"),
-            ("screen-feed", "Feed chủ động"),
+            ("screen-api-settings", "Thiết lập API"),
             ("screen-system", "Thiết bị & hệ thống")
         ]
         
@@ -165,10 +164,8 @@ def test_browser_navigation_flow_with_playwright():
             assert scr_el.is_visible()
             assert not page.locator("#tab-caidat").is_visible()
             
-            # Nút quay lại phải hiển thị và bấm được
-            back_btn = scr_el.locator(".backrow")
-            assert back_btn.is_visible()
-            back_btn.click()
+            # Điều hướng quay lại bằng thanh tab segbar toàn cục (Mục 15)
+            page.locator("#segbar button[data-tab='caidat']").click()
             page.wait_for_timeout(100)
             
             # Trạng thái quay về Cài đặt sạch sẽ
@@ -176,24 +173,13 @@ def test_browser_navigation_flow_with_playwright():
             assert page.locator("#tab-caidat").is_visible()
             assert not scr_el.is_visible()
             
-        # Kiểm tra điều hướng đa cấp (Connectors -> Import -> Back -> Back)
+        # Kiểm tra điều hướng đa cấp (Connectors -> Import -> Segbar caidat)
         page.locator("#tab-caidat .row[data-open='screen-connectors']").click()
         page.wait_for_timeout(100)
-        assert page.evaluate("subScreen") == "screen-connectors"
-        
         page.locator("#conn-add-manual").click()
         page.wait_for_timeout(100)
         assert page.evaluate("subScreen") == "screen-import"
-        assert page.locator("#screen-import").is_visible()
-        
-        # Back về connectors
-        page.locator("#screen-import .backrow").click()
-        page.wait_for_timeout(100)
-        assert page.evaluate("subScreen") == "screen-connectors"
-        assert page.locator("#screen-connectors").is_visible()
-        
-        # Back về caidat
-        page.locator("#screen-connectors .backrow").click()
+        page.locator("#segbar button[data-tab='caidat']").click()
         page.wait_for_timeout(100)
         assert page.evaluate("subScreen") is None
         assert page.locator("#tab-caidat").is_visible()

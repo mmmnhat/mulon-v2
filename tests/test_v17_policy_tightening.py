@@ -127,27 +127,21 @@ def test_miniapp_html_policy_and_vault_structure():
     """Kiểm tra cấu trúc DOM HTML của màn Quyền, Chi tiết connector, và Chi tiết Vault."""
     html = INDEX_HTML_PATH.read_text(encoding="utf-8")
 
-    # 1. Màn Quyền chung
+    # 1. Màn Quyền chung (Mục 13: Đã bỏ màn "Tất cả công cụ", chỉ còn thẻ tổng quan + connectors)
     assert 'id="screen-policy"' in html
     assert 'id="policy-summary-card"' in html
     assert 'id="policy-overview-text"' in html
     assert 'id="policy-global-default-row"' in html
-    assert 'data-open="screen-all-tools-policy"' in html
+    assert 'id="screen-all-tools-policy"' not in html
     assert 'id="policy-tools"' not in html
 
-    # 2. Màn con Tất cả công cụ
-    assert 'id="screen-all-tools-policy"' in html
-    assert 'id="all-tools-search"' in html
-    assert 'id="all-tools-chips"' in html
-    assert 'id="all-tools-list"' in html
-
-    # 3. Màn chi tiết connector
+    # 2. Màn chi tiết connector
     assert 'id="screen-connector-policy"' in html
     assert 'id="conn-pol-status-card"' in html
     assert 'id="conn-pol-read-card"' in html
     assert 'id="conn-pol-write-card"' in html
 
-    # 4. Màn chi tiết Vault
+    # 3. Màn chi tiết Vault
     assert 'id="screen-vault-detail"' in html
     assert 'id="vault-detail-title"' in html
     assert 'id="vd-label"' in html
@@ -300,20 +294,7 @@ async def test_playwright_t23_6_policy_vault_interaction(env_t23_6):
         global_def_val = await page.inner_text("#policy-global-default-val")
         assert len(global_def_val) > 0
 
-        # 2. Mở màn con Tất cả công cụ từ màn Quyền
-        await page.click('[data-open="screen-all-tools-policy"]')
-        await page.wait_for_selector('#screen-all-tools-policy:not(.hidden)')
-        # Kiểm tra thanh tìm kiếm và danh sách tools
-        await page.fill('#all-tools-search', 'command')
-        filtered_tools = await page.inner_text('#all-tools-list')
-        assert "run_command" in filtered_tools
-        if ARTIFACT_DIR.exists():
-            await page.screenshot(path=str(ARTIFACT_DIR / "t23_6_screen_all_tools.png"), full_page=True)
-        # Bấm quay lại màn Quyền
-        await page.click('#all-tools-back')
-        await page.wait_for_selector('#screen-policy:not(.hidden)')
-
-        # 3. Bấm vào 1 connector trong màn Quyền để mở màn chi tiết connector
+        # 2. Bấm vào 1 connector trong màn Quyền để mở màn chi tiết connector (Mục 13: Bỏ màn con Tất cả công cụ)
         await page.wait_for_selector('#policy-connectors [data-open-conn-pol]')
         await page.click('#policy-connectors [data-open-conn-pol]:first-child')
         await page.wait_for_selector('#screen-connector-policy:not(.hidden)')

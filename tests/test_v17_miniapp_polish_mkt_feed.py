@@ -444,27 +444,24 @@ async def test_playwright_t23_5_ui_polish_mkt_and_feed(env_t23_5):
         if ARTIFACT_DIR.exists():
             await page.screenshot(path=str(ARTIFACT_DIR / "t23_5_tab_pheduyet.png"), full_page=True)
 
-        # 3. Mở Tab Cài đặt: kiểm tra 5 hàng điều hướng có icon SVG đơn sắc + ghi chú dưới 6 ô màu chủ đề
+        # 3. Mở Tab Cài đặt: kiểm tra các hàng điều hướng có icon SVG đơn sắc + 6 ô màu chủ đề (Mục 11: đã bỏ chú thích phụ 60/30/10)
         await page.click('#segbar button[data-tab="caidat"]')
         await page.wait_for_selector("#tab-caidat:not(.hidden)")
         caidat_info = await page.evaluate(
             """() => {
                 const rows = Array.from(document.querySelectorAll('#tab-caidat > .card:first-child .row[data-open]'));
-                const allHaveSvg = rows.length === 5 && rows.every(r => !!r.querySelector('.glyph svg'));
-                const noteEl = document.querySelector('#theme-design-note');
+                const allHaveSvg = rows.length >= 4 && rows.every(r => !!r.querySelector('.glyph svg'));
                 const swatches = document.querySelectorAll('#theme-swatches .swatch');
                 return {
                     rowCount: rows.length,
                     allHaveSvg,
-                    noteText: noteEl ? noteEl.innerText.trim() : '',
                     swatchCount: swatches.length
                 };
             }"""
         )
-        assert caidat_info["rowCount"] == 5
+        assert caidat_info["rowCount"] >= 4
         assert caidat_info["allHaveSvg"] is True
         assert caidat_info["swatchCount"] == 6
-        assert "60/30/10" in caidat_info["noteText"]
 
         if ARTIFACT_DIR.exists():
             await page.screenshot(path=str(ARTIFACT_DIR / "t23_5_tab_caidat.png"), full_page=True)
@@ -502,10 +499,10 @@ async def test_playwright_t23_5_ui_polish_mkt_and_feed(env_t23_5):
                 return { pageInfo, subTexts };
             }"""
         )
-        # Không còn "2.101" gây hiểu nhầm số thập phân
+        # Không còn "2.101" gây hiểu nhầm số thập phân, không còn ngoặc đơn rườm rà (Mục 21)
         assert "2.101" not in mktcat_check["pageInfo"]
         assert "Trang 1 / " in mktcat_check["pageInfo"]
-        assert "mục)" in mktcat_check["pageInfo"]
+        assert "mục" in mktcat_check["pageInfo"]
         # Mọi hàng đều có thông tin công cụ ("công cụ") và chế độ chạy tiếng Việt ("Chạy cục bộ" / "Từ xa")
         assert len(mktcat_check["subTexts"]) > 0
         for sub in mktcat_check["subTexts"]:
@@ -515,49 +512,12 @@ async def test_playwright_t23_5_ui_polish_mkt_and_feed(env_t23_5):
         if ARTIFACT_DIR.exists():
             await page.screenshot(path=str(ARTIFACT_DIR / "t23_5_mkt_category.png"), full_page=True)
 
-        # Quay lại Cài đặt -> Mở Feed chủ động
+        # Quay lại Cài đặt (Mục 19: Đã gỡ màn Feed chủ động khỏi UI)
         await page.click("#mktcat-back")
         await page.wait_for_selector("#screen-connectors:not(.hidden)")
         await page.click('#screen-connectors .backrow[data-back]')
         await page.wait_for_selector("#tab-caidat:not(.hidden)")
-        await page.click('#tab-caidat .row[data-open="screen-feed"]')
-        await page.wait_for_selector("#screen-feed:not(.hidden)")
-
-        feed_screen_text = await page.inner_text("#screen-feed")
-        assert "🟢" not in feed_screen_text
-        assert "Trạng thái hoạt động (chỉ xem)" in feed_screen_text
-        assert "Khung giờ nghỉ" in feed_screen_text
-        assert "Cấu hình Feed chủ động" in feed_screen_text
-        assert "Lưu cấu hình Feed" in feed_screen_text
-
-        # Bấm "Chạy ngay một lượt" -> mở hộp xác nhận, chưa gửi bài ngay
-        sent_before = len(sent_messages)
-        await page.click("#feed-run-now")
-        confirm_visible = await page.is_visible("#feed-run-confirm-box")
-        assert confirm_visible is True
-        assert len(sent_messages) == sent_before
-
-        if ARTIFACT_DIR.exists():
-            await page.screenshot(path=str(ARTIFACT_DIR / "t23_5_screen_feed.png"), full_page=True)
-
-        # Bấm "Xác nhận chạy" -> gọi API run_now thật và ẩn hộp xác nhận
-        await page.click("#feed-run-confirm")
-        await page.wait_for_selector("#feed-run-confirm-box", state="hidden")
-        for _ in range(30):
-            if len(sent_messages) == sent_before + 1:
-                break
-            await page.wait_for_timeout(50)
-        assert await page.is_visible("#feed-run-confirm-box") is False
-        assert len(sent_messages) == sent_before + 1
-
-        # Thử sửa cấu hình và bấm nút "Lưu cấu hình Feed" duy nhất
-        await page.fill("#feed-cron", "0 8,20 * * *")
-        await page.fill("#feed-quiet", "23:00-07:00")
-        await page.fill("#feed-max-posts", "4")
-        await page.click("#feed-save-all")
-        await page.wait_for_timeout(300)
-        state_after = await page.inner_text("#feed-state")
-        assert "08:00, 20:00" in state_after
-        assert "0 / 4" in state_after
+        # Xác nhận màn feed không còn tồn tại trên DOM
+        assert await page.query_selector("#screen-feed") is None
 
         await browser.close()

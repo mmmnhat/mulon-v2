@@ -147,3 +147,130 @@ def test_t41_slice2_task_row_density_and_styles():
     # 5. Badge nguồn monogram trung tính, ẩn badge-name
     assert ".stream-platform-badge .badge-name{display:none}" in content, "Ẩn badge-name cồng kềnh"
 
+
+def test_t41_slice3_dom_structure():
+    """Kiểm tra cấu trúc DOM theo Lát cắt 3 (Mục 6, 7, 8, 9, 10, 11, 13, 19, 20)."""
+    content = WEBAPP_INDEX.read_text(encoding="utf-8")
+
+    # 1. Tab Lịch: Heartbeat trên cùng, không có schedule-banner (Mục 6, 7)
+    assert 'id="schedule-banner"' not in content, "Phải gỡ bỏ schedule-banner rườm rà"
+    assert 'id="card-heartbeat-item"' in content, "Heartbeat card phải nằm trên cùng tab Lịch"
+
+    # 2. Màn Cài đặt: Có screen-api-settings, không còn screen-feed, screen-brand, screen-all-tools-policy (Mục 13, 19, 20)
+    assert 'id="screen-api-settings"' in content, "Phải có màn Thiết lập API gộp"
+    assert 'id="screen-feed"' not in content, "Màn Feed chủ động phải bị loại bỏ"
+    assert 'id="screen-all-tools-policy"' not in content, "Màn Tất cả công cụ phải bị loại bỏ"
+    assert 'data-open="screen-api-settings"' in content, "Row mở màn Thiết lập API phải có trong Cài đặt"
+
+    # 4. Bỏ văn bản giải thích phụ, sub-text rườm rà dưới các thẻ (Mục 11)
+    assert 'id="theme-design-note"' not in content, "Ghi chú 60/30/10 phải bị loại bỏ"
+
+
+@pytest.mark.asyncio
+async def test_t41_slice3_api_settings_endpoint(tmp_path):
+    """Kiểm tra API POST /api/model hỗ trợ tier='all' gộp cập nhật Model + Proxy + API Key (Mục 20)."""
+    from dataclasses import replace
+    from unittest.mock import AsyncMock
+    from aiohttp.test_utils import make_mocked_request
+    from mulon.config import Config
+    from mulon.vault import VaultStore
+    from mulon.context import Dossier
+    from mulon.policy import PolicyEngine
+    from mulon.tools import build_default_registry
+    from mulon.connectors import build_default_connectors
+    from tests.test_v12_webapp_auth import OWNER, TOKEN, make_init_data
+    from tests.conftest import open_memory
+
+    cfg = Config.load()
+    vault_file = tmp_path / "test_vault.json"
+    cfg = replace(
+        cfg,
+        telegram_bot_token=TOKEN,
+        allowed_user_id=OWNER,
+        webapp_port=0,
+        vault_path=vault_file,
+    )
+    memory = await open_memory(cfg)
+    vault_store = VaultStore(cfg.vault_path)
+    policy = PolicyEngine(cfg.policy_path, memory=memory)
+    dossier = Dossier.load(cfg.dossier_dir)
+    registry = build_default_registry(cfg, memory, dossier=dossier)
+    connectors = build_default_connectors(cfg)
+
+    server = WebAppServer(
+        cfg,
+        memory=memory,
+        policy=policy,
+        broker=None,
+        connectors=connectors,
+        mcp_manager=None,
+        vault_store=vault_store,
+        registry=registry,
+        dossier=dossier,
+    )
+
+    # Gửi request POST /api/model với tier="all"
+    payload = {
+        "tier": "all",
+        "brain": "claude-3-7-sonnet",
+        "cheap": "gemini-2.0-flash",
+        "escalated": "o3-mini",
+        "proxy_base_url": "http://127.0.0.1:8317/v1",
+        "api_key": "sk-secret-new-token",
+    }
+    req = make_mocked_request(
+        "POST",
+        "/api/model",
+        headers={"X-Telegram-Init-Data": make_init_data()},
+    )
+    req.json = AsyncMock(return_value=payload)
+
+    resp = await server._handle_model_post(req)
+    assert resp.status == 200
+    res_data = json.loads(resp.text)
+    assert res_data.get("ok") is True
+    assert res_data.get("brain") == "claude-3-7-sonnet"
+    assert res_data.get("cheap") == "gemini-2.0-flash"
+    assert res_data.get("escalated") == "o3-mini"
+    assert res_data.get("proxy_base_url") == "http://127.0.0.1:8317/v1"
+
+    # Kiểm tra secret đã được lưu vào Vault an toàn
+    assert vault_store.resolve("llm:api_key") == "sk-secret-new-token"
+    await memory.close()
+
+
+def test_t41_slice3_renders_verification():
+    """Kiểm chứng 3 file render thật của Muse với đo đạc mean RGB và SHA256 (Mục Chưa đạt 3)."""
+    import hashlib
+    from PIL import Image
+    import numpy as np
+
+    renders_dir = Path(__file__).resolve().parent.parent / "docs" / "audits" / "renders"
+    p_light = renders_dir / "01_dashboard_light.png"
+    p_dark = renders_dir / "02_dashboard_dark.png"
+    p_tasks = renders_dir / "04_tasks_dark.png"
+
+    assert p_light.is_file(), f"{p_light} phải tồn tại"
+    assert p_dark.is_file(), f"{p_dark} phải tồn tại"
+    assert p_tasks.is_file(), f"{p_tasks} phải tồn tại"
+
+    hashes = {}
+    means = {}
+    for p in (p_light, p_dark, p_tasks):
+        data = p.read_bytes()
+        hashes[p.name] = hashlib.sha256(data).hexdigest()
+        im = Image.open(p).convert("RGB")
+        arr = np.array(im)
+        means[p.name] = float(np.mean(arr))
+
+    # SHA256 khác nhau đôi một
+    assert len(set(hashes.values())) == 3, "3 ảnh chụp render phải có SHA256 phân biệt rõ ràng"
+
+    # Mean RGB Light phải sáng (> 200)
+    assert means["01_dashboard_light.png"] > 200.0, f"Light theme phải có mean RGB sáng (> 200), thực tế là {means['01_dashboard_light.png']}"
+
+    # Mean RGB Dark phải tối (< 80)
+    assert means["02_dashboard_dark.png"] < 80.0, f"Dark theme phải có mean RGB tối (< 80), thực tế là {means['02_dashboard_dark.png']}"
+    assert means["04_tasks_dark.png"] < 80.0, f"Dark tasks phải có mean RGB tối (< 80), thực tế là {means['04_tasks_dark.png']}"
+
+

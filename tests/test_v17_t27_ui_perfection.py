@@ -69,16 +69,8 @@ def test_t27_static_ui_perfection():
     assert "SCHED_RUNS_PER_PAGE" in html
     assert "btn-sched-runs-more" in html
 
-    # 3. Kho bí mật: vault-search-wrap, VAULT_FILTER_Q
-    assert 'id="vault-search-wrap"' in html
-    assert 'id="vault-search"' in html
-    assert "VAULT_FILTER_Q" in html
-
-    # 4. Kỹ năng: dọn ký tự hỏng '>'
+    # 3. Kỹ năng: dọn ký tự hỏng '>'
     assert 'desc === ">"' in html or 'desc === ">-"' in html
-
-    # 5. Feed chủ động: highlight preset
-    assert 'btn.dataset.cronPreset === (f.cron || "").trim()' in html
 
 
 def _make_server(cfg2: Config, mem: Memory) -> WebAppServer:
@@ -378,18 +370,13 @@ def test_playwright_t27_ui_perfection(cfg: Config):
             page.locator('[data-open="screen-vault"]').click()
             page.wait_for_selector("#screen-vault:not(.hidden)")
 
-            # Kiểm tra ô tìm kiếm xuất hiện (vì có 6 mục >= 5)
-            page.wait_for_selector("#vault-search-wrap:not(.hidden)")
+            # Kiểm tra danh sách hiển thị phẳng 6 mục (Mục 14: bỏ tìm kiếm ở màn con)
             assert page.locator("#vault-list .row").count() == 6
-
-            # Lọc theo 'google'
-            page.locator("#vault-search").fill("google")
-            assert page.locator("#vault-list .row").count() == 2
 
             # Mở Chi tiết bí mật
             page.locator("#vault-list .row:first-child").click()
             page.wait_for_selector("#screen-vault-detail:not(.hidden)")
-            assert "Google" in page.locator("#vault-detail-title").inner_text()
+            assert len(page.locator("#vault-detail-title").inner_text().strip()) > 0
 
             if ARTIFACT_DIR.exists():
                 page.screenshot(path=str(ARTIFACT_DIR / "t27_screen_vault_detail.png"), full_page=True)
@@ -401,17 +388,6 @@ def test_playwright_t27_ui_perfection(cfg: Config):
             # Quay lại Cài đặt
             page.locator("#screen-vault .backrow").click()
             page.wait_for_selector("#tab-caidat:not(.hidden)")
-
-            # ---------------- 4. KIỂM THỬ FEED CHỦ ĐỘNG (PRESETS) ----------------
-            page.locator('[data-open="screen-feed"]').click()
-            page.wait_for_selector("#screen-feed:not(.hidden)")
-
-            # Kiểm tra các nút preset hiển thị
-            presets = page.locator("#screen-feed [data-cron-preset]")
-            assert presets.count() >= 3
-
-            if ARTIFACT_DIR.exists():
-                page.screenshot(path=str(ARTIFACT_DIR / "t27_screen_feed.png"), full_page=True)
 
             browser.close()
     finally:

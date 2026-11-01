@@ -381,10 +381,10 @@ def test_profile_four_subscreens_playwright():
         page.wait_for_timeout(150)
         assert page.locator("#screen-profile").is_visible()
         assert "Mulon" in page.locator("#profile-content").inner_text()
-        page.locator("#screen-profile .backrow").click()
+        page.evaluate("handleNativeBack()")
         page.wait_for_timeout(100)
         assert page.locator("#screen-sub-dossier").is_visible()
-        page.locator("#screen-sub-dossier .backrow").click()
+        page.locator("#segbar button[data-tab='hoso']").click()
         page.wait_for_timeout(100)
         assert page.locator("#tab-hoso").is_visible()
 
@@ -400,22 +400,16 @@ def test_profile_four_subscreens_playwright():
         page.wait_for_timeout(150)
         assert page.locator("#screen-fact-detail").is_visible()
         assert "60/30/10" in page.locator("#fact-detail-text").inner_text()
-        page.locator("#screen-fact-detail .backrow").click()
+        page.evaluate("handleNativeBack()")
         page.wait_for_timeout(100)
-        page.locator("#screen-sub-memory .backrow").click()
+        page.locator("#segbar button[data-tab='hoso']").click()
         page.wait_for_timeout(100)
 
-        # 3. Màn con Kỹ năng -> nhóm gập mặc định -> gõ tìm kiếm tự bung & cập nhật x / tổng -> đọc kỹ năng không lộ frontmatter
+        # 3. Màn con Kỹ năng -> nhóm gập mặc định -> đọc kỹ năng không lộ frontmatter
         page.locator("#card-skills").click()
         page.wait_for_timeout(150)
         assert page.locator("#screen-sub-skills").is_visible()
         assert page.locator("#skills-box .acc-group.open").count() == 0
-        page.locator("#skills-search").fill("video")
-        page.wait_for_timeout(100)
-        assert page.locator("#skills-card-title").inner_text() == "Kỹ năng (1 / 2)"
-        assert page.locator("#skills-box .acc-group.open").count() == 1
-        page.locator("#skills-search").fill("")
-        page.wait_for_timeout(100)
         page.locator("#skills-box .acc-head").first.click()
         page.wait_for_timeout(100)
         page.locator("#skills-box .row[data-skill='brainstorming']").click()
@@ -425,9 +419,7 @@ def test_profile_four_subscreens_playwright():
         assert "description:" not in skill_text
         assert "Nội dung hướng dẫn chi tiết" in skill_text
         assert "/Users/admin" not in page.locator("#skill-source").inner_text()
-        page.locator("#screen-skill .backrow").click()
-        page.wait_for_timeout(100)
-        page.locator("#screen-sub-skills .backrow").click()
+        page.locator("#segbar button[data-tab='hoso']").click()
         page.wait_for_timeout(100)
 
         # 4. Màn con Thư viện tài liệu -> 1 nút ⋯ mỗi hàng -> bấm hàng mở Xem trước -> bấm Thùng rác mở màn riêng
@@ -446,7 +438,9 @@ def test_profile_four_subscreens_playwright():
         page.wait_for_timeout(150)
         assert page.locator("#screen-library-preview").is_visible()
         assert "Hệ thống gồm 2 làn độc lập" in page.locator("#lib-preview-body").inner_text()
-        page.locator("#screen-library-preview .backrow").click()
+        page.locator("#segbar button[data-tab='hoso']").click()
+        page.wait_for_timeout(100)
+        page.locator("#card-library").click()
         page.wait_for_timeout(100)
         # Bấm nút Thùng rác mở màn riêng
         page.locator("#lib-trash-view").click()

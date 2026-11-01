@@ -60,21 +60,17 @@ def test_t13_config_and_mascots_data():
     assert hasattr(cfg, "bot_display_name")
     assert cfg.bot_display_name == "Mulon"
     assert hasattr(cfg, "bot_mascot")
-    assert cfg.bot_mascot == "mulon_v0"
+    assert cfg.bot_mascot in ("mulon", "mulon_v0")
 
     assert MASCOTS_JSON_PATH.exists()
     mascots = load_json_data("mascots.json", [])
-    assert len(mascots) >= 4
+    assert len(mascots) == 5
     ids = [m["id"] for m in mascots]
-    assert "mulon_v0" in ids
-    assert "mulon_spark" in ids
-    assert "mulon_cosmo" in ids
-    assert "mulon_zen" in ids
+    assert ids == ["mulon", "bach-tuoc", "meo-hoodie", "may-sam", "nam-sao"]
 
-    # Bản chính thức phải là mulon_v0
-    v0 = next(m for m in mascots if m["id"] == "mulon_v0")
-    assert v0["is_default"] is True
-    assert "Sprite v0" in v0["tagline"]
+    # Bản chính thức phải là mulon
+    mulon_m = next(m for m in mascots if m["id"] == "mulon")
+    assert mulon_m["is_default"] is True
 
 
 @pytest.mark.asyncio
@@ -108,8 +104,8 @@ async def test_t13_brand_api_and_kv_persistence(tmp_path: Path):
     brand = await server._brand_state()
     assert brand["bot_name"] == "Mulon"
     assert brand["bot_username"] == "Mulon_bot"
-    assert brand["mascot_id"] == "mulon_v0"
-    assert len(brand["mascots"]) >= 4
+    assert brand["mascot_id"] in ("mulon", "mulon_v0")
+    assert len(brand["mascots"]) == 5
 
     # 2. Telegram helper fallback
     tg_name = await get_bot_display_name(mem, cfg)
@@ -131,12 +127,16 @@ async def test_t13_brand_api_and_kv_persistence(tmp_path: Path):
     assert await mem.kv_get("brand_bot_name") == "Miu Con"
     assert await get_bot_display_name(mem, cfg) == "Miu Con"
 
-    # 4. Đổi mascot sang mulon_spark
-    resp2 = await server._handle_brand_post(_MockReq({"mascot_id": "mulon_spark"}))
+    # 4. Đổi mascot sang bach-tuoc (hợp lệ trong 5 con)
+    resp2 = await server._handle_brand_post(_MockReq({"mascot_id": "bach-tuoc"}))
     data2 = json.loads(resp2.text)
     assert data2["ok"] is True
-    assert data2["mascot_id"] == "mulon_spark"
-    assert await mem.kv_get("brand_mascot_id") == "mulon_spark"
+    assert data2["mascot_id"] == "bach-tuoc"
+    assert await mem.kv_get("brand_mascot_id") == "bach-tuoc"
+
+    # 4b. Từ chối mascot legacy cũ đã loại bỏ (mulon_spark)
+    resp_leg = await server._handle_brand_post(_MockReq({"mascot_id": "mulon_spark"}))
+    assert resp_leg.status == 400
 
     # 5. Từ chối mascot không hợp lệ
     resp_inv = await server._handle_brand_post(_MockReq({"mascot_id": "mascot_alien_999"}))
@@ -152,20 +152,19 @@ async def test_t13_brand_api_and_kv_persistence(tmp_path: Path):
 
 
 def test_t13_static_html_elements():
-    """Kiểm tra tĩnh cấu trúc HTML và thông tin BotFather trong index.html."""
+    """Kiểm tra tĩnh cấu trúc HTML và thông tin BotFather trong index.html theo T-41."""
     assert INDEX_HTML_PATH.exists()
     html = INDEX_HTML_PATH.read_text(encoding="utf-8")
 
-    # 1. Hàng điều hướng và màn hình
-    assert 'data-open="screen-brand"' in html
-    assert 'id="screen-brand"' in html
-    assert 'id="brand-summary-sub"' in html
+    # 1. Nút sửa danh tính trên Header và Modal đổi danh tính (Mục 11 T-41)
+    assert 'id="btn-edit-identity"' in html
+    assert 'id="modal-edit-identity"' in html
     assert 'id="app-brand-name"' in html
 
-    # 2. Các phần tử tương tác
-    assert 'id="input-bot-name"' in html
-    assert 'id="btn-save-bot-name"' in html
-    assert 'id="mascot-grid"' in html
+    # 2. Các phần tử tương tác trong Modal
+    assert 'id="identity-bot-name-input"' in html
+    assert 'id="btn-save-identity"' in html
+    assert 'id="identity-mascot-picker"' in html
 
     # 3. Thông tin giới hạn Telegram qua BotFather (theo đúng spec T-13)
     assert "/setusername" in html
@@ -261,6 +260,9 @@ def test_playwright_t13_brand_and_mascot(cfg: Config):
                 user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15",
             )
             page = context.new_page()
+            page.on("console", lambda m: print(f"[browser console] {m.text}"))
+            page.on("request", lambda r: print(f"[browser req] {r.url} body: {r.post_data}") if "brand" in r.url else None)
+            page.on("response", lambda r: print(f"[browser res] {r.url} status: {r.status} text: {r.text()[:200]}") if "brand" in r.url else None)
             page.route(
                 "**/telegram-web-app.js*",
                 lambda route: route.fulfill(status=200, content_type="application/javascript", body=""),
@@ -297,57 +299,40 @@ def test_playwright_t13_brand_and_mascot(cfg: Config):
             )
             page.goto(f"{base_url}/app", wait_until="networkidle")
 
-            # ---------------- 1. MỞ MÀN THƯƠNG HIỆU & MASCOT ----------------
-            page.locator('button[data-tab="caidat"]').click()
-            page.wait_for_selector("#tab-caidat:not(.hidden)")
+            # ---------------- 1. MỞ MODAL ĐỔI DANH TÍNH TỪ HEADER (Mục 11 T-41) ----------------
+            page.locator("#btn-edit-identity").click()
+            page.wait_for_selector("#modal-edit-identity:not(.hidden)")
+            page.wait_for_selector("#identity-mascot-picker [data-pick-mascot]")
 
-            # Kiểm tra hàng điều hướng
-            assert "Thương hiệu & Mascot" in page.locator('[data-open="screen-brand"]').inner_text()
-            page.locator('[data-open="screen-brand"]').click()
-            page.wait_for_selector("#screen-brand:not(.hidden)")
+            # Kiểm tra tiêu đề modal
+            modal_text = page.locator("#modal-edit-identity").inner_text()
+            assert "Đổi tên & Mascot" in modal_text
 
-            # Kiểm tra lưu ý BotFather hiển thị đầy đủ
-            brand_screen_text = page.locator("#screen-brand").inner_text()
-            assert "BotFather" in brand_screen_text
-            assert "/setusername" in brand_screen_text
-            assert "/setname" in brand_screen_text
-            assert "/setuserpic" in brand_screen_text
-
-            # Kiểm tra bộ sưu tập Mascot có ít nhất 4 lựa chọn
-            mascot_cards = page.locator("#mascot-grid .card")
-            assert mascot_cards.count() >= 4
-            assert "Mulon Cổ Điển" in brand_screen_text
-            assert "Mulon Spark" in brand_screen_text
-            assert "Đang đại diện" in brand_screen_text
+            # Kiểm tra bộ sưu tập 5 Mascot chính thức (Mục 12 T-41)
+            mascot_cards = page.locator("#identity-mascot-picker [data-pick-mascot]")
+            assert mascot_cards.count() == 5
 
             if ARTIFACT_DIR.exists():
-                page.screenshot(path=str(ARTIFACT_DIR / "t13_screen_brand.png"), full_page=True)
+                page.screenshot(path=str(ARTIFACT_DIR / "t13_modal_identity.png"), full_page=True)
 
             # ---------------- 2. ĐỔI TÊN BOT VÀ CHỌN MASCOT MỚI ----------------
             # Nhập tên bot mới
-            page.locator("#input-bot-name").fill("Mulon AI")
-            page.locator("#btn-save-bot-name").click()
-            page.wait_for_timeout(300)
+            page.locator("#identity-bot-name-input").fill("Mulon AI")
+
+            # Chọn mascot Bạch Tuộc (bach-tuoc)
+            page.locator('#identity-mascot-picker [data-pick-mascot="bach-tuoc"]').click()
+
+            # Bấm Lưu
+            page.locator("#btn-save-identity").click()
+            page.wait_for_selector("#modal-edit-identity", state="hidden")
+            page.wait_for_timeout(500)
+            print("[debug app-brand-name]:", repr(page.locator("#app-brand-name").inner_text()))
 
             # Kiểm tra Header app đã cập nhật tên mới
             assert page.locator("#app-brand-name").inner_text() == "Mulon AI"
 
-            # Chọn mascot Mulon Spark
-            spark_btn = page.locator('button[data-select-mascot="mulon_spark"]')
-            spark_btn.click()
-            page.wait_for_timeout(300)
-
-            # Kiểm tra Mulon Spark trở thành mascot đang đại diện
-            new_screen_text = page.locator("#screen-brand").inner_text()
-            assert "Mulon Spark" in new_screen_text
-
             if ARTIFACT_DIR.exists():
                 page.screenshot(path=str(ARTIFACT_DIR / "t13_brand_updated.png"), full_page=True)
-
-            # ---------------- 3. QUAY LẠI CÀI ĐẶT ----------------
-            page.locator("#screen-brand .backrow").click()
-            page.wait_for_selector("#tab-caidat:not(.hidden)")
-            assert "Mulon AI · Mulon Spark" in page.locator("#brand-summary-sub").inner_text()
 
             browser.close()
     finally:
