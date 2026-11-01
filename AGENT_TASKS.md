@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-11-01 ~22:45 bởi Antigravity (ký: Antigravity): **Bắt đầu nhận việc và claim `DOING` [T-41] Muse-parity vòng 2 — Lát cắt 1 (Hero + điều hướng + icon nét + luật toàn cục bỏ sub-text/search/chip/backrow)**. Phân vai The Agency: Chủ trì `agency-ui-designer` + `agency-frontend-developer`, cổng chốt `agency-ui-finish-gate-reviewer`, tự kiểm trước DONE `agency-reality-checker`. Ky: Antigravity
+
 Cập nhật 2026-11-01 ~22:41 bởi Muse (theo lệnh trực tiếp của chủ dự án "kéo bộ asset 5 mascot qua", ký: Muse): **Đã đưa bộ asset 5 mascot chính thức vào repo** tại `mulon/webapp/assets/mascots/<id>/` (mỗi con: `atlas-anim.webp` + `manifest-anim.json` + `avatar.webp`; tổng ~17MB) phục vụ mục 12 của [T-41]. Bản master PNG đầy đủ (247MB) chủ dự án giữ ngoài repo; bản repo là bản tối ưu web từ đúng master đó. Chi tiết ở ghi chú trong mục [T-41]. Ky: Muse
 
 Cập nhật 2026-11-01 ~22:34 bởi Muse (ghi theo chỉ đạo trực tiếp của chủ dự án, ký: Muse): **Ghi Đợt 3 (12 mục, toàn cục + Hồ sơ + Cài đặt + Model/Proxy) vào danh sách sửa trong [T-41]** — gồm các luật toàn cục mới: bỏ toàn bộ sub-text, bỏ mọi search bar + chip lọc, bỏ thanh quay lại ở màn con, bỏ mọi văn bản trong ngoặc; bỏ mục Cá nhân hoá + màn Tất cả công cụ + màn Feed chủ động; thêm icon sửa cạnh tên mở modal đổi mascot (đúng 5 con chủ dự án đã chốt) + đổi tên; Model dùng 1 dropdown cấu hình 1 model dùng chung 3 tier, gộp màn Model với màn Proxy, màn Proxy đổi thành Thiết lập API nhập endpoint + key trực tiếp. Đồng thời **mở [T-43] chế độ quyền theo nấc** theo câu hỏi của chủ dự án ("MuLon chưa có mode quyền từng nấc như mấy con agent nhỉ?"). Ky: Muse
@@ -458,7 +460,7 @@ này không ghi đè gì) + commit verdict này.
 - Phạm vi: (1) design note ngắn trình Muse duyệt trước khi code: bảng nấc + hành vi từng nấc + cách mode tổng tương tác với policy theo connector/hành động hiện có (mode là trần trên, policy riêng chỉ được chặt hơn, không nới hơn mode — đề xuất, Muse chốt khi duyệt); (2) backend: mode lưu qua cơ chế config/policy hiện hữu (Rule 0, không hardcode danh sách nấc trong `.py` — để ở config), đổi mode áp dụng ngay; (3) UI: chọn mode ngay trong màn Quyền (dạng danh sách chọn một, đúng kỷ luật thị giác của [T-41]: không sub-text, không chip lọc); (4) thẻ duyệt trong chat + Mini App phải thể hiện mode đang hiệu lực khi quyết định tự chạy hay hỏi.
 - Ràng buộc: không nới lỏng luật bảo mật `AGENTS.md` §5 (denylist file nhạy cảm, secret không vào log); mode cao nhất cũng không vượt qua denylist cứng. Suite xanh 100% + eval + render 2 theme trước DONE; nghiệm thu gồm kiểm chứng sống qua bot thật một hành vi đổi nấc (nấc thấp → bot hỏi; nấc cao → bot tự chạy đúng phạm vi).
 
-### [T-41] Muse-parity vòng 2: thu tỉ lệ + mật độ + kỷ luật thị giác về đúng chuẩn Muse — `TODO`
+### [T-41] Muse-parity vòng 2: thu tỉ lệ + mật độ + kỷ luật thị giác về đúng chuẩn Muse — `DOING` (Lát cắt 1)
 
 - Giao: Antigravity. Agent chủ trì: `agency-ui-designer` + `agency-frontend-developer`; cổng chốt: `agency-ui-finish-gate-reviewer`; tự kiểm trước DONE: `agency-reality-checker`.
 - Nguồn lệnh: chủ dự án, 2026-11-01 ~21:33 — "Giao diện chưa giống muse nhe" (chỉ đạo trực tiếp, thắng verdict T-40 ở khía cạnh cảm giác giống).
