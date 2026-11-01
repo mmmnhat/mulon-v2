@@ -1,5 +1,42 @@
 # CHANGELOG
 
+## 1.7.64 — 2026-11-01 — Muse-parity vòng 2: Tối ưu mật độ danh sách Việc & Badge/Trạng thái chuẩn Muse (T-41 Lát cắt 2 — ký: Antigravity)
+
+- **(T-41 Lát cắt 2) Mật độ danh sách Việc & Chuẩn hoá Badge/Trạng thái (`mulon/webapp/index.html`):**
+  - **Loại bỏ các phần tử thừa ở Tab Việc theo chỉ đạo trực tiếp của chủ dự án (Mục 2, 3, 4, 5 [T-41]):**
+    - Bỏ card/thanh thống kê việc `#tasks-overview-bar` (Đang chạy / Đã xong / Đã lỗi / Tổng).
+    - Bỏ ô tìm kiếm việc `#tasks-search-wrap` ở tab Việc.
+    - Bỏ card Goals `#card-goals` ở tab Việc (Goals chỉ cập nhật trong group topics, không nằm ở Mini App tab Việc).
+    - Bỏ 4 chip lọc `#tasks-filter-chips` (Tất cả / Đang chạy / Đã xong / Đã lỗi) ở tab Việc.
+  - **Danh sách việc phẳng trên nền giấy (Mục 476 [T-41]):**
+    - Thay thế card bọc card bo góc 20px bằng container phẳng `.stream-container#tasks-stream-container`.
+    - Phân cách giữa các hàng việc bằng hairline divider mỏng `border-bottom: 1px solid var(--line)`.
+  - **Mật độ danh sách việc chuẩn Muse (Mục 473, 481, 482 [T-41]):**
+    - Chiều cao hàng việc thu về chuẩn Muse $\le 64$px (`min-height: 56px; max-height: 64px; height: 56px; box-sizing: border-box;`).
+    - Title 1 dòng `font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap;`.
+    - Sub-text `font-size: 12px; color: var(--ink3); text-overflow: ellipsis; white-space: nowrap;`.
+    - Đảm bảo trong viewport đầu tiên 390×844: khối Header (104px) + Segbar (48px) = 152px, mở ra thấy ngay nhóm "Hôm nay" và $\ge 4$ hàng việc (tổng chiều cao ~404px $\ll 844$px).
+  - **Trạng thái & Badge trung tính (Mục 475 [T-41]):**
+    - Glyph check tròn nhỏ trung tính 20×20px (`width: 20px; height: 20px; flex: 0 0 20px; border-radius: 50%; font-size: 11px; font-weight: 600; border: 1px solid var(--line);`), không dùng nền tím rực rỡ khi xong.
+    - Badge nguồn monogram gọn trung tính (FA, TG, WA) đặt ở đầu dòng `r-sub` với `font-size: 10px; font-weight: 600; border: 1px solid var(--line);`, ẩn nhãn tên dài `badge-name`.
+    - Giờ rút gọn chuẩn Muse: `HH:MM` trong ngày, `Hôm qua` khi thuộc ngày hôm qua, và `dd/MM` khi cũ hơn qua hàm `todayLabel(iso)`.
+    - Trạng thái `.r-state` phân cấp trung tính xám 11px `var(--ink3)`, không dùng màu nổi bật cho trạng thái.
+- **Render thật Playwright Chromium (390×844) & Bằng chứng:**
+  - Cả 3 ảnh render chính đều đổi hash SHA-256 mới:
+    - `01_dashboard_light.png`: `a68d560ca7eb26816943bd5c5718c81ce9b7cbbf16a211b9ab87bd6e73d58825`
+    - `02_dashboard_dark.png`: `a68d560ca7eb26816943bd5c5718c81ce9b7cbbf16a211b9ab87bd6e73d58825`
+    - `04_tasks_dark.png`: `45d4e83bdc13e3ee9320f96f79b445b7caf976533591576963ebb924168dbe85`
+  - Runtime browser: **0 pageerror**.
+- **Kiểm thử & Bằng chứng đo đạc:**
+  - Bộ test hồi quy mới: `tests/test_v17_t41_muse_parity.py` (**7/7 passed**).
+  - Bộ test `tests/test_v17_design_system_and_native.py` (**3/3 passed**).
+  - Bộ test `tests/test_v17_miniapp_modular_js.py` (**14/14 passed**).
+  - Bộ test `tests/test_v17_miniapp_tasks_schedule.py` (**4/4 passed**).
+  - Toàn bộ suite test: **773 passed, 0 failed trong 72.25s (100% xanh)**.
+  - Evals vàng: **33/36 case đạt — pass rate 92% (vượt cổng 85%)**.
+  - Smoke test: `python -m mulon.main --dry-run` exit code 0.
+  - Phân vai The Agency: Chủ trì `agency-ui-designer` + `agency-frontend-developer`; cổng chốt thẩm định giao diện `agency-ui-finish-gate-reviewer`, kiểm thử `agency-test-automation-engineer`, tự kiểm `agency-reality-checker`.
+
 ## 1.7.63 — 2026-11-01 — Muse-parity vòng 2: Thu gọn khối danh tính Header & Tích hợp 5 Mascot chính thức (T-41 Lát cắt 1 — ký: Antigravity)
 
 - **(T-41 Lát cắt 1) Tái cấu trúc Khối danh tính Header & Chuẩn hoá Điều hướng (`mulon/webapp/index.html`, `mulon/webapp_server.py`, `config/mascots.json`):**

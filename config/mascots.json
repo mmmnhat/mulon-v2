@@ -1,12 +1,5 @@
 [
   {
-    "id": "mulon_v0",
-    "name": "Mulon Cổ Điển",
-    "tagline": "Sprite v0 — Trợ lý tím nguyên bản",
-    "avatar_kind": "sprite",
-    "is_default": true
-  },
-  {
     "id": "mulon",
     "name": "Mulon",
     "tagline": "Trợ lý tím nguyên bản",
@@ -39,27 +32,6 @@
     "name": "Nấm Sao",
     "tagline": "Thư thái bền bỉ",
     "avatar_kind": "mascot_asset",
-    "is_default": false
-  },
-  {
-    "id": "mulon_spark",
-    "name": "Mulon Spark",
-    "tagline": "Tia sáng thông tuệ",
-    "avatar_kind": "emoji",
-    "is_default": false
-  },
-  {
-    "id": "mulon_cosmo",
-    "name": "Mulon Cosmo",
-    "tagline": "Vũ trụ bao la",
-    "avatar_kind": "emoji",
-    "is_default": false
-  },
-  {
-    "id": "mulon_zen",
-    "name": "Mulon Zen",
-    "tagline": "Tĩnh lặng sâu lắng",
-    "avatar_kind": "emoji",
     "is_default": false
   }
 ]

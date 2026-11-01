@@ -178,7 +178,7 @@ trả hàng:
   tránh sub-text thừa, tránh phần tử/nút quá khổ. Tối đa 4 cỡ chữ /
   2 weight trên một màn. Lưới 8pt, vùng ngón cái (thumb zone) cho
   thao tác chính.
-- Mascot chính thức của Mulon là **bộ 5 linh vật đã tối ưu web** trong repo (`mulon/webapp/assets/mascots/`: `mulon`, `bach-tuoc`, `meo-hoodie`, `may-sam`, `nam-sao`) — không tự thay bằng asset ngoài.
+- Mascot và sprite động chính thức của Mulon là **bộ 5 linh vật đã tối ưu web** trong repo (`mulon/webapp/assets/mascots/`: `mulon`, `bach-tuoc`, `meo-hoodie`, `may-sam`, `nam-sao`), nạp động atlas + manifest theo `mascot_id` — không tự thay bằng asset ngoài.
 
 ## 7. Quy trình sửa code
 

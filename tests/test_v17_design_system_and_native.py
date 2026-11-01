@@ -91,10 +91,10 @@ def test_design_system_tokens_and_elements_static():
     assert ".ds-sheet-overlay" in html
     assert ".ds-sheet-panel" in html
 
-    # 3. Các elements trên giao diện Tab Việc
-    assert 'id="tasks-overview-bar"' in html
-    assert 'id="tasks-search-input"' in html
-    assert 'id="tasks-filter-chips"' in html
+    # 3. Các elements trên giao diện Tab Việc (thanh thống kê, tìm kiếm, chip lọc đã bỏ theo T-41 Lát cắt 2)
+    assert 'id="tasks-overview-bar"' not in html
+    assert 'id="tasks-search-input"' not in html
+    assert 'id="tasks-filter-chips"' not in html
     assert 'id="tasks-error-state"' in html
     assert 'id="tasks-load-more"' in html
     assert 'id="task-retry-actions"' in html
@@ -304,35 +304,14 @@ def test_playwright_t12_design_system_and_interactions(cfg: Config):
             page.goto(f"{base_url}/app", wait_until="networkidle")
             page.wait_for_selector("#task-list .row[data-task]")
 
-            # 1. Kiểm tra Tab Việc: Thanh tổng quan số liệu
-            page.wait_for_selector("#tasks-overview-bar")
-            assert page.locator("#tasks-stat-running").inner_text().strip() == "1"
-            assert page.locator("#tasks-stat-done").inner_text().strip() == "1"
-            assert page.locator("#tasks-stat-failed").inner_text().strip() == "1"
+            # 1. Kiểm tra Tab Việc: Danh sách phẳng trên nền giấy, nhóm ngày & mật độ Muse-parity
+            page.wait_for_selector("#task-list .row[data-task]")
+            task_rows = page.locator("#task-list .row[data-task]")
+            assert task_rows.count() >= 3
 
             # Chụp ảnh Tab Việc
             if ARTIFACT_DIR.exists():
                 page.screenshot(path=str(ARTIFACT_DIR / "t12_tab_viec_ds.png"), full_page=True)
-
-            # Lọc theo chip 'Đang chạy'
-            page.locator('#tasks-filter-chips [data-task-filter="running"]').click()
-            visible_running = page.locator("#task-list .row")
-            assert visible_running.count() == 1
-            assert "Thu thập tin tức AI" in visible_running.first.locator(".r-title").inner_text()
-
-            # Trở lại 'Tất cả'
-            page.locator('#tasks-filter-chips [data-task-filter="all"]').click()
-            assert page.locator("#task-list .row").count() == 3
-
-            # Tìm kiếm việc 'sao lưu'
-            page.locator("#tasks-search-input").fill("sao lưu")
-            assert page.locator("#task-list .row").count() == 1
-            assert "sao lưu" in page.locator("#task-list .row:first-child .r-title").inner_text().lower()
-
-            # Bấm nút xóa tìm kiếm
-            page.locator("#tasks-search-clear").click()
-            assert page.locator("#tasks-search-input").input_value() == ""
-            assert page.locator("#task-list .row").count() == 3
 
             # 2. Mở Chi tiết việc 'task-done-02' (L2)
             page.locator('[data-task="task-done-02"]').click()

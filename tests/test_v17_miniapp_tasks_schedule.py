@@ -372,11 +372,11 @@ def test_playwright_e2e_tasks_and_schedules(cfg: Config):
             page.goto(f"{base_url}/app", wait_until="networkidle")
             page.wait_for_selector("#task-list .row[data-task]")
 
-            # 1. Kiểm tra định dạng thời gian duy nhất DD/MM/YYYY HH:MM ở danh sách việc
+            # 1. Kiểm tra định dạng thời gian rút gọn Muse-parity (HH:MM trong ngày, hôm qua, hoặc dd/MM)
             times = page.locator("#task-list .r-time").all_inner_texts()
             assert len(times) == 3
             for tm in times:
-                assert "/" in tm and ":" in tm, f"Thời gian phải theo định dạng thống nhất DD/MM/YYYY HH:MM: {tm}"
+                assert ":" in tm or "/" in tm or tm == "Hôm qua", f"Thời gian phải theo định dạng Muse-parity: {tm}"
 
             # 2. Đối chiếu 3 việc giữa danh sách và chi tiết
             for tid, expected_state in [

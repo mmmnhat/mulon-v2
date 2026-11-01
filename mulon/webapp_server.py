@@ -2743,9 +2743,13 @@ class WebAppServer:
                     bot_name = stored_name.strip()
                 stored_mascot = await self.memory.kv_get("brand_mascot_id")
                 if stored_mascot and isinstance(stored_mascot, str):
+                    if stored_mascot == "mulon_v0":
+                        stored_mascot = "mulon"
                     valid_ids = {m.get("id") for m in mascots if isinstance(m, dict)}
                     if stored_mascot in valid_ids:
                         mascot_id = stored_mascot
+                    else:
+                        mascot_id = "mulon"
             except Exception:
                 pass
         return {
@@ -2776,6 +2780,8 @@ class WebAppServer:
 
         if "mascot_id" in body:
             mid = str(body["mascot_id"] or "").strip()
+            if mid == "mulon_v0":
+                mid = "mulon"
             if mid and mid not in valid_ids:
                 return web.json_response({"ok": False, "error": f"Mascot '{mid}' không hợp lệ."}, status=400)
             if mid and self.memory is not None:

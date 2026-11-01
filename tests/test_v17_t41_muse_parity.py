@@ -42,7 +42,11 @@ def test_t41_mascots_config_and_assets():
     data = json.loads(MASCOTS_JSON.read_text(encoding="utf-8"))
     ids = {m["id"] for m in data}
     expected_ids = {"mulon", "bach-tuoc", "meo-hoodie", "may-sam", "nam-sao"}
-    assert expected_ids.issubset(ids), f"Danh sách ID mascot phải chứa đủ 5 mascot chính thức: {expected_ids}"
+    assert ids == expected_ids, f"Danh sách ID mascot phải chính xác bằng đúng 5 mascot chính thức: {expected_ids}"
+
+    # Kiểm tra nút edit identity đạt chuẩn touch target >= 44px
+    content = WEBAPP_INDEX.read_text(encoding="utf-8")
+    assert 'min-width:44px' in content and 'min-height:44px' in content, "Nút edit identity phải đạt chuẩn touch target >= 44px"
 
     # Kiểm tra asset tồn tại trên đĩa
     mascot_dir = Path(__file__).resolve().parent.parent / "mulon" / "webapp" / "assets" / "mascots"
@@ -65,7 +69,6 @@ def test_t41_no_parentheses_in_major_titles():
     """Kiểm tra đã gỡ bỏ văn bản trong ngoặc đơn ở các tiêu đề chính (Mục 20)."""
     content = WEBAPP_INDEX.read_text(encoding="utf-8")
     assert "Mục tiêu &amp; Cây tiến triển (Goals)" not in content
-    assert "Mục tiêu &amp; Cây tiến triển<" in content
     assert "Sắp tới (Upcoming)" not in content
     assert "Sắp tới<" in content
     assert "Mỗi 30 phút (*/30 * * * *)" not in content
@@ -96,3 +99,51 @@ async def test_t41_mascot_asset_server_endpoint():
     req_hack = make_mocked_request("GET", "/app/assets/mascots/mulon/hack.txt", match_info={"id": "mulon", "filename": "hack.txt"})
     resp_hack = await WebAppServer._handle_mascot_asset(None, req_hack)
     assert resp_hack.status == 404
+
+
+def test_t41_slice2_task_list_elements_removed():
+    """Kiểm tra loại bỏ các phần tử thừa ở tab Việc (Mục 2, 3, 4, 5)."""
+    content = WEBAPP_INDEX.read_text(encoding="utf-8")
+
+    # 1. Bỏ thanh thống kê việc (Mục 2)
+    assert 'id="tasks-overview-bar"' not in content, "Thanh tổng quan việc phải bị loại bỏ khỏi HTML"
+
+    # 2. Bỏ ô tìm kiếm việc (Mục 3)
+    assert 'id="tasks-search-wrap"' not in content, "Thanh tìm kiếm việc phải bị loại bỏ khỏi HTML"
+    assert 'id="tasks-search-input"' not in content, "Input tìm kiếm việc phải bị loại bỏ khỏi HTML"
+
+    # 3. Bỏ 4 chip lọc ở tab Việc (Mục 5)
+    assert 'id="tasks-filter-chips"' not in content, "4 chip lọc phải bị loại bỏ khỏi HTML"
+
+    # 4. Bỏ card Goals ở tab Việc (Mục 4)
+    assert 'id="card-goals"' not in content, "Card Goals phải bị loại bỏ khỏi HTML tab Việc"
+
+    # 5. Có container stream phẳng trên nền giấy (Mục 476)
+    assert 'id="tasks-stream-container"' in content, "Container stream phẳng phải tồn tại"
+    assert 'id="task-list"' in content, "Khối task-list phải tồn tại"
+
+
+def test_t41_slice2_task_row_density_and_styles():
+    """Kiểm tra mật độ hàng việc <= 64px, title 1 dòng và glyph nhỏ trung tính (Mục 473, 475, 481)."""
+    import re
+    content = WEBAPP_INDEX.read_text(encoding="utf-8")
+
+    # 1. Hàng việc <= 64px và >= 44px
+    assert re.search(r"\.row\.stream-card\s*\{[^}]*max-height:\s*64px", content), "Hàng việc phải có max-height 64px"
+    assert re.search(r"\.row\.stream-card\s*\{[^}]*min-height:\s*56px", content), "Hàng việc phải có min-height 56px"
+
+    # 2. Glyph check tròn nhỏ trung tính ~20px
+    assert re.search(r"\.stream-status-glyph\s*\{[^}]*width:\s*20px", content), "Glyph tròn nhỏ 20px"
+    assert re.search(r"\.stream-status-glyph\s*\{[^}]*height:\s*20px", content), "Glyph tròn nhỏ 20px"
+
+    # 3. Title 13px 1 dòng ellipsis
+    assert re.search(r"\.row\.stream-card\s+\.r-title\s*\{[^}]*font-size:\s*13px", content), "Title 13px"
+    assert re.search(r"\.row\.stream-card\s+\.r-title\s*\{[^}]*text-overflow:\s*ellipsis", content), "Title 1 dòng ellipsis"
+
+    # 4. Sub-text 12px màu ink3
+    assert re.search(r"\.row\.stream-card\s+\.r-sub\s*\{[^}]*font-size:\s*12px", content), "Sub 12px"
+    assert re.search(r"\.row\.stream-card\s+\.r-sub\s*\{[^}]*color:\s*var\(--ink3\)", content), "Sub màu ink3"
+
+    # 5. Badge nguồn monogram trung tính, ẩn badge-name
+    assert ".stream-platform-badge .badge-name{display:none}" in content, "Ẩn badge-name cồng kềnh"
+
