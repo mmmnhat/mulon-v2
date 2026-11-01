@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-11-01 ~21:40 bởi Muse (theo lệnh trực tiếp của chủ dự án, ký: Muse): **Mở [T-41] Muse-parity vòng 2 — chủ dự án chốt "giao diện chưa giống Muse".** Muse đã render lại toàn bộ Mini App ở head `f49755f` (Chromium 390×844, fixture đầy đủ, 0 pageerror) và đối chiếu trực tiếp với ảnh chuẩn `docs/reference/meta_muse_app_reference.png`: T-40 mới khớp *token màu*, chưa khớp *tỉ lệ/mật độ/kỷ luật thị giác* của Muse — verdict T-40 giữ nguyên cho phạm vi token/cấu trúc đã chấm, nhưng tiêu chuẩn "giống Muse" từ nay đo bằng các ngưỡng cụ thể trong mục T-41 và **chốt cuối bằng mắt chủ dự án**. Chi tiết 8 điểm lệch kèm số đo nằm trong mục [T-41] ở phần Đang mở. Ky: Muse
+
 Cập nhật 2026-10-31 ~14:40 bởi Muse (autowatch, ký: Muse): **Ghi nhận commit Mac `e59dbcb` (chỉ đổi `docs/adr/003-miniapp-muse-ui-parity.md`, 1 dòng trạng thái → "Đã nghiệm thu toàn diện (VERIFIED — Hoàn tất cả 3 Lát cắt)"): ĐÓNG ghi chú không chặn cuối cùng của verdict T-40 lúc 14:32.** Dòng trạng thái ADR nay khớp đúng verdict VERIFIED của Muse cho toàn bộ [T-40] (v1.7.62) — đây là đồng bộ tài liệu theo đúng hướng dẫn trong verdict đó, KHÔNG phải phía Mac tự VERIFIED công việc mới (không có code mới, version vẫn 1.7.62, không đổi trạng thái nào trong file này). Commit chỉ chạm ADR nên lượt này không chạy lại full suite/eval/render (tiền lệ verdict doc-only 13:35). Không còn mục DONE chưa chấm, tài liệu chờ duyệt hay NEEDS-FIX mở nào trong file. Ky: Muse
 
 Cập nhật 2026-10-31 ~14:32 bởi Muse (autowatch, ký: Muse): **Nghiệm thu [T-40] Lát cắt 3 + Đóng toàn bộ [T-40] → `VERIFIED`.** Commit Mac `949207e` (v1.7.62): full suite VM **755 passed / 11 deselected / 0 failed trong 72,71s, tự thoát sau summary**; eval vàng **33/36 = 92%**; render thật Chromium desktop 1280×900 **0 pageerror**, split-view 2 cột + goals sticky đúng thiết kế, glyph cancelled đúng token; mobile 390×844 không rò rỉ grid. Ghi chú lát cắt 2 (a) ĐÃ ĐÓNG. Ky: Muse
@@ -417,6 +419,30 @@ này không ghi đè gì) + commit verdict này.
 ---
 
 ## Đang mở
+
+### [T-41] Muse-parity vòng 2: thu tỉ lệ + mật độ + kỷ luật thị giác về đúng chuẩn Muse — `TODO`
+
+- Giao: Antigravity. Agent chủ trì: `agency-ui-designer` + `agency-frontend-developer`; cổng chốt: `agency-ui-finish-gate-reviewer`; tự kiểm trước DONE: `agency-reality-checker`.
+- Nguồn lệnh: chủ dự án, 2026-11-01 ~21:33 — "Giao diện chưa giống muse nhe" (chỉ đạo trực tiếp, thắng verdict T-40 ở khía cạnh cảm giác giống).
+- Bằng chứng đo của Muse trên head `f49755f` (render thật Chromium 390×844, ảnh lưu phía Muse): đối chiếu panel Muse trong ảnh chuẩn — avatar ~56px, tên 15px, trạng thái 12px, hàng việc ~54px (title 13px/600 1 dòng, sub 12px, giờ dạng `20:06`), list phẳng trên nền, 1 hàng icon ghost đơn sắc. Bản MuLon hiện tại lệch ở 8 điểm sau:
+  1. **Hero quá khổ và lặp ở mọi tab**: khối header đo 223px + segbar 48px ≈ 38% chiều cao màn hình trước khi có nội dung; avatar 96px, tên 28px. Chuẩn Muse: toàn bộ khối danh tính ≤ ~120px.
+  2. **Điều hướng trùng 3 lớp**: 4 icon tròn Hero (Việc/Quyền/Lịch/Kho) trùng chức năng với segbar 5 tab ngay bên dưới. Muse chỉ có 1 lớp điều hướng.
+  3. **Icon emoji màu** (📋🛡️⏰🔑) phá hệ đơn sắc: Muse dùng icon nét (line/SVG) một màu mực; accent tím chỉ dành cho trạng thái active.
+  4. **Mật độ quá thưa**: hàng việc cao 91px, title ~17px, ngày giờ hiển thị full `31/10/2026 10:00`. Chuẩn Muse: hàng ≤ ~60px, title 13–14px tối đa 1 dòng (dài thì `…`), giờ chỉ `HH:MM` trong ngày và `Hôm qua`/`dd/MM` khi cũ hơn.
+  5. **Thừa 3 lớp điều khiển trước nội dung ở tab Việc**: thanh thống kê (Đang chạy/Đã xong/Đã lỗi/Tổng) + ô tìm kiếm + hàng chip lọc chồng lên nhau trước danh sách. Chuẩn Muse: vào thẳng nhóm "Hôm nay" + danh sách; thống kê gộp thành 1 dòng sub-text nhỏ hoặc bỏ; tìm kiếm/chip chỉ hiện khi danh sách dài (khai báo ngưỡng trong config, không hardcode rải rác).
+  6. **Trạng thái nói 2–3 lần trên 1 hàng**: glyph tròn nền tím + chữ "✓ Đã xong" + badge pill `FA` chữ tím đậm. Chuẩn Muse: 1 glyph check tròn nhỏ trung tính + title + sub; badge nguồn thu về dạng sub-text/icon nhỏ trung tính, không pill màu.
+  7. **Card bọc card**: danh sách nằm trong card radius 20px có viền trên nền đã có card khác. Chuẩn Muse: danh sách phẳng trên nền giấy, phân cách bằng hairline divider.
+  8. **Chấm đỏ cạnh tab "Phê duyệt"** và thang chữ >4 cỡ trên 1 màn (28/17/15/13/12) — vi phạm luật §6 (không đỏ cho trạng thái; tối đa 4 cỡ chữ / 2 weight mỗi màn).
+- Tiêu chí nghiệm thu (đo bằng render thật, không mô tả):
+  - Khối danh tính + điều hướng cộng lại ≤ 160px ở 390×844; avatar dùng sprite/mascot thật của Mulon (không fallback chữ cái khi có asset), tên ≤ 17px.
+  - Chỉ còn 1 lớp điều hướng chính; bỏ hàng icon Hero trùng lặp (hoặc hợp nhất vào segbar). Icon toàn app là line/SVG đơn sắc, không emoji màu ở chrome.
+  - Hàng việc ≤ 64px (kể cả badge nguồn), title 1 dòng 13–14px/600, sub 12px màu ink3, giờ rút gọn theo mục 4.
+  - Tab Việc mở ra thấy ngay nhóm "Hôm nay" + ít nhất 4 hàng việc trong viewport đầu tiên 390×844.
+  - Mỗi màn ≤ 4 cỡ chữ / 2 weight; không còn phần tử đỏ/xanh lá/vàng cho trạng thái (gồm chấm thông báo — dùng số đếm trung tính hoặc dot ink3).
+  - Giữ nguyên các lock cũ: 60/30/10, accent duy nhất `#7C3AED`, touch target ≥44px (đạt bằng vùng bấm, không cần hàng cao), single-file, API additive, suite xanh 100% + eval, render 2 theme trước/sau.
+  - **Cổng cuối: chủ dự án nhìn render đối chiếu cạnh ảnh chuẩn và chốt "giống"** — Muse không tự VERIFIED chỉ bằng checklist số như vòng T-40.
+- Chia lát: (1) Hero + điều hướng + icon; (2) Mật độ danh sách Việc + trạng thái/badge; (3) Áp cùng thang tỉ lệ cho 4 tab còn lại + chấm thông báo. Mỗi lát: render trước/sau + suite xanh mới lên DONE.
+
 
 ## Đợt PARITY + MỞ RỘNG (chủ dự án yêu cầu 26/10/2026 21:06-21:08)
 
