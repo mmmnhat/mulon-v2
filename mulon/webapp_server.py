@@ -1300,6 +1300,8 @@ class WebAppServer:
         app.router.add_get("/app/avatar", self._handle_avatar)
         app.router.add_get("/app/assets/{name}",
                            self._handle_static_asset)
+        app.router.add_get("/app/assets/mascots/{id}/{filename}",
+                           self._handle_mascot_asset)
         app.router.add_get("/api/state", self._handle_state)
         app.router.add_get("/api/heartbeat/history", self._handle_heartbeat_history)
         app.router.add_get("/api/task", self._handle_task)
@@ -1577,6 +1579,27 @@ class WebAppServer:
         resp.headers["Cache-Control"] = "public, max-age=86400"
         return resp
 
+    async def _handle_mascot_asset(self, request):
+        """Phục vụ asset mascot trong danh sách trắng an toàn (T-41)."""
+        mascot_id = str(request.match_info.get("id") or "")
+        filename = str(request.match_info.get("filename") or "")
+        allowed_mascots = {"mulon", "mulon_v0", "bach-tuoc", "meo-hoodie", "may-sam", "nam-sao"}
+        allowed_files = {
+            "avatar.webp": "image/webp",
+            "manifest-anim.json": "application/json",
+            "atlas-anim.webp": "image/webp",
+        }
+        if mascot_id not in allowed_mascots or filename not in allowed_files:
+            return web.Response(status=404, text="asset mascot lạ")
+        folder = "mulon" if mascot_id == "mulon_v0" else mascot_id
+        path = WEBAPP_DIR / "assets" / "mascots" / folder / filename
+        if not path.is_file():
+            return web.Response(status=404, text="thiếu asset mascot")
+        resp = web.FileResponse(path)
+        resp.content_type = allowed_files[filename]
+        resp.headers["Cache-Control"] = "public, max-age=86400"
+        return resp
+
     async def _handle_workspace_media(self, request):
         rel = request.match_info.get("path", "").strip()
         if not rel or ".." in rel or rel.startswith("/") or rel.startswith("\\"):
@@ -1605,12 +1628,18 @@ class WebAppServer:
         return web.Response(body=target.read_bytes(), content_type=ctype)
 
     async def _handle_avatar(self, request):
-        # Sửa 1.6.2: thử lần lượt nhiều đường dẫn thay vì chỉ 1.
-        # Trước đây chỉ có dossier_dir.parent/assets/... trong khi
-        # file thật nằm ở repo root và mulon/webapp/assets/ nên
-        # handler luôn 404 dù file có tồn tại. Thứ tự giữ đường
-        # cũ đầu tiên để không đổi hành vi khi file cũ có mặt.
         repo_root = Path(__file__).resolve().parent.parent
+        try:
+            brand = await self._brand_state()
+            cur_mascot = brand.get("mascot_id") or "mulon"
+            if cur_mascot == "mulon_v0":
+                cur_mascot = "mulon"
+            mascot_avatar = WEBAPP_DIR / "assets" / "mascots" / cur_mascot / "avatar.webp"
+            if mascot_avatar.is_file():
+                return web.FileResponse(mascot_avatar)
+        except Exception:
+            pass
+
         candidates = [
             Path(self.cfg.dossier_dir).parent / "assets"
             / "mulon-avatar.webp",

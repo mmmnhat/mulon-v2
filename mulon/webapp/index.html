@@ -131,17 +131,17 @@ button, .backrow, .tgl, .segbar, .swatch{
 }
 .app-header{
   display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:8px; padding:12px 4px 8px;
+  gap:4px; padding:0 4px 2px; gap:2px;
   text-align:center;
 }
 .avatar-wrap{
-  position:relative; width:64px; height:64px; flex:0 0 64px; margin:0 auto;
+  position:relative; width:50px; height:50px; flex:0 0 50px; margin:0 auto;
 }
 .avatar{
-  width:64px; height:64px; flex:0 0 64px; border-radius:50%;
+  width:50px; height:50px; flex:0 0 50px; border-radius:50%;
   background:var(--surface); overflow:hidden; position:relative;
-  font-size:24px; font-weight:var(--fw-s); color:var(--lav-deep);
-  box-shadow:0 4px 14px rgba(0,0,0,0.06), inset 0 0 0 1px var(--line);
+  font-size:18px; font-weight:var(--fw-s); color:var(--lav-deep);
+  box-shadow:0 3px 10px rgba(0,0,0,0.06), inset 0 0 0 1px var(--line);
   transition:box-shadow 240ms var(--ease), transform 240ms var(--ease);
 }
 .avatar:hover{transform:scale(1.03)}
@@ -167,11 +167,18 @@ button, .backrow, .tgl, .segbar, .swatch{
 .avatar.sprite-on .sprite{display:block}
 .avatar.sprite-on img{visibility:hidden}
 .avatar.sprite-on #avatar-letter{visibility:hidden}
-.app-name{font-size:19px; font-weight:700;
+.app-name{font-size:16px; font-weight:700;
   letter-spacing:-0.02em; line-height:1.2; margin:0; text-align:center; color:var(--ink);}
-.app-status{font-size:12px; font-weight:var(--fw-m); color:var(--ink2);
-  display:inline-flex; align-items:center; justify-content:center; gap:6px;
-  padding:3px 10px; border-radius:999px; background:var(--surface2);
+
+/* ==================================================================
+   LUẬT TOÀN CỤC MUSE-PARITY VÒNG 2 (T-41 Mục 1: Bỏ icon tròn Hero)
+   ================================================================== */
+.hero-quick-nav {
+  display: none !important;
+}
+.app-status{font-size:11px; font-weight:var(--fw-m); color:var(--ink2);
+  display:inline-flex; align-items:center; justify-content:center; gap:5px;
+  padding:2px 8px; border-radius:999px; background:var(--surface2);
   border:1px solid var(--line); margin:0; white-space:nowrap;}
 .dot{width:7px; height:7px; border-radius:50%; background:var(--ink3);
   display:inline-block}
@@ -279,7 +286,7 @@ button, .backrow, .tgl, .segbar, .swatch{
    Đệm track 3px là ngoại lệ lưới có chủ đích (mẫu iOS/Muse). */
 .segbar{
   display:flex; background:var(--surface2); border-radius:12px;
-  padding:3px; gap:var(--s1); margin:4px 0 6px; min-height:48px; height:48px;
+  padding:3px; gap:var(--s1); margin:4px 0 6px; min-height:48px; height:48px; margin:2px 0 2px;
 }
 .tab-badge-dot{
   display:inline-block; width:6px; height:6px; border-radius:50%;
@@ -287,7 +294,7 @@ button, .backrow, .tgl, .segbar, .swatch{
 }
 .segbar button{
   flex:1; border:0; background:transparent; color:var(--ink2);
-  border-radius:10px; min-height:44px; height:44px; padding:0 8px;
+  border-radius:10px; min-height:44px; height:44px; padding:0 6px;
   cursor:pointer; font-size:var(--fs-callout); font-weight:var(--fw-m);
   font-family:inherit; transition:background var(--t2) var(--ease),
   color var(--t2) var(--ease);
@@ -1060,29 +1067,16 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       </div>
     </div>
     <div class="head-meta">
-      <div class="app-name" id="app-brand-name">Mulon</div>
+      <div style="display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+        <span class="app-name" id="app-brand-name">Mulon</span>
+        <button type="button" id="btn-edit-identity" title="Đổi tên &amp; Mascot" aria-label="Đổi tên và Mascot" style="background:none; border:none; padding:4px; cursor:pointer; color:var(--ink2); display:inline-flex; align-items:center; justify-content:center; min-width:32px; min-height:32px; border-radius:6px;">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+      </div>
       <div class="app-status" id="app-status-pill">
         <span class="dot" id="status-dot"></span>
         <span id="status-text">Đã kết nối</span>
       </div>
-    </div>
-    <div class="hero-quick-nav" id="hero-quick-nav">
-      <button class="hero-quick-btn active" data-hero-tab="viec" type="button" title="Việc">
-        <span class="hero-quick-icon">📋</span>
-        <span class="hero-quick-label">Việc</span>
-      </button>
-      <button class="hero-quick-btn" data-hero-tab="pheduyet" type="button" title="Quyền">
-        <span class="hero-quick-icon">🛡️</span>
-        <span class="hero-quick-label">Quyền</span>
-      </button>
-      <button class="hero-quick-btn" data-hero-tab="lich" type="button" title="Lịch">
-        <span class="hero-quick-icon">⏰</span>
-        <span class="hero-quick-label">Lịch</span>
-      </button>
-      <button class="hero-quick-btn" data-hero-sub="screen-vault" type="button" title="Kho">
-        <span class="hero-quick-icon">🔑</span>
-        <span class="hero-quick-label">Kho</span>
-      </button>
     </div>
   </header>
 
@@ -1143,7 +1137,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
   <div class="card" style="margin-top:16px;" id="card-goals">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <div class="card-title" style="margin-bottom:0;">Mục tiêu &amp; Cây tiến triển (Goals)</div>
+      <div class="card-title" style="margin-bottom:0;">Mục tiêu &amp; Cây tiến triển</div>
       <span id="goals-count-badge" style="font-size:12px; color:var(--ink2);"></span>
     </div>
     <div id="goals-tree-wrap">
@@ -1169,7 +1163,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   </div>
 
   <div class="card">
-    <div class="card-title">Dòng thời gian (Chạm vào bước để xem chi tiết)</div>
+    <div class="card-title">Dòng thời gian</div>
     <div class="timeline" id="task-timeline"></div>
   </div>
   <div class="card">
@@ -1191,7 +1185,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <section id="tab-lich" class="hidden">
   <div id="schedule-banner"></div>
 
-  <div class="card-title" style="margin:8px 0 8px 4px; font-size:15px; font-weight:600; color:var(--ink2);">Sắp tới (Upcoming)</div>
+  <div class="card-title" style="margin:8px 0 8px 4px; font-size:15px; font-weight:600; color:var(--ink2);">Sắp tới</div>
   <div class="card" style="margin-bottom:18px;">
     <div id="upcoming-list"></div>
   </div>
@@ -1203,7 +1197,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     </div>
     <div style="flex:1;">
       <div style="font-size:16px; font-weight:600; color:var(--ink); margin-bottom:2px;">Heartbeat</div>
-      <div style="font-size:13px; color:var(--ink2);">Mỗi 30 phút (*/30 * * * *)</div>
+      <div style="font-size:13px; color:var(--ink2);">Mỗi 30 phút</div>
     </div>
     <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
   </div>
@@ -1255,9 +1249,9 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     </div>
 
     <div id="sched-edit-box" class="hidden" style="padding:8px var(--s4) 14px; border-top:1px solid var(--line);">
-      <div style="font-size:12px; color:var(--ink2); margin-bottom:4px; font-weight:500;">Tên hiển thị (tuỳ chọn)</div>
+      <div style="font-size:12px; color:var(--ink2); margin-bottom:4px; font-weight:500;">Tên hiển thị</div>
       <input id="sched-edit-title" class="field-input" type="text" placeholder="Tên ngắn gọn cho lịch hẹn" style="margin-bottom:10px;">
-      <div style="font-size:12px; color:var(--ink2); margin-bottom:4px; font-weight:500;">Biểu thức Cron (5 trường: phút giờ ngày tháng thứ)</div>
+      <div style="font-size:12px; color:var(--ink2); margin-bottom:4px; font-weight:500;">Biểu thức Cron 5 trường</div>
       <input id="sched-edit-cron" class="field-input" type="text" placeholder="Ví dụ: 0 8 * * *" style="margin-bottom:4px;">
       <div id="sched-edit-cron-preview" style="font-size:12px; color:var(--lav-deep); margin-bottom:10px;"></div>
       <div style="font-size:12px; color:var(--ink2); margin-bottom:4px; font-weight:500;">Nội dung lời nhắc / việc cần làm</div>
@@ -1278,6 +1272,30 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   </div>
 </section>
 
+<!-- ================= MODAL ĐỔI TÊN & MASCOT (T-41 Mục 12) ================= -->
+<div id="modal-edit-identity" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="identity-modal-title">
+  <div class="modal-card">
+    <div class="sheet-handle-bar"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="margin:0; font-size:16px; font-weight:700;" id="identity-modal-title">Đổi tên &amp; Mascot</h3>
+      <button class="modal-close-btn" id="btn-close-identity-modal" type="button">✕</button>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div>
+        <label for="identity-bot-name-input" style="display:block; font-size:12px; font-weight:600; color:var(--ink2); margin-bottom:6px;">Tên trợ lý</label>
+        <input type="text" id="identity-bot-name-input" class="field-input" style="width:100%; box-sizing:border-box; border-radius:10px; padding:10px 12px; font-size:14px; border:1px solid var(--line); background:var(--surface2); color:var(--ink);" maxlength="50" placeholder="Nhập tên trợ lý...">
+      </div>
+      <div>
+        <label style="display:block; font-size:12px; font-weight:600; color:var(--ink2); margin-bottom:8px;">Chọn Mascot đại diện</label>
+        <div id="identity-mascot-picker" class="flex-col" style="gap:8px;"></div>
+      </div>
+      <div style="margin-top:6px;">
+        <button class="btn btn-primary" id="btn-save-identity" type="button" style="width:100%; padding:12px; border-radius:12px; font-weight:600;">Lưu thay đổi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ================= MODAL HEARTBEAT (Ảnh 4 chuẩn Muse) ================= -->
 <div id="modal-heartbeat" class="modal-overlay hidden">
   <div class="modal-card">
@@ -1287,7 +1305,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       <button class="modal-close-btn" id="btn-close-heartbeat">✕</button>
     </div>
     <div class="modal-title">Heartbeat</div>
-    <div class="modal-sub">Mỗi 30 phút (*/30 * * * *)</div>
+    <div class="modal-sub">Mỗi 30 phút</div>
 
     <div class="modal-section-title" id="heartbeat-history-toggle" style="cursor:pointer; user-select:none;">
       <span>Lịch sử chạy</span>
@@ -1307,7 +1325,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     </div>
 
     <div id="heartbeat-confirm-box" class="hidden" style="margin-top:16px; padding:14px; border-radius:14px; background:var(--surface2); border:1px solid var(--line);">
-      <div style="font-size:13px; font-weight:500; margin-bottom:10px; color:var(--ink);">Ní có chắc muốn tạm dừng vòng quét Heartbeat ngầm (30 phút/lần)?</div>
+      <div style="font-size:13px; font-weight:500; margin-bottom:10px; color:var(--ink);">Ní có chắc muốn tạm dừng vòng quét Heartbeat ngầm mỗi 30 phút?</div>
       <div style="display:flex; gap:8px;">
         <button class="btn btn-danger btn-sm touch-target-44" id="btn-heartbeat-confirm-pause" style="flex:1; border-radius:10px; border:0; cursor:pointer;">Tạm dừng</button>
         <button class="btn btn-ghost btn-sm touch-target-44" id="btn-heartbeat-confirm-cancel" style="flex:1; border-radius:10px; cursor:pointer;">Hủy</button>
@@ -1338,7 +1356,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       </div>
       <div style="display:flex; gap:10px; align-items:flex-start;">
         <span style="color:var(--ink); font-weight:600; font-size:14px; flex-shrink:0;">✓</span>
-        <div><strong style="color:var(--ink);">Mô hình nhẹ (Cheap Model):</strong> <span style="color:var(--ink2);">Chạy qua gemini-3.5-flash-lite tiết kiệm token, khung giờ 07:00–23:00.</span></div>
+        <div><strong style="color:var(--ink);">Mô hình nhẹ:</strong> <span style="color:var(--ink2);">Chạy qua gemini-3.5-flash-lite tiết kiệm token, khung giờ 07:00–23:00.</span></div>
       </div>
       <div style="display:flex; gap:10px; align-items:flex-start;">
         <span style="color:var(--ink); font-weight:600; font-size:14px; flex-shrink:0;">✓</span>
@@ -1527,9 +1545,9 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       <tr><td class="k">Công cụ</td><td id="step-sheet-tool">-</td></tr>
       <tr><td class="k">Thời điểm</td><td id="step-sheet-time">-</td></tr>
     </table>
-    <div class="card-title" style="padding:0 0 6px 0;">Đầu vào công cụ (Input)</div>
+    <div class="card-title" style="padding:0 0 6px 0;">Đầu vào công cụ</div>
     <pre class="ds-box-code" id="step-sheet-input" style="margin-bottom:14px;">-</pre>
-    <div class="card-title" style="padding:0 0 6px 0;">Kết quả thực thi (Output)</div>
+    <div class="card-title" style="padding:0 0 6px 0;">Kết quả thực thi</div>
     <pre class="ds-box-code" id="step-sheet-output" style="margin-bottom:16px;">-</pre>
     <button class="ds-btn ds-btn-secondary" id="step-sheet-btn-close" style="width:100%;">Đóng</button>
   </div>
@@ -1584,16 +1602,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
     </div>
   </div>
-  <div class="card">
-    <div class="card-title">Mô hình AI</div>
-    <div class="row" data-open="screen-models">
-      <div class="glyph">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5V11h3a3 3 0 0 1 3 3v1h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1v1a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-1H3a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h1v-1a3 3 0 0 1 3-3h3V9.5A4 4 0 0 1 12 2z"/></svg></div>
-      <div class="r-main"><div class="r-title">Cấu hình Model AI</div>
-        <div class="r-sub" id="model-summary-sub">Đang tải...</div></div>
-      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
-    </div>
-  </div>
+
   <div class="card">
     <div class="card-title">Cá nhân hoá</div>
     <div class="row" data-open="screen-brand">
@@ -1601,6 +1610,16 @@ a.ext{color:var(--lav-deep); word-break:break-all}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
       <div class="r-main"><div class="r-title">Thương hiệu &amp; Mascot</div>
         <div class="r-sub" id="brand-summary-sub">Mulon · Mulon Cổ Điển</div></div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Mô hình AI</div>
+    <div class="row" data-open="screen-models">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5V11h3a3 3 0 0 1 3 3v1h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1v1a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-1H3a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h1v-1a3 3 0 0 1 3-3h3V9.5A4 4 0 0 1 12 2z"/></svg></div>
+      <div class="r-main"><div class="r-title">Cấu hình Model AI</div>
+        <div class="r-sub" id="model-summary-sub">Đang tải...</div></div>
       <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
     </div>
   </div>
@@ -1628,7 +1647,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <div id="system-viewer"></div>
   </div>
   <div class="card" id="card-cliproxy-link">
-    <div class="card-title">Cổng model (CLIProxyAPI)</div>
+    <div class="card-title">Cổng model</div>
     <div class="row" data-open="screen-cliproxy" style="cursor:pointer;">
       <div class="glyph">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -1641,7 +1660,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     </div>
   </div>
   <div class="card" id="card-homescreen-shortcut">
-    <div class="card-title">Lối tắt màn hình chính (Homescreen)</div>
+    <div class="card-title">Lối tắt màn hình chính</div>
     <div class="row" id="row-add-homescreen" style="cursor:pointer;">
       <div class="glyph">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M12 18h.01"/></svg>
@@ -1661,7 +1680,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 <!-- Cài đặt con: Cổng model CLIProxyAPI (T-14) -->
 <section id="screen-cliproxy" class="hidden">
   <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Thiết bị &amp; hệ thống</div>
-  <h2 class="screen-title">Cổng model (CLIProxyAPI)</h2>
+  <h2 class="screen-title">Cổng model</h2>
   <div class="card">
     <div class="card-title">Trạng thái cổng 127.0.0.1:8317</div>
     <div id="cliproxy-status-content"><div class="empty-state" style="padding:16px;">Đang tải trạng thái cổng model...</div></div>
@@ -1684,18 +1703,18 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <h2 class="screen-title">Cấu hình Model AI</h2>
   <div class="note">Cấu hình phân tầng 3 tiers theo chuẩn Muse và chuyển đổi model trực tiếp.</div>
   <div class="card">
-    <div class="card-title">Phân tầng Model (3 Tiers)</div>
+    <div class="card-title">Phân tầng Model 3 tầng</div>
     <div style="padding:0 var(--s4) var(--s4);">
       <div style="margin-bottom:12px;">
-        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">Model Brain (Suy luận &amp; chat chính):</label>
+        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">Model Brain suy luận &amp; chat chính:</label>
         <input type="text" id="model-input-brain" class="field-input" style="width:100%; margin:0;" placeholder="gemini-3.8-flash">
       </div>
       <div style="margin-bottom:12px;">
-        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">Model Cheap (Tác vụ nhẹ &amp; tóm tắt):</label>
+        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">Model Cheap tác vụ nhẹ &amp; tóm tắt:</label>
         <input type="text" id="model-input-cheap" class="field-input" style="width:100%; margin:0;" placeholder="gemini-3.5-flash-lite">
       </div>
       <div style="margin-bottom:16px;">
-        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">Model Escalated (Phức tạp &amp; bế tắc):</label>
+        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">Model Escalated nâng cao:</label>
         <input type="text" id="model-input-escalated" class="field-input" style="width:100%; margin:0;" placeholder="grok-4.20-0309-reasoning">
       </div>
       <div class="btn-row" style="padding:0;">
@@ -1705,7 +1724,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     </div>
   </div>
   <div class="card">
-    <div class="card-title">Model phổ biến (chạm để chọn cho Brain)</div>
+    <div class="card-title">Model phổ biến</div>
     <div id="popular-models-list" style="padding:0 var(--s4) var(--s4);"></div>
   </div>
 </section>
@@ -1731,10 +1750,10 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       <div class="info-callout" style="background:var(--tint-lav); border:1px solid var(--line); border-radius:12px; padding:12px 14px; font-size:12px; line-height:1.5;">
         <div style="font-weight:600; color:var(--lav-deep); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-          Lưu ý về giới hạn Telegram (BotFather)
+          Lưu ý về giới hạn Telegram BotFather
         </div>
         <div style="color:var(--ink2);">
-          • <b>Tên hiển thị bot (ở trên):</b> Đổi được ngay tại đây — áp dụng tức thì trên Mini App và các phản hồi.<br>
+          • <b>Tên hiển thị bot:</b> Đổi được ngay tại đây — áp dụng tức thì trên Mini App và các phản hồi.<br>
           • <b>Username bot Telegram (<span id="brand-tg-username">@Mulon_bot</span>):</b> Giới hạn bởi Telegram, chỉ đổi được qua @BotFather với lệnh <code>/setusername</code>.<br>
           • <b>Tên bot trong danh bạ Telegram:</b> Đổi qua @BotFather bằng lệnh <code>/setname</code>.<br>
           • <b>Ảnh đại diện bot trên Telegram:</b> Đổi qua @BotFather bằng lệnh <code>/setuserpic</code>.
@@ -1745,7 +1764,7 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
   <!-- Card 2: Chọn Mascot trong vũ trụ Mulon -->
   <div class="card" style="margin-bottom:18px;">
-    <div class="card-title">Linh vật đại diện (Mascot)</div>
+    <div class="card-title">Linh vật đại diện</div>
     <div style="padding:0 var(--s4) var(--s2);">
       <div style="font-size:13px; color:var(--ink2); margin-bottom:14px;">
         Bộ sưu tập mascot trong vũ trụ thương hiệu Mulon. <i>Bản chính thức vẫn là Sprite v0 (21 frame) tới khi chủ dự án duyệt bộ mới.</i>
@@ -2090,15 +2109,13 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   </div>
 
   <div class="card">
-    <div class="card-title">Tất cả công cụ</div>
-    <div class="row clickable" data-open="screen-all-tools-policy">
+    <div class="card-title">Toàn bộ công cụ hệ thống</div>
+    <div class="row" data-open="screen-all-tools-policy">
       <div class="glyph">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </div>
-      <div class="r-main">
-        <div class="r-title">Danh sách từng công cụ</div>
-        <div class="r-sub" id="policy-tools-sub">Tìm kiếm và phân quyền chi tiết cho tất cả công cụ</div>
-      </div>
+      <div class="r-main"><div class="r-title">Tất cả công cụ</div>
+        <div class="r-sub" id="policy-tools-sub">0 công cụ trong hệ thống (tìm kiếm &amp; lọc)</div></div>
       <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
     </div>
   </div>
@@ -4357,7 +4374,7 @@ function renderSchedule(){
 
   const userItems = sch.items.filter(it => it.kind === "schedule");
 
-  // Danh sách Sắp tới (Upcoming) hợp nhất từ dữ liệu thật — mọi hàng bấm mở chi tiết
+  // Danh sách Sắp tới hợp nhất từ dữ liệu thật — mọi hàng bấm mở chi tiết
   const upBox = $("upcoming-list");
   if (upBox) {
     const upcoming = (S && S.upcoming) || [];
@@ -6469,6 +6486,37 @@ window.selectModelPreset = function(m){
   }
 };
 document.addEventListener("DOMContentLoaded", () => {
+  // Modal Edit Identity (T-41 Mục 12)
+  const editIdBtn = $("btn-edit-identity");
+  const modalId = $("modal-edit-identity");
+  const closeIdBtn = $("btn-close-identity-modal");
+  const inputIdName = $("identity-bot-name-input");
+
+  if (editIdBtn && !editIdBtn._domBound) {
+    editIdBtn._domBound = true;
+    editIdBtn.addEventListener("click", () => {
+      haptic("impact");
+      const curName = $("app-brand-name") ? $("app-brand-name").textContent.trim() : "Mulon";
+      if (inputIdName) inputIdName.value = curName;
+      if (typeof renderBrand === "function") renderBrand();
+      if (modalId) modalId.classList.remove("hidden");
+    });
+  }
+
+  if (closeIdBtn && !closeIdBtn._domBound) {
+    closeIdBtn._domBound = true;
+    closeIdBtn.addEventListener("click", () => {
+      if (modalId) modalId.classList.add("hidden");
+    });
+  }
+
+  if (modalId && !modalId._domBoundOverlay) {
+    modalId._domBoundOverlay = true;
+    modalId.addEventListener("click", (e) => {
+      if (e.target === modalId) modalId.classList.add("hidden");
+    });
+  }
+
   const btnSave = $("btn-save-models");
   if (btnSave){
     btnSave.addEventListener("click", async () => {
@@ -7826,6 +7874,104 @@ function renderBrand() {
       }
     });
   });
+
+  // 4. Modal Chỉnh sửa Tên & Mascot (T-41 Mục 12)
+  const editIdBtn = $("btn-edit-identity");
+  const modalId = $("modal-edit-identity");
+  const closeIdBtn = $("btn-close-identity-modal");
+  const saveIdBtn = $("btn-save-identity");
+  const inputIdName = $("identity-bot-name-input");
+  const pickerGrid = $("identity-mascot-picker");
+
+  let tempSelectedMascot = mascotId || "mulon";
+  if (tempSelectedMascot === "mulon_v0") tempSelectedMascot = "mulon";
+
+  function renderMascotPicker() {
+    if (!pickerGrid) return;
+    const mascotList = mascots.length ? mascots : [
+      {id: "mulon", name: "Mulon"},
+      {id: "bach-tuoc", name: "Bạch Tuộc"},
+      {id: "meo-hoodie", name: "Mèo Hoodie"},
+      {id: "may-sam", name: "Mây Sấm"},
+      {id: "nam-sao", name: "Nấm Sao"}
+    ];
+    pickerGrid.innerHTML = mascotList.map(m => {
+      const isSel = (m.id === tempSelectedMascot);
+      return '<div class="row ' + (isSel ? 'active' : '') + '" data-pick-mascot="' + esc(m.id) + '" style="cursor:pointer; display:flex; align-items:center; padding:10px 14px; border-radius:14px; border:1px solid ' + (isSel ? 'var(--accent)' : 'var(--line)') + '; background:' + (isSel ? 'var(--tint)' : 'var(--surface)') + '; margin:0;">' +
+        '<div style="width:40px; height:40px; border-radius:50%; overflow:hidden; flex-shrink:0; background:var(--surface2); display:flex; align-items:center; justify-content:center;">' +
+          '<img src="/app/assets/mascots/' + esc(m.id) + '/avatar.webp" style="width:100%; height:100%; object-fit:cover;" onerror="this.src=\'/app/avatar\'">' +
+        '</div>' +
+        '<div class="r-main" style="margin-left:12px; flex:1;">' +
+          '<div style="font-weight:600; font-size:14px; color:var(--ink);">' + esc(m.name) + '</div>' +
+        '</div>' +
+        (isSel ? '<span style="color:var(--accent); font-weight:700; font-size:16px;">✓</span>' : '') +
+      '</div>';
+    }).join("");
+
+    pickerGrid.querySelectorAll("[data-pick-mascot]").forEach(row => {
+      row.addEventListener("click", () => {
+        haptic("select");
+        tempSelectedMascot = row.dataset.pickMascot;
+        renderMascotPicker();
+      });
+    });
+  }
+
+  if (editIdBtn && !editIdBtn._bound) {
+    editIdBtn._bound = true;
+    editIdBtn.addEventListener("click", () => {
+      haptic("impact");
+      if (inputIdName) inputIdName.value = botName;
+      tempSelectedMascot = (S && S.brand && S.brand.mascot_id) || mascotId || "mulon";
+      if (tempSelectedMascot === "mulon_v0") tempSelectedMascot = "mulon";
+      renderMascotPicker();
+      if (modalId) modalId.classList.remove("hidden");
+    });
+  }
+
+  if (closeIdBtn && !closeIdBtn._bound) {
+    closeIdBtn._bound = true;
+    closeIdBtn.addEventListener("click", () => {
+      if (modalId) modalId.classList.add("hidden");
+    });
+  }
+
+  if (modalId && !modalId._boundOverlay) {
+    modalId._boundOverlay = true;
+    modalId.addEventListener("click", (e) => {
+      if (e.target === modalId) modalId.classList.add("hidden");
+    });
+  }
+
+  if (saveIdBtn && !saveIdBtn._bound) {
+    saveIdBtn._bound = true;
+    saveIdBtn.addEventListener("click", async () => {
+      const newName = inputIdName ? inputIdName.value.trim() : "";
+      if (!newName) { toast("Vui lòng nhập tên hiển thị."); return; }
+      saveIdBtn.disabled = true;
+      haptic("impact");
+      try {
+        const res = await api("/api/brand", "POST", {bot_name: newName, mascot_id: tempSelectedMascot});
+        if (res && res.ok) {
+          toast("Đã lưu tên & mascot mới.");
+          if (S && S.brand) {
+            S.brand.bot_name = res.bot_name;
+            S.brand.mascot_id = res.mascot_id;
+          }
+          if (modalId) modalId.classList.add("hidden");
+          const avImg = $("avatar-box") ? $("avatar-box").querySelector("img") : null;
+          if (avImg) avImg.src = "/app/avatar?t=" + Date.now();
+          renderBrand();
+        } else {
+          toast((res && res.error) || "Lỗi lưu cài đặt.");
+        }
+      } catch (e) {
+        toast("Lỗi: " + e.message);
+      } finally {
+        saveIdBtn.disabled = false;
+      }
+    });
+  }
 }
 
 /* ---------------- nạp state ---------------- */

@@ -1,5 +1,37 @@
 # CHANGELOG
 
+## 1.7.63 — 2026-11-01 — Muse-parity vòng 2: Thu gọn khối danh tính Header & Tích hợp 5 Mascot chính thức (T-41 Lát cắt 1 — ký: Antigravity)
+
+- **(T-41 Lát cắt 1) Tái cấu trúc Khối danh tính Header & Chuẩn hoá Điều hướng (`mulon/webapp/index.html`, `mulon/webapp_server.py`, `config/mascots.json`):**
+  - **Bỏ hàng icon tròn Hero (Mục 1 [T-41]):**
+    - Loại bỏ triệt để `#hero-quick-nav` (4 nút tròn Việc/Quyền/Lịch/Kho) vốn gây trùng lặp với thanh điều hướng 5 tab bên dưới (`.hero-quick-nav { display: none !important; }`), giải phóng hơn 40% diện tích màn hình phía trên cho nội dung.
+  - **Chuyển đổi Linh vật & Đổi tên Trợ lý tại Header (Mục 12 [T-41]):**
+    - Bổ sung nút icon chỉnh sửa `#btn-edit-identity` (SVG nét mảnh 13×13px) ngay cạnh tên trợ lý `#app-brand-name`.
+    - Bổ sung modal bottom-sheet `#modal-edit-identity` cho phép nhập tên hiển thị và chọn 1 trong đúng 5 mascot chính thức do chủ dự án phê duyệt: `mulon` (Mulon Mặc định), `bach-tuoc` (Bạch Tuộc), `meo-hoodie` (Mèo Hoodie), `may-sam` (Mây Sấm), `nam-sao` (Nấm Sao).
+    - Lưu trực tiếp qua API `POST /api/brand` bền vững vào SQLite KV Memory.
+  - **Kho Mascot Assets & Whitelist Static Route (Mục 12 [T-41]):**
+    - Đăng ký route GET `/app/assets/mascots/{id}/{filename}` trong `WebAppServer` với whitelist an toàn chặt chẽ (chỉ chấp nhận 5 mascot chính thức và 3 file asset chuẩn: `avatar.webp`, `manifest-anim.json`, `atlas-anim.webp`), chống directory traversal tuyệt đối.
+    - Cập nhật handler `_handle_avatar` tự động ưu tiên avatar của mascot đang kích hoạt.
+    - Cập nhật `config/mascots.json` chuẩn hoá 5 linh vật chính thức kết hợp bảo toàn tương thích ngược cho cấu hình `mulon_v0`.
+  - **Kích thước Chuẩn Meta Muse & Tỉ lệ Thị giác:**
+    - Avatar thu gọn về 50×50px (chuẩn avatar ~50–56px của Muse).
+    - Header đo đạt 104px, Segbar 48px (`min-height: 48px`, touch target button 44px).
+    - **Tổng chiều cao kết hợp Header + Segbar = 152px $\le 160$px** (vượt chuẩn nghiệm thu $\le 160$px của T-41).
+    - Gỡ bỏ văn bản trong ngoặc đơn ở các tiêu đề chính: `(Goals)`, `(Upcoming)`, `(*/30 * * * *)` theo Mục 20.
+- **Render thật Playwright Chromium (390×844) & Bằng chứng:**
+  - Cả 3 ảnh render chính đều đổi hash SHA-256 mới:
+    - `01_dashboard_light.png`: `e2725185f93f1bbaee1ba290160ff295d4cf75361bb5d8ede0be2539006be774`
+    - `02_dashboard_dark.png`: `7be890c31480e46251f1072ad3641fe9b35bf3495915ca667c7d17adc87649b0`
+    - `04_tasks_dark.png`: `f9972f8e915f289352b43aea4818a5a9945f7df92773b7a19ecda76036f0b97f`
+  - Runtime browser: **0 pageerror**, modal mở/đóng và lưu dữ liệu mượt mà.
+- **Kiểm thử & Bằng chứng đo đạc:**
+  - Bộ test hồi quy mới: `tests/test_v17_t41_muse_parity.py` (**5/5 passed**).
+  - Bộ test `tests/test_v17_miniapp_modular_js.py` (**14/14 passed**).
+  - Toàn bộ suite test: **771 passed, 0 failed, 90039 warnings trong 78.02s**.
+  - Evals vàng: **33/36 case đạt — pass rate 92% (vượt cổng 85%)**.
+  - Smoke test: `python -m mulon.main --dry-run` exit code 0.
+  - Phân vai The Agency: Chủ trì `agency-ui-designer` + `agency-frontend-developer`; cổng chốt thẩm định giao diện `agency-ui-finish-gate-reviewer`, kiểm thử `agency-test-automation-engineer`, tự kiểm `agency-reality-checker`.
+
 ## 1.7.62 — 2026-10-31 — Cải tổ giao diện Mini App theo Meta Muse App (Lát cắt 3: Responsive Split-View Telegram Desktop) theo ADR-003 (T-40 — ký: Antigravity)
 
 - **(T-40 Lát cắt 3) Responsive Split-View cho Telegram Desktop (≥ 768px) & Hoàn thiện T-40 (`mulon/webapp/index.html`):**

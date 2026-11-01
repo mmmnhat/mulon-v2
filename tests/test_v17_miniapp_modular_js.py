@@ -161,30 +161,23 @@ def test_muse_clean_palette_tokens_present():
     assert "--line:#2A2A30;" in content, "Dark mode viền phải là #2A2A30"
 
 
-def test_muse_companion_hero_and_quick_switcher():
-    """Kiểm tra Header Hero Muse Companion và 4 nút quick switcher (ADR-003, [T-40] Lát cắt 1)."""
+def test_muse_companion_hero_and_identity_management():
+    """Kiểm tra Header Hero Muse Companion và Quản trị danh tính Mascot (ADR-003, [T-41] Lát cắt 1)."""
     content = WEBAPP_INDEX.read_text(encoding="utf-8")
 
     # 1. Các phần tử danh tính chính của Hero
     assert 'id="avatar-box"' in content, "Avatar box phải tồn tại"
     assert 'id="app-brand-name"' in content, "Brand name bot phải tồn tại"
+    assert 'id="btn-edit-identity"' in content, "Nút icon sửa danh tính phải tồn tại"
     assert 'id="status-dot"' in content, "Status dot phải tồn tại"
     assert 'id="status-text"' in content, "Status text phải tồn tại"
-    assert 'id="hero-quick-nav"' in content, "Thanh 4 nút Hero Quick Nav phải tồn tại"
 
-    # 2. Đủ 4 nút điều hướng nhanh với data attributes chuẩn
-    assert 'data-hero-tab="viec"' in content, "Nút Hero Việc phải liên kết tab viec"
-    assert 'data-hero-tab="pheduyet"' in content, "Nút Hero Quyền phải liên kết tab pheduyet"
-    assert 'data-hero-tab="lich"' in content, "Nút Hero Lịch phải liên kết tab lich"
-    assert 'data-hero-sub="screen-vault"' in content, "Nút Hero Kho phải liên kết subScreen screen-vault"
+    # 2. Đã bỏ hàng 4 icon Hero Quick Nav theo Mục 1 của T-41
+    assert '<div class="hero-quick-nav" id="hero-quick-nav">' not in content, "Hero quick nav phải bị loại bỏ"
 
-    # 3. Touch target >= 44px
-    assert re.search(r"\.hero-quick-btn\s*\{[^}]*min-width:\s*48px", content), "Hero quick btn min-width >= 44px"
-    assert re.search(r"\.hero-quick-btn\s*\{[^}]*min-height:\s*48px", content), "Hero quick btn min-height >= 44px"
-    assert re.search(r"\.hero-quick-icon\s*\{[^}]*width:\s*48px", content), "Hero quick icon width >= 44px"
-
-    # 4. Tích hợp chuyển tab đồng bộ
-    assert "data.heroTab" in content or "dataset.heroTab" in content, "showMain/click handler phải xử lý heroTab"
+    # 3. Modal quản trị danh tính & mascot picker
+    assert 'id="modal-edit-identity"' in content, "Modal edit identity phải tồn tại"
+    assert 'id="identity-mascot-picker"' in content, "Container mascot picker phải tồn tại"
 
 
 def test_detect_task_platform_rule0_and_normalization():

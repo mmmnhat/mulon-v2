@@ -2,49 +2,64 @@
   {
     "id": "mulon_v0",
     "name": "Mulon Cổ Điển",
-    "tagline": "Sprite v0 chính thức",
-    "description": "Mèo tím hiếu kỳ, lanh lợi và luôn sẵn sàng hỗ trợ bạn trong mọi công việc.",
-    "badge": "Mặc định (Chính thức)",
-    "badge_style": "accent",
-    "is_default": true,
-    "avatar_kind": "sprite_v0",
-    "tone": "Thân thiện, nhanh nhẹn, chu đáo",
-    "quote": "Mulon đã sẵn sàng đồng hành cùng bạn!"
+    "tagline": "Sprite v0 — Trợ lý tím nguyên bản",
+    "avatar_kind": "sprite",
+    "is_default": true
+  },
+  {
+    "id": "mulon",
+    "name": "Mulon",
+    "tagline": "Trợ lý tím nguyên bản",
+    "avatar_kind": "mascot_asset",
+    "is_default": true
+  },
+  {
+    "id": "bach-tuoc",
+    "name": "Bạch Tuộc",
+    "tagline": "Thông thái đa nhiệm",
+    "avatar_kind": "mascot_asset",
+    "is_default": false
+  },
+  {
+    "id": "meo-hoodie",
+    "name": "Mèo Hoodie",
+    "tagline": "Năng động cá tính",
+    "avatar_kind": "mascot_asset",
+    "is_default": false
+  },
+  {
+    "id": "may-sam",
+    "name": "Mây Sấm",
+    "tagline": "Tập trung bứt phá",
+    "avatar_kind": "mascot_asset",
+    "is_default": false
+  },
+  {
+    "id": "nam-sao",
+    "name": "Nấm Sao",
+    "tagline": "Thư thái bền bỉ",
+    "avatar_kind": "mascot_asset",
+    "is_default": false
   },
   {
     "id": "mulon_spark",
     "name": "Mulon Spark",
-    "tagline": "Tia chớp năng động",
-    "description": "Mèo công nghệ sắc sảo, phản hồi tức thì với tư duy logic nhạy bén và hiệu suất tối đa.",
-    "badge": "Năng động",
-    "badge_style": "blue",
-    "is_default": false,
-    "avatar_kind": "svg",
-    "tone": "Gãy gọn, tinh anh, hiệu suất cao",
-    "quote": "Tối ưu hóa mọi quy trình trong chớp mắt."
+    "tagline": "Tia sáng thông tuệ",
+    "avatar_kind": "emoji",
+    "is_default": false
   },
   {
     "id": "mulon_cosmo",
     "name": "Mulon Cosmo",
-    "tagline": "Nhà thám hiểm vũ trụ",
-    "description": "Mèo phi hành gia khám phá tri thức sâu rộng, bao quát và định hướng chiến lược.",
-    "badge": "Khám phá",
-    "badge_style": "lavender",
-    "is_default": false,
-    "avatar_kind": "svg",
-    "tone": "Sâu sắc, điềm tĩnh, sáng tạo",
-    "quote": "Cùng vươn tới những chân trời kiến thức mới."
+    "tagline": "Vũ trụ bao la",
+    "avatar_kind": "emoji",
+    "is_default": false
   },
   {
     "id": "mulon_zen",
     "name": "Mulon Zen",
-    "tagline": "Thiền định tĩnh tại",
-    "description": "Mèo thiền thư thái, kiên nhẫn lắng nghe, cân nhắc kỹ lưỡng và an toàn tuyệt đối.",
-    "badge": "Tĩnh tại",
-    "badge_style": "green",
-    "is_default": false,
-    "avatar_kind": "svg",
-    "tone": "Nhẹ nhàng, khiêm tốn, bền bỉ",
-    "quote": "Tĩnh tâm quan sát, hành động chuẩn xác."
+    "tagline": "Tĩnh lặng sâu lắng",
+    "avatar_kind": "emoji",
+    "is_default": false
   }
 ]

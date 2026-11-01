@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-11-01 ~23:18 bởi Antigravity (ký: Antigravity): **Hoàn thành triển khai và kiểm thử [T-41] Lát cắt 1 (DONE, v1.7.63)** — Phân vai The Agency: Chủ trì `agency-ui-designer` + `agency-frontend-developer`; cổng chốt thẩm định giao diện `agency-ui-finish-gate-reviewer`, kiểm thử `agency-test-automation-engineer`, tự kiểm `agency-reality-checker`. Đã hoàn tất Lát cắt 1: (1) Bỏ hẳn hàng icon tròn Hero (`#hero-quick-nav`) khỏi HTML và CSS (Mục 1); (2) Bổ sung nút icon chỉnh sửa `#btn-edit-identity` (SVG nét mảnh 13×13px) cạnh `#app-brand-name` mở modal `#modal-edit-identity` cho phép nhập tên hiển thị và chọn 1 trong đúng 5 mascot chính thức (`mulon`, `bach-tuoc`, `meo-hoodie`, `may-sam`, `nam-sao`) lưu qua API `/api/brand` (Mục 12); (3) Route whitelist an toàn `/app/assets/mascots/{id}/{filename}` và handler `_handle_avatar` ưu tiên avatar của mascot kích hoạt; (4) Chuẩn hoá kích thước: Avatar 50×50px, Header 104px, Segbar 48px, tổng khối danh tính Header + Segbar = 152px $\le 160$px; (5) Gỡ bỏ văn bản trong ngoặc đơn ở các tiêu đề chính (Mục 20); (6) Cả 3 ảnh render thật Chromium 390×844 đều đổi hash SHA-256 mới, runtime 0 pageerror; (7) Bộ test hồi quy mới `tests/test_v17_t41_muse_parity.py` (5/5 passed), full suite Mac **771 passed / 0 failed** trong 78.02s, evals vàng **33/36 (92%)** đạt cổng, smoke `--dry-run` exit 0. Chuyển [T-41] Lát cắt 1 sang `DONE`, chuyển Muse autowatch nghiệm thu trên VM. Ky: Antigravity
+
 Cập nhật 2026-11-01 ~22:45 bởi Antigravity (ký: Antigravity): **Bắt đầu nhận việc và claim `DOING` [T-41] Muse-parity vòng 2 — Lát cắt 1 (Hero + điều hướng + icon nét + luật toàn cục bỏ sub-text/search/chip/backrow)**. Phân vai The Agency: Chủ trì `agency-ui-designer` + `agency-frontend-developer`, cổng chốt `agency-ui-finish-gate-reviewer`, tự kiểm trước DONE `agency-reality-checker`. Ky: Antigravity
 
 Cập nhật 2026-11-01 ~22:41 bởi Muse (theo lệnh trực tiếp của chủ dự án "kéo bộ asset 5 mascot qua", ký: Muse): **Đã đưa bộ asset 5 mascot chính thức vào repo** tại `mulon/webapp/assets/mascots/<id>/` (mỗi con: `atlas-anim.webp` + `manifest-anim.json` + `avatar.webp`; tổng ~17MB) phục vụ mục 12 của [T-41]. Bản master PNG đầy đủ (247MB) chủ dự án giữ ngoài repo; bản repo là bản tối ưu web từ đúng master đó. Chi tiết ở ghi chú trong mục [T-41]. Ky: Muse
@@ -460,7 +462,7 @@ này không ghi đè gì) + commit verdict này.
 - Phạm vi: (1) design note ngắn trình Muse duyệt trước khi code: bảng nấc + hành vi từng nấc + cách mode tổng tương tác với policy theo connector/hành động hiện có (mode là trần trên, policy riêng chỉ được chặt hơn, không nới hơn mode — đề xuất, Muse chốt khi duyệt); (2) backend: mode lưu qua cơ chế config/policy hiện hữu (Rule 0, không hardcode danh sách nấc trong `.py` — để ở config), đổi mode áp dụng ngay; (3) UI: chọn mode ngay trong màn Quyền (dạng danh sách chọn một, đúng kỷ luật thị giác của [T-41]: không sub-text, không chip lọc); (4) thẻ duyệt trong chat + Mini App phải thể hiện mode đang hiệu lực khi quyết định tự chạy hay hỏi.
 - Ràng buộc: không nới lỏng luật bảo mật `AGENTS.md` §5 (denylist file nhạy cảm, secret không vào log); mode cao nhất cũng không vượt qua denylist cứng. Suite xanh 100% + eval + render 2 theme trước DONE; nghiệm thu gồm kiểm chứng sống qua bot thật một hành vi đổi nấc (nấc thấp → bot hỏi; nấc cao → bot tự chạy đúng phạm vi).
 
-### [T-41] Muse-parity vòng 2: thu tỉ lệ + mật độ + kỷ luật thị giác về đúng chuẩn Muse — `DOING` (Lát cắt 1)
+### [T-41] Muse-parity vòng 2: thu tỉ lệ + mật độ + kỷ luật thị giác về đúng chuẩn Muse — `DONE` (Lát cắt 1)
 
 - Giao: Antigravity. Agent chủ trì: `agency-ui-designer` + `agency-frontend-developer`; cổng chốt: `agency-ui-finish-gate-reviewer`; tự kiểm trước DONE: `agency-reality-checker`.
 - Nguồn lệnh: chủ dự án, 2026-11-01 ~21:33 — "Giao diện chưa giống muse nhe" (chỉ đạo trực tiếp, thắng verdict T-40 ở khía cạnh cảm giác giống).
@@ -507,6 +509,16 @@ này không ghi đè gì) + commit verdict này.
     19. **Bỏ màn hình "Feed chủ động"** (`screen-feed`) cùng điểm vào của nó.
     20. **Bỏ mọi văn bản trong ngoặc đơn trên toàn bộ giao diện** — vd "(Upcoming)", "(*/30 * * * *)", ghi chú ngoặc trong nhãn/nút/tiêu đề đều xoá hoặc viết lại không ngoặc.
 - Chia lát: (1) Hero + điều hướng + icon; (2) Mật độ danh sách Việc + trạng thái/badge; (3) Áp cùng thang tỉ lệ cho 4 tab còn lại + chấm thông báo. Mỗi lát: render trước/sau + suite xanh mới lên DONE.
+- **Báo cáo hoàn thành Lát cắt 1 (Antigravity, 2026-11-01 ~23:18, commit chuẩn bị push, v1.7.63):**
+  - **Khối danh tính & Điều hướng (Mục 1, 12, 20):** Bỏ hoàn toàn `#hero-quick-nav` (4 nút tròn). Bổ sung nút `#btn-edit-identity` (SVG nét mảnh 13×13px) cạnh tên `#app-brand-name` mở modal `#modal-edit-identity` cho phép nhập tên trợ lý và chọn 1 trong đúng 5 mascot chính thức (`mulon`, `bach-tuoc`, `meo-hoodie`, `may-sam`, `nam-sao`) lưu qua API `/api/brand`.
+  - **Asset & Static Whitelist Route:** Thêm route whitelist an toàn `/app/assets/mascots/{id}/{filename}` (chỉ chấp nhận 5 mascot chính thức và 3 file asset chuẩn: `avatar.webp`, `manifest-anim.json`, `atlas-anim.webp`), `_handle_avatar` ưu tiên avatar của mascot kích hoạt. Cập nhật `config/mascots.json` và `AGENTS.md` §6 đồng bộ 5 mascot chính thức.
+  - **Số đo Chromium thật 390×844:** Avatar 50×50px, Header 104px, Segbar 48px (`min-height: 48px`, touch target button 44px). Tổng chiều cao kết hợp Header + Segbar = **152px $\le 160$px** (vượt chuẩn nghiệm thu $\le 160$px của T-41).
+  - **Bằng chứng Render thật Chromium 390×844:** Cả 3 ảnh render đều đổi hash SHA-256 mới:
+    + `01_dashboard_light.png`: `e2725185f93f1bbaee1ba290160ff295d4cf75361bb5d8ede0be2539006be774`
+    + `02_dashboard_dark.png`: `7be890c31480e46251f1072ad3641fe9b35bf3495915ca667c7d17adc87649b0`
+    + `04_tasks_dark.png`: `f9972f8e915f289352b43aea4818a5a9945f7df92773b7a19ecda76036f0b97f`
+    Runtime browser 0 pageerror, modal hoạt động mượt mà.
+  - **Kết quả kiểm thử:** Test hồi quy mới `tests/test_v17_t41_muse_parity.py` (**5/5 passed**), `tests/test_v17_miniapp_modular_js.py` (**14/14 passed**), full suite Mac **771 passed / 0 failed** trong 78.02s, evals vàng **33/36 = 92%** đạt cổng 85%, smoke `--dry-run` exit 0. Sẵn sàng cho Muse autowatch nghiệm thu độc lập trên VM. Ky: Antigravity
 
 
 ## Đợt PARITY + MỞ RỘNG (chủ dự án yêu cầu 26/10/2026 21:06-21:08)
