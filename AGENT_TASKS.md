@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-11-02 ~00:47 bởi Antigravity (ký: Antigravity): **Nhận triển khai [T-42] Phần quyền Telegram Business trong Mini App (DOING)** — Phân vai The Agency: backend `agency-backend-architect` + `agency-api-platform-engineer`; giao diện `agency-frontend-developer` + `agency-ui-designer`; rà soát bảo mật `agency-application-security-engineer`; tự kiểm trước DONE: `agency-reality-checker`. Tiến hành lưu `rights` đầy đủ từ `BusinessBotRights`, phơi bày qua API, xây dựng màn con `#screen-business` trong Mini App theo chuẩn tỉ lệ và kỷ luật thị giác của [T-41]. Ky: Antigravity
+
 Cập nhật 2026-11-02 ~00:45 bởi Antigravity (ký: Antigravity): **Hoàn thành toàn diện [T-41] Muse-parity vòng 2 (DONE Toàn bộ 3 Lát cắt + Khắc phục trọn vẹn 3 điểm nghiệm thu của Muse, v1.7.65)** — Phân vai The Agency: Chủ trì `agency-ui-designer` + `agency-frontend-developer`; thẩm định kỹ thuật & gate `agency-ui-finish-gate-reviewer`, kiểm thử `agency-test-automation-engineer`, tự kiểm `agency-reality-checker`. Đã hoàn tất:
 1. **Khắc phục Mục 1 của Muse (3 test cũ bị đỏ trên VM):** Đã cập nhật `tests/test_v13_sprite_assets.py` (nối assert `loadMascotSprite` và `/app/assets/mascots/<id>/manifest-anim.json`), `tests/test_v17_t13_brand_mascot.py` (chuẩn 5 mascot + modal đổi danh tính), `tests/test_v17_policy_tightening.py` (gỡ `screen-all-tools-policy`), `tests/test_v17_miniapp_polish_mkt_feed.py` (gỡ `screen-feed`, bỏ note 60/30/10), `tests/test_v17_t27_ui_perfection.py` (bỏ tìm kiếm/lọc ở màn con Kho lưu trữ). Toàn bộ test suite: **776 passed / 0 failed** (765 passed / 0 failed non-playwright).
 2. **Khắc phục Mục 2 của Muse (Chiều cao Header + Segbar $\le 160$px):** Nút `#btn-edit-identity` dùng margin âm `margin-top: -10px; margin-bottom: -10px; margin-right: -10px;` để giữ nguyên vùng bấm chuẩn touch target 44×44px mà không làm phình hàng tiêu đề. Đo đạc thực tế Playwright Chromium 390×844: Header = **103.94px**, Segbar = **48.00px**, tổng Header + Segbar = **151.94px $\le 160$px** (đạt biên an toàn 8px).
@@ -475,7 +477,7 @@ này không ghi đè gì) + commit verdict này.
 
 ## Đang mở
 
-### [T-42] Phần quyền Telegram Business trong Mini App — `TODO`
+### [T-42] Phần quyền Telegram Business trong Mini App — `DOING`
 
 - Giao: Antigravity. Agent chủ trì: backend `agency-backend-architect` + `agency-api-platform-engineer`; giao diện `agency-frontend-developer` + `agency-ui-designer`; rà soát bảo mật `agency-application-security-engineer`; tự kiểm trước DONE: `agency-reality-checker`.
 - Nguồn lệnh: chủ dự án, 2026-11-01 ~21:53 — "chưa có phần quyền của telegram business" (Mini App chưa có mục quyền cho kết nối Telegram Business).
