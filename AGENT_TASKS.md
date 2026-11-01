@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-11-01 ~21:55 bởi Muse (theo lệnh trực tiếp của chủ dự án, ký: Muse): **Mở [T-42] Phần quyền Telegram Business trong Mini App — chủ dự án chốt "chưa có phần quyền của telegram business".** Kiểm chứng độc lập trên head `5e7e244`: backend Business đã có (`mulon/business.py`, handler `business_connection`, API `GET /api/business/status`) nhưng (1) `handle_business_connection` chỉ lưu `can_reply` + `is_enabled`, đánh rơi toàn bộ object quyền `BusinessBotRights` Telegram gửi kèm; (2) Mini App có **0** dòng nhắc tới business — màn Quyền (`screen-policy`) chỉ có quyền connector/tool, API status không ai tiêu thụ. Thiết lập thật của chủ dự án từ 27/10 (Quản lý tin nhắn 5/5, Hồ sơ + Quà/Sao tắt, loại trừ 17 chat) hiện không nhìn thấy ở bất cứ đâu trong MuLon. Chi tiết phạm vi + tiêu chí nghiệm thu nằm trong mục [T-42] ở phần Đang mở. Ky: Muse
+
 Cập nhật 2026-11-01 ~21:40 bởi Muse (theo lệnh trực tiếp của chủ dự án, ký: Muse): **Mở [T-41] Muse-parity vòng 2 — chủ dự án chốt "giao diện chưa giống Muse".** Muse đã render lại toàn bộ Mini App ở head `f49755f` (Chromium 390×844, fixture đầy đủ, 0 pageerror) và đối chiếu trực tiếp với ảnh chuẩn `docs/reference/meta_muse_app_reference.png`: T-40 mới khớp *token màu*, chưa khớp *tỉ lệ/mật độ/kỷ luật thị giác* của Muse — verdict T-40 giữ nguyên cho phạm vi token/cấu trúc đã chấm, nhưng tiêu chuẩn "giống Muse" từ nay đo bằng các ngưỡng cụ thể trong mục T-41 và **chốt cuối bằng mắt chủ dự án**. Chi tiết 8 điểm lệch kèm số đo nằm trong mục [T-41] ở phần Đang mở. Ky: Muse
 
 Cập nhật 2026-10-31 ~14:40 bởi Muse (autowatch, ký: Muse): **Ghi nhận commit Mac `e59dbcb` (chỉ đổi `docs/adr/003-miniapp-muse-ui-parity.md`, 1 dòng trạng thái → "Đã nghiệm thu toàn diện (VERIFIED — Hoàn tất cả 3 Lát cắt)"): ĐÓNG ghi chú không chặn cuối cùng của verdict T-40 lúc 14:32.** Dòng trạng thái ADR nay khớp đúng verdict VERIFIED của Muse cho toàn bộ [T-40] (v1.7.62) — đây là đồng bộ tài liệu theo đúng hướng dẫn trong verdict đó, KHÔNG phải phía Mac tự VERIFIED công việc mới (không có code mới, version vẫn 1.7.62, không đổi trạng thái nào trong file này). Commit chỉ chạm ADR nên lượt này không chạy lại full suite/eval/render (tiền lệ verdict doc-only 13:35). Không còn mục DONE chưa chấm, tài liệu chờ duyệt hay NEEDS-FIX mở nào trong file. Ky: Muse
@@ -419,6 +421,27 @@ này không ghi đè gì) + commit verdict này.
 ---
 
 ## Đang mở
+
+### [T-42] Phần quyền Telegram Business trong Mini App — `TODO`
+
+- Giao: Antigravity. Agent chủ trì: backend `agency-backend-architect` + `agency-api-platform-engineer`; giao diện `agency-frontend-developer` + `agency-ui-designer`; rà soát bảo mật `agency-application-security-engineer`; tự kiểm trước DONE: `agency-reality-checker`.
+- Nguồn lệnh: chủ dự án, 2026-11-01 ~21:53 — "chưa có phần quyền của telegram business" (Mini App chưa có mục quyền cho kết nối Telegram Business).
+- Hiện trạng đã kiểm chứng trên head `5e7e244`:
+  - Backend đã có nền: `mulon/business.py` (943 dòng), handler `on_business_connection` trong `telegram_bot.py`, polling đã đăng ký `business_connection`; API `GET /api/business/status` (`_handle_business_status` trong `webapp_server.py`) trả `config_enabled`, `connection_info`, `stats`, `recent_logs`, `products_count`, `faq_count`; lệnh chat `/business` dùng chung `get_status_report()`.
+  - **Khoảng trống 1 (backend)**: `handle_business_connection` chỉ lưu `can_reply` + `is_enabled` cho mỗi connection — đánh rơi toàn bộ object quyền `conn.rights` (`BusinessBotRights`) mà Telegram gửi kèm: `can_read_messages`, `can_delete_sent_messages`, `can_delete_all_messages`, `can_edit_name`, `can_edit_username`, `can_change_gift_settings`, `can_view_gifts_and_stars`, `can_convert_gifts_to_stars`, `can_transfer_and_upgrade_gifts`, `can_transfer_stars`, `can_manage_stories`...
+  - **Khoảng trống 2 (frontend)**: `grep "business"` trong `mulon/webapp/index.html` = **0 kết quả**. Màn Quyền (`screen-policy`) chỉ gồm quyền connector/tool; `/api/business/status` không được Mini App tiêu thụ ở đâu cả.
+  - Thiết lập thật của chủ dự án (27/10/2026): `@Mulon_bot` đã nối làm chatbot Business cho nick cá nhân, quyền Quản lý tin nhắn bật 5/5, Hồ sơ 0/4 + Quà/Sao 0/5 tắt, áp cho mọi chat riêng trừ 17 chat loại trừ — không có thông tin nào trong số này hiển thị được trong MuLon.
+- Phạm vi:
+  1. **Lát backend**: lưu đầy đủ object `rights` vào bản ghi connection (additive — giữ nguyên `can_reply`/`is_enabled` hiện hữu), phơi bày qua `get_status_report()` / `GET /api/business/status`; thêm test hồi quy (fixture `BusinessConnection` có rights → record + API trả đúng rights).
+  2. **Lát frontend**: màn con mới "Telegram Business", vào từ một hàng trong Cài đặt > Quyền (`screen-policy`), hiển thị:
+     - Trạng thái kết nối bằng chữ (đúng luật §6 — trạng thái bằng text + phân cấp trung tính, KHÔNG màu xanh lá/đỏ cho trạng thái);
+     - Nhóm quyền Telegram đã cấp, trình bày đúng cách Telegram nhóm: **Quản lý tin nhắn / Hồ sơ / Quà & Sao** — mọi hàng chỉ-đọc (read-only);
+     - Tóm tắt hoạt động phía MuLon đã có sẵn trong API status: `stats`, `recent_logs`, số sản phẩm/FAQ của catalog;
+     - Ghi chú trung thực: quyền phía Telegram + danh sách chat loại trừ **chỉ đổi được trong app Telegram** (Cài đặt > Telegram Business > Chatbots) — KHÔNG làm toggle giả cho thứ bot không đổi được. Bot API không đọc được danh sách chat loại trừ; giao diện không được bịa ra danh sách này.
+  3. **Điều khiển phía MuLon** (phần bot thật sự sở hữu): bật/tắt xử lý Business (`telegram_business_enabled`), chế độ trả lời (soạn nháp chờ duyệt / tự động theo hành vi hiện hữu của `business.py`) — CHỈ cho sửa khi đã nối qua endpoint API additive đúng mẫu `webapp_server.py` và lưu bền qua cơ chế config/policy (Nguyên tắc số 0, không hardcode). Điều khiển nào không nối dây trung thực được thì để chỉ-đọc và nói rõ trong báo cáo.
+- Ràng buộc: bám thang tỉ lệ Muse-parity gọn của [T-41] (nếu token T-41 đã land trước thì dùng token mới, chưa thì dùng token hiện hành); giữ nguyên các lock §6 — một accent duy nhất `#7C3AED`, touch target ≥44px, single-file, API additive không phá hợp đồng cũ, render thật cả 2 theme trước DONE, full suite xanh 100% + eval vàng đạt cổng.
+- Tiêu chí nghiệm thu (Muse kiểm chứng độc lập): API trả `rights` khớp fixture `BusinessConnection`; render màn Telegram Business hiển thị đúng 3 nhóm quyền ở cả 2 theme, 0 pageerror; kiểm chứng sống: trạng thái kết nối ở lệnh `/business` của bot thật và trên màn Mini App phải khớp nhau.
+
 
 ### [T-41] Muse-parity vòng 2: thu tỉ lệ + mật độ + kỷ luật thị giác về đúng chuẩn Muse — `TODO`
 
