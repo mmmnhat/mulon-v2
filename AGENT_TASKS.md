@@ -19,6 +19,8 @@
 > hoặc `NEEDS-FIX` (quay lại `TODO` khi đã rõ cách sửa).
 > Mục `VERIFIED` được Muse gom vào phần "Đã đóng" ở cuối file.
 
+Cập nhật 2026-11-01 ~22:12 bởi Muse (ghi theo chỉ đạo trực tiếp của chủ dự án, ký: Muse): **Ghi Đợt 2 (3 mục, tab Lịch) vào danh sách sửa trong [T-41]**: bỏ đoạn sub-text "Vòng lặp hẹn giờ đang TẮT…", gộp hai mục "Sắp tới (Upcoming)" và "Lịch hẹn & Nhắc việc cá nhân" làm một, đưa Heartbeat lên trên cùng tab Lịch. Ky: Muse
+
 Cập nhật 2026-11-01 ~22:10 bởi Muse (ghi theo chỉ đạo trực tiếp của chủ dự án, ký: Muse): **Chủ dự án bắt đầu chỉ lỗi trực tiếp trên bộ render 64 ảnh — đã ghi Đợt 1 (5 mục) vào danh sách sửa trong mục [T-41]** (bỏ hàng icon Hero, bỏ card thống kê việc, bỏ ô tìm kiếm, bỏ card Goals ở tab Việc, bỏ 4 chip lọc). Chủ dự án báo "còn nhiều lắm" — các đợt tiếp theo Muse ghi nối tiếp vào cùng danh sách, Antigravity làm theo danh sách này. Ky: Muse
 
 Cập nhật 2026-11-01 ~21:55 bởi Muse (theo lệnh trực tiếp của chủ dự án, ký: Muse): **Mở [T-42] Phần quyền Telegram Business trong Mini App — chủ dự án chốt "chưa có phần quyền của telegram business".** Kiểm chứng độc lập trên head `5e7e244`: backend Business đã có (`mulon/business.py`, handler `business_connection`, API `GET /api/business/status`) nhưng (1) `handle_business_connection` chỉ lưu `can_reply` + `is_enabled`, đánh rơi toàn bộ object quyền `BusinessBotRights` Telegram gửi kèm; (2) Mini App có **0** dòng nhắc tới business — màn Quyền (`screen-policy`) chỉ có quyền connector/tool, API status không ai tiêu thụ. Thiết lập thật của chủ dự án từ 27/10 (Quản lý tin nhắn 5/5, Hồ sơ + Quà/Sao tắt, loại trừ 17 chat) hiện không nhìn thấy ở bất cứ đâu trong MuLon. Chi tiết phạm vi + tiêu chí nghiệm thu nằm trong mục [T-42] ở phần Đang mở. Ky: Muse
@@ -473,6 +475,10 @@ này không ghi đè gì) + commit verdict này.
     3. **Bỏ ô tìm kiếm việc** ở tab Việc.
     4. **Bỏ card Goals ở tab Việc** — Goals chỉ cập nhật trong group topics, không đặt trong Mini App ở tab Việc.
     5. **Bỏ 4 chip lọc** (Tất cả / Đang chạy / Đã xong / Đã lỗi) ở tab Việc.
+  - Đợt 2 (22:12, tab Lịch):
+    6. **Bỏ đoạn sub-text dài đầu tab Lịch** ("Vòng lặp hẹn giờ đang TẮT (SCHEDULER_ENABLED=0 trong .env) — …") — text kỹ thuật dư thừa, không hiển thị cho người dùng.
+    7. **Gộp "Sắp tới (Upcoming)" và "Lịch hẹn & Nhắc việc cá nhân" thành một mục duy nhất** — hiện có tận 2 mục cùng là lịch cá nhân, trùng nhau.
+    8. **Đưa Heartbeat lên trên cùng tab Lịch** (hiện đang nằm giữa trang, dưới mục Sắp tới).
 - Chia lát: (1) Hero + điều hướng + icon; (2) Mật độ danh sách Việc + trạng thái/badge; (3) Áp cùng thang tỉ lệ cho 4 tab còn lại + chấm thông báo. Mỗi lát: render trước/sau + suite xanh mới lên DONE.
 
 
