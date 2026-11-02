@@ -407,7 +407,7 @@ def test_playwright_e2e_tasks_and_schedules(cfg: Config):
                 else:
                     assert "✓ Hoàn tất" in tl_text
 
-                page.locator("#screen-task .backrow").click()
+                page.locator('#segbar button[data-tab="viec"]').click()
                 page.wait_for_selector("#tab-viec:not(.hidden)")
 
             # 3. Chuyển sang tab Lịch, kiểm tra diễn giải cron tiếng Việt & mở chi tiết 2 lịch
@@ -427,7 +427,7 @@ def test_playwright_e2e_tasks_and_schedules(cfg: Config):
             assert "Đầu ra:" in runs_text
 
             # Quay lại tab Lịch và mở lịch 2 (sch_evening - có lỗi chạy)
-            page.locator("#screen-schedule-detail .backrow").click()
+            page.locator('#segbar button[data-tab="lich"]').click()
             page.wait_for_selector("#tab-lich:not(.hidden)")
             page.locator('#schedule-list .row[data-sched-open="sch_evening"]').click()
             page.wait_for_selector("#screen-schedule-detail:not(.hidden)")

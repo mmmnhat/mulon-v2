@@ -305,12 +305,8 @@ async def test_playwright_t23_6_policy_vault_interaction(env_t23_6):
         assert await page.is_visible('#conn-pol-write-card')
         if ARTIFACT_DIR.exists():
             await page.screenshot(path=str(ARTIFACT_DIR / "t23_6_screen_conn_detail.png"), full_page=True)
-        # Bấm quay lại
-        await page.click('#conn-pol-back')
-        await page.wait_for_selector('#screen-policy:not(.hidden)')
-
-        # 4. Quay lại Cài đặt -> Mở Kho lưu trữ an toàn (Vault)
-        await page.click('#screen-policy [data-back]')
+        # 4. Quay lại Cài đặt qua thanh điều hướng -> Mở Kho lưu trữ an toàn (Vault)
+        await page.click('#segbar button[data-tab="caidat"]')
         await page.wait_for_selector('#tab-caidat:not(.hidden)')
         await page.click('[data-open="screen-vault"]')
         await page.wait_for_selector('#screen-vault:not(.hidden)')

@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## 1.7.66 — 2026-11-02 — Phần quyền Telegram Business trong Mini App (T-42 — ký: Antigravity)
+
+- **Lát Backend (`mulon/business.py`, `mulon/webapp_server.py`, `mulon/telegram_bot.py`):**
+  - **Trích xuất đầy đủ 12 quyền Telegram BusinessBotRights:** Bổ sung hàm `extract_business_rights(conn)` trích xuất trọn vẹn 12 thuộc tính quyền (`can_reply`, `can_read_messages`, `can_delete_sent_messages`, `can_delete_all_messages`, `can_edit_name`, `can_edit_username`, `can_change_gift_settings`, `can_view_gifts_and_stars`, `can_convert_gifts_to_stars`, `can_transfer_and_upgrade_gifts`, `can_transfer_stars`, `can_manage_stories`). Hỗ trợ an toàn Pydantic model (`model_dump()`), dictionary hoặc instance thông thường.
+  - **Lưu trữ trọn vẹn vào bản ghi kết nối:** Trong `handle_business_connection`, đưa object `"rights": rights` vào record lưu bền vào SQLite KV Memory (`business:connection:{conn_id}`).
+  - **Phơi bày qua `get_status_report()`:** Phơi bày `rights`, `rights_groups` (3 nhóm chuẩn: Tin nhắn, Hồ sơ, Quà & Sao) và `reply_mode` qua báo cáo trạng thái và API `GET /api/business/status`.
+  - **Quản lý cấu hình & Chế độ trả lời (Rule 0):** Bổ sung `update_config(enabled, reply_mode)` lưu cấu hình bền vững vào SQLite KV Memory (`business:enabled_override`, `business:reply_mode`). Thêm API additive `POST /api/business/config` cho phép bật/tắt chatbot và chuyển đổi giữa 2 chế độ `auto` (tự động) và `draft` (soạn nháp chờ chủ duyệt).
+  - **An toàn soạn nháp:** Khi `reply_mode == "draft"`, mọi tin nhắn vốn rơi vào nhánh `AUTO_REPLY` tự động chuyển thành `DRAFT_APPROVAL` (mở thẻ phê duyệt chờ chủ duyệt qua DM, tuyệt đối không tự ý gửi tin).
+  - **Đồng bộ lệnh chat `/business`:** Cập nhật lệnh `/business` hiển thị chế độ trả lời và tóm tắt số lượng quyền 3 nhóm khi bot đang có kết nối Telegram Business.
+- **Lát Frontend (`mulon/webapp/index.html`):**
+  - **Điểm vào trong màn Quyền:** Thêm card Telegram Business (`#policy-business-card`) và hàng điều hướng `data-open="screen-business"` trong màn Quyền (`#screen-policy`) hiển thị tóm tắt trạng thái kết nối.
+  - **Màn con mới `#screen-business`:**
+    - Trạng thái kết nối thể hiện bằng chữ trung tính (`#biz-conn-status-badge`: "Đang kết nối" / "Chưa kết nối"), tuân thủ nghiêm ngặt Luật §6 (không dùng màu xanh lá/đỏ cho trạng thái).
+    - Điều khiển bot sở hữu: Toggle bật/tắt xử lý Business (`#biz-enabled-tgl`), chọn chế độ trả lời Tự động / Soạn nháp (`#biz-mode-auto`, `#biz-mode-draft`) với touch target $\ge 44$px và màu nhấn tím Mulon duy nhất `#7C3AED`.
+    - Trình bày 3 nhóm quyền Telegram đã cấp dạng chỉ-đọc (read-only): Quản lý tin nhắn (4 quyền), Hồ sơ (3 quyền), Quà & Sao (5 quyền) với trạng thái bằng chữ "Được cấp" (`var(--ink1)`) / "Tắt" (`var(--ink3)`).
+    - Tóm tắt hoạt động: Tổng tin nhắn đã xử lý, tin tự động trả lời, bản nháp đã tạo, số sản phẩm / FAQ trong catalog.
+    - Ghi chú trung thực: Nêu rõ quyền kết nối Telegram Business và danh sách cuộc trò chuyện loại trừ chỉ có thể điều chỉnh trực tiếp trong ứng dụng Telegram (Cài đặt > Telegram Business > Chatbots).
+- **Kiểm thử & Bằng chứng nghiệm thu:**
+  - Bộ test hồi quy mới `tests/test_v17_t42_business_rights.py` (**6/6 passed**): Bao phủ trích xuất quyền, lưu KV, API status/config, hành vi soạn nháp, markup frontend và Playwright render.
+  - Bằng chứng render thật Playwright Chromium 390×844: Chụp 2 ảnh màn Telegram Business ở cả 2 theme Light & Dark:
+    - `docs/audits/renders/05_business_light.png`: SHA256 `c9cb8ac436dd152a3efac0aa890ea245a228bc9dde22b1218e4848525a1f9b42`, Mean RGB **244.29**.
+    - `docs/audits/renders/06_business_dark.png`: SHA256 `a08a30f699358d900606f074874f49940d12050e52fa4b805352276a49841153`, Mean RGB **38.35**.
+    - Runtime: **0 pageerror**.
+  - Full test suite: **782 passed / 0 failed** trong 72.75s (tăng 6 test ròng so với v1.7.65).
+  - Evals vàng: **33/36 = 92%** (ngưỡng 85%).
+  - Smoke dry-run: `python -m mulon.main --dry-run` exit 0.
+  - Phân vai The Agency: backend `agency-backend-architect` + `agency-api-platform-engineer`; giao diện `agency-frontend-developer` + `agency-ui-designer`; rà soát bảo mật `agency-application-security-engineer`; tự kiểm `agency-reality-checker`.
+
 ## 1.7.65 — 2026-11-02 — Muse-parity vòng 2: Hoàn tất Lát cắt 3, Chuẩn hoá Tab Lịch & Khắc phục toàn diện 3 điểm nghiệm thu của Muse (T-41 — ký: Antigravity)
 
 - **Khắc phục trọn vẹn 3 điểm `NEEDS-FIX` của Muse tại commit `0e5a402`:**

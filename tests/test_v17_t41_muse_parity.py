@@ -70,7 +70,7 @@ def test_t41_no_parentheses_in_major_titles():
     content = WEBAPP_INDEX.read_text(encoding="utf-8")
     assert "Mục tiêu &amp; Cây tiến triển (Goals)" not in content
     assert "Sắp tới (Upcoming)" not in content
-    assert "Sắp tới<" in content
+    assert "Lịch trình<" in content
     assert "Mỗi 30 phút (*/30 * * * *)" not in content
     assert "Mỗi 30 phút<" in content
 
@@ -272,5 +272,27 @@ def test_t41_slice3_renders_verification():
     # Mean RGB Dark phải tối (< 80)
     assert means["02_dashboard_dark.png"] < 80.0, f"Dark theme phải có mean RGB tối (< 80), thực tế là {means['02_dashboard_dark.png']}"
     assert means["04_tasks_dark.png"] < 80.0, f"Dark tasks phải có mean RGB tối (< 80), thực tế là {means['04_tasks_dark.png']}"
+
+
+def test_t41_slice3_narrow_fixes_verification():
+    """Kiểm tra 4 điểm sửa hẹp Lát cắt 3 theo verdict của Muse: backrow, brand section, tab Lịch, policy guard."""
+    content = WEBAPP_INDEX.read_text(encoding="utf-8")
+
+    # 1. Bỏ toàn bộ .backrow ở mọi màn con (Mục 15)
+    import re
+    backrows = re.findall(r'class="backrow"', content)
+    assert len(backrows) == 0, f"Phải xoá sạch mọi .backrow trong DOM (còn {len(backrows)})"
+
+    # 2. Section #screen-brand chết phải được xoá sạch (Mục 11)
+    assert '<section id="screen-brand"' not in content, "Section #screen-brand chết phải được dọn khỏi DOM"
+
+    # 3. Tab Lịch chỉ còn 1 danh sách Lịch trình duy nhất (Mục 7)
+    assert 'id="upcoming-list"' not in content, "Tab Lịch không còn danh sách #upcoming-list riêng biệt"
+    assert 'id="schedule-list"' in content, "Tab Lịch phải có danh sách hợp nhất #schedule-list"
+
+    # 4. Guard an toàn cho policy-tools-sub
+    assert '$("policy-tools-sub")' in content
+    assert 'if (pts)' in content or 'if ($("policy-tools-sub"))' in content, "Phải có null-check an toàn cho policy-tools-sub"
+
 
 

@@ -39,6 +39,95 @@ class BusinessActionKind(str, Enum):
     IGNORE = "ignore"
 
 
+ALL_BUSINESS_RIGHTS_KEYS = [
+    "can_reply",
+    "can_read_messages",
+    "can_delete_sent_messages",
+    "can_delete_all_messages",
+    "can_edit_name",
+    "can_edit_username",
+    "can_change_gift_settings",
+    "can_view_gifts_and_stars",
+    "can_convert_gifts_to_stars",
+    "can_transfer_and_upgrade_gifts",
+    "can_transfer_stars",
+    "can_manage_stories",
+]
+
+BUSINESS_RIGHTS_GROUPS = {
+    "messages": {
+        "title": "Quản lý tin nhắn",
+        "keys": [
+            ("can_reply", "Có thể trả lời tin nhắn"),
+            ("can_read_messages", "Có thể đọc tin nhắn"),
+            ("can_delete_sent_messages", "Có thể xoá tin nhắn đã gửi"),
+            ("can_delete_all_messages", "Có thể xoá tất cả tin nhắn"),
+        ],
+    },
+    "profile": {
+        "title": "Hồ sơ",
+        "keys": [
+            ("can_edit_name", "Có thể chỉnh sửa tên"),
+            ("can_edit_username", "Có thể chỉnh sửa username"),
+            ("can_manage_stories", "Có thể quản lý tin"),
+        ],
+    },
+    "gifts_and_stars": {
+        "title": "Quà & Sao",
+        "keys": [
+            ("can_change_gift_settings", "Đổi cài đặt quà"),
+            ("can_view_gifts_and_stars", "Xem quà & sao"),
+            ("can_convert_gifts_to_stars", "Chuyển đổi quà sang sao"),
+            ("can_transfer_and_upgrade_gifts", "Chuyển & nâng cấp quà"),
+            ("can_transfer_stars", "Chuyển sao"),
+        ],
+    },
+}
+
+
+def extract_business_rights(conn: Any) -> dict[str, bool]:
+    """Trích xuất đầy đủ 12 quyền Telegram BusinessBotRights từ đối tượng connection.
+    
+    Hỗ trợ pydantic model (aiogram 3), dict, hoặc class instance thông thường.
+    """
+    rights_obj = getattr(conn, "rights", None)
+    if rights_obj is None and isinstance(conn, dict):
+        rights_obj = conn.get("rights")
+
+    raw_dict: dict[str, Any] = {}
+    if rights_obj is not None:
+        if hasattr(rights_obj, "model_dump"):
+            try:
+                raw_dict = rights_obj.model_dump()
+            except Exception:
+                pass
+        elif hasattr(rights_obj, "dict"):
+            try:
+                raw_dict = rights_obj.dict()
+            except Exception:
+                pass
+        elif isinstance(rights_obj, dict):
+            raw_dict = rights_obj
+        else:
+            for k in ALL_BUSINESS_RIGHTS_KEYS:
+                if hasattr(rights_obj, k):
+                    raw_dict[k] = getattr(rights_obj, k)
+
+    result: dict[str, bool] = {}
+    for k in ALL_BUSINESS_RIGHTS_KEYS:
+        val = raw_dict.get(k)
+        if val is None:
+            # Fallback nếu trên conn có thuộc tính này (ví dụ can_reply)
+            if hasattr(conn, k):
+                val = getattr(conn, k)
+            elif isinstance(conn, dict) and k in conn:
+                val = conn.get(k)
+            else:
+                val = False
+        result[k] = bool(val)
+    return result
+
+
 def normalize_vietnamese_text(text: str) -> str:
     """Chuẩn hoá chuỗi tiếng Việt để so khớp từ khoá."""
     s = (text or "").lower().strip()
@@ -332,7 +421,50 @@ class TelegramBusinessService:
             "bank_info": {},
         })
 
-    # ---------- Quản lý kết nối ----------
+    # ---------- Quản lý kết nối & Cấu hình ----------
+
+    async def is_enabled(self) -> bool:
+        """Kiểm tra xem tính năng Telegram Business có đang được bật hay không."""
+        if self.memory is not None:
+            try:
+                override = await self.memory.kv_get("business:enabled_override")
+                if override is not None:
+                    return override in ("1", "true", "True")
+            except Exception:
+                pass
+        return bool(getattr(self.cfg, "telegram_business_enabled", False))
+
+    async def get_reply_mode(self) -> str:
+        """Lấy chế độ trả lời hiện tại: 'auto' (tự động) hoặc 'draft' (soạn nháp)."""
+        if self.memory is not None:
+            try:
+                mode = await self.memory.kv_get("business:reply_mode")
+                if mode in ("auto", "draft"):
+                    return mode
+            except Exception:
+                pass
+        return "auto"
+
+    async def update_config(
+        self,
+        enabled: Optional[bool] = None,
+        reply_mode: Optional[str] = None,
+    ) -> dict:
+        """Cập nhật cấu hình Telegram Business bền vững qua SQLite KV (Rule 0)."""
+        if self.memory is not None:
+            if enabled is not None:
+                await self.memory.kv_set("business:enabled_override", "1" if enabled else "0")
+            if reply_mode is not None:
+                mode = "draft" if str(reply_mode).lower() == "draft" else "auto"
+                await self.memory.kv_set("business:reply_mode", mode)
+
+        eff_enabled = await self.is_enabled()
+        eff_mode = await self.get_reply_mode()
+        return {
+            "ok": True,
+            "enabled": eff_enabled,
+            "reply_mode": eff_mode,
+        }
 
     async def handle_business_connection(self, conn: Any) -> dict:
         """Xử lý cập nhật kết nối Telegram Business (Update.business_connection)."""
@@ -345,12 +477,17 @@ class TelegramBusinessService:
         dt = getattr(conn, "date", None)
         date_ts = dt.timestamp() if hasattr(dt, "timestamp") else time.time()
 
+        rights = extract_business_rights(conn)
+        if "can_reply" in rights:
+            can_reply = bool(rights["can_reply"])
+
         record = {
             "connection_id": conn_id,
             "user_id": user_id,
             "user_chat_id": user_chat_id,
             "can_reply": can_reply,
             "is_enabled": is_enabled,
+            "rights": rights,
             "updated_at": date_ts,
         }
 
@@ -389,7 +526,7 @@ class TelegramBusinessService:
 
     async def is_active_and_can_reply(self, conn_id: Optional[str] = None) -> bool:
         """Kiểm tra xem bot có đang kết nối và có quyền reply không."""
-        if not getattr(self.cfg, "telegram_business_enabled", False):
+        if not await self.is_enabled():
             return False
 
         if not conn_id and self.memory is not None:
@@ -554,7 +691,7 @@ class TelegramBusinessService:
         Trả về kết quả xử lý.
         """
         # 1. Bỏ qua nếu tính năng bị tắt
-        if not getattr(self.cfg, "telegram_business_enabled", False):
+        if not await self.is_enabled():
             return {"action": BusinessActionKind.IGNORE, "reason": "business_disabled"}
 
         conn_id = getattr(message, "business_connection_id", None)
@@ -592,8 +729,14 @@ class TelegramBusinessService:
             lname = getattr(from_user, "last_name", "") or ""
             customer_name = f"{fname} {lname}".strip() or getattr(from_user, "username", "") or ""
 
-        # 6. Phân loại ý định khách
+        # 6. Phân loại ý định khách & kiểm tra chế độ trả lời (auto vs draft)
         action_kind, reason, match_data = self.classifier.classify(raw_text)
+        reply_mode = await self.get_reply_mode()
+
+        # Nếu đang ở chế độ 'draft' (soạn nháp), mọi tin AUTO_REPLY đều chuyển thành DRAFT_APPROVAL
+        if action_kind == BusinessActionKind.AUTO_REPLY and reply_mode == "draft":
+            action_kind = BusinessActionKind.DRAFT_APPROVAL
+            reason = f"{reason} (chế độ soạn nháp)"
 
         # 7. Nhánh TỰ REP
         if action_kind == BusinessActionKind.AUTO_REPLY:
@@ -908,8 +1051,9 @@ class TelegramBusinessService:
             logger.debug("Lỗi lưu business log: %s", exc)
 
     async def get_status_report(self) -> dict:
-        """Trả về báo cáo trạng thái Telegram Business phục vụ lệnh /business và API."""
-        is_enabled_cfg = bool(getattr(self.cfg, "telegram_business_enabled", False))
+        """Trả về báo cáo trạng thái Telegram Business phục vụ lệnh /business và API (T-29 / T-42)."""
+        eff_enabled = await self.is_enabled()
+        eff_mode = await self.get_reply_mode()
         active_conn_id = None
         conn_info = None
 
@@ -923,6 +1067,15 @@ class TelegramBusinessService:
             except Exception:
                 pass
 
+        rights = None
+        if conn_info:
+            rights = conn_info.get("rights")
+            if not rights:
+                rights = extract_business_rights(conn_info)
+                conn_info["rights"] = rights
+        else:
+            rights = extract_business_rights(None)
+
         recent_logs = []
         if self.memory is not None:
             try:
@@ -933,9 +1086,12 @@ class TelegramBusinessService:
                 pass
 
         return {
-            "config_enabled": is_enabled_cfg,
+            "config_enabled": eff_enabled,
+            "reply_mode": eff_mode,
             "active_connection_id": active_conn_id,
             "connection_info": conn_info,
+            "rights": rights,
+            "rights_groups": BUSINESS_RIGHTS_GROUPS,
             "stats": dict(self._stats),
             "recent_logs": recent_logs,
             "products_count": len(self.catalog.get("products", [])),

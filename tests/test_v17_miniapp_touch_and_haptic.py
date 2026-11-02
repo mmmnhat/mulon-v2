@@ -37,8 +37,8 @@ def test_touch_target_rules_enforced():
     hb_ctx = content[content.find('id="btn-heartbeat-confirm-pause"') - 50 : content.find('id="btn-heartbeat-confirm-pause"') + 200]
     assert ('min-height:44px' in hb_ctx or 'touch-target-44' in hb_ctx)
 
-    assert 'id="btn-save-bot-name"' in content
-    bot_ctx = content[content.find('id="btn-save-bot-name"') - 50 : content.find('id="btn-save-bot-name"') + 200]
+    assert 'id="btn-save-identity"' in content
+    bot_ctx = content[content.find('id="btn-save-identity"') - 50 : content.find('id="btn-save-identity"') + 200]
     assert ('min-height:44px' in bot_ctx or 'touch-target-44' in bot_ctx)
 
 

@@ -29,7 +29,8 @@ def test_row_user_select_and_divider_pointer_events():
     assert "pointer-events:none" in html or "pointer-events: none" in html
 
 
-def test_all_subscreens_have_backrow():
+def test_all_subscreens_have_no_backrow():
+    """Kiểm tra Mục 15 T-41: Bỏ hoàn toàn thanh quay lại .backrow ở mọi màn con, điều hướng qua tab/state."""
     html = INDEX_HTML_PATH.read_text(encoding="utf-8")
     
     expected_subscreens = [
@@ -54,9 +55,10 @@ def test_all_subscreens_have_backrow():
         m = re.search(pattern, html, re.DOTALL)
         assert m is not None, f"Màn {scr_id} phải tồn tại trong index.html"
         sec_content = m.group(1)
-        assert 'class="backrow"' in sec_content or "class='backrow'" in sec_content, f"Màn {scr_id} phải có nút quay lại (.backrow)"
-        assert "data-back" in sec_content, f"Nút quay lại của {scr_id} phải có thuộc tính data-back"
-        assert "<svg" in sec_content, f"Nút quay lại của {scr_id} phải có icon SVG"
+        assert 'class="backrow"' not in sec_content and "class='backrow'" not in sec_content, f"Màn {scr_id} không được có .backrow (Mục 15)"
+
+    # Toàn bộ HTML không còn .backrow
+    assert len(re.findall(r'class="backrow"', html)) == 0, "Toàn bộ DOM phải có 0 backrow (Mục 15)"
 
 
 def test_heartbeat_run_history_no_dead_chevron():
@@ -208,7 +210,8 @@ def test_browser_navigation_flow_with_playwright():
             page.wait_for_timeout(100)
             assert page.evaluate("subScreen") == screen_id
             assert page.locator(f"#{screen_id}").is_visible()
-            page.locator(f"#{screen_id} .backrow").click()
+            # Quay lại bằng thanh tab segbar toàn cục (Mục 15)
+            page.locator("#segbar button[data-tab='hoso']").click()
             page.wait_for_timeout(100)
             assert page.evaluate("subScreen") is None
             assert page.locator("#tab-hoso").is_visible()

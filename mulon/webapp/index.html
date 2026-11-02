@@ -635,6 +635,21 @@ button:focus-visible{outline:2px solid var(--lav-deep);
   -webkit-box-orient:vertical; word-break:break-word;
 }
 .pol-val{font-size:var(--fs-cap); color:var(--ink2); flex:0 0 auto}
+.biz-mode-btn{
+  background: var(--card);
+  color: var(--ink2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.biz-mode-btn.active{
+  background: var(--accent, #7C3AED);
+  color: #fff;
+  border-color: var(--accent, #7C3AED);
+  font-weight: 600;
+}
 .pol-chev{color:var(--ink3); flex:0 0 auto; display:flex;
   align-items:center}
 .pol-menu{
@@ -1117,7 +1132,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- chi tiết 1 việc -->
 <section id="screen-task" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <div class="flex-between" style="align-items:flex-start; gap:10px; margin-bottom:6px;">
     <h2 class="screen-title" id="task-detail-title" style="margin-bottom:0; flex:1;">Chi tiết việc</h2>
     <span id="task-detail-status" class="r-state" style="font-size:13px; font-weight:600; color:var(--ink2); white-space:nowrap; padding-top:4px;"></span>
@@ -1163,11 +1177,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
     <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
   </div>
 
-  <div class="card-title" style="margin:8px 0 8px 4px; font-size:15px; font-weight:600; color:var(--ink2);">Sắp tới</div>
-  <div class="card" style="margin-bottom:18px;">
-    <div id="upcoming-list"></div>
-  </div>
-
   <div class="card-title" style="margin:16px 0 8px 4px; font-size:15px; font-weight:600; color:var(--ink2);">Lịch trình</div>
   <div class="card">
     <div id="schedule-list"></div>
@@ -1176,7 +1185,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Màn con: Chi tiết 1 lịch trình (T-23.4) -->
 <section id="screen-schedule-detail" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Lịch</div>
   <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:6px;">
     <h2 class="screen-title" id="sched-detail-title" style="margin-bottom:0; flex:1;">Chi tiết lịch trình</h2>
     <label class="tgl" id="sched-detail-tgl-wrap"><input type="checkbox" id="sched-detail-tgl"><span class="tr"></span></label>
@@ -1256,8 +1264,9 @@ a.ext{color:var(--lav-deep); word-break:break-all}
         <div id="identity-mascot-picker" class="flex-col" style="gap:8px;"></div>
       </div>
       <div style="margin-top:6px;">
-        <button class="btn btn-primary" id="btn-save-identity" type="button" style="width:100%; padding:12px; border-radius:12px; font-weight:600;">Lưu thay đổi</button>
+        <button class="btn btn-primary touch-target-44" id="btn-save-identity" type="button" style="width:100%; min-height:44px; padding:12px; border-radius:12px; font-weight:600;">Lưu thay đổi</button>
       </div>
+      <div style="font-size:11px; color:var(--ink3); line-height:1.4; margin-top:2px;">Đổi username, tên bot hoặc avatar trên Telegram qua BotFather (/setusername, /setname, /setuserpic).</div>
     </div>
   </div>
 </div>
@@ -1395,7 +1404,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Màn con 1: Hồ sơ của agent (danh sách file dossier) -->
 <section id="screen-sub-dossier" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <h2 class="screen-title">Hồ sơ của agent</h2>
   <div class="card">
     <div class="card-title" id="dossier-files-title">Tệp hồ sơ</div>
@@ -1405,7 +1413,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Màn con 2: Bộ nhớ dài hạn (tìm kiếm + lọc thời gian + nhóm chủ đề gập/mở) -->
 <section id="screen-sub-memory" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <h2 class="screen-title" id="memory-screen-title">Bộ nhớ dài hạn</h2>
   <div style="margin-bottom:8px">
     <input id="memory-search" class="field-input" type="text" placeholder="Tìm ký ức theo từ khoá (hỗ trợ không dấu)..." style="margin:0">
@@ -1421,7 +1428,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Màn chi tiết 1 fact trong Bộ nhớ dài hạn -->
 <section id="screen-fact-detail" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <h2 class="screen-title" id="fact-detail-title">Chi tiết ký ức</h2>
   <div class="card">
     <div class="preview-box" id="fact-detail-text"></div>
@@ -1434,7 +1440,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Màn con 3: Kỹ năng (tìm kiếm + nhóm danh mục gập/mở) -->
 <section id="screen-sub-skills" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <h2 class="screen-title" id="skills-card-title">Kỹ năng</h2>
   <div style="margin-bottom:10px">
     <input id="skills-search" class="field-input" type="text" placeholder="Tìm kiếm kỹ năng theo tên hoặc mô tả..." style="margin:0">
@@ -1444,7 +1449,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Màn con 4: Thư viện tài liệu (tìm kiếm + lọc loại + danh sách hàng chuẩn + menu ⋯) -->
 <section id="screen-sub-library" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <div class="flex-between" style="margin-bottom:10px;">
     <h2 class="screen-title" id="library-screen-title" style="margin-bottom:0;">Thư viện tài liệu</h2>
     <button class="btn btn-ghost btn-sm touch-target-44" id="lib-trash-view" style="padding:0 14px; font-size:13px; border-radius:10px;">Thùng rác</button>
@@ -1465,7 +1469,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Màn con cấp 3: Xem trước / Chi tiết tài liệu Thư viện -->
 <section id="screen-library-preview" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <h2 class="screen-title" id="lib-preview-title">Tài liệu</h2>
   <div class="card" style="margin-bottom:var(--s3)">
     <div class="card-title">Xem trước nội dung</div>
@@ -1480,7 +1483,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Màn con cấp 3: Thùng rác Thư viện tài liệu -->
 <section id="screen-library-trash" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <h2 class="screen-title">Thùng rác tài liệu</h2>
   <div class="card" id="lib-trash-box"></div>
 </section>
@@ -1521,14 +1523,12 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- xem nội dung hồ sơ/bộ nhớ -->
 <section id="screen-profile" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <h2 class="screen-title" id="profile-title">Nội dung</h2>
   <div class="card"><div class="md-content" id="profile-content" style="padding:var(--s4);"></div></div>
 </section>
 
 <!-- đọc nội dung 1 kỹ năng (SKILL.md) -->
 <section id="screen-skill" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <h2 class="screen-title" id="skill-title">Kỹ năng</h2>
   <div class="note" id="skill-source"></div>
   <div class="card"><div class="md-content" id="skill-content" style="padding:var(--s4);"></div></div>
@@ -1581,7 +1581,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Cài đặt con: Thiết bị & hệ thống -->
 <section id="screen-system" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
   <h2 class="screen-title">Thiết bị &amp; hệ thống</h2>
   <div class="card">
     <div class="card-title">Máy đang chạy Mulon</div>
@@ -1624,7 +1623,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Cài đặt con: Cổng model CLIProxyAPI (T-14) -->
 <section id="screen-cliproxy" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Thiết bị &amp; hệ thống</div>
   <h2 class="screen-title">Cổng model</h2>
   <div class="card">
     <div class="card-title">Trạng thái cổng 127.0.0.1:8317</div>
@@ -1673,64 +1671,8 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   </div>
 </section>
 
-<!-- Cài đặt con: Thương hiệu & Mascot (T-13) -->
-<section id="screen-brand" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
-  <h2 class="screen-title">Thương hiệu &amp; Mascot</h2>
-
-  <!-- Card 1: Đổi tên hiển thị & Giới hạn Telegram -->
-  <div class="card" style="margin-bottom:18px;">
-    <div class="card-title">Tên hiển thị của bot</div>
-    <div style="padding:0 var(--s4) var(--s2);">
-      <div style="font-size:13px; color:var(--ink2); margin-bottom:12px;">
-        Tên thân mật của bot hiển thị trên Mini App và lời thoại.
-      </div>
-      <div style="display:flex; gap:8px; margin-bottom:14px;">
-        <input type="text" id="input-bot-name" class="field-input touch-target-44" placeholder="Ví dụ: Mulon, Miu Con..." style="flex:1; border-radius:10px; border:1px solid var(--line); padding:0 12px; font-size:14px; background:var(--surface);">
-        <button class="btn btn-accent touch-target-44" id="btn-save-bot-name" type="button" style="padding:0 16px; font-weight:600; border-radius:10px;">Lưu tên</button>
-      </div>
-
-      <!-- Hộp ghi chú giới hạn Telegram theo đúng yêu cầu T-13 -->
-      <div class="info-callout" style="background:var(--tint-lav); border:1px solid var(--line); border-radius:12px; padding:12px 14px; font-size:12px; line-height:1.5;">
-        <div style="font-weight:600; color:var(--lav-deep); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-          Lưu ý về giới hạn Telegram BotFather
-        </div>
-        <div style="color:var(--ink2);">
-          • <b>Tên hiển thị bot:</b> Đổi được ngay tại đây — áp dụng tức thì trên Mini App và các phản hồi.<br>
-          • <b>Username bot Telegram (<span id="brand-tg-username">@Mulon_bot</span>):</b> Giới hạn bởi Telegram, chỉ đổi được qua @BotFather với lệnh <code>/setusername</code>.<br>
-          • <b>Tên bot trong danh bạ Telegram:</b> Đổi qua @BotFather bằng lệnh <code>/setname</code>.<br>
-          • <b>Ảnh đại diện bot trên Telegram:</b> Đổi qua @BotFather bằng lệnh <code>/setuserpic</code>.
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Card 2: Chọn Mascot trong vũ trụ Mulon -->
-  <div class="card" style="margin-bottom:18px;">
-    <div class="card-title">Linh vật đại diện</div>
-    <div style="padding:0 var(--s4) var(--s2);">
-      <div style="font-size:13px; color:var(--ink2); margin-bottom:14px;">
-        Bộ sưu tập 5 linh vật chính thức trong vũ trụ thương hiệu Mulon.
-      </div>
-      <div id="mascot-grid" class="flex-col" style="gap:12px;"></div>
-    </div>
-  </div>
-
-  <!-- Card 3: Chuẩn hoá Brand & Giọng văn -->
-  <div class="card">
-    <div class="card-title">Chuẩn hoá Brand &amp; Giọng điệu</div>
-    <div style="padding:0 var(--s4) var(--s2); font-size:13px; color:var(--ink2); line-height:1.55;">
-      • <b>Màu nhận diện:</b> Tím Mulon (Tỷ lệ 60/30/10 với màu nhấn <code>#7C3AED</code>).<br>
-      • <b>Biểu trưng:</b> Mèo thông minh kết hợp tia sáng Spark tinh anh.<br>
-      • <b>Giọng văn cốt lõi:</b> Thân thiện, khimh nhường, thông minh, gãy gọn; xưng hô chuẩn mực và tôn trọng chủ nhân.
-    </div>
-  </div>
-</section>
-
 <!-- Cài đặt con: Kết nối + Chợ MCP -->
 <section id="screen-connectors" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
   <h2 class="screen-title">Công cụ kết nối</h2>
   <div class="segbar inline" id="conn-seg">
     <button data-conn-tab="installed" class="active">Đã cài</button>
@@ -1775,9 +1717,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Cài đặt con: Cấu hình Google (Gmail & Google Calendar) -->
 <section id="screen-google-config" class="hidden">
-  <div class="backrow" data-back id="gconfig-back">
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Công cụ kết nối
-  </div>
   <h2 class="screen-title">Cấu hình Google</h2>
   <div class="note">Dùng chung một ủy quyền OAuth2 cho cả <b>Gmail</b> và <b>Google Calendar</b>. Thông tin xác thực được lưu trong Kho trên máy của bạn (file JSON quyền 0600, không mã hoá at-rest).</div>
 
@@ -1820,7 +1759,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Chợ MCP: server theo danh mục (màn con) -->
 <section id="screen-mktcat" class="hidden">
-  <div class="backrow" data-back id="mktcat-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Công cụ kết nối</div>
   <h2 class="screen-title" id="mktcat-title">Danh mục</h2>
   <div class="card"><div id="mkt-list"></div></div>
   <div class="card" id="mkt-pagination" style="display:none; justify-content:space-between; align-items:center; padding:var(--s2) var(--s3); margin-top:var(--s2);">
@@ -1832,14 +1770,12 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Chợ MCP: Chi tiết listing -->
 <section id="screen-listing" class="hidden">
-  <div class="backrow" data-back id="listing-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <h2 class="screen-title" id="listing-title">Chi tiết</h2>
   <div id="listing-body"></div>
 </section>
 
 <!-- Chợ MCP: Wizard / operation -->
 <section id="screen-install" class="hidden">
-  <div class="backrow" data-back id="install-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Công cụ kết nối</div>
   <h2 class="screen-title" id="install-title">Cài đặt MCP</h2>
   <div id="install-body"></div>
   <button class="btn btn-text" id="install-cancel">Huỷ operation</button>
@@ -1847,7 +1783,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Chợ MCP: Nhập thủ công -->
 <section id="screen-import" class="hidden">
-  <div class="backrow" data-back id="import-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Công cụ kết nối</div>
   <h2 class="screen-title">Nhập thủ công</h2>
   <div class="note">Dán JSON cấu hình MCP vào đây.</div>
   <div class="card"><textarea id="import-text" class="mkt-text"
@@ -1861,7 +1796,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Cài đặt con: Vault -->
 <section id="screen-vault" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
   <h2 class="screen-title">Kho lưu trữ an toàn</h2>
   <div class="note">Chỉ hiện nhãn và mã tham chiếu, không hiện
     giá trị. Nhập bí mật mới ngay tại đây: giá trị đi thẳng vào
@@ -1884,7 +1818,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Cài đặt con: Chi tiết bí mật Vault (T-23.6) -->
 <section id="screen-vault-detail" class="hidden">
-  <div class="backrow" data-back id="vault-detail-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Kho lưu trữ an toàn</div>
   <h2 class="screen-title" id="vault-detail-title">Chi tiết bí mật</h2>
   <div class="note">Bí mật được bảo vệ trong Kho an toàn trên máy host, chỉ cấp mã tham chiếu.</div>
   <div class="card">
@@ -1916,7 +1849,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Cài đặt con: Quyền -->
 <section id="screen-policy" class="hidden">
-  <div class="backrow" data-back><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Cài đặt</div>
   <h2 class="screen-title">Quyền</h2>
   <div class="note">Đổi là áp dụng ngay. Mặc định đọc = Cho phép, ghi/xoá = Hỏi.</div>
 
@@ -1935,6 +1867,22 @@ a.ext{color:var(--lav-deep); word-break:break-all}
       <div class="r-main"><div class="r-title">Lưu bền vào file policy</div></div>
       <label class="tgl"><input type="checkbox" id="policy-persist" checked>
         <span class="tr"></span></label>
+    </div>
+  </div>
+
+  <div class="card" id="policy-business-card">
+    <div class="card-title">Telegram Business</div>
+    <div class="row clickable" data-open="screen-business" id="policy-open-business-row" style="cursor:pointer;">
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </div>
+      <div class="r-main">
+        <div class="r-title">Telegram Business</div>
+        <div class="r-sub" id="policy-biz-status-text">Đang kiểm tra kết nối...</div>
+      </div>
+      <span class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
     </div>
   </div>
 
@@ -1957,7 +1905,6 @@ a.ext{color:var(--lav-deep); word-break:break-all}
 
 <!-- Cài đặt con: Quyền chi tiết connector (1.6.0 & T-23.6) -->
 <section id="screen-connector-policy" class="hidden">
-  <div class="backrow" data-back id="conn-pol-back"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Quay lại</div>
   <h2 class="screen-title" id="conn-pol-title">Chi tiết connector</h2>
   <div class="note" id="conn-pol-desc">Trạng thái kết nối và phân quyền chi tiết theo từng hành động.</div>
 
@@ -1979,6 +1926,90 @@ a.ext{color:var(--lav-deep); word-break:break-all}
   <div class="card hidden" id="conn-pol-other-card">
     <div class="card-title">Công cụ khác</div>
     <div id="conn-pol-other"></div>
+  </div>
+</section>
+
+<!-- Cài đặt con: Telegram Business (T-42) -->
+<section id="screen-business" class="hidden">
+  <h2 class="screen-title">Telegram Business</h2>
+
+  <!-- Card 1: Kết nối & Điều khiển -->
+  <div class="card">
+    <div class="card-title">Kết nối &amp; Điều khiển</div>
+    <div class="row static">
+      <div class="r-main">
+        <div class="r-title">Trạng thái kết nối</div>
+        <div class="r-sub" id="biz-conn-detail">—</div>
+      </div>
+      <span class="pol-val" id="biz-conn-status-badge">Chưa kết nối</span>
+    </div>
+    <div class="row static">
+      <div class="r-main">
+        <div class="r-title">Bật xử lý tin nhắn Business</div>
+      </div>
+      <label class="tgl">
+        <input type="checkbox" id="biz-enabled-tgl">
+        <span class="tr"></span>
+      </label>
+    </div>
+    <div class="row static" style="flex-direction:column; align-items:flex-start; gap:8px;">
+      <div class="r-title">Chế độ trả lời</div>
+      <div class="biz-mode-group" style="display:flex; width:100%; gap:8px;">
+        <button type="button" class="btn btn-sm biz-mode-btn" id="biz-mode-auto" data-mode="auto" style="flex:1; min-height:44px;">Tự động</button>
+        <button type="button" class="btn btn-sm biz-mode-btn" id="biz-mode-draft" data-mode="draft" style="flex:1; min-height:44px;">Soạn nháp</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: 3 nhóm quyền Telegram đã cấp (Read-only) -->
+  <div class="card">
+    <div class="card-title">Quyền từ Telegram</div>
+    <div class="note" style="padding:0 var(--s4) 8px;">Thiết lập trong Cài đặt Telegram &gt; Telegram Business &gt; Chatbots. Quyền chỉ-đọc tại đây.</div>
+
+    <!-- Nhóm 1: Quản lý tin nhắn -->
+    <div style="padding:var(--s2) var(--s4); font-size:12px; font-weight:600; color:var(--ink2); text-transform:uppercase; letter-spacing:0.5px;">Quản lý tin nhắn</div>
+    <div id="biz-rights-messages"></div>
+
+    <!-- Nhóm 2: Hồ sơ -->
+    <div style="padding:var(--s2) var(--s4); font-size:12px; font-weight:600; color:var(--ink2); text-transform:uppercase; letter-spacing:0.5px; border-top:1px solid var(--line); margin-top:8px;">Hồ sơ</div>
+    <div id="biz-rights-profile"></div>
+
+    <!-- Nhóm 3: Quà & Sao -->
+    <div style="padding:var(--s2) var(--s4); font-size:12px; font-weight:600; color:var(--ink2); text-transform:uppercase; letter-spacing:0.5px; border-top:1px solid var(--line); margin-top:8px;">Quà &amp; Sao</div>
+    <div id="biz-rights-gifts"></div>
+  </div>
+
+  <!-- Card 3: Thống kê hoạt động -->
+  <div class="card">
+    <div class="card-title">Hoạt động Chatbot</div>
+    <div class="row static">
+      <div class="r-main"><div class="r-title">Tổng tin nhắn đã xử lý</div></div>
+      <span class="pol-val" id="biz-stat-total">0</span>
+    </div>
+    <div class="row static">
+      <div class="r-main"><div class="r-title">Tin tự động trả lời</div></div>
+      <span class="pol-val" id="biz-stat-auto">0</span>
+    </div>
+    <div class="row static">
+      <div class="r-main"><div class="r-title">Bản nháp đã tạo</div></div>
+      <span class="pol-val" id="biz-stat-drafts">0</span>
+    </div>
+    <div class="row static">
+      <div class="r-main"><div class="r-title">Sản phẩm trong catalog</div></div>
+      <span class="pol-val" id="biz-stat-products">0</span>
+    </div>
+    <div class="row static">
+      <div class="r-main"><div class="r-title">Câu hỏi FAQ giải đáp sẵn</div></div>
+      <span class="pol-val" id="biz-stat-faq">0</span>
+    </div>
+  </div>
+
+  <!-- Card 4: Ghi chú trung thực -->
+  <div class="card">
+    <div class="card-title">Ghi chú vận hành</div>
+    <div style="padding:0 var(--s4) var(--s2); font-size:12px; color:var(--ink2); line-height:1.5;">
+      Quyền kết nối Telegram Business và danh sách cuộc trò chuyện loại trừ chỉ có thể điều chỉnh trực tiếp trong ứng dụng Telegram (Cài đặt &gt; Telegram Business &gt; Chatbots). Telegram Bot API không thể tự cấp thêm quyền hoặc đọc danh sách chat loại trừ.
+    </div>
   </div>
 </section>
 
@@ -2350,6 +2381,7 @@ const TAB_OF_SCREEN = {"screen-task":"viec","screen-schedule-detail":"lich","scr
   "screen-connectors":"caidat","screen-vault":"caidat",
   "screen-vault-detail":"caidat",
   "screen-policy":"caidat",
+  "screen-business":"caidat",
   "screen-system":"caidat",
   "screen-cliproxy":"caidat",
   "screen-api-settings":"caidat",
@@ -2376,6 +2408,7 @@ const SCREEN_TITLES = {
   "screen-vault":"Kho lưu trữ an toàn","screen-vault-detail":"Chi tiết bí mật",
   "screen-brand":"Thương hiệu & Mascot",
   "screen-policy":"Quyền",
+  "screen-business":"Telegram Business",
   "screen-connector-policy":"Chi tiết connector & Quyền"
 };
 let profileReturnScreen = "screen-sub-dossier";
@@ -2522,6 +2555,8 @@ function showSub(id){
     renderVault();
   } else if (id === "screen-policy") {
     renderPolicy();
+  } else if (id === "screen-business") {
+    loadBusinessStatus();
   } else if (id === "screen-system") {
     renderSystem();
   } else if (id === "screen-feed") {
@@ -2557,6 +2592,8 @@ function handleNativeBack(){
   } else if (subScreen === "screen-vault-detail") {
     showSub("screen-vault");
   } else if (subScreen === "screen-all-tools-policy") {
+    showSub("screen-policy");
+  } else if (subScreen === "screen-business") {
     showSub("screen-policy");
   } else if (subScreen === "screen-google-config") {
     showSub("screen-connectors");
@@ -4251,41 +4288,50 @@ function renderSchedule(){
   }
 
   const userItems = sch.items.filter(it => it.kind === "schedule");
+  const upcoming = (S && S.upcoming) || [];
 
-  // Danh sách Sắp tới hợp nhất từ dữ liệu thật — mọi hàng bấm mở chi tiết
-  const upBox = $("upcoming-list");
-  if (upBox) {
-    const upcoming = (S && S.upcoming) || [];
-    if (!upcoming.length) {
-      upBox.innerHTML = '<div class="empty">Chưa có việc sắp tới nào. ' +
-        'Lịch hẹn, Heartbeat, lịch Feed và cam kết đang theo dõi sẽ xuất hiện tại đây.</div>';
-    } else {
-      upBox.innerHTML = upcoming.map(it => {
-        const cronLabel = it.cron_display || (it.cron ? formatCronDisplay(it.cron) : (it.time_label || ""));
-        const nextLabel = it.next_run_at ? ("tới: " + todayLabel(it.next_run_at)) : "";
-        const sub = [cronLabel, nextLabel].filter(Boolean).join(" · ");
-        const openId = it.schedule_id || it.id || "";
-        return '<div class="row" data-sched-open="' + esc(openId) + '">' +
-          '<div class="r-main"><div class="r-title">' + esc(it.title) +
-          '</div><div class="r-sub">' + esc(sub) + '</div></div>' +
-          '<span class="r-state">Chi tiết</span>' +
-          CHEV_SVG +
-          '</div>';
-      }).join("");
+  // Gộp hợp nhất thành 1 danh sách Lịch trình duy nhất (Mục 7 T-41)
+  const combinedMap = new Map();
+  userItems.forEach(it => {
+    combinedMap.set(it.id, {
+      id: it.id,
+      title: it.name || it.title || "Lịch trình",
+      cron: it.cron,
+      cron_display: it.cron_display || formatCronDisplay(it.cron),
+      next_run_at: it.next_run_at,
+      enabled: it.enabled,
+      toggleable: it.toggleable
+    });
+  });
+  upcoming.forEach(it => {
+    const key = it.schedule_id || it.id;
+    if (key && !combinedMap.has(key)) {
+      combinedMap.set(key, {
+        id: key,
+        title: it.title || it.name || "Lịch trình",
+        cron: it.cron,
+        cron_display: it.cron_display || (it.cron ? formatCronDisplay(it.cron) : (it.time_label || "")),
+        next_run_at: it.next_run_at,
+        enabled: it.enabled !== undefined ? it.enabled : true,
+        toggleable: !!it.toggleable
+      });
     }
-  }
+  });
 
-  // Danh sách lịch hẹn người dùng — diễn giải cron tiếng Việt + mở màn chi tiết
+  const allItems = Array.from(combinedMap.values());
   const boxUser = $("schedule-list");
-  if (!userItems.length){
-    boxUser.innerHTML = '<div class="empty">Chưa có lịch hẹn cá nhân nào.<br>' +
+  if (!boxUser) return;
+
+  if (!allItems.length) {
+    boxUser.innerHTML = '<div class="empty">Chưa có lịch trình nào.<br>' +
       'Nhờ Mulon đặt lịch trong chat (ví dụ: “nhắc tui 9h sáng mai…”).</div>';
   } else {
-    boxUser.innerHTML = userItems.map(it => {
-      const cronDisp = it.cron_display || formatCronDisplay(it.cron);
-      const subText = cronDisp + (it.next_run_at ? " · tới: " + todayLabel(it.next_run_at) : "");
+    boxUser.innerHTML = allItems.map(it => {
+      const cronDisp = it.cron_display || (it.cron ? formatCronDisplay(it.cron) : "");
+      const nextLabel = it.next_run_at ? ("tới: " + todayLabel(it.next_run_at)) : "";
+      const subText = [cronDisp, nextLabel].filter(Boolean).join(" · ");
       return '<div class="row" data-sched-open="' + esc(it.id) + '">' +
-        '<div class="r-main"><div class="r-title">' + esc(it.name) +
+        '<div class="r-main"><div class="r-title">' + esc(it.title) +
         '</div><div class="r-sub">' + esc(subText) +
         '</div></div>' +
         (it.toggleable
@@ -6162,14 +6208,175 @@ function renderPolicy(){
       '</div>';
   }).join("") || '<div class="empty">Chưa có connector nào.</div>';
 
-  $("policy-tools-sub").textContent = totalCount + " công cụ trong hệ thống (tìm kiếm & lọc)";
+  const pts = $("policy-tools-sub");
+  if (pts) pts.textContent = totalCount + " công cụ trong hệ thống";
 
   document.querySelectorAll("#policy-summary-card .pol-row, #policy-groups .pol-row").forEach(row =>
     row.addEventListener("click", () => openPolMenu(row)));
 
   if (subScreen === "screen-connector-policy") renderConnectorPolicyDetail();
   if (subScreen === "screen-all-tools-policy") renderAllToolsPolicy();
+  loadBusinessStatus(true);
 }
+
+/* ---------------- Telegram Business (T-42) ---------------- */
+let BUSINESS_DATA = null;
+
+async function loadBusinessStatus(silent) {
+  try {
+    const res = await api("/api/business/status");
+    if (res && res.ok && res.business) {
+      BUSINESS_DATA = res.business;
+      renderBusinessStatus(BUSINESS_DATA);
+      updatePolicyBusinessEntry(BUSINESS_DATA);
+    }
+  } catch (err) {
+    if (!silent) console.error("loadBusinessStatus error:", err);
+  }
+}
+
+function updatePolicyBusinessEntry(b) {
+  const el = $("policy-biz-status-text");
+  if (!el) return;
+  const conn = b && b.connection_info;
+  if (conn && conn.is_enabled) {
+    el.textContent = "Đang kết nối · ID: " + (conn.connection_id || "—");
+  } else {
+    el.textContent = "Chưa kết nối";
+  }
+}
+
+function renderBusinessStatus(b) {
+  if (!b) return;
+  const conn = b.connection_info;
+  const isConnected = !!(conn && conn.is_enabled);
+
+  // 1. Trạng thái kết nối
+  const statusBadge = $("biz-conn-status-badge");
+  if (statusBadge) {
+    statusBadge.textContent = isConnected ? "Đang kết nối" : "Chưa kết nối";
+    statusBadge.style.color = isConnected ? "var(--ink1)" : "var(--ink3)";
+  }
+  const connDetail = $("biz-conn-detail");
+  if (connDetail) {
+    if (isConnected) {
+      connDetail.textContent = "ID: " + (conn.connection_id || "—") + (conn.user_id ? " · User: " + conn.user_id : "");
+    } else {
+      connDetail.textContent = "Cài đặt Telegram > Telegram Business > Chatbots";
+    }
+  }
+
+  // 2. Toggle bật/tắt bot Business
+  const enabledTgl = $("biz-enabled-tgl");
+  if (enabledTgl) {
+    enabledTgl.checked = !!b.config_enabled;
+  }
+
+  // 3. Chế độ trả lời (auto vs draft)
+  const replyMode = b.reply_mode || "auto";
+  const btnAuto = $("biz-mode-auto");
+  const btnDraft = $("biz-mode-draft");
+  if (btnAuto && btnDraft) {
+    btnAuto.classList.toggle("active", replyMode === "auto");
+    btnDraft.classList.toggle("active", replyMode === "draft");
+  }
+
+  // 4. Render 3 nhóm quyền (Read-only)
+  const rights = b.rights || (conn && conn.rights) || {};
+  const groups = b.rights_groups || {
+    messages: {
+      title: "Quản lý tin nhắn",
+      keys: [
+        ["can_reply", "Có thể trả lời tin nhắn"],
+        ["can_read_messages", "Có thể đọc tin nhắn"],
+        ["can_delete_sent_messages", "Có thể xoá tin nhắn đã gửi"],
+        ["can_delete_all_messages", "Có thể xoá tất cả tin nhắn"]
+      ]
+    },
+    profile: {
+      title: "Hồ sơ",
+      keys: [
+        ["can_edit_name", "Có thể chỉnh sửa tên"],
+        ["can_edit_username", "Có thể chỉnh sửa username"],
+        ["can_manage_stories", "Có thể quản lý tin"]
+      ]
+    },
+    gifts_and_stars: {
+      title: "Quà & Sao",
+      keys: [
+        ["can_change_gift_settings", "Đổi cài đặt quà"],
+        ["can_view_gifts_and_stars", "Xem quà & sao"],
+        ["can_convert_gifts_to_stars", "Chuyển đổi quà sang sao"],
+        ["can_transfer_and_upgrade_gifts", "Chuyển & nâng cấp quà"],
+        ["can_transfer_stars", "Chuyển sao"]
+      ]
+    }
+  };
+
+  const renderGroup = (keys, containerId) => {
+    const container = $(containerId);
+    if (!container) return;
+    container.innerHTML = keys.map(([k, label]) => {
+      const isGranted = !!rights[k];
+      const valLabel = isGranted ? "Được cấp" : "Tắt";
+      const valColor = isGranted ? "var(--ink1)" : "var(--ink3)";
+      return (
+        '<div class="row static biz-right-row" style="min-height:44px;">' +
+          '<div class="r-main">' +
+            '<div class="r-title" style="font-size:13px;">' + esc(label) + '</div>' +
+          '</div>' +
+          '<span class="pol-val" style="color:' + valColor + '; font-weight:' + (isGranted ? "600" : "400") + ';">' +
+            esc(valLabel) +
+          '</span>' +
+        '</div>'
+      );
+    }).join("");
+  };
+
+  if (groups.messages) renderGroup(groups.messages.keys, "biz-rights-messages");
+  if (groups.profile) renderGroup(groups.profile.keys, "biz-rights-profile");
+  if (groups.gifts_and_stars) renderGroup(groups.gifts_and_stars.keys, "biz-rights-gifts");
+
+  // 5. Thống kê hoạt động
+  const stats = b.stats || {};
+  if ($("biz-stat-total")) $("biz-stat-total").textContent = (stats.auto_replies || 0) + (stats.drafts_created || 0);
+  if ($("biz-stat-auto")) $("biz-stat-auto").textContent = stats.auto_replies || 0;
+  if ($("biz-stat-drafts")) $("biz-stat-drafts").textContent = stats.drafts_created || 0;
+  if ($("biz-stat-products")) $("biz-stat-products").textContent = b.products_count || 0;
+  if ($("biz-stat-faq")) $("biz-stat-faq").textContent = b.faq_count || 0;
+}
+
+async function saveBusinessConfig(updates) {
+  try {
+    haptic("light");
+    const res = await api("/api/business/config", "POST", updates);
+    if (res && res.ok) {
+      if (BUSINESS_DATA) {
+        if (updates.enabled !== undefined) BUSINESS_DATA.config_enabled = res.enabled;
+        if (updates.reply_mode !== undefined) BUSINESS_DATA.reply_mode = res.reply_mode;
+        renderBusinessStatus(BUSINESS_DATA);
+        updatePolicyBusinessEntry(BUSINESS_DATA);
+      }
+      toast("Đã lưu cấu hình Business");
+    } else {
+      toast((res && res.error) || "Không thể lưu cấu hình");
+    }
+  } catch (err) {
+    toast("Lỗi lưu cấu hình: " + (err.message || err));
+  }
+}
+
+if ($("biz-enabled-tgl")) {
+  $("biz-enabled-tgl").addEventListener("change", (e) => {
+    saveBusinessConfig({ enabled: e.target.checked });
+  });
+}
+document.querySelectorAll(".biz-mode-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const mode = btn.dataset.mode;
+    saveBusinessConfig({ reply_mode: mode });
+  });
+});
 
 let allToolsCat = "all";
 function renderAllToolsPolicy(){

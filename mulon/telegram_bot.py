@@ -4818,7 +4818,9 @@ class TelegramSurface:
             if not self._is_allowed(message):
                 return
             report = await self.business_service.get_status_report()
-            cfg_on = "Bật (1)" if report["config_enabled"] else "Tắt (0) — đặt TELEGRAM_BUSINESS_ENABLED=1 để bật"
+            cfg_on = "Bật (1)" if report.get("config_enabled") else "Tắt (0) — đặt TELEGRAM_BUSINESS_ENABLED=1 để bật"
+            reply_mode = report.get("reply_mode", "auto")
+            mode_label = "Tự động (Auto)" if reply_mode == "auto" else "Soạn nháp chờ duyệt (Draft)"
             conn_info = report.get("connection_info")
             if conn_info and conn_info.get("is_enabled"):
                 conn_status = f"Đang kết nối (ID: <code>{conn_info.get('connection_id')}</code>)"
@@ -4829,19 +4831,29 @@ class TelegramSurface:
 
             stats = report.get("stats", {})
             lines = [
-                "<b>BÁO CÁO TELEGRAM BUSINESS CHATBOT (T-29)</b>",
+                "<b>BÁO CÁO TELEGRAM BUSINESS CHATBOT (T-29 / T-42)</b>",
                 f"• Cấu hình hệ thống: <b>{cfg_on}</b>",
+                f"• Chế độ trả lời: <b>{mode_label}</b>",
                 f"• Trạng thái kết nối: {conn_status}",
                 f"• Quyền trả lời: <i>{reply_perm}</i>",
+            ]
+            rights = report.get("rights")
+            if rights and conn_info and conn_info.get("is_enabled"):
+                msg_count = sum(1 for k in ("can_reply", "can_read_messages", "can_delete_sent_messages", "can_delete_all_messages") if rights.get(k))
+                prof_count = sum(1 for k in ("can_edit_name", "can_edit_username", "can_manage_stories") if rights.get(k))
+                gift_count = sum(1 for k in ("can_change_gift_settings", "can_view_gifts_and_stars", "can_convert_gifts_to_stars", "can_transfer_and_upgrade_gifts", "can_transfer_stars") if rights.get(k))
+                lines.append(f"• Quyền Telegram: Tin nhắn ({msg_count}/4) · Hồ sơ ({prof_count}/3) · Quà & Sao ({gift_count}/5)")
+
+            lines.extend([
                 "",
                 "<b>Thống kê hoạt động:</b>",
-                f"• Tự động trả lời (Auto-reply): <b>{stats.get('auto_replies', 0)}</b>",
-                f"• Bản nháp cần duyệt (Drafts): <b>{stats.get('drafts_created', 0)}</b> (Đã duyệt: {stats.get('drafts_approved', 0)} · Từ chối: {stats.get('drafts_denied', 0)})",
-                f"• Sản phẩm trong catalog: <b>{report.get('products_count', 0)}</b> món (cấm bịa giá)",
+                f"• Tự động trả lời: <b>{stats.get('auto_replies', 0)}</b>",
+                f"• Bản nháp cần duyệt: <b>{stats.get('drafts_created', 0)}</b> (Đã duyệt: {stats.get('drafts_approved', 0)} · Từ chối: {stats.get('drafts_denied', 0)})",
+                f"• Sản phẩm trong catalog: <b>{report.get('products_count', 0)}</b> món",
                 f"• FAQ giải đáp sẵn: <b>{report.get('faq_count', 0)}</b> chủ đề",
                 "",
-                "<i>Nguyên tắc an toàn: STK ngân hàng & giảm giá luôn soạn nháp chờ chủ duyệt, tuyệt đối không tự gửi.</i>",
-            ]
+                "<i>Chỉnh sửa quyền Telegram & danh sách loại trừ tại Cài đặt Telegram → Telegram Business → Chatbots.</i>",
+            ])
             await message.answer("\n".join(lines), parse_mode="HTML")
 
         # Gắn tham chiếu các lệnh cốt lõi cho test & tái sử dụng

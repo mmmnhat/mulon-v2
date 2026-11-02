@@ -513,9 +513,7 @@ async def test_playwright_t23_5_ui_polish_mkt_and_feed(env_t23_5):
             await page.screenshot(path=str(ARTIFACT_DIR / "t23_5_mkt_category.png"), full_page=True)
 
         # Quay lại Cài đặt (Mục 19: Đã gỡ màn Feed chủ động khỏi UI)
-        await page.click("#mktcat-back")
-        await page.wait_for_selector("#screen-connectors:not(.hidden)")
-        await page.click('#screen-connectors .backrow[data-back]')
+        await page.click('#segbar button[data-tab="caidat"]')
         await page.wait_for_selector("#tab-caidat:not(.hidden)")
         # Xác nhận màn feed không còn tồn tại trên DOM
         assert await page.query_selector("#screen-feed") is None

@@ -340,8 +340,8 @@ def test_playwright_t12_design_system_and_interactions(cfg: Config):
             page.locator("#step-sheet-close").click()
             page.wait_for_selector("#sheet-step-detail", state="hidden")
 
-            # Bấm quay lại Tab Việc
-            page.locator("#screen-task [data-back]").click()
+            # Bấm quay lại Tab Việc qua segbar (Mục 15)
+            page.locator('#segbar button[data-tab="viec"]').click()
             page.wait_for_selector("#tab-viec:not(.hidden)")
 
             # 4. Kiểm tra việc lỗi 'task-failed-03' có cụm nút thử lại
@@ -352,8 +352,8 @@ def test_playwright_t12_design_system_and_interactions(cfg: Config):
             assert page.locator("#btn-retry-task").is_visible()
             assert page.locator("#btn-retry-step").is_visible()
 
-            # Quay lại
-            page.locator("#screen-task [data-back]").click()
+            # Quay lại Tab Việc qua segbar (Mục 15)
+            page.locator('#segbar button[data-tab="viec"]').click()
             page.wait_for_selector("#tab-viec:not(.hidden)")
 
             # 5. Kiểm tra Cài đặt -> Thiết bị & Hệ thống -> Lối tắt màn hình chính

@@ -358,8 +358,8 @@ def test_playwright_t27_ui_perfection(cfg: Config):
             if ARTIFACT_DIR.exists():
                 page.screenshot(path=str(ARTIFACT_DIR / "t27_screen_schedule_detail.png"), full_page=True)
 
-            # Quay lại Tab Lịch qua BackButton
-            page.locator("#screen-schedule-detail .backrow").click()
+            # Quay lại Tab Lịch qua BackButton Telegram
+            page.evaluate("() => window.Telegram.WebApp.BackButton._cb()")
             page.wait_for_selector("#tab-lich:not(.hidden)")
 
             # ---------------- 3. KIỂM THỬ TAB CÀI ĐẶT & KHO BÍ MẬT ----------------
@@ -381,12 +381,12 @@ def test_playwright_t27_ui_perfection(cfg: Config):
             if ARTIFACT_DIR.exists():
                 page.screenshot(path=str(ARTIFACT_DIR / "t27_screen_vault_detail.png"), full_page=True)
 
-            # Quay lại Kho lưu trữ
-            page.locator("#screen-vault-detail .backrow").click()
+            # Quay lại Kho lưu trữ qua BackButton Telegram
+            page.evaluate("() => window.Telegram.WebApp.BackButton._cb()")
             page.wait_for_selector("#screen-vault:not(.hidden)")
 
-            # Quay lại Cài đặt
-            page.locator("#screen-vault .backrow").click()
+            # Quay lại Cài đặt qua BackButton Telegram
+            page.evaluate("() => window.Telegram.WebApp.BackButton._cb()")
             page.wait_for_selector("#tab-caidat:not(.hidden)")
 
             browser.close()

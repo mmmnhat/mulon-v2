@@ -83,10 +83,11 @@ Không được phá, dù để "làm cho tiện":
 
 1. **Telegram-only**: bề mặt duy nhất là Telegram bot + Mini App.
    Không thêm web UI công khai, không thêm kênh chat khác.
-2. **Proxy-only**: model CHỈ gọi qua proxy local
-   `127.0.0.1:8317` (`PROXY_BASE_URL` được validate fail-fast ở cả
-   `Config.load()` và `ModelGateway`). Chỉ mở host khác khi có env
-   tường minh `MULON_ALLOW_REMOTE_PROXY=1`.
+2. **Proxy / API Endpoint linh hoạt (chủ dự án chốt 2026-11-01, T-41 mục 18)**:
+   Mặc định trỏ proxy local `127.0.0.1:8317` (`PROXY_BASE_URL`). Người dùng
+   được cấu hình trực tiếp endpoint và API key tại màn "Thiết lập API" trên
+   Mini App (lưu qua Vault `llm:api_key`, không lưu plaintext vào code hay
+   config công khai). Chỉ mở host remote qua biến env hoặc cấu hình hợp lệ.
 3. **Degrade, không sập**: thiếu gói tuỳ chọn (mcp, sqlite-vec,
    cryptography...), thiếu file cấu hình, một MCP server chết —
    bot vẫn chạy, chỉ mất phần đó, có log + status rõ ràng.
@@ -131,8 +132,10 @@ Cấm tuyệt đối:
   trên máy đang chạy (`~/.agents/skills`...), không cần symlink.
 - URL tunnel tạm (trycloudflare theo phiên) ghi chết ở bất cứ đâu.
 - Email/ID cá nhân của chủ dự án trong code chạy.
-- Ba tier model (brain/cheap/escalated) để cùng một default —
-  phân tầng là phải khác nhau thật.
+- Ba tier model hardcode cứng không phân tầng khi chưa có chỉ định
+  *(Ngoại lệ: từ 2026-11-01 theo quyết định chủ dự án trong T-41 mục 16,
+  người dùng được phép cấu hình 1 model duy nhất dùng chung cả 3 tier
+  qua màn Thiết lập API trên Mini App)*.
 
 Được phép để trong code: endpoint API chính thức của nhà cung cấp
 (Google, Bing...), cổng proxy `8317` (ràng buộc kiến trúc mục 3),

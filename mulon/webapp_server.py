@@ -1379,9 +1379,11 @@ class WebAppServer:
                             self._handle_personal_connector_connect)
         app.router.add_post("/api/personal-connector/disconnect",
                             self._handle_personal_connector_disconnect)
-        # 1.7.36 (T-29): Telegram Business Chatbot
+        # 1.7.36 (T-29 / T-42): Telegram Business Chatbot
         app.router.add_get("/api/business/status",
                            self._handle_business_status)
+        app.router.add_post("/api/business/config",
+                            self._handle_business_config)
         # 1.3.0: Chợ MCP — mọi route qua cùng middleware auth
         # initData owner-only như các /api/* khác.
         app.router.add_get("/api/marketplace/summary",
@@ -4342,13 +4344,39 @@ p {{ line-height: 1.5; color: #6E6A61; margin-bottom: 24px; }}
 </html>"""
             return web.Response(text=fail_html, content_type="text/html", status=400)
 
-    # ---------- 1.7.36: Telegram Business (T-29) ----------
+    # ---------- 1.7.36 / 1.7.66: Telegram Business (T-29 / T-42) ----------
     async def _handle_business_status(self, request):
-        """Báo cáo trạng thái Telegram Business Chatbot (T-29)."""
+        """Báo cáo trạng thái Telegram Business Chatbot (T-29 / T-42)."""
         from .business import TelegramBusinessService
         svc = TelegramBusinessService(cfg=self.cfg, memory=self.memory, broker=self.broker)
         report = await svc.get_status_report()
         return web.json_response({"ok": True, "business": report})
+
+    async def _handle_business_config(self, request):
+        """Cập nhật cấu hình Telegram Business (T-42): enabled, reply_mode."""
+        from .business import TelegramBusinessService
+        try:
+            body = await request.json()
+        except Exception:
+            return web.json_response({"ok": False, "error": "Invalid JSON"}, status=400)
+
+        enabled = body.get("enabled")
+        reply_mode = body.get("reply_mode")
+
+        if enabled is not None and not isinstance(enabled, bool):
+            if enabled in (1, "1", "true", "True"):
+                enabled = True
+            elif enabled in (0, "0", "false", "False"):
+                enabled = False
+            else:
+                return web.json_response({"ok": False, "error": "Invalid enabled parameter"}, status=400)
+
+        if reply_mode is not None and reply_mode not in ("auto", "draft"):
+            return web.json_response({"ok": False, "error": "Invalid reply_mode (must be 'auto' or 'draft')"}, status=400)
+
+        svc = TelegramBusinessService(cfg=self.cfg, memory=self.memory, broker=self.broker)
+        res = await svc.update_config(enabled=enabled, reply_mode=reply_mode)
+        return web.json_response(res)
 
     # ---------- 1.3.0: Chợ MCP ----------
     def _mkt_guard(self):
